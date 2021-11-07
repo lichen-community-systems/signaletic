@@ -12,20 +12,15 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      # Install Build Dependencies
-      - name: Install Meson
-        uses: actions/setup-python@v1
-          with:
-            python-version: '3.x'
-        uses: BSFishy/pip-action@v1
-          with:
-            packages: |
-              meson
-              ninja
-
-      # Checkout
-      - name: Checkout
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v1
+        with:
+          python-version: '3.x'
+      - uses: BSFishy/pip-action@v1
+        with:
+          packages: |
+            meson
+            ninja
 
       # Build libstar with Meson
       - name: meson build
