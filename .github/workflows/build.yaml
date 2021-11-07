@@ -12,9 +12,12 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+      # Checkout
+      - name: Checkout
+        uses: actions/checkout@v2
+
       # Build libstar with Meson
       - name: meson build
-        uses: actions/checkout@v2
         run: |
           cd libstar
           meson setup build
