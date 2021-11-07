@@ -27,5 +27,6 @@ libstar_dep = declare_dependency(
 executable(
     'libstar-console-example',
     'examples/console/src/print-sine.c',
-    dependencies: [libstar_dep]
+    dependencies: [libstar_dep],
+    link_args: '-lm'
 )
