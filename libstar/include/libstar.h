@@ -10,7 +10,8 @@ extern "C" {
 // Build the wasm version with Emscripten.
 #include <math.h>
 
-static const float star_TWOPI = M_PI * 2.0f;
+static const float star_PI = 3.14159265358979323846f;
+static const float star_TWOPI = star_PI * 2.0f;
 
 /**
  * Converts MIDI note numbers into frequencies in hertz.
