@@ -1,0 +1,26 @@
+name: build-and-run
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      # Build libstar with Meson
+      - name: meson build
+        uses: actions/checkout@v2
+        run: |
+          cd libstar
+          meson setup build
+          meson compile -C build
+
+      # Run examples
+      - name: run console example
+        run: |
+          ./libstar/build/libstar-console-example
