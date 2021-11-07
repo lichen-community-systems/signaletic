@@ -1,11 +1,11 @@
 # Project Name
-TARGET ?= libflock-bluemchen-example
+TARGET ?= starlings-bluemchen-example
 
 DEBUG = 1
 OPT = -O0
 
 # Sources
-C_SOURCES = ../../../libflock/src/libflock.c
+C_SOURCES = ../../../../libstar/src/libstar.c
 CPP_SOURCES = vendor/kxmx_bluemchen/src/kxmx_bluemchen.cpp src/${TARGET}.cpp
 
 USE_FATFS = 1

@@ -54,7 +54,9 @@ To compile to Daisy-based Eurorack modules:
 3. Open ```index.html``` using VS Code's LiveServer or other webserver
 
 #### Bluemchen Example
-1. ```cd hosts/daisy/examples/bluemchen```
+1. ```cd hosts/daisy/vendor/libDaisy```
+2. ```make```
+3. ```cd ../../examples/bluemchen```
 2. ```make```
 3. Use the [Daisy Web Programmer](https://electro-smith.github.io/Programmer/) to flash the ```build/libflock-bluemchen-example.bin``` binary to the Daisy board
 
