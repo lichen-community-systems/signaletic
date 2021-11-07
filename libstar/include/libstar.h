@@ -6,8 +6,8 @@ extern "C" {
 #endif
 
 // TODO: Doesn't exist in a non-Emcripten-compiled wasm environment.
-// Need to either switch to a faster custom approximation or
-// Build the wasm version with Emscripten.
+// Need to either switch to a faster custom approximation of sin()
+// and other functions, or build the wasm version with Emscripten.
 #include <math.h>
 
 static const float star_PI = 3.14159265358979323846f;

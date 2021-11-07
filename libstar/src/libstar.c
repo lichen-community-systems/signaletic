@@ -76,7 +76,7 @@ void star_sig_Sine_generate(void* self) {
     struct star_sig_Sine* this = (struct star_sig_Sine*) self;
 
     for (int i = 0; i < this->signal.audioSettings->blockSize; i++) {
-        float modulatedPhase = fmod(this->phaseAccumulator +
+        float modulatedPhase = fmodf(this->phaseAccumulator +
             this->inputs->phaseOffset[i], star_TWOPI);
 
         this->signal.output[i] = sinf(modulatedPhase) *

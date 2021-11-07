@@ -14,7 +14,8 @@ source_files = [
 # libstar
 libstar_library = static_library(
     meson.project_name(),
-    source_files
+    source_files,
+    link_args: '-lm'
 )
 
 libstar_dep = declare_dependency(
