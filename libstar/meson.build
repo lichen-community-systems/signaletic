@@ -1,7 +1,7 @@
 project(
     'libstar',
     'c',
-    default_options: ['c_std=c89']
+    default_options: ['c_std=c99']
 )
 project_description = 'A very portable music signal processing library.'
 
