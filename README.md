@@ -61,9 +61,9 @@ To compile to Daisy-based Eurorack modules:
 
 
 ## Language and Compiler Support
-Starling's core is written in C using the C99 standard (due to the use of C++ style comments, for loops with initial declarations, and float math functions like sinef and powf). It is currently compiled and tested on LLVM on macOS, GCC on Ubuntu Linux, and the Visual Studio C compiler on Windows.
+Starlings' core is written in C using the C99 standard (due to the use of C++ style comments, for loops with initial declarations, and float math functions like sinef and powf). It is currently compiled and tested on LLVM on macOS, GCC on Ubuntu Linux, and the Visual Studio C compiler on Windows.
 
-On the Daisy platform, Starling is compiled using Daisy's own toolchain, which uses the gnu11 standard for C and gnu++14 for C++. Compiling the Daisy Host and examples is currently supported using GCC on macOS.
+On the Daisy platform, Starlings is compiled using Daisy's own toolchain, which uses the gnu11 standard for C and gnu++14 for C++. Compiling the Daisy Host and examples is currently supported using GCC on macOS.
 
 ## Attribution
 
