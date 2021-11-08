@@ -6,7 +6,6 @@ This project is an early-stage effort to rewrite and redesign the core signal pr
 
 * *Live repatching without compilation*: provide a highly mutable audio graph, so that instruments can be dynamically reconfigured while they are running (on platforms where this is appropriate).
 * *Vastly portable*: support deployment on the Web (via Web Assembly), desktop and mobile operating systems (macOS, Windows, Linux, iOS), specialized audio OS-based environments (Bela), and microcontroller-based systems (Daisy).
-* *Multirepresentational and openly authorable*: serve as a foundation for supporting [open authorial practices](https://github.com/amb26/papers/blob/master/onward-2016/onward-2016.pdf) while offering a very low-level signal graph data representation and API upon which more supportive abstractions can be layered.
 * *Fully externalized state*: Provide a means for [fully externalizing all state](http://openresearch.ocadu.ca/id/eprint/2059/1/Clark_sdr_2017_preprint.pdf) via a Nexus-like RESTful API, including:
     * Creating signals
     * Getting signal values/representations

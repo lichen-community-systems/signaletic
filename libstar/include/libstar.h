@@ -11,7 +11,7 @@ extern "C" {
 #include <math.h>
 
 static const float star_PI = 3.14159265358979323846f;
-static const float star_TWOPI = star_PI * 2.0f;
+static const float star_TWOPI = 6.28318530717958647693f;
 
 /**
  * Converts MIDI note numbers into frequencies in hertz.
