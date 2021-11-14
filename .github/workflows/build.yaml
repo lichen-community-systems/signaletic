@@ -3,7 +3,7 @@ name: build-and-run
 on: [push, pull_request]
 
 jobs:
-  build:
+  build-libstar:
     strategy:
       fail-fast: false
       matrix:
@@ -34,7 +34,7 @@ jobs:
         run: |
           ./libstar/build/libstar-console-example
 
-  build-daisy:
+  build-daisy-host:
     runs-on: macos-latest
 
     steps:
@@ -47,7 +47,7 @@ jobs:
         run: |
           cd hosts/daisy/vendor/libDaisy
           make
-      - name: Build app
+      - name: Build Bluemchen example
         run: |
           cd hosts/daisy/examples/bluemchen
           make
