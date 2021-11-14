@@ -33,3 +33,21 @@ jobs:
       - name: run console example
         run: |
           ./libstar/build/libstar-console-example
+
+  build-daisy:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install ARM build toolchain
+        run: brew install gcc-arm-embedded
+
+      - name: Build libDaisy dependency
+        run: |
+          cd hosts/daisy/vendor/libDaisy
+          make
+      - name: Build app
+        run: |
+          cd hosts/daisy/examples/bluemchen
+          make

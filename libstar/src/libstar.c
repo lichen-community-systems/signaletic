@@ -23,7 +23,6 @@ void star_sig_Value_init(void* self,
     float* output) {
     struct star_sig_Value* this = (struct star_sig_Value*) self;
 
-    // TODO: memory allocation issues?
     struct star_sig_Value_Parameters params = {
         .value = 1.0
     };
@@ -59,7 +58,6 @@ void star_sig_Sine_init(void* self,
     float* output) {
     struct star_sig_Sine* this = (struct star_sig_Sine*) self;
 
-    // TODO: memory allocation issues?
     struct star_sig_Signal signal = {
         .audioSettings = settings,
         .output = output,
@@ -96,7 +94,6 @@ void star_sig_Gain_init(void* self,
     struct star_AudioSettings* settings, struct star_sig_Gain_Inputs* inputs, float* output) {
     struct star_sig_Gain* this = (struct star_sig_Gain*) self;
 
-    // TODO: memory allocation issues?
     struct star_sig_Signal signal = {
         .audioSettings = settings,
         .output = output,
