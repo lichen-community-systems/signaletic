@@ -1,0 +1,41 @@
+{
+    "configurations": [
+      {
+        "name": "Debug libstar Console Example",
+        "type": "lldb",
+        "request": "launch",
+        "program": "${workspaceFolder}/libstar/build/libstar-console-example"
+      },
+      {
+        "name": "Remote Debug Bluemchen Example",
+        "configFiles": [
+          "interface/stlink.cfg",
+          "target/stm32h7x.cfg"
+        ],
+        "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen",
+        "debuggerArgs": [
+          "-d",
+          "${workspaceRoot}/hosts/daisy/examples/bluemchen"
+        ],
+        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/build/starlings-bluemchen-example.elf",
+        "interface": "swd",
+        "openOCDLaunchCommands": [
+          "init",
+          "reset init"
+        ],
+        "preLaunchTask": "build_bluemchen_debug",
+        "preRestartCommands": [
+          "load",
+          "enable breakpoint",
+          "monitor reset"
+        ],
+        "request": "launch",
+        "runToMain": true,
+        "servertype": "openocd",
+        "showDevDebugOutput": true,
+        "svdFile": "${workspaceRoot}/.vscode/STM32H750x.svd",
+        "type": "cortex-debug"
+      }
+    ],
+    "version": "0.2.0"
+  }

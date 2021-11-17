@@ -1,0 +1,114 @@
+{
+    "tasks": [
+        {
+            "label": "build_libstar",
+            "command": "meson compile -C build",
+            "options": {
+                "cwd": "${workspaceFolder}/libstar"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
+            "label": "clean_build_libstar",
+            "command": "meson compile -C build --clean; meson compile -C build",
+            "options": {
+                "cwd": "${workspaceFolder}/libstar"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
+            "label": "clean_build_bluemchen",
+            "dependsOn": [
+                "clean_build_libdaisy"
+            ],
+            "command": "make clean; make",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
+            "label": "build_bluemchen_debug",
+            "dependsOn": [
+                "build_libdaisy"
+            ],
+            "command": "make clean;DEBUG=1 make",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
+            "label": "build_bluemchen",
+            "dependsOn": [
+                "build_libdaisy"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "command": "make",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
+            "label": "build_and_program_bluemchen",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen"
+            },
+            "dependsOn": [
+                "build_bluemchen",
+                "program_bluemchen"
+            ],
+            "command": "make program",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
+            "label": "build_libdaisy",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/vendor/libDaisy/"
+            },
+            "command": "make",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
+            "label": "clean_build_libdaisy",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/vendor/libDaisy/"
+            },
+            "command": "make clean; make",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        }
+    ],
+    "version": "2.0.0"
+  }
