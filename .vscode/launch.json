@@ -4,6 +4,7 @@
         "name": "Debug libstar Console Example",
         "type": "lldb",
         "request": "launch",
+        "preLaunchTask": "build_libstar",
         "program": "${workspaceFolder}/libstar/build/libstar-console-example"
       },
       {
