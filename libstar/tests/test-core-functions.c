@@ -66,12 +66,44 @@ void test_star_Buffer_fillSilence(void) {
     TEST_ASSERT_BUFFER_CONTAINS_SILENCE_MESSAGE(buffer, blockSize);
 }
 
+void test_star_sig_Value(void) {
+    struct star_AudioSettings audioSettings = star_DEFAULT_AUDIOSETTINGS;
+    float output[audioSettings.blockSize];
+    struct star_sig_Value value;
+    star_sig_Value_init(&value, &audioSettings, output);
+    value.parameters.value = 123.45f;
+
+    // Output should contain the value parameter.
+    value.signal.generate(&value);
+    TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN_MESSAGE(
+        123.45f, output, audioSettings.blockSize);
+
+    // Output should contain the updated value parameter.
+    value.parameters.value = 1.111f;
+    value.signal.generate(&value);
+    TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN_MESSAGE(
+        1.111f, output, audioSettings.blockSize);
+
+    // The lastSample member should have been updated.
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(FLOAT_EPSILON,
+        1.111f, value.lastSample,
+        "lastSample should have been updated.");
+
+    // After multiple calls to generate(),
+    // the output should continue to contain the value parameter.
+    value.signal.generate(&value);
+    value.signal.generate(&value);
+    TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN_MESSAGE(
+        1.111f, output, audioSettings.blockSize);
+}
+
 int main(void) {
     UNITY_BEGIN();
 
     RUN_TEST(test_star_midiToFreq);
     RUN_TEST(test_star_Buffer_fill);
     RUN_TEST(test_star_Buffer_fillSilence);
+    RUN_TEST(test_star_sig_Value);
 
     return UNITY_END();
 }
