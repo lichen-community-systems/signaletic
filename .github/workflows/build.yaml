@@ -32,6 +32,7 @@ jobs:
       # Tests
       - name: run unit tests
         run: |
+          cd libstar
           meson test -C build -v
 
       # Run examples
