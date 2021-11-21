@@ -29,7 +29,6 @@ The design of this project is still in flux, and will more fully emerge as I bec
 ## Dependencies
 To build Starlings itself:
 1. Meson ```brew install meson```
-2.
 
 To compile to wasm:
 1. LLVM ```brew install llvm```
@@ -45,12 +44,10 @@ To compile to Daisy-based Eurorack modules:
 1. ```meson setup build```
 2. ```meson compile -C build```
 
-### Examples
+## Running the Unit Tests
+1. ```meson test -C build -v```
 
-#### Web Host Example
-1. ```cd hosts/web/examples/print-silence```
-2. ```./build.sh```
-3. Open ```index.html``` using VS Code's LiveServer or other webserver
+## Running the Examples
 
 #### Bluemchen Example
 1. ```cd hosts/daisy/vendor/libDaisy```
@@ -58,6 +55,11 @@ To compile to Daisy-based Eurorack modules:
 3. ```cd ../../examples/bluemchen```
 2. ```make```
 3. Use the [Daisy Web Programmer](https://electro-smith.github.io/Programmer/) to flash the ```build/libflock-bluemchen-example.bin``` binary to the Daisy board
+
+#### Web Host Example
+1. ```cd hosts/web/examples/print-silence```
+2. ```./build.sh```
+3. Open ```index.html``` using VS Code's LiveServer or other webserver
 
 
 ## Language and Compiler Support

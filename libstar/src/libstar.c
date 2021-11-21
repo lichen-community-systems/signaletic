@@ -1,7 +1,9 @@
+#include <math.h>
+#include <stddef.h>
 #include "../include/libstar.h"
 
 float star_midiToFreq(float midiNum) {
-    return 440.0f * powf(2, (midiNum - 69.0f) * 1.0f / 12.0f);
+    return powf(2, (midiNum - 69.0f) / 12.0f) * 440.0f;
 }
 
 void star_Buffer_fill(float value, float* buffer, size_t blockSize) {

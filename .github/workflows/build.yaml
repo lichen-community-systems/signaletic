@@ -29,6 +29,11 @@ jobs:
           meson setup build
           meson compile -C build
 
+      # Tests
+      - name: run unit tests
+        run: |
+          meson test -C build -v
+
       # Run examples
       - name: run console example
         run: |
