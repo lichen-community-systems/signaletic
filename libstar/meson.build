@@ -52,7 +52,8 @@ test('all_tests',
     executable(
         'run_tests',
         files(test_files),
-        dependencies : [libstar_dep, unity_dep],
-        install : false
+        dependencies: [libstar_dep, unity_dep],
+        install: false,
+        link_args: '-lm'
     )
 )
