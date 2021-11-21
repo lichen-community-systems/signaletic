@@ -4,6 +4,22 @@
 
 #define FLOAT_EPSILON powf(2, -23)
 
+// TODO: Factor into a test utilities file.
+void TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN_MESSAGE(
+    float expected, float* buffer, size_t bufferLen) {
+    for (size_t i = 0; i < bufferLen; i++) {
+        float actual = buffer[i];
+        TEST_ASSERT_FLOAT_WITHIN_MESSAGE(FLOAT_EPSILON, expected, actual,
+            "Buffer should be filled with expected value.");
+    }
+}
+
+void TEST_ASSERT_BUFFER_CONTAINS_SILENCE_MESSAGE(
+    float* buffer, size_t bufferLen) {
+    TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN_MESSAGE(
+        0.0f, buffer, bufferLen);
+}
+
 void setUp(void) {}
 
 void tearDown(void) {}
@@ -33,11 +49,29 @@ void test_star_midiToFreq(void) {
     actual = star_midiToFreq(-60.0f);
     TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005, 0.255, actual,
         "A negative MIDI number should return a negative frequency.");
+}
 
+void test_star_Buffer_fill(void) {
+    size_t blockSize = 64;
+    float buffer[blockSize];
+    star_Buffer_fill(440.4f, buffer, blockSize);
+    TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN_MESSAGE(
+        440.4f, buffer, blockSize);
+}
+
+void test_star_Buffer_fillSilence(void) {
+    size_t blockSize = 16;
+    float buffer[blockSize];
+    star_Buffer_fillSilence(buffer, blockSize);
+    TEST_ASSERT_BUFFER_CONTAINS_SILENCE_MESSAGE(buffer, blockSize);
 }
 
 int main(void) {
     UNITY_BEGIN();
+
     RUN_TEST(test_star_midiToFreq);
+    RUN_TEST(test_star_Buffer_fill);
+    RUN_TEST(test_star_Buffer_fillSilence);
+
     return UNITY_END();
 }
