@@ -84,7 +84,7 @@ int main(void) {
         .blockSize = 1
     };
 
-    bluemchen.SetAudioBlockSize((size_t) audioSettings.blockSize);
+    bluemchen.SetAudioBlockSize(audioSettings.blockSize);
     bluemchen.StartAdc();
     initControls();
 

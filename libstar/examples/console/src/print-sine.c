@@ -6,8 +6,8 @@ void printSample(float sample) {
     printf("%.8f", sample);
 }
 
-void printBuffer(float* buffer, int blockSize) {
-    for (int i = 0; i < blockSize - 1; i++) {
+void printBuffer(float* buffer, size_t blockSize) {
+    for (size_t i = 0; i < blockSize - 1; i++) {
         printSample(buffer[i]);
         printf(", ");
     }

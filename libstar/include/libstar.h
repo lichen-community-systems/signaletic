@@ -9,6 +9,7 @@ extern "C" {
 // Need to either switch to a faster custom approximation of sin()
 // and other functions, or build the wasm version with Emscripten.
 #include <math.h>
+#include <stddef.h>
 
 static const float star_PI = 3.14159265358979323846f;
 static const float star_TWOPI = 6.28318530717958647693f;
@@ -22,8 +23,8 @@ float star_midiToFreq(float midiNum);
 
 struct star_AudioSettings {
     float sampleRate;
-    int numChannels;
-    unsigned int blockSize;
+    size_t numChannels;
+    size_t blockSize;
 };
 
 static const struct star_AudioSettings star_DEFAULT_AUDIOSETTINGS = {
@@ -32,15 +33,17 @@ static const struct star_AudioSettings star_DEFAULT_AUDIOSETTINGS = {
     .blockSize = 48
 };
 
-void star_Buffer_fill(float value, float* buffer, int blockSize);
+void star_Buffer_fill(float value, float* buffer, size_t blockSize);
 
-void star_Buffer_fillSilence(float* buffer, int blockSize);
+void star_Buffer_fillSilence(float* buffer, size_t blockSize);
+
+void star_sig_generateSilence(void* signal);
 
 struct star_sig_Signal {
     struct star_AudioSettings* audioSettings;
     float* output;
 
-    void (*generate)(void* self);
+    void (*generate)(void* signal);
 };
 
 struct star_sig_Value_Parameters {
@@ -53,9 +56,9 @@ struct star_sig_Value {
     float lastSample;
 };
 
-void star_sig_Value_init(void* self,
+void star_sig_Value_init(struct star_sig_Value* self,
     struct star_AudioSettings* settings, float* output);
-void star_sig_Value_generate(void* self);
+void star_sig_Value_generate(void* signal);
 
 struct star_sig_Sine_Inputs {
     float* freq;
@@ -70,9 +73,9 @@ struct star_sig_Sine {
     float phaseAccumulator;
 };
 
-void star_sig_Sine_init(void* self,
+void star_sig_Sine_init(struct star_sig_Sine* self,
     struct star_AudioSettings* settings, struct star_sig_Sine_Inputs* inputs, float* output);
-void star_sig_Sine_generate(void* self);
+void star_sig_Sine_generate(void* signal);
 
 
 struct star_sig_Gain_Inputs {
@@ -85,10 +88,9 @@ struct star_sig_Gain {
     struct star_sig_Gain_Inputs* inputs;
 };
 
-void star_sig_Gain_init(void* self,
+void star_sig_Gain_init(struct star_sig_Gain* self,
     struct star_AudioSettings* settings, struct star_sig_Gain_Inputs* inputs, float* output);
-
-void star_sig_Gain_generate(void* self);
+void star_sig_Gain_generate(void* signal);
 
 #ifdef __cplusplus
 }

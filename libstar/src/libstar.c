@@ -1,62 +1,67 @@
-// TODO: Macro for main sample processing loop
-// TODO: Clarify memory allocation issues
-//   - how are buffers allocated to the appropriate actual size?
-
 #include "../include/libstar.h"
 
 float star_midiToFreq(float midiNum) {
     return 440.0f * powf(2, (midiNum - 69.0f) * 1.0f / 12.0f);
 }
 
-void star_Buffer_fill(float value, float* buffer, int blockSize) {
-    for (int i = 0; i < blockSize; i++) {
+void star_Buffer_fill(float value, float* buffer, size_t blockSize) {
+    for (size_t i = 0; i < blockSize; i++) {
         buffer[i] = value;
     }
 }
 
-void star_Buffer_fillSilence(float* buffer, int blockSize) {
+void star_Buffer_fillSilence(float* buffer, size_t blockSize) {
     star_Buffer_fill(0.0f, buffer, blockSize);
 }
 
-void star_sig_Value_init(void* self,
+/**
+ * Generic generation function
+ * that operates on any Signal and outputs only silence.
+ */
+void star_sig_Signal_generate(void* signal) {
+    struct star_sig_Signal* self = (struct star_sig_Signal*) signal;
+
+    for (size_t i = 0; i < self->audioSettings->blockSize; i++) {
+        self->output[i] = 0.0f;
+    }
+}
+
+void star_sig_Value_init(struct star_sig_Value* self,
     struct star_AudioSettings *settings,
     float* output) {
-    struct star_sig_Value* this = (struct star_sig_Value*) self;
 
     struct star_sig_Value_Parameters params = {
         .value = 1.0
     };
 
-    // TODO: memory allocation issues?
     struct star_sig_Signal signal = {
         .audioSettings = settings,
         .output = output,
         .generate = *star_sig_Value_generate
     };
 
-    this->signal = signal;
-    this->parameters = params;
+    self->signal = signal;
+    self->parameters = params;
 }
 
-void star_sig_Value_generate(void* self) {
-    struct star_sig_Value* this = (struct star_sig_Value*) self;
+void star_sig_Value_generate(void* signal) {
+    struct star_sig_Value* self = (struct star_sig_Value*) signal;
 
-    if (this->parameters.value == this->lastSample) {
+    if (self->parameters.value == self->lastSample) {
         return;
     }
 
-    for (int i = 0; i < this->signal.audioSettings->blockSize; i++) {
-        this->signal.output[i] = this->parameters.value;
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        self->signal.output[i] = self->parameters.value;
     }
 
-    this->lastSample = this->parameters.value;
+    self->lastSample = self->parameters.value;
 }
 
-void star_sig_Sine_init(void* self,
+void star_sig_Sine_init(struct star_sig_Sine* self,
     struct star_AudioSettings* settings,
     struct star_sig_Sine_Inputs* inputs,
     float* output) {
-    struct star_sig_Sine* this = (struct star_sig_Sine*) self;
 
     struct star_sig_Signal signal = {
         .audioSettings = settings,
@@ -64,35 +69,34 @@ void star_sig_Sine_init(void* self,
         .generate = *star_sig_Sine_generate
     };
 
-    this->signal = signal;
-    this->inputs = inputs;
+    self->signal = signal;
+    self->inputs = inputs;
 
-    this->phaseAccumulator = 0.0f;
+    self->phaseAccumulator = 0.0f;
 }
 
-void star_sig_Sine_generate(void* self) {
-    struct star_sig_Sine* this = (struct star_sig_Sine*) self;
+void star_sig_Sine_generate(void* signal) {
+    struct star_sig_Sine* self = (struct star_sig_Sine*) signal;
 
-    for (int i = 0; i < this->signal.audioSettings->blockSize; i++) {
-        float modulatedPhase = fmodf(this->phaseAccumulator +
-            this->inputs->phaseOffset[i], star_TWOPI);
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float modulatedPhase = fmodf(self->phaseAccumulator +
+            self->inputs->phaseOffset[i], star_TWOPI);
 
-        this->signal.output[i] = sinf(modulatedPhase) *
-            this->inputs->mul[i] + this->inputs->add[i];
+        self->signal.output[i] = sinf(modulatedPhase) *
+            self->inputs->mul[i] + self->inputs->add[i];
 
-        float phaseStep = this->inputs->freq[i] /
-            this->signal.audioSettings->sampleRate * star_TWOPI;
+        float phaseStep = self->inputs->freq[i] /
+            self->signal.audioSettings->sampleRate * star_TWOPI;
 
-        this->phaseAccumulator += phaseStep;
-        if (this->phaseAccumulator > star_TWOPI) {
-            this->phaseAccumulator -= star_TWOPI;
+        self->phaseAccumulator += phaseStep;
+        if (self->phaseAccumulator > star_TWOPI) {
+            self->phaseAccumulator -= star_TWOPI;
         }
     }
 }
 
-void star_sig_Gain_init(void* self,
+void star_sig_Gain_init(struct star_sig_Gain* self,
     struct star_AudioSettings* settings, struct star_sig_Gain_Inputs* inputs, float* output) {
-    struct star_sig_Gain* this = (struct star_sig_Gain*) self;
 
     struct star_sig_Signal signal = {
         .audioSettings = settings,
@@ -100,15 +104,15 @@ void star_sig_Gain_init(void* self,
         .generate = *star_sig_Gain_generate
     };
 
-    this->signal = signal;
-    this->inputs = inputs;
+    self->signal = signal;
+    self->inputs = inputs;
 };
 
-void star_sig_Gain_generate(void* self) {
-    struct star_sig_Gain* this = (struct star_sig_Gain*) self;
+void star_sig_Gain_generate(void* signal) {
+    struct star_sig_Gain* self = (struct star_sig_Gain*) signal;
 
-    for (int i = 0; i < this->signal.audioSettings->blockSize; i++) {
-        this->signal.output[i] = this->inputs->source[i] *
-            this->inputs->gain[i];
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        self->signal.output[i] = self->inputs->source[i] *
+            self->inputs->gain[i];
     }
 }
