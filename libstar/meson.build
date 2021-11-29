@@ -12,7 +12,7 @@ source_files = [
 ]
 
 test_files = [
-    'tests'/'test-core-functions.c'
+    'tests'/'test-libstar.c'
 ]
 
 # libstar
