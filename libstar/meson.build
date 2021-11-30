@@ -5,9 +5,10 @@ project(
 )
 project_description = 'A very portable music signal processing library.'
 
-headers = include_directories('include')
+headers = include_directories('include', 'vendor'/'tlsf')
 
 source_files = [
+    'vendor'/'tlsf'/'tlsf.c',
     'src'/'libstar.c'
 ]
 
@@ -19,6 +20,7 @@ test_files = [
 libstar_library = static_library(
     meson.project_name(),
     source_files,
+    include_directories: headers,
     link_args: '-lm'
 )
 
@@ -40,11 +42,11 @@ unity_dir = 'tests'/'vendor'/'unity'
 
 unity_dep = declare_dependency(
     include_directories: include_directories(
-        unity_dir / 'src'
+        unity_dir/'src'
     ),
     link_with: static_library(
         'unity',
-        sources: files(unity_dir / 'src' / 'unity.c')
+        sources: files(unity_dir/'src'/'unity.c')
     )
 )
 

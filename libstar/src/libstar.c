@@ -1,6 +1,7 @@
 #include <math.h>
 #include <stddef.h>
-#include "../include/libstar.h"
+#include <tlsf.h>
+#include <libstar.h>
 
 float star_midiToFreq(float midiNum) {
     return powf(2, (midiNum - 69.0f) / 12.0f) * 440.0f;
@@ -14,6 +15,22 @@ void star_Buffer_fill(float value, float* buffer, size_t blockSize) {
 
 void star_Buffer_fillSilence(float* buffer, size_t blockSize) {
     star_Buffer_fill(0.0f, buffer, blockSize);
+}
+
+void star_Allocator_create(struct star_Allocator* self) {
+    tlsf_create_with_pool(self->heap, self->heapSize);
+}
+
+void star_Allocator_destroy(struct star_Allocator* self) {
+    tlsf_destroy(self->heap);
+}
+
+void* star_Allocator_malloc(struct star_Allocator* self, size_t size) {
+    return tlsf_malloc(self->heap, size);
+}
+
+void star_Allocator_free(struct star_Allocator* self, void* obj) {
+    tlsf_free(self->heap, obj);
 }
 
 /**

@@ -36,6 +36,16 @@ void star_Buffer_fillSilence(float* buffer, size_t blockSize);
 
 void star_sig_generateSilence(void* signal);
 
+struct star_Allocator {
+    void* heap;
+    size_t heapSize;
+};
+
+void star_Allocator_create(struct star_Allocator* self);
+void star_Allocator_destroy(struct star_Allocator* self);
+void* star_Allocator_malloc(struct star_Allocator* self, size_t size);
+void star_Allocator_free(struct star_Allocator* self, void* obj);
+
 struct star_sig_Signal {
     struct star_AudioSettings* audioSettings;
     float* output;

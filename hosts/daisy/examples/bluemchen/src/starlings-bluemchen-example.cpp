@@ -1,5 +1,6 @@
 #include "../vendor/kxmx_bluemchen/src/kxmx_bluemchen.h"
-#include "../../../../libstar/include/libstar.h"
+#include <tlsf.h>
+#include <libstar.h>
 #include <string>
 
 using namespace kxmx;
