@@ -42,7 +42,7 @@ void TEST_ASSERT_BUFFER_EQUALS(
 }
 
 void setUp(void) {
-    star_Allocator_create(&allocator);
+    star_Allocator_init(&allocator);
 }
 
 void tearDown(void) {
@@ -93,116 +93,103 @@ void test_star_Buffer_fillSilence(void) {
 
 void test_star_sig_Value(void) {
     struct star_AudioSettings audioSettings = star_DEFAULT_AUDIOSETTINGS;
-    float output[audioSettings.blockSize];
-    struct star_sig_Value value;
-    star_sig_Value_init(&value, &audioSettings, output);
-    value.parameters.value = 123.45f;
+    struct star_sig_Value* value = star_sig_Value_new(&allocator,
+        &audioSettings);
+    value->parameters.value = 123.45f;
 
     // Output should contain the value parameter.
-    value.signal.generate(&value);
+    value->signal.generate(value);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
-        123.45f, output, audioSettings.blockSize);
+        123.45f, value->signal.output, audioSettings.blockSize);
 
     // Output should contain the updated value parameter.
-    value.parameters.value = 1.111f;
-    value.signal.generate(&value);
+    value->parameters.value = 1.111f;
+    value->signal.generate(value);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
-        1.111f, output, audioSettings.blockSize);
+        1.111f, value->signal.output, audioSettings.blockSize);
 
     // The lastSample member should have been updated.
     TEST_ASSERT_FLOAT_WITHIN_MESSAGE(FLOAT_EPSILON,
-        1.111f, value.lastSample,
+        1.111f, value->lastSample,
         "lastSample should have been updated.");
 
     // After multiple calls to generate(),
     // the output should continue to contain the value parameter.
-    value.signal.generate(&value);
-    value.signal.generate(&value);
+    value->signal.generate(value);
+    value->signal.generate(value);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
-        1.111f, output, audioSettings.blockSize);
+        1.111f, value->signal.output, audioSettings.blockSize);
+
+    star_sig_Value_destroy(&allocator, value);
 }
 
 void test_star_sig_Gain(void) {
     struct star_AudioSettings audioSettings = star_DEFAULT_AUDIOSETTINGS;
-    float output[audioSettings.blockSize];
-
-    float gainBuffer[audioSettings.blockSize];
-    star_Buffer_fill(0.5f, gainBuffer, audioSettings.blockSize);
-    float sourceBuffer[audioSettings.blockSize];
-    star_Buffer_fill(440.0f, sourceBuffer, audioSettings.blockSize);
 
     struct star_sig_Gain_Inputs inputs = {
-        .gain = gainBuffer,
-        .source = sourceBuffer
+        .gain = star_AudioBlock_newWithValue(0.5f,
+            &allocator, &audioSettings),
+        .source = star_AudioBlock_newWithValue(440.0f,
+            &allocator, &audioSettings)
     };
 
-    struct star_sig_Gain gain;
-    star_sig_Gain_init(&gain, &audioSettings, &inputs, output);
-    star_sig_Gain_generate(&gain);
-    TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
-        220.0f, output, audioSettings.blockSize);
+    struct star_sig_Gain* gain = star_sig_Gain_new(&allocator,
+        &audioSettings, &inputs);
 
-    star_Buffer_fill(0.0f, gainBuffer, audioSettings.blockSize);
-    star_sig_Gain_generate(&gain);
+    gain->signal.generate(gain);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
-        0.0f, output, audioSettings.blockSize);
+        220.0f, gain->signal.output, audioSettings.blockSize);
 
-    star_Buffer_fill(2.0f, gainBuffer, audioSettings.blockSize);
-    star_sig_Gain_generate(&gain);
+    star_Buffer_fill(0.0f, inputs.gain, audioSettings.blockSize);
+    gain->signal.generate(gain);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
-        880.0f, output, audioSettings.blockSize);
+        0.0f, gain->signal.output, audioSettings.blockSize);
 
-    star_Buffer_fill(-1.0f, gainBuffer, audioSettings.blockSize);
-    star_sig_Gain_generate(&gain);
+    star_Buffer_fill(2.0f, inputs.gain, audioSettings.blockSize);
+    gain->signal.generate(gain);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
-        -440.0f, output, audioSettings.blockSize);
+        880.0f, gain->signal.output, audioSettings.blockSize);
+
+    star_Buffer_fill(-1.0f, inputs.gain, audioSettings.blockSize);
+    gain->signal.generate(gain);
+    TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
+        -440.0f, gain->signal.output, audioSettings.blockSize);
+
+    star_sig_Gain_destroy(&allocator, gain);
+    star_Allocator_free(&allocator, inputs.gain);
+    star_Allocator_free(&allocator, inputs.source);
 }
 
-float* createBuffer(struct star_Allocator* allocator,
-    struct star_AudioSettings* audioSettings) {
-    return star_Allocator_malloc(allocator, sizeof(float) * audioSettings->blockSize);
-}
-
-float* createFilledBuffer(struct star_Allocator* allocator,
-    float value, struct star_AudioSettings* audioSettings) {
-    float* buffer = createBuffer(allocator, audioSettings);
-    star_Buffer_fill(value, buffer, audioSettings->blockSize);
-
-    return buffer;
-}
-
-// TODO: Move into libstar itself (when we have a memory allocator).
-struct star_sig_Sine* createSine(struct star_Allocator* allocator,
+// TODO: Move into libstar itself
+// as a (semi?) generic input instantiator.
+struct star_sig_Sine_Inputs* createSineInputs(struct star_Allocator* allocator,
     struct star_AudioSettings* audioSettings,
     float freq, float phaseOffset, float mul, float add) {
 
     struct star_sig_Sine_Inputs* inputs = (struct star_sig_Sine_Inputs*) star_Allocator_malloc(allocator,
         sizeof(struct star_sig_Sine_Inputs));
 
-    inputs->freq = createFilledBuffer(allocator, freq, audioSettings);
-    inputs->phaseOffset = createFilledBuffer(allocator, phaseOffset, audioSettings);
-    inputs->mul = createFilledBuffer(allocator, mul, audioSettings);
-    inputs->add = createFilledBuffer(allocator, add, audioSettings);
+    inputs->freq = star_AudioBlock_newWithValue(freq,
+        allocator, audioSettings);
+    inputs->phaseOffset = star_AudioBlock_newWithValue(phaseOffset,
+        allocator, audioSettings);
+    inputs->mul = star_AudioBlock_newWithValue(mul,
+        allocator, audioSettings);;
+    inputs->add = star_AudioBlock_newWithValue(add,
+        allocator, audioSettings);
 
-    float* output = createFilledBuffer(allocator, 0.0f, audioSettings);
-
-    struct star_sig_Sine* sine = (struct star_sig_Sine*)
-        star_Allocator_malloc(allocator, sizeof(struct star_sig_Sine));
-    star_sig_Sine_init(sine, audioSettings, inputs, output);
-
-    return sine;
+    return inputs;
 }
 
-// TODO: Move into libstar itself (when we have a memory allocator).
-void destroySine(struct star_Allocator* allocator,
-    struct star_sig_Sine* sine) {
-    star_Allocator_free(allocator, sine->inputs->freq);
-    star_Allocator_free(allocator, sine->inputs->phaseOffset);
-    star_Allocator_free(allocator, sine->inputs->mul);
-    star_Allocator_free(allocator, sine->inputs->add);
-    star_Allocator_free(allocator, sine->inputs);
-    star_Allocator_free(allocator, sine->signal.output);
-    star_Allocator_free(allocator, sine);
+// TODO: Move into libstar itself
+// as a (semi?) generic input instantiator.
+void destroySineInputs(struct star_Allocator* allocator,
+    struct star_sig_Sine_Inputs* sineInputs) {
+    star_Allocator_free(allocator, sineInputs->freq);
+    star_Allocator_free(allocator, sineInputs->phaseOffset);
+    star_Allocator_free(allocator, sineInputs->mul);
+    star_Allocator_free(allocator, sineInputs->add);
+    star_Allocator_free(allocator, sineInputs);
 }
 
 void test_star_sig_Sine(void) {
@@ -216,15 +203,19 @@ void test_star_sig_Sine(void) {
         .sampleRate = 44100.0
     };
 
-    struct star_sig_Sine* sine = createSine(&allocator,
-        &audioSettings, 440.0f, 0.0f, 1.0f, 0.0f);
+    struct star_sig_Sine_Inputs* inputs = createSineInputs(
+        &allocator, &audioSettings, 440.0f, 0.0f, 1.0f, 0.0f);
+    struct star_sig_Sine* sine = star_sig_Sine_new(&allocator,
+        &audioSettings, inputs);
 
     star_sig_Sine_generate(sine);
     TEST_ASSERT_BUFFER_EQUALS(
         expected,
         sine->signal.output,
         sine->signal.audioSettings->blockSize);
-    destroySine(&allocator, sine);
+
+    destroySineInputs(&allocator, inputs);
+    star_sig_Sine_destroy(&allocator, sine);
 }
 
 void test_test_star_sig_Sine_isOffset(void) {
@@ -238,23 +229,28 @@ void test_test_star_sig_Sine_isOffset(void) {
         .sampleRate = 44100.0f
     };
 
-    struct star_sig_Sine* sine = createSine(
+    struct star_sig_Sine_Inputs* inputs = createSineInputs(
         &allocator, &audioSettings, 440.0f, 0.0f, 1.0f, 1.0f);
+    struct star_sig_Sine* sine = star_sig_Sine_new(&allocator,
+        &audioSettings, inputs);
 
     star_sig_Sine_generate(sine);
     TEST_ASSERT_BUFFER_EQUALS(
         expected,
         sine->signal.output,
         sine->signal.audioSettings->blockSize);
-    destroySine(&allocator, sine);
+
+    destroySineInputs(&allocator, inputs);
+    star_sig_Sine_destroy(&allocator, sine);
 }
 
 void test_star_sig_Sine_accumulatesPhase(void) {
     struct star_AudioSettings audioSettings = star_DEFAULT_AUDIOSETTINGS;
 
-    struct star_sig_Sine* sine = createSine(
-        &allocator, &audioSettings, 440.0f, 0.0f, 1.0f, 0.0f
-    );
+    struct star_sig_Sine_Inputs* inputs = createSineInputs(
+        &allocator, &audioSettings, 440.0f, 0.0f, 1.0f, 0.0f);
+    struct star_sig_Sine* sine = star_sig_Sine_new(&allocator,
+        &audioSettings, inputs);
 
     // 440 Hz frequency at 48 KHz sample rate.
     float phaseStep = 0.05759586393833160400390625f;
@@ -275,13 +271,17 @@ void test_star_sig_Sine_accumulatesPhase(void) {
         "The phase accumulator should have continued to be incremented when generating a second block."
     );
 
-    destroySine(&allocator, sine);
+    destroySineInputs(&allocator, inputs);
+    star_sig_Sine_destroy(&allocator, sine);
 }
 
 void test_star_sig_Sine_phaseWrapsAt2PI(void) {
     struct star_AudioSettings audioSettings = star_DEFAULT_AUDIOSETTINGS;
-    struct star_sig_Sine* sine = createSine(
+
+    struct star_sig_Sine_Inputs* inputs = createSineInputs(
         &allocator, &audioSettings, 440.0f, 0.0f, 1.0f, 0.0f);
+    struct star_sig_Sine* sine = star_sig_Sine_new(&allocator,
+        &audioSettings, inputs);
 
     star_sig_Sine_generate(sine);
     star_sig_Sine_generate(sine);
@@ -293,7 +293,8 @@ void test_star_sig_Sine_phaseWrapsAt2PI(void) {
         "The phase accumulator should wrap around when it is greater than 2*PI."
     );
 
-    destroySine(&allocator, sine);
+    destroySineInputs(&allocator, inputs);
+    star_sig_Sine_destroy(&allocator, sine);
 }
 
 int main(void) {

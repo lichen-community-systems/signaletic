@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include "libstar.h"
 
+#define HEAP_SIZE 1024 * 128
+
 void printSample(float sample) {
     printf("%.8f", sample);
 }
@@ -17,38 +19,34 @@ void printBuffer(float* buffer, size_t blockSize) {
 }
 
 int main(int argc, char *argv[]) {
-    struct star_AudioSettings audioSettings = star_DEFAULT_AUDIOSETTINGS;
+    struct star_AudioSettings settings = star_DEFAULT_AUDIOSETTINGS;
 
-    float output[audioSettings.blockSize];
-    star_Buffer_fillSilence(output, audioSettings.blockSize);
+    char heap[HEAP_SIZE];
 
-    float freq[audioSettings.blockSize];
-    star_Buffer_fill(440.0f, freq, audioSettings.blockSize);
+    struct star_Allocator allocator = {
+        .heapSize = HEAP_SIZE,
+        .heap = heap
+    };
+    star_Allocator_init(&allocator);
 
-    float phaseOffset[audioSettings.blockSize];
-    star_Buffer_fill(0.0f, phaseOffset, audioSettings.blockSize);
-
-    float mul[audioSettings.blockSize];
-    star_Buffer_fill(1.0f, mul, audioSettings.blockSize);
-
-    float add[audioSettings.blockSize];
-    star_Buffer_fill(0.0f, add, audioSettings.blockSize);
-
-    struct star_sig_Sine_Inputs sineInputs = {
-        .freq = freq,
-        .phaseOffset = phaseOffset,
-        .mul = mul,
-        .add = add
+    struct star_sig_Sine_Inputs inputs = {
+        .freq = star_AudioBlock_newWithValue(440.0f, &allocator,
+            &settings),
+        .phaseOffset = star_AudioBlock_newWithValue(0.0f, &allocator,
+            &settings),
+        .mul = star_AudioBlock_newWithValue(1.0f, &allocator,
+            &settings),
+        .add = star_AudioBlock_newWithValue(0.0f, &allocator,
+            &settings)
     };
 
-    struct star_sig_Sine sine;
-    star_sig_Sine_init(&sine, &audioSettings, &sineInputs, output);
-
+    struct star_sig_Sine* sine = star_sig_Sine_new(&allocator,
+        &settings, &inputs);
 
     puts("Sine wave (three blocks): ");
     for (int i = 0; i < 3; i++) {
-        sine.signal.generate(&sine);
-        printBuffer(sine.signal.output, audioSettings.blockSize);
+        sine->signal.generate(sine);
+        printBuffer(sine->signal.output, settings.blockSize);
     }
 
     return EXIT_SUCCESS;

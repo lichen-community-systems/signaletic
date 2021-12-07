@@ -11,11 +11,18 @@ Parameter knob1;
 Parameter cv1;
 Parameter cv2;
 
-star_sig_Value freqMod;
-star_sig_Value ampMod;
-star_sig_Sine carrier;
-star_sig_Value gainValue;
-star_sig_Gain gain;
+#define HEAP_SIZE 262144 // 256K
+char heap[HEAP_SIZE];
+struct star_Allocator allocator = {
+    .heapSize = HEAP_SIZE,
+    .heap = (void*) heap
+};
+
+struct star_sig_Value* freqMod;
+struct star_sig_Value* ampMod;
+struct star_sig_Sine* carrier;
+struct star_sig_Value* gainValue;
+struct star_sig_Gain* gain;
 
 void UpdateOled() {
     bluemchen.display.Fill(false);
@@ -50,19 +57,23 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
     daisy::AudioHandle::OutputBuffer out, size_t size) {
     UpdateControls();
 
-    gainValue.parameters.value = knob1.Value();
-    ampMod.parameters.value = cv1.Value();
-    ampMod.signal.generate(&ampMod);
-    freqMod.parameters.value = star_midiToFreq(cv2.Value());
-    freqMod.signal.generate(&freqMod);
-    carrier.signal.generate(&carrier);
+    // Bind control values to Signals.
+    // TODO: This should be handled by a Host-provided Signal
+    gainValue->parameters.value = knob1.Value();
+    ampMod->parameters.value = cv1.Value();
+    freqMod->parameters.value = star_midiToFreq(cv2.Value());
 
-    gainValue.signal.generate(&gainValue);
-    gain.signal.generate(&gain);
+    // Evaluate the signal graph.
+    ampMod->signal.generate(ampMod);
+    freqMod->signal.generate(freqMod);
+    carrier->signal.generate(carrier);
+    gainValue->signal.generate(gainValue);
+    gain->signal.generate(&gain);
 
+    // Copy mono buffer to stereo output.
     for (size_t i = 0; i < size; i++) {
-        out[0][i] = gain.signal.output[i];
-        out[1][i] = gain.signal.output[i];
+        out[0][i] = gain->signal.output[i];
+        out[1][i] = gain->signal.output[i];
     }
 }
 
@@ -78,6 +89,7 @@ void initControls() {
 
 int main(void) {
     bluemchen.Init();
+    star_Allocator_init(&allocator);
 
     struct star_AudioSettings audioSettings = {
         .sampleRate = bluemchen.AudioSampleRate(),
@@ -89,60 +101,37 @@ int main(void) {
     bluemchen.StartAdc();
     initControls();
 
-    /**************
-     * Modulators *
-     **************/
+    /** Modulators **/
+    freqMod = star_sig_Value_new(&allocator, &audioSettings);
+    freqMod->parameters.value = 440.0f;
+    ampMod = star_sig_Value_new(&allocator, &audioSettings);
+    ampMod->parameters.value = 1.0f;
 
-    float freqModOutput[audioSettings.blockSize];
-    star_Buffer_fillSilence(freqModOutput, audioSettings.blockSize);
-    star_sig_Value_init(&freqMod, &audioSettings, freqModOutput);
-    freqMod.parameters.value = 440.0f;
-
-    float ampModOutput[audioSettings.blockSize];
-    star_Buffer_fillSilence(ampModOutput, audioSettings.blockSize);
-    star_sig_Value_init(&ampMod, &audioSettings, ampModOutput);
-    ampMod.parameters.value = 1.0f;
-
-    /****************
-     * Sine Carrier *
-     ****************/
-    float phaseOffset[audioSettings.blockSize];
-    star_Buffer_fill(0.0f, phaseOffset, audioSettings.blockSize);
-    float add[audioSettings.blockSize];
-    star_Buffer_fill(0.0f, add, audioSettings.blockSize);
-
+    /** Carrier **/
     struct star_sig_Sine_Inputs carrierInputs = {
-        .freq = freqMod.signal.output,
-        .phaseOffset = phaseOffset,
-        .mul = ampMod.signal.output,
-        .add = add
+        .freq = freqMod->signal.output,
+        .phaseOffset = star_AudioBlock_newWithValue(0.0f,
+            &allocator, &audioSettings),
+        .mul = ampMod->signal.output,
+        .add = star_AudioBlock_newWithValue(0.0f,
+            &allocator, &audioSettings),
     };
 
-    float sineOutput[audioSettings.blockSize];
-    star_Buffer_fillSilence(sineOutput, audioSettings.blockSize);
+    carrier = star_sig_Sine_new(&allocator, &audioSettings,
+        &carrierInputs);
 
-    star_sig_Sine_init(&carrier,
-        &audioSettings, &carrierInputs, sineOutput);
-
-    /********
-     * Gain *
-     * ******/
-
+    /** Gain **/
     // Bluemchen's output circuit clips as it approaches full gain,
     // so 0.85 seems to be around the practical maximum value.
-    float gainValueOutput[audioSettings.blockSize];
-    star_Buffer_fillSilence(gainValueOutput, audioSettings.blockSize);
-    star_sig_Value_init(&gainValue, &audioSettings, gainValueOutput);
-    gainValue.parameters.value = 0.85f;
+    gainValue = star_sig_Value_new(&allocator, &audioSettings);
+    gainValue->parameters.value = 0.85f;
 
     struct star_sig_Gain_Inputs gainInputs = {
-        .gain = gainValue.signal.output,
-        .source = carrier.signal.output
+        .gain = gainValue->signal.output,
+        .source = carrier->signal.output
     };
-
-    float gainOutput[audioSettings.blockSize];
-    star_Buffer_fillSilence(gainOutput, audioSettings.blockSize);
-    star_sig_Gain_init(&gain, &audioSettings, &gainInputs, gainOutput);
+    gain = star_sig_Gain_new(&allocator, &audioSettings,
+        &gainInputs);
 
     bluemchen.StartAudio(AudioCallback);
 

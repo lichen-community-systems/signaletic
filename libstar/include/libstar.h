@@ -30,21 +30,26 @@ static const struct star_AudioSettings star_DEFAULT_AUDIOSETTINGS = {
     .blockSize = 48
 };
 
-void star_Buffer_fill(float value, float* buffer, size_t blockSize);
-
-void star_Buffer_fillSilence(float* buffer, size_t blockSize);
-
-void star_sig_generateSilence(void* signal);
-
 struct star_Allocator {
-    void* heap;
     size_t heapSize;
+    void* heap;
 };
 
-void star_Allocator_create(struct star_Allocator* self);
+void star_Allocator_init(struct star_Allocator* self);
 void star_Allocator_destroy(struct star_Allocator* self);
 void* star_Allocator_malloc(struct star_Allocator* self, size_t size);
 void star_Allocator_free(struct star_Allocator* self, void* obj);
+
+void star_Buffer_fill(float value, float* buffer, size_t numSamples);
+void star_Buffer_fillSilence(float* buffer, size_t numSamples);
+float* star_Buffer_new(struct star_Allocator* allocator, size_t numSamples);
+float* star_AudioBlock_new(struct star_Allocator* allocator,
+    struct star_AudioSettings* audioSettings);
+float* star_AudioBlock_newWithValue(float value,
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* audioSettings);
+
+void star_sig_generateSilence(void* signal);
 
 struct star_sig_Signal {
     struct star_AudioSettings* audioSettings;
@@ -65,6 +70,10 @@ struct star_sig_Value {
 
 void star_sig_Value_init(struct star_sig_Value* self,
     struct star_AudioSettings* settings, float* output);
+struct star_sig_Value* star_sig_Value_new(struct star_Allocator* allocator,
+    struct star_AudioSettings* settings);
+void star_sig_Value_destroy(struct star_Allocator* allocator, struct star_sig_Value* self);
+
 void star_sig_Value_generate(void* signal);
 
 struct star_sig_Sine_Inputs {
@@ -82,8 +91,11 @@ struct star_sig_Sine {
 
 void star_sig_Sine_init(struct star_sig_Sine* self,
     struct star_AudioSettings* settings, struct star_sig_Sine_Inputs* inputs, float* output);
+struct star_sig_Sine* star_sig_Sine_new(struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_Sine_Inputs* inputs);
 void star_sig_Sine_generate(void* signal);
-
+void star_sig_Sine_destroy(struct star_Allocator* allocator, struct star_sig_Sine* self);
 
 struct star_sig_Gain_Inputs {
     float* gain;
@@ -97,7 +109,12 @@ struct star_sig_Gain {
 
 void star_sig_Gain_init(struct star_sig_Gain* self,
     struct star_AudioSettings* settings, struct star_sig_Gain_Inputs* inputs, float* output);
+struct star_sig_Gain* star_sig_Gain_new(struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_Gain_Inputs* inputs);
 void star_sig_Gain_generate(void* signal);
+void star_sig_Gain_destroy(struct star_Allocator* allocator, struct star_sig_Gain* self);
+
 
 #ifdef __cplusplus
 }
