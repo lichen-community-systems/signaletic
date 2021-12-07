@@ -77,18 +77,16 @@ void test_star_midiToFreq(void) {
 }
 
 void test_star_Buffer_fill(void) {
-    const size_t blockSize = 64;
-    float buffer[blockSize];
-    star_Buffer_fill(440.4f, buffer, blockSize);
+    float buffer[64];
+    star_Buffer_fill(440.4f, buffer, 64);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
-        440.4f, buffer, blockSize);
+        440.4f, buffer, 64);
 }
 
 void test_star_Buffer_fillSilence(void) {
-    const size_t blockSize = 16;
-    float buffer[blockSize];
-    star_Buffer_fillSilence(buffer, blockSize);
-    TEST_ASSERT_BUFFER_CONTAINS_SILENCE(buffer, blockSize);
+    float buffer[16];
+    star_Buffer_fillSilence(buffer, 16);
+    TEST_ASSERT_BUFFER_CONTAINS_SILENCE(buffer, 16);
 }
 
 void test_star_sig_Value(void) {
