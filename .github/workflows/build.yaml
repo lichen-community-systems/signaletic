@@ -22,6 +22,10 @@ jobs:
             meson
             ninja
 
+      - name: Prepare MSVC (Windows-only)
+        if: runner.os == 'Windows'
+        uses: bus1/cabuild/action/msdevshell@v1
+
       # Build libstar with Meson
       - name: meson build
         run: |
