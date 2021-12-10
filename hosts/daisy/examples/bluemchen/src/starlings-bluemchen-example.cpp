@@ -11,7 +11,7 @@ Parameter knob1;
 Parameter cv1;
 Parameter cv2;
 
-#define HEAP_SIZE 262144 // 256K
+#define HEAP_SIZE 1024 * 256 // 256KB
 char heap[HEAP_SIZE];
 struct star_Allocator allocator = {
     .heapSize = HEAP_SIZE,
@@ -68,7 +68,7 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
     freqMod->signal.generate(freqMod);
     carrier->signal.generate(carrier);
     gainValue->signal.generate(gainValue);
-    gain->signal.generate(&gain);
+    gain->signal.generate(gain);
 
     // Copy mono buffer to stereo output.
     for (size_t i = 0; i < size; i++) {
