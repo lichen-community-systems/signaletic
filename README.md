@@ -26,40 +26,46 @@ The design of this project is still in flux, and will more fully emerge as I bec
 * The core library, consisting of _Signals_ (which can be individual signal generators or compositions of them) and the _Evaluator_ (which draws samples from Signals), will be completely platform-agnostic and must be integrated with a particular audio API. It will be usable 1) directly in C/C++ applications, 2) in Audio Worklets by being compiled to Web Assembly with JavaScript API bindings, 3) within other languages that provide interoperability with the C ABI.
 * A set of _Hosts_ will be developed, which will provide platform-specific logic for connecting to audio input and output devices, encoding/decoding audio files, and mapping hardware-specifc buses (e.g. GPIO, analog pins, or I2S) to Signals.
 
-## Dependencies
-To build Starlings itself:
-1. Meson ```brew install meson```
+## Installing Dependencies
 
-To compile to wasm:
-1. LLVM ```brew install llvm```
+### macOS
 
-To compile to Daisy-based Eurorack modules:
-1. XCode command line tools ```xcode-select --install```
-2. GCC ARM Embedded ```brew install gcc-arm-embedded```
-3. The [Daisy Toolchain](https://github.com/electro-smith/DaisyWiki/wiki/1.-Setting-Up-Your-Development-Environment#1-install-the-toolchain)
+#### libstar
+[Meson](https://mesonbuild.com/) and the XCode command line tools are required to build the core Starlings library:
+1. ```brew install meson```
+2. ```xcode-select --install```
+
+#### Daisy Eurorack Examples
+To cross-compile the Starlings examples for the Daisy STM32 platform using gcc and make, the GCC ARM embedded toolkit and the Daisy Toolchain must be installed.
+1. ```brew install gcc-arm-embedded```
+2. Follow the [Daisy Toolchain](https://github.com/electro-smith/DaisyWiki/wiki/1.-Setting-Up-Your-Development-Environment#1-install-the-toolchain) installation instructions.
 
 ## Building Starlings
 
-### libstar
-1. ```meson setup build```
-2. ```meson compile -C build```
+### macOS and Linux
 
-## Running the Unit Tests
+#### libstar
+1. ```cd libstar```
+2. ```meson setup build```
+3. ```meson compile -C build```
+
+To remove all previous build artifacts and rebuild, run ```rm -r build && meson setup build``` or run ```meson setup build --wipe```.
+
+#### Running the Unit Tests
 1. ```meson test -C build -v```
 
-## Running the Examples
+#### Running the Examples
 
-#### Bluemchen Example
+##### Console Example
+1. Build libstar
+2. ```./build/libstar-console-example```
+
+##### Daisy Bluemchen Example
 1. ```cd hosts/daisy/vendor/libDaisy```
 2. ```make```
 3. ```cd ../../examples/bluemchen```
 2. ```make```
-3. Use the [Daisy Web Programmer](https://electro-smith.github.io/Programmer/) to flash the ```build/libflock-bluemchen-example.bin``` binary to the Daisy board
-
-#### Web Host Example
-1. ```cd hosts/web/examples/print-silence```
-2. ```./build.sh```
-3. Open ```index.html``` using VS Code's LiveServer or other webserver
+3. Use the [Daisy Web Programmer](https://electro-smith.github.io/Programmer/) to flash the ```build/libflock-bluemchen-example.bin``` binary to the Daisy board, or run ```make program``` while connected to an ST-Link Mini debugger.
 
 
 ## Language and Compiler Support
