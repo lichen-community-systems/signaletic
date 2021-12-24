@@ -1,7 +1,7 @@
 {
     "tasks": [
         {
-            "label": "build_libstar",
+            "label": "Build libstar",
             "command": "meson compile -C build",
             "options": {
                 "cwd": "${workspaceFolder}/libstar"
@@ -16,7 +16,7 @@
             "type": "shell"
         },
         {
-            "label": "clean_build_libstar",
+            "label": "Clean and Build libstar",
             "command": "meson compile -C build --clean; meson compile -C build",
             "options": {
                 "cwd": "${workspaceFolder}/libstar"
@@ -27,9 +27,9 @@
             "type": "shell"
         },
         {
-            "label": "clean_build_bluemchen",
+            "label": "Clean and Build Bluemchen Examples",
             "dependsOn": [
-                "clean_build_libdaisy"
+                "Clean and Build libdaisy"
             ],
             "command": "make clean; make",
             "options": {
@@ -41,9 +41,9 @@
             "type": "shell"
         },
         {
-            "label": "build_bluemchen_debug",
+            "label": "Debug Build Bluemchen Examples",
             "dependsOn": [
-                "build_libdaisy"
+                "Build libdaisy"
             ],
             "command": "make clean;DEBUG=1 make",
             "options": {
@@ -55,9 +55,9 @@
             "type": "shell"
         },
         {
-            "label": "build_bluemchen",
+            "label": "Build Bluemchen Examples",
             "dependsOn": [
-                "build_libdaisy"
+                "Build libdaisy"
             ],
             "group": {
                 "kind": "build",
@@ -73,13 +73,12 @@
             "type": "shell"
         },
         {
-            "label": "build_and_program_bluemchen",
+            "label": "Build and Flash Bluemchen Oscillator",
             "options": {
-                "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen"
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/oscillator"
             },
             "dependsOn": [
-                "build_bluemchen",
-                "program_bluemchen"
+                "Build Bluemchen Examples"
             ],
             "command": "make program",
             "problemMatcher": [
@@ -88,7 +87,21 @@
             "type": "shell"
         },
         {
-            "label": "build_libdaisy",
+            "label": "Build and Flash Bluemchen Looper",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/looper"
+            },
+            "dependsOn": [
+                "Build Bluemchen Examples"
+            ],
+            "command": "make program",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
+            "label": "Build libdaisy",
             "options": {
                 "cwd": "${workspaceFolder}/hosts/daisy/vendor/libDaisy/"
             },
@@ -99,7 +112,7 @@
             "type": "shell"
         },
         {
-            "label": "clean_build_libdaisy",
+            "label": "Clean and Build libdaisy",
             "options": {
                 "cwd": "${workspaceFolder}/hosts/daisy/vendor/libDaisy/"
             },

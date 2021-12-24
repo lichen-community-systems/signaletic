@@ -1,4 +1,4 @@
-#include "../vendor/kxmx_bluemchen/src/kxmx_bluemchen.h"
+#include "../../vendor/kxmx_bluemchen/src/kxmx_bluemchen.h"
 #include <tlsf.h>
 #include <libstar.h>
 #include <string>
@@ -28,7 +28,7 @@ void UpdateOled() {
     bluemchen.display.Fill(false);
     FixedCapStr<20> displayStr;
 
-    displayStr.Append("STARLINGS");
+    displayStr.Append("STARSCILL");
     bluemchen.display.SetCursor(0, 0);
     bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 

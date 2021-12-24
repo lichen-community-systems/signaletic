@@ -15,23 +15,53 @@
         "program": "${workspaceFolder}/libstar/build/run_tests"
       },
       {
-        "name": "Remote Bluemchen Example",
+        "name": "Remote Bluemchen Oscillator",
         "configFiles": [
           "interface/stlink.cfg",
           "target/stm32h7x.cfg"
         ],
-        "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen",
+        "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/oscillator",
         "debuggerArgs": [
           "-d",
-          "${workspaceRoot}/hosts/daisy/examples/bluemchen"
+          "${workspaceRoot}/hosts/daisy/examples/bluemchen/oscillator"
         ],
-        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/build/starlings-bluemchen-example.elf",
+        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/oscillator/build/starlings-bluemchen-oscillator.elf",
         "interface": "swd",
         "openOCDLaunchCommands": [
           "init",
           "reset init"
         ],
-        "preLaunchTask": "build_bluemchen_debug",
+        "preLaunchTask": "Debug Build Bluemchen Examples",
+        "preRestartCommands": [
+          "load",
+          "enable breakpoint",
+          "monitor reset"
+        ],
+        "request": "launch",
+        "runToMain": true,
+        "servertype": "openocd",
+        "showDevDebugOutput": true,
+        "svdFile": "${workspaceRoot}/.vscode/STM32H750x.svd",
+        "type": "cortex-debug"
+      },
+      {
+        "name": "Remote Bluemchen Looper",
+        "configFiles": [
+          "interface/stlink.cfg",
+          "target/stm32h7x.cfg"
+        ],
+        "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/looper",
+        "debuggerArgs": [
+          "-d",
+          "${workspaceRoot}/hosts/daisy/examples/bluemchen/looper"
+        ],
+        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/looper/build/starlings-bluemchen-looper.elf",
+        "interface": "swd",
+        "openOCDLaunchCommands": [
+          "init",
+          "reset init"
+        ],
+        "preLaunchTask": "Debug Build Bluemchen Examples",
         "preRestartCommands": [
           "load",
           "enable breakpoint",

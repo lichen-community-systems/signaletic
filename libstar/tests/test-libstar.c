@@ -76,16 +76,16 @@ void test_star_midiToFreq(void) {
         "A negative MIDI number should return a negative frequency.");
 }
 
-void test_star_Buffer_fill(void) {
+void test_star_fillWithValue(void) {
     float buffer[64];
-    star_Buffer_fill(440.4f, buffer, 64);
+    star_fillWithValue(440.4f, buffer, 64);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
         440.4f, buffer, 64);
 }
 
-void test_star_Buffer_fillSilence(void) {
+void test_star_fillWithSilence(void) {
     float buffer[16];
-    star_Buffer_fillSilence(buffer, 16);
+    star_fillWithSilence(buffer, 16);
     TEST_ASSERT_BUFFER_CONTAINS_SILENCE(buffer, 16);
 }
 
@@ -138,17 +138,17 @@ void test_star_sig_Gain(void) {
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
         220.0f, gain->signal.output, audioSettings.blockSize);
 
-    star_Buffer_fill(0.0f, inputs.gain, audioSettings.blockSize);
+    star_fillWithValue(0.0f, inputs.gain, audioSettings.blockSize);
     gain->signal.generate(gain);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
         0.0f, gain->signal.output, audioSettings.blockSize);
 
-    star_Buffer_fill(2.0f, inputs.gain, audioSettings.blockSize);
+    star_fillWithValue(2.0f, inputs.gain, audioSettings.blockSize);
     gain->signal.generate(gain);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
         880.0f, gain->signal.output, audioSettings.blockSize);
 
-    star_Buffer_fill(-1.0f, inputs.gain, audioSettings.blockSize);
+    star_fillWithValue(-1.0f, inputs.gain, audioSettings.blockSize);
     gain->signal.generate(gain);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
         -440.0f, gain->signal.output, audioSettings.blockSize);
@@ -299,8 +299,8 @@ int main(void) {
     UNITY_BEGIN();
 
     RUN_TEST(test_star_midiToFreq);
-    RUN_TEST(test_star_Buffer_fill);
-    RUN_TEST(test_star_Buffer_fillSilence);
+    RUN_TEST(test_star_fillWithValue);
+    RUN_TEST(test_star_fillWithSilence);
     RUN_TEST(test_star_sig_Value);
     RUN_TEST(test_star_sig_Gain);
     RUN_TEST(test_star_sig_Sine);
