@@ -4,6 +4,13 @@
 #include <tlsf.h>
 #include <libstar.h>
 
+// TODO: Unit tests
+// TODO: Inline?
+float star_clamp(float value, float min, float max) {
+    const float minClamped = value < min ? min : value;
+    return minClamped > max ? max : minClamped;
+}
+
 // TODO: Inline? http://www.greenend.org.uk/rjk/tech/inline.html
 float star_midiToFreq(float midiNum) {
     return powf(2, (midiNum - 69.0f) / 12.0f) * 440.0f;
@@ -59,6 +66,7 @@ float star_interpolate_cubic(float idx, float* table,
         idxFractional + x0;
 }
 
+// TODO: Unit tests.
 // TODO: Inline?
 float star_filter_onepole(float current, float previous, float coeff) {
     return current + coeff * (previous - current);
@@ -106,6 +114,16 @@ struct star_Buffer* star_Buffer_new(struct star_Allocator* allocator,
     buffer->samples = star_samples_new(allocator, length);
 
     return buffer;
+}
+
+// TODO: Unit tests
+void star_Buffer_fill(struct star_Buffer* self, float value) {
+    star_fillWithValue(value, self->samples, self->length);
+}
+
+// TODO: Unit tests
+void star_Buffer_fillWithSilence(struct star_Buffer* self) {
+    star_fillWithSilence(self->samples, self->length);
 }
 
 void star_Buffer_destroy(struct star_Allocator* allocator, struct star_Buffer* buffer) {
@@ -314,7 +332,7 @@ void star_sig_Looper_init(struct star_sig_Looper* self,
 
     self->inputs = inputs;
     self->isBufferEmpty = true;
-    self->previousRecordGate = 0.0f;
+    self->previousRecord = 0.0f;
     self->playbackPos = 0.0f;
 
     // TODO: Deal with how buffers get here.
@@ -336,13 +354,11 @@ struct star_sig_Looper* star_sig_Looper_new(
 
 // TODO:
 // * Set the maximum loop end point automatically after the first overdub
+// * Reduce clicks by crossfading the end and start of the window.
+// * Address glitches when the length is very short
 // * Ignore loop duration while recording the first overdub?
 // * Adjust speed scaling so regular playback speed is at 0.0
-// * Adjust gate amplitude so that it opens just a bit above 0.0
-// * Consider always passing the input signal through, regardless of
-//   if we're recording
-// * Consider fading in when starting the recording and fading out when
-//   stopping by x samples; this could reduce clicks.
+// * Display a visual rendering of the loop points on screen
 // * Should we check if the buffer is null and output silence,
 //   or should this be considered a user error?
 //   (Or should we introduce some kind of validation function for signals?)
@@ -350,29 +366,15 @@ void star_sig_Looper_generate(void* signal) {
     struct star_sig_Looper* self = (struct star_sig_Looper*) signal;
     float* samples = self->buffer->samples;
     float playbackPos = self->playbackPos;
+    float bufferLastIdx = (float)(self->buffer->length - 1);
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
         float speed = self->inputs->speed[i];
-
-        // Clamp the start and end inputs between 0.0 and 1.0.
-        float start = self->inputs->start[i] > 0.0 ?
-            self->inputs->start[i] : 0.0;
-        float end = self->inputs->end[i] < 1.0 ?
-            self->inputs->end[i] : 1.0;
-
-        if (start > end) {
-            // Swap start and end indices if they're backwards.
-            float temp = start;
-            start = end;
-            end = temp;
-        } else if (start == end) {
-            self->signal.output[i] = 0.0f;
-            continue;
-        }
-
-        float bufferLastIdx = (float)(self->buffer->length - 1);
+        float start = star_clamp(self->inputs->start[i], 0.0, 1.0);
+        float length = star_clamp(self->inputs->length[i], 0.0, 1.0);
         float startPos = roundf(bufferLastIdx * start);
-        float endPos = roundf(bufferLastIdx * end);
+        float endPos = roundf(startPos + ((bufferLastIdx - startPos) *
+            length));
 
         // If the loop size is smaller than the speed
         // we're playing back at, just output silence.
@@ -381,14 +383,13 @@ void star_sig_Looper_generate(void* signal) {
             continue;
         }
 
-        if (self->inputs->recordGate[i] > 0.0f) {
+        if (self->inputs->record[i] > 0.0f) {
             // We're recording.
-            if (self->previousRecordGate <= 0.0f) {
+            if (self->previousRecord <= 0.0f) {
                 // We've just started recording.
                 if (self->isBufferEmpty) {
                     // This is the first overdub.
                     playbackPos = startPos;
-                    self->isBufferEmpty = false;
                 }
             }
 
@@ -410,12 +411,30 @@ void star_sig_Looper_generate(void* signal) {
             // playing/recording at regular speed.
             self->signal.output[i] = sample;
         } else {
+            // We're playing back.
+            if (self->previousRecord > 0.0f) {
+                self->isBufferEmpty = false;
+            }
+
+            if (self->inputs->clear[i] > 0.0f &&
+                self->previousClear == 0.0f) {
+                // TODO: The cost of erasing the entire buffer
+                // while in the midst of generating one sample
+                // seems very high and may limit buffer sizes.
+                // But an alternative implementation needs to take
+                // into account the samples outside the current
+                // window.
+                star_Buffer_fillWithSilence(self->buffer);
+                self->isBufferEmpty = true;
+            }
+
             // TODO: The star_interpolate_linear implementation
             // may wrap around inappropriately to the beginning of
             // the buffer (not to the startPos) if we're right at
             // the end of the buffer.
             self->signal.output[i] = star_interpolate_linear(
-                playbackPos, samples, self->buffer->length);
+                playbackPos, samples, self->buffer->length) +
+                self->inputs->source[i];
         }
 
         playbackPos += speed;
@@ -425,7 +444,8 @@ void star_sig_Looper_generate(void* signal) {
             playbackPos = endPos - (startPos - playbackPos);
         }
 
-        self->previousRecordGate = self->inputs->recordGate[i];
+        self->previousRecord = self->inputs->record[i];
+        self->previousClear = self->inputs->clear[i];
     }
 
     self->playbackPos = playbackPos;

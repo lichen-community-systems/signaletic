@@ -11,18 +11,38 @@ static const float star_PI = 3.14159265358979323846f;
 static const float star_TWOPI = 6.28318530717958647693f;
 
 /**
+ * Clamps the value between the specified minimum and maximum.
+ *
+ * @param value the sample to clamp
+ * @param min the minimum value
+ * @param max the maximum value
+ * @return the clamped value
+ */
+float star_clamp(float value, float min, float max);
+
+/**
  * Converts MIDI note numbers into frequencies in hertz.
  * This algorithm assumes A4 = 440 Hz = MIDI note #69.
+ *
+ * @param midiNum the MIDI note number to convert
+ * @return the frequency in Hz of the note number
  */
 float star_midiToFreq(float midiNum);
 
 /**
  * Fills an array of floats with the specified value.
+ *
+ * @param value the value to fill the array with
+ * @param array the array to fill
+ * @param length the length of the array to fill
  **/
 void star_fillWithValue(float value, float* array, size_t length);
 
 /**
  * Fills an array of floats with zeroes.
+ *
+ * @param array the array to fill with silence
+ * @param length the length of the array to fill
  **/
 void star_fillWithSilence(float* array, size_t length);
 
@@ -31,10 +51,10 @@ void star_fillWithSilence(float* array, size_t length);
  * using linear interpolation. This implementation will
  * wrap to the beginning of the table if needed.
  *
- * @param idx {float} an index into the table
- * @param table {float*} the table from which values around idx should be drawn and interpolated
- * @param length {size_t} the length of the buffer
- * @return {float} the interpolated value
+ * @param idx an index into the table
+ * @param table the table from which values around idx should be drawn and interpolated
+ * @param length the length of the buffer
+ * @return the interpolated value
  */
 float star_interpolate_linear(float idx, float* table,
     size_t length);
@@ -52,10 +72,8 @@ float star_interpolate_linear(float idx, float* table,
  * @param length {size_t} the length of the buffer
  * @return {float} the interpolated value
  */
-// TODO: Unit tests.
 float star_interpolate_cubic(float idx, float* table, size_t length);
 
-// TODO: Unit tests.
 float star_filter_onepole(float current, float previous, float coeff);
 
 struct star_AudioSettings {
@@ -85,7 +103,10 @@ struct star_Buffer {
 };
 struct star_Buffer* star_Buffer_new(struct star_Allocator* allocator,
     size_t length);
+void star_Buffer_fill(struct star_Buffer* self, float value);
+void star_Buffer_fillWithSilence(struct star_Buffer* self);
 void star_Buffer_destroy(struct star_Allocator* allocator, struct star_Buffer* buffer);
+
 
 float* star_AudioBlock_new(struct star_Allocator* allocator,
     struct star_AudioSettings* audioSettings);
@@ -192,9 +213,10 @@ void star_sig_OnePole_destroy(struct star_Allocator* allocator,
 struct star_sig_Looper_Inputs {
     float* source;
     float* start;
-    float* end;
+    float* length;
     float* speed;
-    float* recordGate;
+    float* record;
+    float* clear;
 };
 
 struct star_sig_Looper {
@@ -203,7 +225,8 @@ struct star_sig_Looper {
     struct star_Buffer* buffer;
     float playbackPos;
     bool isBufferEmpty;
-    float previousRecordGate;
+    float previousRecord;
+    float previousClear;
 };
 
 void star_sig_Looper_init(struct star_sig_Looper* self,
