@@ -88,7 +88,9 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
         1.0f : 0.0f;
 
     // Evaluate the signal graph.
-    smoothCoeff->signal.generate(smoothCoeff);
+    // We don't evaluate the smoothCoeff or gainValue
+    // signals because they are constant.
+    // TODO: Implement a constValue Signal.
     start->signal.generate(start);
     startSmoother->signal.generate(startSmoother);
     length->signal.generate(length);
@@ -105,7 +107,6 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
     }
 
     looper->signal.generate(looper);
-    gainValue->signal.generate(gainValue);
     gain->signal.generate(gain);
 
     // Copy mono buffer to stereo output.
@@ -120,6 +121,8 @@ void initControls() {
         0.0f, 1.0f, Parameter::LINEAR);
     lengthKnob.Init(bluemchen.controls[bluemchen.CTRL_2],
         0.0f, 1.0f, Parameter::LINEAR);
+
+    // TODO: Adjust speed scaling so regular playback speed is at 0.0
     speedCV.Init(bluemchen.controls[bluemchen.CTRL_3],
         -1.5f, 1.5f, Parameter::LINEAR);
     recordGateCV.Init(bluemchen.controls[bluemchen.CTRL_4],
@@ -142,6 +145,7 @@ int main(void) {
 
     smoothCoeff = star_sig_Value_new(&allocator, &audioSettings);
     smoothCoeff->parameters.value = 0.01f;
+    smoothCoeff->signal.generate(smoothCoeff);
 
     start = star_sig_Value_new(&allocator, &audioSettings);
     start->parameters.value = 0.0f;
@@ -206,6 +210,7 @@ int main(void) {
     // so 0.85 seems to be around the practical maximum value.
     gainValue = star_sig_Value_new(&allocator, &audioSettings);
     gainValue->parameters.value = 0.85f;
+    gainValue->signal.generate(gainValue);
 
     struct star_sig_Gain_Inputs gainInputs = {
         .gain = gainValue->signal.output,

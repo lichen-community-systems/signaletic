@@ -4,11 +4,32 @@
 #include <tlsf.h>
 #include <libstar.h>
 
+// TODO: Inline?
+float star_fminf(float a, float b) {
+    float r;
+#ifdef __arm__
+    asm("vminnm.f32 %[d], %[n], %[m]" : [d] "=t"(r) : [n] "t"(a), [m] "t"(b) :);
+#else
+    r = (a < b) ? a : b;
+#endif // __arm__
+    return r;
+}
+
+// TODO: Inline?
+float star_fmaxf(float a, float b) {
+    float r;
+#ifdef __arm__
+    asm("vmaxnm.f32 %[d], %[n], %[m]" : [d] "=t"(r) : [n] "t"(a), [m] "t"(b) :);
+#else
+    r = (a > b) ? a : b;
+#endif // __arm__
+    return r;
+}
+
 // TODO: Unit tests
 // TODO: Inline?
 float star_clamp(float value, float min, float max) {
-    const float minClamped = value < min ? min : value;
-    return minClamped > max ? max : minClamped;
+    return star_fminf(star_fmaxf(value, min), max);
 }
 
 // TODO: Inline? http://www.greenend.org.uk/rjk/tech/inline.html
@@ -353,11 +374,13 @@ struct star_sig_Looper* star_sig_Looper_new(
 }
 
 // TODO:
-// * Set the maximum loop end point automatically after the first overdub
 // * Reduce clicks by crossfading the end and start of the window.
+//      - should it be a true cross fade, requiring a few samples
+//        on each end of the clip, or a very quick fade in/out
+//        (e.g. 1-10ms/48-480 samples)?
+// * Set the maximum loop end point automatically after the first overdub
+//      - what does this mean if we've recorded backwards into the buffer?
 // * Address glitches when the length is very short
-// * Ignore loop duration while recording the first overdub?
-// * Adjust speed scaling so regular playback speed is at 0.0
 // * Display a visual rendering of the loop points on screen
 // * Should we check if the buffer is null and output silence,
 //   or should this be considered a user error?

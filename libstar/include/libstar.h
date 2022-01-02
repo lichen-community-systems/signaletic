@@ -11,6 +11,34 @@ static const float star_PI = 3.14159265358979323846f;
 static const float star_TWOPI = 6.28318530717958647693f;
 
 /**
+ * Returns the smaller of two floating point arguments.
+ *
+ * ARM-optimized 32-bit floating point implementation
+ * from DaisySP (Copyright 2020 Electrosmith, Corp),
+ * written by Stephen McCaul.
+ * https://github.com/electro-smith/DaisySP/blob/master/Source/Utility/dsp.h
+ *
+ * @param a the first value to compare
+ * @param b the second value to compare
+ * @return the samller of the two arguments
+*/
+float star_fminf(float a, float b);
+
+/**
+ * Returns the larger of two floating point arguments.
+ *
+ * ARM-optimized 32-bit floating point implementation
+ * from DaisySP (Copyright 2020 Electrosmith, Corp),
+ * written by Stephen McCaul.
+ * https://github.com/electro-smith/DaisySP/blob/master/Source/Utility/dsp.h
+ *
+ * @param a the first value to compare
+ * @param b the second value to compare
+ * @return the larger of the two arguments
+*/
+float star_fmaxf(float a, float b);
+
+/**
  * Clamps the value between the specified minimum and maximum.
  *
  * @param value the sample to clamp
