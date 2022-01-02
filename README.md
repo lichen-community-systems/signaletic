@@ -35,6 +35,10 @@ The design of this project is still in flux, and will more fully emerge as I bec
 1. ```brew install meson```
 2. ```xcode-select --install```
 
+#### libstar Web Assembly
+libstar uses the [Emscripten compiler](https://emscripten.org/) for Web Assembly support:
+1. ```brew install emscripten```
+
 #### Daisy Eurorack Examples
 To cross-compile the Starlings examples for the Daisy STM32 platform using gcc and make, the GCC ARM embedded toolkit and the Daisy Toolchain must be installed.
 1. ```brew install gcc-arm-embedded```
@@ -44,21 +48,33 @@ To cross-compile the Starlings examples for the Daisy STM32 platform using gcc a
 
 ### macOS and Linux
 
-#### libstar
+#### libstar (native)
 1. ```cd libstar```
-2. ```meson setup build```
-3. ```meson compile -C build```
+2. ```meson setup build/native```
+3. ```meson compile -C build/native```
 
-To remove all previous build artifacts and rebuild, run ```rm -r build && meson setup build``` or run ```meson setup build --wipe```.
+To remove all previous build artifacts and rebuild, run ```rm -r build/native && meson setup build/native``` or run ```meson setup build/native --wipe```.
+
+#### libstar (Web Assembly)
+1. ```cd libstar```
+2. ```meson setup build/wasm --cross-file wasm-cross-compile.txt```
+3. ```meson compile -C build/wasm```
 
 #### Running the Unit Tests
-1. ```meson test -C build -v```
+1. Native: ```meson test -C build/native -v```
+2. Node.js wasm: ```meson test -C build/wasm -v```
+3. Browser wasm: Open ```libstar/tests/test-libstar.html``` using VS Code's Live Server plugin or other web server.
 
 #### Running the Examples
 
 ##### Console Example
 1. Build libstar
-2. ```./build/libstar-console-example```
+2. ```./build/native/libstar-console-example```
+
+#### Web Example
+1. ```cd hosts/web/```
+2. ```./build.sh```
+3. Open ```examples/midi-to-freq/index.html``` using VS Code's Live Server plugin or other web server.
 
 ##### Daisy Bluemchen Example
 1. ```cd hosts/daisy/vendor/libDaisy```
@@ -72,6 +88,8 @@ To remove all previous build artifacts and rebuild, run ```rm -r build && meson 
 Starlings' core is written in C using the C99 standard (due to the use of C++ style comments, for loops with initial declarations, and float math functions like sinef and powf). It is currently compiled and tested on LLVM on macOS, GCC on Ubuntu Linux, and the Visual Studio C compiler on Windows.
 
 On the Daisy platform, Starlings is compiled using Daisy's own toolchain, which uses the gnu11 standard for C and gnu++14 for C++. Compiling the Daisy Host and examples is currently supported using GCC on macOS.
+
+On the Web, Starlings is compiled using the Emscripten compiler toolchain.
 
 ## Attribution
 

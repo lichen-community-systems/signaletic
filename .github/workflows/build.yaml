@@ -21,28 +21,40 @@ jobs:
           packages: |
             meson
             ninja
+      - uses: mymindstorm/setup-emsdk@v11
 
       - name: Prepare MSVC (Windows-only)
         if: runner.os == 'Windows'
         uses: bus1/cabuild/action/msdevshell@v1
 
-      # Build libstar with Meson
-      - name: meson build
+      # Build libstar for the native architecture
+      - name: meson native build
         run: |
           cd libstar
-          meson setup build
-          meson compile -C build
+          meson setup build/native
+          meson compile -C build/native
+
+      # Build libstar for wasm
+      - name: meson wasm build
+        run: |
+          cd libstar
+          meson setup build/wasm --cross-file wasm-cross-compile.txt
+          meson compile -C build/wasm
+          cd ../hosts/web
+          ./build.sh
 
       # Tests
       - name: run unit tests
         run: |
           cd libstar
-          meson test -C build -v
+          meson test -C build/native -v
+          meson test -C build/wasm -v
 
       # Run examples
       - name: run console example
         run: |
-          ./libstar/build/libstar-console-example
+          ./libstar/build/native/libstar-console-example
+          node ./libstar/build/wasm/libstar-console-example.js
 
   build-daisy-host:
     runs-on: macos-latest
