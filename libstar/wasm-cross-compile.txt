@@ -8,9 +8,7 @@ needs_exe_wrapper = true
 
 [built-in options]
 c_args = []
-c_link_args = ['-s','EXPORT_ALL=1', '-s', 'LINKABLE=1', '-s']
-cpp_args = []
-cpp_link_args = ['-s','EXPORT_ALL=1', '-s', 'LINKABLE=1', '-s']
+c_link_args = ['-s','EXPORT_ALL=1', '-s', 'LINKABLE=1', '-s', 'EXPORTED_RUNTIME_METHODS=["ccall", "cwrap"]']
 
 [host_machine]
 system = 'emscripten'

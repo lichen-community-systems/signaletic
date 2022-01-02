@@ -35,13 +35,13 @@ jobs:
           meson compile -C build/native
 
       # Build libstar for wasm
+      # TODO: Determine why Windows can't find emcc.
       - name: meson wasm build
+        if: runner.os != 'Windows'
         run: |
           cd libstar
           meson setup build/wasm --cross-file wasm-cross-compile.txt
           meson compile -C build/wasm
-          cd ../hosts/web
-          ./build.sh
 
       # Tests
       - name: run unit tests

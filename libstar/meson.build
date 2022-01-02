@@ -29,6 +29,15 @@ libstar_dep = declare_dependency(
     link_with: libstar_library
 )
 
+# Meson only seems to build .wasm and .js files for executables
+if host_machine.system() == 'emscripten'
+    executable(
+        'libstar',
+        dependencies: [libstar_dep],
+        link_args: '--no-entry'
+    )
+endif
+
 # Examples
 executable(
     'libstar-console-example',

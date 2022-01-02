@@ -72,9 +72,8 @@ To remove all previous build artifacts and rebuild, run ```rm -r build/native &&
 2. ```./build/native/libstar-console-example```
 
 #### Web Example
-1. ```cd hosts/web/```
-2. ```./build.sh```
-3. Open ```examples/midi-to-freq/index.html``` using VS Code's Live Server plugin or other web server.
+1. Build libstar Web Assembly
+2. Open ```hosts/web/examples/midi-to-freq/index.html``` using VS Code's Live Server plugin or other web server.
 
 ##### Daisy Bluemchen Example
 1. ```cd hosts/daisy/vendor/libDaisy```
