@@ -28,7 +28,7 @@ jobs:
         uses: bus1/cabuild/action/msdevshell@v1
 
       # Build libstar for the native architecture
-      - name: meson native build
+      - name: Native build
         run: |
           cd libstar
           meson setup build/native
@@ -36,7 +36,7 @@ jobs:
 
       # Build libstar for wasm
       # TODO: Determine why Windows can't find emcc.
-      - name: meson wasm build
+      - name: Web Assembly build
         if: runner.os != 'Windows'
         run: |
           cd libstar
@@ -44,17 +44,24 @@ jobs:
           meson compile -C build/wasm
 
       # Tests
-      - name: run unit tests
+      - name: Run native unit tests
         run: |
           cd libstar
           meson test -C build/native -v
+
+      - name: Run unit tests in Node.js
+        if: runner.os != 'Windows'
+        run: |
+          cd libstar
           meson test -C build/wasm -v
 
       # Run examples
       - name: run console example
-        run: |
-          ./libstar/build/native/libstar-console-example
-          node ./libstar/build/wasm/libstar-console-example.js
+        run: ./libstar/build/native/libstar-console-example
+
+      - name: run console example in Node.js
+        if: runner.os != 'Windows'
+        run: node ./libstar/build/wasm/libstar-console-example.js
 
   build-daisy-host:
     runs-on: macos-latest
