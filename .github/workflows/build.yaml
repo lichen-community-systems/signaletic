@@ -40,6 +40,8 @@ jobs:
       - name: Web Assembly build
         if: runner.os != 'Windows'
         run: |
+          git clone https://github.com/emscripten-core/emscripten.git
+          export EMSCRIPTEN_TOOLS_PATH=$PWD/emscripten/tools
           cd libstar
           meson setup build/wasm --cross-file wasm-cross-compile.txt
           ./generate-wasm-bindings.sh
