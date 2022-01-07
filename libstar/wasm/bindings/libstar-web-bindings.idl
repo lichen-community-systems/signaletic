@@ -1,0 +1,55 @@
+interface Starlings {
+    readonly attribute float PI;
+    readonly attribute float TWOPI;
+
+    void Starlings();
+
+    float fminf(float a, float b);
+    float fmaxf(float a, float b);
+    float clamp(float value, float min, float max);
+    float midiToFreq(float midiNum);
+    void fillWithValue(any array, unsigned long length, float value);
+    void fillWithSilence(any array, unsigned long length);
+    float interpolate_linear(float idx, any table,
+        unsigned long length);
+    float interpolate_cubic(float idx, any table,
+        unsigned long length);
+    float filter_onepole(float current, float previous, float coeff);
+
+    star_Allocator Allocator_new(unsigned long heapSize);
+    void Allocator_init(star_Allocator allocator);
+    any Allocator_malloc(star_Allocator allocator, unsigned long size);
+    void Allocator_free(star_Allocator allocator, any obj);
+
+    star_AudioSettings AudioSettings_new(star_Allocator allocator);
+    void AudioSettings_destroy(star_Allocator allocator,
+        star_AudioSettings settings);
+
+    star_Buffer Buffer_new(star_Allocator allocator,
+        unsigned long length);
+    void Buffer_fill(star_Buffer buffer, float value);
+    void Buffer_fillWithSilence(star_Buffer buffer);
+    void Buffer_destroy(star_Allocator allocator, star_Buffer buffer);
+
+    any AudioBlock_new(star_Allocator allocator,
+        star_AudioSettings audioSettings);
+    any AudioBlock_newWithValue(float value,
+        star_Allocator allocator,
+        star_AudioSettings audioSettings);
+};
+
+interface star_Allocator {
+    attribute unsigned long heapSize;
+    attribute any heap;
+};
+
+interface star_AudioSettings {
+    attribute float sampleRate;
+    attribute unsigned long numChannels;
+    attribute unsigned long blockSize;
+};
+
+interface star_Buffer {
+    attribute unsigned long length;
+    attribute any samples;
+};

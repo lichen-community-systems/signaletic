@@ -2,7 +2,7 @@
     "tasks": [
         {
             "label": "Build libstar",
-            "command": "meson compile -C build",
+            "command": "meson compile -C build/native",
             "options": {
                 "cwd": "${workspaceFolder}/libstar"
             },
@@ -16,11 +16,51 @@
             "type": "shell"
         },
         {
-            "label": "Clean and Build libstar",
-            "command": "meson compile -C build --clean; meson compile -C build",
+            "label": "Test libstar",
+            "command": "meson test -C build/native -v",
             "options": {
                 "cwd": "${workspaceFolder}/libstar"
             },
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
+            "label": "Build libstar Web Assembly",
+            "command": "meson compile -C build/wasm",
+            "options": {
+                "cwd": "${workspaceFolder}/libstar"
+            },
+            "group": "build",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
+            "label": "Clean build libstar",
+            "command": "meson compile -C build/native --clean; meson compile -C build/native",
+            "options": {
+                "cwd": "${workspaceFolder}/libstar"
+            },
+            "group": "build",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
+            "label": "Clean build libstar Web Assembly",
+            "command": "meson compile -C build/wasm --clean; meson compile -C build/wasm",
+            "options": {
+                "cwd": "${workspaceFolder}/libstar"
+            },
+            "group": "build",
             "problemMatcher": [
                 "$gcc"
             ],

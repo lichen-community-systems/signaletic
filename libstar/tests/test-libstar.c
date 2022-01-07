@@ -45,9 +45,7 @@ void setUp(void) {
     star_Allocator_init(&allocator);
 }
 
-void tearDown(void) {
-    star_Allocator_destroy(&allocator);
-}
+void tearDown(void) {}
 
 void test_star_midiToFreq(void) {
     // 69 A 440
@@ -78,7 +76,7 @@ void test_star_midiToFreq(void) {
 
 void test_star_fillWithValue(void) {
     float buffer[64];
-    star_fillWithValue(440.4f, buffer, 64);
+    star_fillWithValue(buffer, 64, 440.4f);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
         440.4f, buffer, 64);
 }
@@ -138,17 +136,17 @@ void test_star_sig_Gain(void) {
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
         220.0f, gain->signal.output, audioSettings.blockSize);
 
-    star_fillWithValue(0.0f, inputs.gain, audioSettings.blockSize);
+    star_fillWithValue(inputs.gain, audioSettings.blockSize, 0.0f);
     gain->signal.generate(gain);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
         0.0f, gain->signal.output, audioSettings.blockSize);
 
-    star_fillWithValue(2.0f, inputs.gain, audioSettings.blockSize);
+    star_fillWithValue(inputs.gain, audioSettings.blockSize, 2.0f);
     gain->signal.generate(gain);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
         880.0f, gain->signal.output, audioSettings.blockSize);
 
-    star_fillWithValue(-1.0f, inputs.gain, audioSettings.blockSize);
+    star_fillWithValue(inputs.gain, audioSettings.blockSize, -1.0f);
     gain->signal.generate(gain);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
         -440.0f, gain->signal.output, audioSettings.blockSize);

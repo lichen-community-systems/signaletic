@@ -11,15 +11,18 @@
             <div id="freq" style="padding-top: 1em; font-weight: bold; font-size: 2em;"></div>
         </div>
         <script>
+            let star;
+
             function onNoteChanged(event) {
                 let midiNote = 48 + event.note[1];
-                let freq = Module.ccall("star_midiToFreq",
-                    "number", ["number"], [midiNote]);
+                let freq = star.midiToFreq(midiNote);
                 let freqDiv = document.getElementById("freq");
                 freqDiv.innerHTML = freq.toFixed(2);
             }
             var Module = {
                 onRuntimeInitialized: function() {
+                    star = new Module.Starlings();
+
                     var keyboard = document.getElementById("keyboard");
                     keyboard.addEventListener("change", onNoteChanged);
                 }

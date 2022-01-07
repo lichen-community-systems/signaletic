@@ -36,8 +36,11 @@ The design of this project is still in flux, and will more fully emerge as I bec
 2. ```xcode-select --install```
 
 #### libstar Web Assembly
-libstar uses the [Emscripten compiler](https://emscripten.org/) for Web Assembly support:
-1. ```brew install emscripten```
+libstar uses the [Emscripten compiler](https://emscripten.org/) for Web Assembly support. This installation process is no fun, and could use some improvement.
+1. ```brew install emscripten binaryen```
+2. ```export EM_BINARYEN_ROOT=/opt/homebrew/opt/binaryen```
+3. Clone the [emscripten repository](https://github.com/emscripten-core/emscripten).
+4. ```export EMSCRIPTEN_TOOLS_PATH=[path to emscripten repository]/tools```
 
 #### Daisy Eurorack Examples
 To cross-compile the Starlings examples for the Daisy STM32 platform using gcc and make, the GCC ARM embedded toolkit and the Daisy Toolchain must be installed.
@@ -58,7 +61,8 @@ To remove all previous build artifacts and rebuild, run ```rm -r build/native &&
 #### libstar (Web Assembly)
 1. ```cd libstar```
 2. ```meson setup build/wasm --cross-file wasm-cross-compile.txt```
-3. ```meson compile -C build/wasm```
+3. ```./generate-wasm-bindings.sh```
+4. ```meson compile -C build/wasm```
 
 #### Running the Unit Tests
 1. Native: ```meson test -C build/native -v```

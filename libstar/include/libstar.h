@@ -7,6 +7,21 @@ extern "C" {
 
 #include <stdbool.h>
 
+// This typedef if necessary because Emscripten's
+// WebIDL binder is unable to produce viable
+// (i.e. performant and bug-free) bindings for
+// array pointers. As a result, for Emscripten
+// we handle float arrays as void pointers instead,
+// so that we can do manual deferencing on the
+// JavaScript side of the universe.
+// As a result, all float* variables in Starlings
+// in public interface must use this type instead.
+#ifdef __EMSCRIPTEN__
+    typedef void* float_array_ptr;
+#else
+    typedef float* float_array_ptr;
+#endif
+
 static const float star_PI = 3.14159265358979323846f;
 static const float star_TWOPI = 6.28318530717958647693f;
 
@@ -64,7 +79,8 @@ float star_midiToFreq(float midiNum);
  * @param array the array to fill
  * @param length the length of the array to fill
  **/
-void star_fillWithValue(float value, float* array, size_t length);
+void star_fillWithValue(float_array_ptr array, size_t length,
+    float value);
 
 /**
  * Fills an array of floats with zeroes.
@@ -72,7 +88,7 @@ void star_fillWithValue(float value, float* array, size_t length);
  * @param array the array to fill with silence
  * @param length the length of the array to fill
  **/
-void star_fillWithSilence(float* array, size_t length);
+void star_fillWithSilence(float_array_ptr array, size_t length);
 
 /**
  * Interpolates a value from the specified lookup table
@@ -84,7 +100,7 @@ void star_fillWithSilence(float* array, size_t length);
  * @param length the length of the buffer
  * @return the interpolated value
  */
-float star_interpolate_linear(float idx, float* table,
+float star_interpolate_linear(float idx, float_array_ptr table,
     size_t length);
 
 /**
@@ -100,7 +116,7 @@ float star_interpolate_linear(float idx, float* table,
  * @param length {size_t} the length of the buffer
  * @return {float} the interpolated value
  */
-float star_interpolate_cubic(float idx, float* table, size_t length);
+float star_interpolate_cubic(float idx, float_array_ptr table, size_t length);
 
 float star_filter_onepole(float current, float previous, float coeff);
 
@@ -116,18 +132,38 @@ static const struct star_AudioSettings star_DEFAULT_AUDIOSETTINGS = {
     .blockSize = 48
 };
 
+
 struct star_Allocator {
     size_t heapSize;
     void* heap;
 };
 void star_Allocator_init(struct star_Allocator* self);
-void star_Allocator_destroy(struct star_Allocator* self);
 void* star_Allocator_malloc(struct star_Allocator* self, size_t size);
 void star_Allocator_free(struct star_Allocator* self, void* obj);
 
+
+/**
+ * Allocates a new AudioSettings instance with
+ * the values from star_DEFAULT_AUDIO_SETTINGS.
+ *
+ * @param allocator the memory allocator to use
+ * @return the AudioSettings
+ */
+struct star_AudioSettings* star_AudioSettings_new(struct star_Allocator* allocator);
+
+/**
+ * Destroys an AudioSettings instance.
+ *
+ * @param allocator the memory allocator to use
+ * @param self the AudioSettings instance to destroy
+ */
+void star_AudioSettings_destroy(struct star_Allocator* allocator,
+    struct star_AudioSettings* self);
+
+
 struct star_Buffer {
     size_t length;
-    float* samples;
+    float_array_ptr samples;
 };
 struct star_Buffer* star_Buffer_new(struct star_Allocator* allocator,
     size_t length);
@@ -136,9 +172,9 @@ void star_Buffer_fillWithSilence(struct star_Buffer* self);
 void star_Buffer_destroy(struct star_Allocator* allocator, struct star_Buffer* buffer);
 
 
-float* star_AudioBlock_new(struct star_Allocator* allocator,
+float_array_ptr star_AudioBlock_new(struct star_Allocator* allocator,
     struct star_AudioSettings* audioSettings);
-float* star_AudioBlock_newWithValue(float value,
+float_array_ptr star_AudioBlock_newWithValue(float value,
     struct star_Allocator* allocator,
     struct star_AudioSettings* audioSettings);
 
@@ -152,7 +188,7 @@ void star_sig_generateSilence(void* signal);
 
 struct star_sig_Signal {
     struct star_AudioSettings* audioSettings;
-    float* output;
+    float_array_ptr output;
     star_sig_generateFn generate;
 };
 
@@ -167,7 +203,7 @@ struct star_sig_Value {
 };
 
 void star_sig_Value_init(struct star_sig_Value* self,
-    struct star_AudioSettings* settings, float* output);
+    struct star_AudioSettings* settings, float_array_ptr output);
 struct star_sig_Value* star_sig_Value_new(struct star_Allocator* allocator,
     struct star_AudioSettings* settings);
 void star_sig_Value_destroy(struct star_Allocator* allocator, struct star_sig_Value* self);
@@ -175,10 +211,10 @@ void star_sig_Value_destroy(struct star_Allocator* allocator, struct star_sig_Va
 void star_sig_Value_generate(void* signal);
 
 struct star_sig_Sine_Inputs {
-    float* freq;
-    float* phaseOffset;
-    float* mul;
-    float* add;
+    float_array_ptr freq;
+    float_array_ptr phaseOffset;
+    float_array_ptr mul;
+    float_array_ptr add;
 };
 
 struct star_sig_Sine {
@@ -188,7 +224,7 @@ struct star_sig_Sine {
 };
 
 void star_sig_Sine_init(struct star_sig_Sine* self,
-    struct star_AudioSettings* settings, struct star_sig_Sine_Inputs* inputs, float* output);
+    struct star_AudioSettings* settings, struct star_sig_Sine_Inputs* inputs, float_array_ptr output);
 struct star_sig_Sine* star_sig_Sine_new(struct star_Allocator* allocator,
     struct star_AudioSettings* settings,
     struct star_sig_Sine_Inputs* inputs);
@@ -196,8 +232,8 @@ void star_sig_Sine_generate(void* signal);
 void star_sig_Sine_destroy(struct star_Allocator* allocator, struct star_sig_Sine* self);
 
 struct star_sig_Gain_Inputs {
-    float* gain;
-    float* source;
+    float_array_ptr gain;
+    float_array_ptr source;
 };
 
 struct star_sig_Gain {
@@ -206,7 +242,7 @@ struct star_sig_Gain {
 };
 
 void star_sig_Gain_init(struct star_sig_Gain* self,
-    struct star_AudioSettings* settings, struct star_sig_Gain_Inputs* inputs, float* output);
+    struct star_AudioSettings* settings, struct star_sig_Gain_Inputs* inputs, float_array_ptr output);
 struct star_sig_Gain* star_sig_Gain_new(struct star_Allocator* allocator,
     struct star_AudioSettings* settings,
     struct star_sig_Gain_Inputs* inputs);
@@ -215,8 +251,8 @@ void star_sig_Gain_destroy(struct star_Allocator* allocator, struct star_sig_Gai
 
 
 struct star_sig_OnePole_Inputs {
-    float* source;
-    float* coefficient;
+    float_array_ptr source;
+    float_array_ptr coefficient;
 };
 
 struct star_sig_OnePole {
@@ -228,7 +264,7 @@ struct star_sig_OnePole {
 void star_sig_OnePole_init(struct star_sig_OnePole* self,
     struct star_AudioSettings* settings,
     struct star_sig_OnePole_Inputs* inputs,
-    float* output);
+    float_array_ptr output);
 struct star_sig_OnePole* star_sig_OnePole_new(
     struct star_Allocator* allocator,
     struct star_AudioSettings* settings,
@@ -239,12 +275,12 @@ void star_sig_OnePole_destroy(struct star_Allocator* allocator,
 
 
 struct star_sig_Looper_Inputs {
-    float* source;
-    float* start;
-    float* length;
-    float* speed;
-    float* record;
-    float* clear;
+    float_array_ptr source;
+    float_array_ptr start;
+    float_array_ptr length;
+    float_array_ptr speed;
+    float_array_ptr record;
+    float_array_ptr clear;
 };
 
 struct star_sig_Looper {
@@ -260,7 +296,7 @@ struct star_sig_Looper {
 void star_sig_Looper_init(struct star_sig_Looper* self,
     struct star_AudioSettings* settings,
     struct star_sig_Looper_Inputs* inputs,
-    float* output);
+    float_array_ptr output);
 struct star_sig_Looper* star_sig_Looper_new(
     struct star_Allocator* allocator,
     struct star_AudioSettings* settings,

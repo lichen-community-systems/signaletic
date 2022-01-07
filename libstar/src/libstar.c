@@ -1,8 +1,21 @@
-#include <math.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <tlsf.h>
+#include <math.h>   // For powf, fmodf, sinf, roundf, fabsf
+#include <stddef.h> // For size_t
+#include <stdint.h> // For int32_t
+#include <tlsf.h>   // Includes assert.h, limits.h, stddef.h
+                    // stdio.h, stdlib.h, string.h (for errors etc.)
 #include <libstar.h>
+
+// This macro if necessary because Emscripten's
+// WebIDL binder is unable to produce viable
+// (i.e. performant and bug-free) bindings for
+// array pointers. All access to float* variables
+// that are exposed to the public interface must
+// use this macro prior to accessing the array.
+#ifdef __EMSCRIPTEN__
+    #define FLOAT_ARRAY(array) ((float*)array)
+#else
+    #define FLOAT_ARRAY(array) array
+#endif
 
 // TODO: Inline?
 float star_fminf(float a, float b) {
@@ -38,34 +51,35 @@ float star_midiToFreq(float midiNum) {
 }
 
 // TODO: Inline?
-void star_fillWithValue(float value, float* buffer, size_t size) {
+void star_fillWithValue(float_array_ptr buffer, size_t size,
+    float value) {
     for (size_t i = 0; i < size; i++) {
-        buffer[i] = value;
+        FLOAT_ARRAY(buffer)[i] = value;
     }
 }
 
 // TODO: Inline?
-void star_fillWithSilence(float* buffer, size_t size) {
-    star_fillWithValue(0.0f, buffer, size);
+void star_fillWithSilence(float_array_ptr buffer, size_t size) {
+    star_fillWithValue(buffer, size, 0.0f);
 }
 
 // TODO: Unit tests.
 // TODO: Inline?
-float star_interpolate_linear(float idx, float* table,
+float star_interpolate_linear(float idx, float_array_ptr table,
     size_t length) {
     int32_t idxIntegral = (int32_t) idx;
     float idxFractional = idx - (float) idxIntegral;
-    float a = table[idxIntegral];
+    float a = FLOAT_ARRAY(table)[idxIntegral];
     // TODO: Do we want to wrap around the end like this,
     // or should we expect users to provide us with idx within bounds?
-    float b = table[(idxIntegral + 1) % length];
+    float b = FLOAT_ARRAY(table)[(idxIntegral + 1) % length];
 
     return a + (b - a) * idxFractional;
 }
 
 // TODO: Unit tests.
 // TODO: Inline?
-float star_interpolate_cubic(float idx, float* table,
+float star_interpolate_cubic(float idx, float_array_ptr table,
     size_t length) {
     size_t idxIntegral = (size_t) idx;
     float idxFractional = idx - (float) idxIntegral;
@@ -73,10 +87,10 @@ float star_interpolate_cubic(float idx, float* table,
     // TODO: As above, are these modulo operations required,
     // or should we expect users to provide us in-bound values?
     const size_t i0 = idxIntegral % length;
-    const float xm1 = table[i0 > 0 ? i0 - 1 : length - 1];
-    const float x0 = table[i0];
-    const float x1 = table[(i0 + 1) % length];
-    const float x2 = table[(i0 + 2) % length];
+    const float xm1 = FLOAT_ARRAY(table)[i0 > 0 ? i0 - 1 : length - 1];
+    const float x0 = FLOAT_ARRAY(table)[i0];
+    const float x1 = FLOAT_ARRAY(table)[(i0 + 1) % length];
+    const float x2 = FLOAT_ARRAY(table)[(i0 + 2) % length];
     const float c = (x1 - xm1) * 0.5f;
     const float v = x0 - x1;
     const float w = c + v;
@@ -93,12 +107,9 @@ float star_filter_onepole(float current, float previous, float coeff) {
     return current + coeff * (previous - current);
 }
 
+
 void star_Allocator_init(struct star_Allocator* self) {
     tlsf_create_with_pool(self->heap, self->heapSize);
-}
-
-void star_Allocator_destroy(struct star_Allocator* self) {
-    tlsf_destroy(self->heap);
 }
 
 void* star_Allocator_malloc(struct star_Allocator* self, size_t size) {
@@ -109,21 +120,41 @@ void star_Allocator_free(struct star_Allocator* self, void* obj) {
     tlsf_free(self->heap, obj);
 }
 
-float* star_samples_new(struct star_Allocator* allocator, size_t length) {
-    return (float*) star_Allocator_malloc(allocator,
+
+struct star_AudioSettings* star_AudioSettings_new(
+    struct star_Allocator* allocator) {
+        struct star_AudioSettings* settings =
+            (struct star_AudioSettings*) star_Allocator_malloc(
+                allocator, sizeof(struct star_AudioSettings));
+
+    settings->sampleRate = star_DEFAULT_AUDIOSETTINGS.sampleRate;
+    settings->numChannels = star_DEFAULT_AUDIOSETTINGS.numChannels;
+    settings->blockSize = star_DEFAULT_AUDIOSETTINGS.blockSize;
+
+    return settings;
+}
+
+void star_AudioSettings_destroy(struct star_Allocator* allocator,
+    struct star_AudioSettings* self) {
+    star_Allocator_free(allocator, self);
+}
+
+
+float_array_ptr star_samples_new(struct star_Allocator* allocator, size_t length) {
+    return (float_array_ptr) star_Allocator_malloc(allocator,
         sizeof(float) * length);
 }
 
-float* star_AudioBlock_new(struct star_Allocator* allocator,
+float_array_ptr star_AudioBlock_new(struct star_Allocator* allocator,
     struct star_AudioSettings* settings) {
     return star_samples_new(allocator, settings->blockSize);
 }
 
-float* star_AudioBlock_newWithValue(float value,
+float_array_ptr star_AudioBlock_newWithValue(float value,
     struct star_Allocator* allocator,
     struct star_AudioSettings* audioSettings) {
-    float* block = star_AudioBlock_new(allocator, audioSettings);
-    star_fillWithValue(value, block, audioSettings->blockSize);
+    float_array_ptr block = star_AudioBlock_new(allocator, audioSettings);
+    star_fillWithValue(block, audioSettings->blockSize, value);
 
     return block;
 }
@@ -139,7 +170,7 @@ struct star_Buffer* star_Buffer_new(struct star_Allocator* allocator,
 
 // TODO: Unit tests
 void star_Buffer_fill(struct star_Buffer* self, float value) {
-    star_fillWithValue(value, self->samples, self->length);
+    star_fillWithValue(self->samples, self->length, value);
 }
 
 // TODO: Unit tests
@@ -154,7 +185,7 @@ void star_Buffer_destroy(struct star_Allocator* allocator, struct star_Buffer* b
 
 void star_sig_Signal_init(void* signal,
     struct star_AudioSettings* settings,
-    float* output,
+    float_array_ptr output,
     star_sig_generateFn generate) {
     struct star_sig_Signal* self = (struct star_sig_Signal*) signal;
 
@@ -180,7 +211,7 @@ void star_sig_Signal_destroy(struct star_Allocator* allocator, void* signal) {
 
 void star_sig_Value_init(struct star_sig_Value* self,
     struct star_AudioSettings *settings,
-    float* output) {
+    float_array_ptr output) {
 
     struct star_sig_Value_Parameters params = {
         .value = 1.0
@@ -194,7 +225,7 @@ void star_sig_Value_init(struct star_sig_Value* self,
 
 struct star_sig_Value* star_sig_Value_new(struct star_Allocator* allocator,
     struct star_AudioSettings* settings) {
-    float* output = star_AudioBlock_new(allocator, settings);
+    float_array_ptr output = star_AudioBlock_new(allocator, settings);
     struct star_sig_Value* self = star_Allocator_malloc(allocator,
         sizeof(struct star_sig_Value));
     star_sig_Value_init(self, settings, output);
@@ -214,7 +245,7 @@ void star_sig_Value_generate(void* signal) {
     }
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        self->signal.output[i] = self->parameters.value;
+        FLOAT_ARRAY(self->signal.output)[i] = self->parameters.value;
     }
 
     self->lastSample = self->parameters.value;
@@ -223,7 +254,7 @@ void star_sig_Value_generate(void* signal) {
 void star_sig_Sine_init(struct star_sig_Sine* self,
     struct star_AudioSettings* settings,
     struct star_sig_Sine_Inputs* inputs,
-    float* output) {
+    float_array_ptr output) {
 
     star_sig_Signal_init(self, settings, output,
         *star_sig_Sine_generate);
@@ -235,7 +266,7 @@ void star_sig_Sine_init(struct star_sig_Sine* self,
 struct star_sig_Sine* star_sig_Sine_new(struct star_Allocator* allocator,
     struct star_AudioSettings* settings,
     struct star_sig_Sine_Inputs* inputs) {
-    float* output = star_AudioBlock_new(allocator, settings);
+    float_array_ptr output = star_AudioBlock_new(allocator, settings);
     struct star_sig_Sine* self = star_Allocator_malloc(allocator,
         sizeof(struct star_sig_Sine));
     star_sig_Sine_init(self, settings, inputs, output);
@@ -252,12 +283,13 @@ void star_sig_Sine_generate(void* signal) {
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
         float modulatedPhase = fmodf(self->phaseAccumulator +
-            self->inputs->phaseOffset[i], star_TWOPI);
+            FLOAT_ARRAY(self->inputs->phaseOffset)[i], star_TWOPI);
 
-        self->signal.output[i] = sinf(modulatedPhase) *
-            self->inputs->mul[i] + self->inputs->add[i];
+        FLOAT_ARRAY(self->signal.output)[i] = sinf(modulatedPhase) *
+            FLOAT_ARRAY(self->inputs->mul)[i] +
+            FLOAT_ARRAY(self->inputs->add)[i];
 
-        float phaseStep = self->inputs->freq[i] /
+        float phaseStep = FLOAT_ARRAY(self->inputs->freq)[i] /
             self->signal.audioSettings->sampleRate * star_TWOPI;
 
         self->phaseAccumulator += phaseStep;
@@ -268,7 +300,7 @@ void star_sig_Sine_generate(void* signal) {
 }
 
 void star_sig_Gain_init(struct star_sig_Gain* self,
-    struct star_AudioSettings* settings, struct star_sig_Gain_Inputs* inputs, float* output) {
+    struct star_AudioSettings* settings, struct star_sig_Gain_Inputs* inputs, float_array_ptr output) {
 
     star_sig_Signal_init(self, settings, output,
         *star_sig_Gain_generate);
@@ -278,7 +310,7 @@ void star_sig_Gain_init(struct star_sig_Gain* self,
 struct star_sig_Gain* star_sig_Gain_new(struct star_Allocator* allocator,
     struct star_AudioSettings* settings,
     struct star_sig_Gain_Inputs* inputs) {
-    float* output = star_AudioBlock_new(allocator, settings);
+    float_array_ptr output = star_AudioBlock_new(allocator, settings);
     struct star_sig_Gain* self = star_Allocator_malloc(allocator,
         sizeof(struct star_sig_Gain));
     star_sig_Gain_init(self, settings, inputs, output);
@@ -295,8 +327,9 @@ void star_sig_Gain_generate(void* signal) {
     struct star_sig_Gain* self = (struct star_sig_Gain*) signal;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        self->signal.output[i] = self->inputs->source[i] *
-            self->inputs->gain[i];
+        FLOAT_ARRAY(self->signal.output)[i] =
+            FLOAT_ARRAY(self->inputs->source)[i] *
+            FLOAT_ARRAY(self->inputs->gain)[i];
     }
 }
 
@@ -304,7 +337,7 @@ void star_sig_Gain_generate(void* signal) {
 void star_sig_OnePole_init(struct star_sig_OnePole* self,
     struct star_AudioSettings* settings,
     struct star_sig_OnePole_Inputs* inputs,
-    float* output) {
+    float_array_ptr output) {
 
     star_sig_Signal_init(self, settings, output,
         *star_sig_OnePole_generate);
@@ -317,7 +350,7 @@ struct star_sig_OnePole* star_sig_OnePole_new(
     struct star_AudioSettings* settings,
     struct star_sig_OnePole_Inputs* inputs) {
 
-    float* output = star_AudioBlock_new(allocator, settings);
+    float_array_ptr output = star_AudioBlock_new(allocator, settings);
     struct star_sig_OnePole* self = star_Allocator_malloc(allocator,
         sizeof(struct star_sig_OnePole));
     star_sig_OnePole_init(self, settings, inputs, output);
@@ -330,9 +363,10 @@ void star_sig_OnePole_generate(void* signal) {
 
     float previousSample = self->previousSample;
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        self->signal.output[i] = previousSample = star_filter_onepole(
-            self->inputs->source[i], previousSample,
-            self->inputs->coefficient[i]);
+        FLOAT_ARRAY(self->signal.output)[i] = previousSample =
+            star_filter_onepole(
+                FLOAT_ARRAY(self->inputs->source)[i], previousSample,
+                FLOAT_ARRAY(self->inputs->coefficient)[i]);
     }
     self->previousSample = previousSample;
 }
@@ -346,7 +380,7 @@ void star_sig_OnePole_destroy(struct star_Allocator* allocator,
 void star_sig_Looper_init(struct star_sig_Looper* self,
     struct star_AudioSettings* settings,
     struct star_sig_Looper_Inputs* inputs,
-    float* output) {
+    float_array_ptr output) {
 
     star_sig_Signal_init(self, settings, output,
         *star_sig_Looper_generate);
@@ -365,7 +399,7 @@ struct star_sig_Looper* star_sig_Looper_new(
     struct star_AudioSettings* settings,
     struct star_sig_Looper_Inputs* inputs) {
 
-    float* output = star_AudioBlock_new(allocator, settings);
+    float_array_ptr output = star_AudioBlock_new(allocator, settings);
     struct star_sig_Looper* self = star_Allocator_malloc(allocator,
         sizeof(struct star_sig_Looper));
     star_sig_Looper_init(self, settings, inputs, output);
@@ -378,8 +412,9 @@ struct star_sig_Looper* star_sig_Looper_new(
 //      - should it be a true cross fade, requiring a few samples
 //        on each end of the clip, or a very quick fade in/out
 //        (e.g. 1-10ms/48-480 samples)?
-// * Set the maximum loop end point automatically after the first overdub
-//      - what does this mean if we've recorded backwards into the buffer?
+// * Set the maximum loop end point
+//   (or start point, if we're running in reverse)
+//    automatically after the first overdub
 // * Address glitches when the length is very short
 // * Display a visual rendering of the loop points on screen
 // * Should we check if the buffer is null and output silence,
@@ -387,14 +422,16 @@ struct star_sig_Looper* star_sig_Looper_new(
 //   (Or should we introduce some kind of validation function for signals?)
 void star_sig_Looper_generate(void* signal) {
     struct star_sig_Looper* self = (struct star_sig_Looper*) signal;
-    float* samples = self->buffer->samples;
+    float* samples = FLOAT_ARRAY(self->buffer->samples);
     float playbackPos = self->playbackPos;
     float bufferLastIdx = (float)(self->buffer->length - 1);
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float speed = self->inputs->speed[i];
-        float start = star_clamp(self->inputs->start[i], 0.0, 1.0);
-        float length = star_clamp(self->inputs->length[i], 0.0, 1.0);
+        float speed = FLOAT_ARRAY(self->inputs->speed)[i];
+        float start = star_clamp(FLOAT_ARRAY(self->inputs->start)[i],
+            0.0, 1.0);
+        float length = star_clamp(FLOAT_ARRAY(self->inputs->length)[i],
+            0.0, 1.0);
         float startPos = roundf(bufferLastIdx * start);
         float endPos = roundf(startPos + ((bufferLastIdx - startPos) *
             length));
@@ -402,11 +439,11 @@ void star_sig_Looper_generate(void* signal) {
         // If the loop size is smaller than the speed
         // we're playing back at, just output silence.
         if ((endPos - startPos) <= fabsf(speed)) {
-            self->signal.output[i] = 0.0f;
+            FLOAT_ARRAY(self->signal.output)[i] = 0.0f;
             continue;
         }
 
-        if (self->inputs->record[i] > 0.0f) {
+        if (FLOAT_ARRAY(self->inputs->record)[i] > 0.0f) {
             // We're recording.
             if (self->previousRecord <= 0.0f) {
                 // We've just started recording.
@@ -427,19 +464,21 @@ void star_sig_Looper_generate(void* signal) {
 
             // Overdub the current audio input into the loop buffer.
             size_t playbackIdx = (size_t) playbackPos;
-            float sample = samples[playbackIdx] + self->inputs->source[i];
+            float sample = samples[playbackIdx] +
+                FLOAT_ARRAY(self->inputs->source)[i];
             samples[playbackIdx] = sample;
 
             // No interpolation is needed because we're
             // playing/recording at regular speed.
-            self->signal.output[i] = sample;
+            FLOAT_ARRAY(self->signal.output)[i] = sample;
         } else {
             // We're playing back.
             if (self->previousRecord > 0.0f) {
+                // We just finished recording.
                 self->isBufferEmpty = false;
             }
 
-            if (self->inputs->clear[i] > 0.0f &&
+            if (FLOAT_ARRAY(self->inputs->clear)[i] > 0.0f &&
                 self->previousClear == 0.0f) {
                 // TODO: The cost of erasing the entire buffer
                 // while in the midst of generating one sample
@@ -455,9 +494,9 @@ void star_sig_Looper_generate(void* signal) {
             // may wrap around inappropriately to the beginning of
             // the buffer (not to the startPos) if we're right at
             // the end of the buffer.
-            self->signal.output[i] = star_interpolate_linear(
+            FLOAT_ARRAY(self->signal.output)[i] = star_interpolate_linear(
                 playbackPos, samples, self->buffer->length) +
-                self->inputs->source[i];
+                FLOAT_ARRAY(self->inputs->source)[i];
         }
 
         playbackPos += speed;
@@ -467,8 +506,8 @@ void star_sig_Looper_generate(void* signal) {
             playbackPos = endPos - (startPos - playbackPos);
         }
 
-        self->previousRecord = self->inputs->record[i];
-        self->previousClear = self->inputs->clear[i];
+        self->previousRecord = FLOAT_ARRAY(self->inputs->record)[i];
+        self->previousClear = FLOAT_ARRAY(self->inputs->clear)[i];
     }
 
     self->playbackPos = playbackPos;

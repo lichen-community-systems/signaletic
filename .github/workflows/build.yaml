@@ -21,7 +21,6 @@ jobs:
           packages: |
             meson
             ninja
-      - uses: mymindstorm/setup-emsdk@v11
 
       - name: Prepare MSVC (Windows-only)
         if: runner.os == 'Windows'
@@ -35,9 +34,11 @@ jobs:
           meson compile -C build/native
 
       # Build libstar for wasm
-      # TODO: Determine why Windows can't find emcc.
+      # TODO: Windows can't run generate-wasm-bindings.sh,
+      # need to add cross-platform support for it.
       - name: Web Assembly build
         if: runner.os != 'Windows'
+        uses: mymindstorm/setup-emsdk@v11
         run: |
           cd libstar
           meson setup build/wasm --cross-file wasm-cross-compile.txt

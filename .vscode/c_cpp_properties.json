@@ -13,7 +13,7 @@
             "cStandard": "c99",
             "cppStandard": "c++11",
             "intelliSenseMode": "macos-clang-arm64",
-            "compileCommands": "${workspaceFolder}/libstar/build/compile_commands.json"
+            "compileCommands": "${workspaceFolder}/libstar/build/native/compile_commands.json"
         }
     ],
     "version": 4

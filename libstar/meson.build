@@ -29,12 +29,21 @@ libstar_dep = declare_dependency(
     link_with: libstar_library
 )
 
-# Meson only seems to build .wasm and .js files for executables
+# Meson only seems to produce .wasm and .js files for executables
 if host_machine.system() == 'emscripten'
+    # Compile as C++ when using WebIDL.
+    add_languages('cpp')
+
     executable(
         'libstar',
+        [
+            'wasm'/'bindings'/'src'/'libstar-web-wrapper.cpp'
+        ],
         dependencies: [libstar_dep],
-        link_args: '--no-entry'
+        link_args: [
+            '--no-entry',
+            '--post-js', '..'/'bindings'/'libstar-web-bindings.js'
+        ]
     )
 endif
 

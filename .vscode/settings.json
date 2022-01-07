@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "libstar.h": "c",
-        "tlsf.h": "c"
+        "tlsf.h": "c",
+        "stddef.h": "c"
     }
 }
