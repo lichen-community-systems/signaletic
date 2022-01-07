@@ -21,6 +21,7 @@ jobs:
           packages: |
             meson
             ninja
+      - uses: mymindstorm/setup-emsdk@v11
 
       - name: Prepare MSVC (Windows-only)
         if: runner.os == 'Windows'
@@ -38,10 +39,10 @@ jobs:
       # need to add cross-platform support for it.
       - name: Web Assembly build
         if: runner.os != 'Windows'
-        uses: mymindstorm/setup-emsdk@v11
         run: |
           cd libstar
           meson setup build/wasm --cross-file wasm-cross-compile.txt
+          ./generate-wasm-bindings.sh
           meson compile -C build/wasm
 
       # Tests
