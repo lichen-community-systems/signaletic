@@ -11,6 +11,11 @@
 // array pointers. All access to float* variables
 // that are exposed to the public interface must
 // use this macro prior to accessing the array.
+/**
+ * Casts the argument to a float pointer if necessary.
+ *
+ * @param array the value to cast to float*
+ */
 #ifdef __EMSCRIPTEN__
     #define FLOAT_ARRAY(array) ((float*)array)
 #else
@@ -178,9 +183,9 @@ void star_Buffer_fillWithSilence(struct star_Buffer* self) {
     star_fillWithSilence(self->samples, self->length);
 }
 
-void star_Buffer_destroy(struct star_Allocator* allocator, struct star_Buffer* buffer) {
-    star_Allocator_free(allocator, buffer->samples);
-    star_Allocator_free(allocator, buffer);
+void star_Buffer_destroy(struct star_Allocator* allocator, struct star_Buffer* self) {
+    star_Allocator_free(allocator, self->samples);
+    star_Allocator_free(allocator, self);
 };
 
 void star_sig_Signal_init(void* signal,
@@ -251,11 +256,216 @@ void star_sig_Value_generate(void* signal) {
     self->lastSample = self->parameters.value;
 }
 
+
+struct star_sig_GatedTimer* star_sig_GatedTimer_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_GatedTimer_Inputs* inputs) {
+    float_array_ptr output = star_AudioBlock_new(allocator, settings);
+    struct star_sig_GatedTimer* self = star_Allocator_malloc(allocator,
+        sizeof(struct star_sig_GatedTimer));
+    star_sig_GatedTimer_init(self, settings, inputs, output);
+
+    return self;
+}
+
+void star_sig_GatedTimer_init(struct star_sig_GatedTimer* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_GatedTimer_Inputs* inputs,
+    float_array_ptr output) {
+    star_sig_Signal_init(self, settings, output,
+        *star_sig_GatedTimer_generate);
+    self->inputs = inputs;
+    self->timer = 0;
+    self->hasFired = false;
+    self->prevGate = 0.0f;
+}
+
+void star_sig_GatedTimer_generate(void* signal) {
+    struct star_sig_GatedTimer* self =
+        (struct star_sig_GatedTimer*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        unsigned long durationSamps = (unsigned long)
+            FLOAT_ARRAY(self->inputs->duration)[i] *
+            self->signal.audioSettings->sampleRate;
+        float gate = FLOAT_ARRAY(self->inputs->gate)[i];
+
+        if (gate > 0.0f) {
+            // Gate is open.
+            if (!self->hasFired ||
+                FLOAT_ARRAY(self->inputs->loop)[i] > 0.0f) {
+                self->timer++;
+            }
+
+            if (self->timer >= durationSamps) {
+                // We reached the duration time.
+                FLOAT_ARRAY(self->signal.output)[i] = 1.0f;
+
+                // Reset the timer counter and note
+                // that we've already fired while
+                // this gate was open.
+                self->timer = 0;
+                self->hasFired = true;
+
+                continue;
+            }
+        } else if (gate <= 0.0f && self->prevGate > 0.0f) {
+            // Gate just closed. Reset all timer state.
+            self->timer = 0;
+            self->hasFired = false;
+        }
+
+        FLOAT_ARRAY(self->signal.output)[i] = 0.0f;
+        self->prevGate = gate;
+    }
+}
+
+void star_sig_GatedTimer_destroy(struct star_Allocator* allocator,
+    struct star_sig_GatedTimer* self) {
+    star_sig_Signal_destroy(allocator, (void*) self);
+}
+
+
+struct star_sig_TimedTriggerCounter* star_sig_TimedTriggerCounter_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_TimedTriggerCounter_Inputs* inputs) {
+    float_array_ptr output = star_AudioBlock_new(allocator, settings);
+    struct star_sig_TimedTriggerCounter* self = star_Allocator_malloc(
+        allocator,
+        sizeof(struct star_sig_TimedTriggerCounter));
+    star_sig_TimedTriggerCounter_init(self, settings, inputs, output);
+
+    return self;
+}
+
+void star_sig_TimedTriggerCounter_init(
+    struct star_sig_TimedTriggerCounter* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_TimedTriggerCounter_Inputs* inputs,
+    float_array_ptr output) {
+    star_sig_Signal_init(self, settings, output,
+        *star_sig_TimedTriggerCounter_generate);
+
+    self->inputs = inputs;
+    self->numTriggers = 0;
+    self->timer = 0;
+    self->isTimerActive = false;
+    self->previousSource = 0.0f;
+}
+
+void star_sig_TimedTriggerCounter_generate(void* signal) {
+    struct star_sig_TimedTriggerCounter* self =
+        (struct star_sig_TimedTriggerCounter*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float source = FLOAT_ARRAY(self->inputs->source)[i];
+        float outputSample = 0.0f;
+
+        if (source > 0.0f && self->previousSource == 0.0f) {
+            // Received the rising edge of a trigger.
+            if (!self->isTimerActive) {
+                // It's the first trigger,
+                // so start the timer.
+                self->isTimerActive = true;
+            }
+        }
+
+        if (self->isTimerActive) {
+            // The timer is running.
+            if (source <= 0.0f && self->previousSource > 0.0f) {
+                // Received the falling edge of a trigger,
+                // so count it.
+                self->numTriggers++;
+            }
+
+            self->timer++;
+
+            // Truncate the duration to the nearest sample.
+            long durSamps = (long) (FLOAT_ARRAY(
+                self->inputs->duration)[i] *
+                self->signal.audioSettings->sampleRate);
+
+            if (self->timer >= durSamps) {
+                // Time's up.
+                // Fire a trigger if we've the right number of
+                // incoming triggers, otherwise just reset.
+                if (self->numTriggers ==
+                    (int) FLOAT_ARRAY(self->inputs->count)[i]) {
+                    outputSample = 1.0f;
+                }
+
+                self->isTimerActive = false;
+                self->numTriggers = 0;
+                self->timer = 0;
+            }
+        }
+
+        self->previousSource = source;
+        FLOAT_ARRAY(self->signal.output)[i] = outputSample;
+    }
+}
+
+void star_sig_TimedTriggerCounter_destroy(
+    struct star_Allocator* allocator,
+    struct star_sig_TimedTriggerCounter* self) {
+    star_sig_Signal_destroy(allocator, (void*) self);
+}
+
+
+struct star_sig_ToggleGate* star_sig_ToggleGate_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_ToggleGate_Inputs* inputs) {
+    float_array_ptr output = star_AudioBlock_new(allocator, settings);
+    struct star_sig_ToggleGate* self = star_Allocator_malloc(
+        allocator, sizeof(struct star_sig_ToggleGate));
+    star_sig_ToggleGate_init(self, settings, inputs, output);
+
+    return self;
+
+}
+void star_sig_ToggleGate_init(
+    struct star_sig_ToggleGate* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_ToggleGate_Inputs* inputs,
+    float_array_ptr output) {
+    star_sig_Signal_init(self, settings, output,
+        *star_sig_ToggleGate_generate);
+    self->inputs = inputs;
+    self->isGateOpen = false;
+    self->prevTrig = 0.0f;
+}
+
+void star_sig_ToggleGate_generate(void* signal) {
+    struct star_sig_ToggleGate* self =
+        (struct star_sig_ToggleGate*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float trigger = FLOAT_ARRAY(self->inputs->trigger)[i];
+        if (trigger > 0.0f && self->prevTrig <= 0.0f) {
+            // Received a trigger, toggle the gate.
+            self->isGateOpen = !self->isGateOpen;
+        }
+
+        FLOAT_ARRAY(self->signal.output)[i] = (float) self->isGateOpen;
+
+        self->prevTrig = trigger;
+    }
+}
+
+void star_sig_ToggleGate_destroy(
+    struct star_Allocator* allocator,
+    struct star_sig_ToggleGate* self) {
+    star_sig_Signal_destroy(allocator, (void*) self);
+}
+
+
 void star_sig_Sine_init(struct star_sig_Sine* self,
     struct star_AudioSettings* settings,
     struct star_sig_Sine_Inputs* inputs,
     float_array_ptr output) {
-
     star_sig_Signal_init(self, settings, output,
         *star_sig_Sine_generate);
 
@@ -412,6 +622,7 @@ struct star_sig_Looper* star_sig_Looper_new(
 //      - should it be a true cross fade, requiring a few samples
 //        on each end of the clip, or a very quick fade in/out
 //        (e.g. 1-10ms/48-480 samples)?
+// * Fade out before clearing. A whole loop's duration, or shorter?
 // * Set the maximum loop end point
 //   (or start point, if we're running in reverse)
 //    automatically after the first overdub

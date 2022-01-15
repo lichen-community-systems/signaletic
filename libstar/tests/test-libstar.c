@@ -12,15 +12,17 @@ struct star_Allocator allocator = {
     .heap = (void*) heap
 };
 
+struct star_AudioSettings* audioSettings;
+float* silentBlock;
+
 // TODO: Factor into a test utilities file.
 void TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
-    float expected, float* buffer, size_t bufferLen) {
-    for (size_t i = 0; i < bufferLen; i++) {
-        float actual = buffer[i];
-        // TODO: Print the current index in the message.
-        TEST_ASSERT_FLOAT_WITHIN_MESSAGE(FLOAT_EPSILON, expected, actual,
-            "Buffer should be filled with expected value.");
-    }
+    float expected, float* actual, size_t length) {
+    float* expectedArray = (float*) star_Allocator_malloc(&allocator,
+        length * sizeof(float));
+    star_fillWithValue(expectedArray, length, expected);
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expectedArray, actual, length);
+    star_Allocator_free(&allocator, expectedArray);
 }
 
 void TEST_ASSERT_BUFFER_CONTAINS_SILENCE(
@@ -29,20 +31,11 @@ void TEST_ASSERT_BUFFER_CONTAINS_SILENCE(
         0.0f, buffer, bufferLen);
 }
 
-void TEST_ASSERT_BUFFER_EQUALS(
-    float* expected, float* actual, size_t bufferLen) {
-    for (size_t i = 0; i < bufferLen; i++) {
-        float expectedSamp = expected[i];
-        float actualSamp = actual[i];
-        // TODO: Print the current index in the message.
-        TEST_ASSERT_FLOAT_WITHIN_MESSAGE(
-            FLOAT_EPSILON, expectedSamp, actualSamp,
-            "Buffer sample should contain the expected sample.");
-    }
-}
-
 void setUp(void) {
     star_Allocator_init(&allocator);
+    audioSettings = star_AudioSettings_new(&allocator);
+    silentBlock = star_AudioBlock_newWithValue(0.0,
+        &allocator, audioSettings);
 }
 
 void tearDown(void) {}
@@ -88,21 +81,20 @@ void test_star_fillWithSilence(void) {
 }
 
 void test_star_sig_Value(void) {
-    struct star_AudioSettings audioSettings = star_DEFAULT_AUDIOSETTINGS;
     struct star_sig_Value* value = star_sig_Value_new(&allocator,
-        &audioSettings);
+        audioSettings);
     value->parameters.value = 123.45f;
 
     // Output should contain the value parameter.
     value->signal.generate(value);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
-        123.45f, value->signal.output, audioSettings.blockSize);
+        123.45f, value->signal.output, audioSettings->blockSize);
 
     // Output should contain the updated value parameter.
     value->parameters.value = 1.111f;
     value->signal.generate(value);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
-        1.111f, value->signal.output, audioSettings.blockSize);
+        1.111f, value->signal.output, audioSettings->blockSize);
 
     // The lastSample member should have been updated.
     TEST_ASSERT_FLOAT_WITHIN_MESSAGE(FLOAT_EPSILON,
@@ -114,42 +106,113 @@ void test_star_sig_Value(void) {
     value->signal.generate(value);
     value->signal.generate(value);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
-        1.111f, value->signal.output, audioSettings.blockSize);
+        1.111f, value->signal.output, audioSettings->blockSize);
 
     star_sig_Value_destroy(&allocator, value);
 }
 
-void test_star_sig_Gain(void) {
-    struct star_AudioSettings audioSettings = star_DEFAULT_AUDIOSETTINGS;
+void test_star_sig_TimedTriggerCounter(void) {
+    float halfBlockSecs = (audioSettings->blockSize / 2) /
+        audioSettings->sampleRate;
 
+    // A trigger right at the beginning of the input buffer.
+    float* source = star_AudioBlock_newWithValue(0.0f,
+        &allocator, audioSettings);
+    source[0] = 1.0;
+
+    struct star_sig_TimedTriggerCounter_Inputs inputs = {
+        .source = source,
+        .duration = star_AudioBlock_newWithValue(halfBlockSecs,
+            &allocator, audioSettings),
+        .count = star_AudioBlock_newWithValue(1.0f, &allocator,
+            audioSettings)
+    };
+
+    struct star_sig_TimedTriggerCounter* counter = star_sig_TimedTriggerCounter_new(&allocator, audioSettings,
+        &inputs);
+
+    // The output should contain a single trigger half block size.
+    // (i.e. 24 samples after we received the
+    // rising edge of the input trigger)
+    counter->signal.generate(counter);
+    float* expected = star_AudioBlock_newWithValue(0.0f,
+        &allocator, audioSettings);
+    expected[23] = 1.0f;
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expected, counter->signal.output,
+        audioSettings->blockSize);
+
+    // The first trigger can happen later after the
+    // "duration" has elapsed and it will be recognized
+    // because it shouldn't start counting until a trigger is
+    // received.
+    source[0] = 0.0f;
+    source[24] = 1.0f;
+    counter->signal.generate(counter);
+    star_fillWithSilence(expected, audioSettings->blockSize);
+    expected[47] = 1.0f;
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expected, counter->signal.output,
+        audioSettings->blockSize);
+
+    // When the input contains two triggers in the
+    // specified duration, but we're looking for one,
+    // no trigger should be output.
+    star_fillWithSilence(source, audioSettings->blockSize);
+    source[1] = 1.0f;
+    source[20] = 1.0f;
+    counter->signal.generate(counter);
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(silentBlock, counter->signal.output,
+        audioSettings->blockSize);
+
+    // When we're looking for two triggers and we get two triggers,
+    // one trigger should be fired.
+    star_fillWithValue(counter->inputs->count, audioSettings->blockSize,
+        2.0f);
+    counter->signal.generate(counter);
+    star_fillWithSilence(expected, audioSettings->blockSize);
+    expected[24] = 1.0f;
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expected, counter->signal.output,
+        audioSettings->blockSize);
+
+    // When we're looking for two triggers and
+    // the second one comes too late,
+    // No triggers should be fired.
+    star_fillWithSilence(source, audioSettings->blockSize);
+    source[0] = 1.0f;
+    source[25] = 1.0f;
+    counter->signal.generate(counter);
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(silentBlock, counter->signal.output,
+        audioSettings->blockSize);
+}
+
+void test_star_sig_Gain(void) {
     struct star_sig_Gain_Inputs inputs = {
         .gain = star_AudioBlock_newWithValue(0.5f,
-            &allocator, &audioSettings),
+            &allocator, audioSettings),
         .source = star_AudioBlock_newWithValue(440.0f,
-            &allocator, &audioSettings)
+            &allocator, audioSettings)
     };
 
     struct star_sig_Gain* gain = star_sig_Gain_new(&allocator,
-        &audioSettings, &inputs);
+        audioSettings, &inputs);
 
     gain->signal.generate(gain);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
-        220.0f, gain->signal.output, audioSettings.blockSize);
+        220.0f, gain->signal.output, audioSettings->blockSize);
 
-    star_fillWithValue(inputs.gain, audioSettings.blockSize, 0.0f);
+    star_fillWithValue(inputs.gain, audioSettings->blockSize, 0.0f);
     gain->signal.generate(gain);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
-        0.0f, gain->signal.output, audioSettings.blockSize);
+        0.0f, gain->signal.output, audioSettings->blockSize);
 
-    star_fillWithValue(inputs.gain, audioSettings.blockSize, 2.0f);
+    star_fillWithValue(inputs.gain, audioSettings->blockSize, 2.0f);
     gain->signal.generate(gain);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
-        880.0f, gain->signal.output, audioSettings.blockSize);
+        880.0f, gain->signal.output, audioSettings->blockSize);
 
-    star_fillWithValue(inputs.gain, audioSettings.blockSize, -1.0f);
+    star_fillWithValue(inputs.gain, audioSettings->blockSize, -1.0f);
     gain->signal.generate(gain);
     TEST_ASSERT_BUFFER_CONTAINS_FLOAT_WITHIN(
-        -440.0f, gain->signal.output, audioSettings.blockSize);
+        -440.0f, gain->signal.output, audioSettings->blockSize);
 
     star_sig_Gain_destroy(&allocator, gain);
     star_Allocator_free(&allocator, inputs.gain);
@@ -205,7 +268,7 @@ void test_star_sig_Sine(void) {
         &audioSettings, inputs);
 
     star_sig_Sine_generate(sine);
-    TEST_ASSERT_BUFFER_EQUALS(
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(
         expected,
         sine->signal.output,
         sine->signal.audioSettings->blockSize);
@@ -231,7 +294,7 @@ void test_test_star_sig_Sine_isOffset(void) {
         &audioSettings, inputs);
 
     star_sig_Sine_generate(sine);
-    TEST_ASSERT_BUFFER_EQUALS(
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(
         expected,
         sine->signal.output,
         sine->signal.audioSettings->blockSize);
@@ -241,12 +304,10 @@ void test_test_star_sig_Sine_isOffset(void) {
 }
 
 void test_star_sig_Sine_accumulatesPhase(void) {
-    struct star_AudioSettings audioSettings = star_DEFAULT_AUDIOSETTINGS;
-
     struct star_sig_Sine_Inputs* inputs = createSineInputs(
-        &allocator, &audioSettings, 440.0f, 0.0f, 1.0f, 0.0f);
+        &allocator, audioSettings, 440.0f, 0.0f, 1.0f, 0.0f);
     struct star_sig_Sine* sine = star_sig_Sine_new(&allocator,
-        &audioSettings, inputs);
+        audioSettings, inputs);
 
     // 440 Hz frequency at 48 KHz sample rate.
     float phaseStep = 0.05759586393833160400390625f;
@@ -272,12 +333,10 @@ void test_star_sig_Sine_accumulatesPhase(void) {
 }
 
 void test_star_sig_Sine_phaseWrapsAt2PI(void) {
-    struct star_AudioSettings audioSettings = star_DEFAULT_AUDIOSETTINGS;
-
     struct star_sig_Sine_Inputs* inputs = createSineInputs(
-        &allocator, &audioSettings, 440.0f, 0.0f, 1.0f, 0.0f);
+        &allocator, audioSettings, 440.0f, 0.0f, 1.0f, 0.0f);
     struct star_sig_Sine* sine = star_sig_Sine_new(&allocator,
-        &audioSettings, inputs);
+        audioSettings, inputs);
 
     star_sig_Sine_generate(sine);
     star_sig_Sine_generate(sine);
@@ -300,6 +359,7 @@ int main(void) {
     RUN_TEST(test_star_fillWithValue);
     RUN_TEST(test_star_fillWithSilence);
     RUN_TEST(test_star_sig_Value);
+    RUN_TEST(test_star_sig_TimedTriggerCounter);
     RUN_TEST(test_star_sig_Gain);
     RUN_TEST(test_star_sig_Sine);
     RUN_TEST(test_star_sig_Sine_accumulatesPhase);

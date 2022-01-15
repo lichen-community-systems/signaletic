@@ -120,12 +120,35 @@ float star_interpolate_cubic(float idx, float_array_ptr table, size_t length);
 
 float star_filter_onepole(float current, float previous, float coeff);
 
+/**
+ * An AudioSettings structure holds key information
+ * about the current configuration of the audio system,
+ * including sample rate, number of channels, and the
+ * audio block size.
+ */
 struct star_AudioSettings {
+    /**
+     * The sampling rate in samples per second.
+     */
     float sampleRate;
+
+    // TODO: Should this just be an unsigned short?
+    /**
+     * The number of audio output channels.
+     */
     size_t numChannels;
+
+    // TODO: Should this also be an unsigned short?
+    /**
+     * The number of samples in an audio block.
+     */
     size_t blockSize;
 };
 
+/**
+ * The default audio settings used by Starlings
+ * for 48KHz mono audio with a block size of 48.
+ */
 static const struct star_AudioSettings star_DEFAULT_AUDIOSETTINGS = {
     .sampleRate = 48000.0f,
     .numChannels = 1,
@@ -133,6 +156,9 @@ static const struct star_AudioSettings star_DEFAULT_AUDIOSETTINGS = {
 };
 
 
+/**
+ * A realtime-capable memory allocator.
+ */
 struct star_Allocator {
     size_t heapSize;
     void* heap;
@@ -160,16 +186,55 @@ struct star_AudioSettings* star_AudioSettings_new(struct star_Allocator* allocat
 void star_AudioSettings_destroy(struct star_Allocator* allocator,
     struct star_AudioSettings* self);
 
-
+/**
+ * A Buffer holds an array of samples and its length.
+ */
 struct star_Buffer {
+    /**
+     * The number of samples the buffer can store.
+     */
     size_t length;
+
+    /**
+     * A pointer to the samples.
+     */
     float_array_ptr samples;
 };
+
+/**
+ * Allocates a new Buffer of the specified length.
+ *
+ * @param allocator the memory allocator to use
+ * @param length the number of samples this Buffer should store
+ */
 struct star_Buffer* star_Buffer_new(struct star_Allocator* allocator,
     size_t length);
+
+/**
+ * Fills a Buffer instance with a value.
+ *
+ * @param self the buffer instance to fill
+ * @param value the value to which all samples will be set
+ */
 void star_Buffer_fill(struct star_Buffer* self, float value);
+
+/**
+ * Fills a Buffer with silence.
+ *
+ * @param self the buffer to fill with zeroes
+ */
 void star_Buffer_fillWithSilence(struct star_Buffer* self);
-void star_Buffer_destroy(struct star_Allocator* allocator, struct star_Buffer* buffer);
+
+/**
+ * Destroys a Buffer and frees its memory.
+ *
+ * After calling this function, the pointer to
+ * the buffer instance will no longer be usable.
+ *
+ * @param allocator the memory allocator to use
+ * @param self the buffer instance to destroy
+ */
+void star_Buffer_destroy(struct star_Allocator* allocator, struct star_Buffer* self);
 
 
 float_array_ptr star_AudioBlock_new(struct star_Allocator* allocator,
@@ -186,11 +251,15 @@ typedef void (*star_sig_generateFn)(void* signal);
 
 void star_sig_generateSilence(void* signal);
 
+// TODO: Should the base Signal define a (void* ?) pointer
+// to inputs, and provide an empty star_sig_Signal_Inputs struct
+// as the default implementation?
 struct star_sig_Signal {
     struct star_AudioSettings* audioSettings;
     float_array_ptr output;
     star_sig_generateFn generate;
 };
+
 
 struct star_sig_Value_Parameters {
     float value;
@@ -202,13 +271,157 @@ struct star_sig_Value {
     float lastSample;
 };
 
+struct star_sig_Value* star_sig_Value_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings);
 void star_sig_Value_init(struct star_sig_Value* self,
     struct star_AudioSettings* settings, float_array_ptr output);
-struct star_sig_Value* star_sig_Value_new(struct star_Allocator* allocator,
-    struct star_AudioSettings* settings);
-void star_sig_Value_destroy(struct star_Allocator* allocator, struct star_sig_Value* self);
-
 void star_sig_Value_generate(void* signal);
+void star_sig_Value_destroy(struct star_Allocator* allocator,
+    struct star_sig_Value* self);
+
+/**
+ * Inputs for a GatedTimer.
+ */
+struct star_sig_GatedTimer_Inputs {
+    /**
+     * A gate signal that, when open, causes the timer to run.
+     */
+    float_array_ptr gate;
+
+    /**
+     * The duration, in seconds, that the timer should run for.
+     */
+    float_array_ptr duration;
+
+    /**
+     * A boolean signal specifying whether the time should run again
+     * after it has finished. Values >0.0 denote true.
+     */
+    float_array_ptr loop;
+};
+
+/**
+ * GatedTimer is a Signal that fires a trigger after
+ * a specified duration has elapsed.
+ *
+ * The timer will only run while the gate is open,
+ * and will reset whenever the gate closes.
+ */
+struct star_sig_GatedTimer {
+    struct star_sig_Signal signal;
+    struct star_sig_GatedTimer_Inputs* inputs;
+    unsigned long timer;
+    bool hasFired;
+    float prevGate;
+};
+
+struct star_sig_GatedTimer* star_sig_GatedTimer_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_GatedTimer_Inputs* inputs);
+void star_sig_GatedTimer_init(struct star_sig_GatedTimer* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_GatedTimer_Inputs* inputs,
+    float_array_ptr output);
+void star_sig_GatedTimer_generate(void* signal);
+void star_sig_GatedTimer_destroy(struct star_Allocator* allocator,
+    struct star_sig_GatedTimer* self);
+
+
+/**
+ * The inputs for a TimedTriggerCounter Signal.
+ */
+struct star_sig_TimedTriggerCounter_Inputs {
+    /**
+     * The source input, from which incoming triggers will be counted.
+     */
+    float_array_ptr source;
+
+    /**
+     * The time (in seconds) before which the triggers
+     * should have fired.
+     */
+    float_array_ptr duration;
+
+    /**
+     * The number of triggers to count within the specified duration
+     * before firing an output trigger.
+     * Decimal points will be truncated and ignored.
+     */
+    float_array_ptr count;
+};
+
+/**
+ * A signal that counts incoming triggers.
+ *
+ * This signal will fire trigger if the expected number
+ * of triggers are received within the specified duration.
+ */
+struct star_sig_TimedTriggerCounter {
+    struct star_sig_Signal signal;
+    struct star_sig_TimedTriggerCounter_Inputs* inputs;
+    int numTriggers;
+    long timer;
+    bool isTimerActive;
+    float previousSource;
+};
+
+struct star_sig_TimedTriggerCounter* star_sig_TimedTriggerCounter_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_TimedTriggerCounter_Inputs* inputs);
+void star_sig_TimedTriggerCounter_init(
+    struct star_sig_TimedTriggerCounter* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_TimedTriggerCounter_Inputs* inputs,
+    float_array_ptr output);
+void star_sig_TimedTriggerCounter_generate(void* signal);
+void star_sig_TimedTriggerCounter_destroy(
+    struct star_Allocator* allocator,
+    struct star_sig_TimedTriggerCounter* self);
+
+
+/**
+ * The inputs for a ToggleGate Signal.
+ */
+struct star_sig_ToggleGate_Inputs {
+
+    /**
+     * The incoming trigger signal used to
+     * toggle the gate on and off.
+     *
+     * Any transition from a zero or negative value
+     * to a positive value will be interpreted as a trigger.
+     */
+    float_array_ptr trigger;
+};
+
+/**
+ * A ToggleGate Signal outputs a positive gate
+ * when it receives a trigger to open the gate,
+ * and will close it when another trigger is received.
+ */
+struct star_sig_ToggleGate {
+    struct star_sig_Signal signal;
+    struct star_sig_ToggleGate_Inputs* inputs;
+    bool isGateOpen;
+    float prevTrig;
+};
+
+struct star_sig_ToggleGate* star_sig_ToggleGate_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_ToggleGate_Inputs* inputs);
+void star_sig_ToggleGate_init(
+    struct star_sig_ToggleGate* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_ToggleGate_Inputs* inputs,
+    float_array_ptr output);
+void star_sig_ToggleGate_generate(void* signal);
+void star_sig_ToggleGate_destroy(
+    struct star_Allocator* allocator,
+    struct star_sig_ToggleGate* self);
 
 struct star_sig_Sine_Inputs {
     float_array_ptr freq;
