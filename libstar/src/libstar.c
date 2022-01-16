@@ -112,7 +112,9 @@ float star_filter_onepole(float current, float previous, float coeff) {
     return current + coeff * (previous - current);
 }
 
-
+// TODO: Implement enough test coverage for star_Allocator
+// to support a switch from TLSF to another memory allocator
+// implementation sometime in the future.
 void star_Allocator_init(struct star_Allocator* self) {
     tlsf_create_with_pool(self->heap, self->heapSize);
 }
@@ -125,7 +127,7 @@ void star_Allocator_free(struct star_Allocator* self, void* obj) {
     tlsf_free(self->heap, obj);
 }
 
-
+// TODO: Unit tests.
 struct star_AudioSettings* star_AudioSettings_new(
     struct star_Allocator* allocator) {
         struct star_AudioSettings* settings =
@@ -150,6 +152,8 @@ float_array_ptr star_samples_new(struct star_Allocator* allocator, size_t length
         sizeof(float) * length);
 }
 
+// TODO: Does an AudioBlock type need to be introduced?
+// TODO: Do we need a destroy function too?
 float_array_ptr star_AudioBlock_new(struct star_Allocator* allocator,
     struct star_AudioSettings* settings) {
     return star_samples_new(allocator, settings->blockSize);
@@ -257,6 +261,101 @@ void star_sig_Value_generate(void* signal) {
 }
 
 
+struct star_sig_Add* star_sig_Add_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_Add_Inputs* inputs) {
+    float_array_ptr output = star_AudioBlock_new(allocator, settings);
+    struct star_sig_Add* self = star_Allocator_malloc(allocator,
+        sizeof(struct star_sig_Add));
+    star_sig_Add_init(self, settings, inputs, output);
+
+    return self;
+}
+
+void star_sig_Add_init(struct star_sig_Add* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_Add_Inputs* inputs,
+    float_array_ptr output) {
+    star_sig_Signal_init(self, settings, output,
+        *star_sig_Add_generate);
+    self->inputs = inputs;
+}
+
+void star_sig_Add_generate(void* signal) {
+    struct star_sig_Add* self = (struct star_sig_Add*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float left = FLOAT_ARRAY(self->inputs->left)[i];
+        float right = FLOAT_ARRAY(self->inputs->right)[i];
+        float outputSample = left + right;
+
+        FLOAT_ARRAY(self->signal.output)[i] = outputSample;
+    }
+}
+
+void star_sig_Add_destroy(struct star_Allocator* allocator,
+    struct star_sig_Add* self) {
+    return star_sig_Signal_destroy(allocator, self);
+}
+
+
+struct star_sig_Accumulate* star_sig_Accumulate_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_Accumulate_Inputs* inputs,
+    struct star_sig_Accumulate_Parameters parameters) {
+    float_array_ptr output = star_AudioBlock_new(allocator, settings);
+    struct star_sig_Accumulate* self = star_Allocator_malloc(
+        allocator,
+        sizeof(struct star_sig_Accumulate));
+    star_sig_Accumulate_init(self, settings, inputs, parameters,
+        output);
+
+    return self;
+}
+
+void star_sig_Accumulate_init(
+    struct star_sig_Accumulate* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_Accumulate_Inputs* inputs,
+    struct star_sig_Accumulate_Parameters parameters,
+    float_array_ptr output) {
+    star_sig_Signal_init(self, settings, output,
+        *star_sig_Accumulate_generate);
+
+    self->inputs = inputs;
+    self->parameters = parameters;
+    self->accumulator = parameters.accumulatorStart;
+    self->previousReset = 0.0f;
+}
+
+// TODO: Implement an audio rate version of this signal.
+void star_sig_Accumulate_generate(void* signal) {
+    struct star_sig_Accumulate* self =
+        (struct star_sig_Accumulate*) signal;
+
+    float reset = FLOAT_ARRAY(self->inputs->reset)[0];
+    if (reset > 0.0f && self->previousReset <= 0.0f) {
+        // Reset the accumulator if we received a trigger.
+        self->accumulator = self->parameters.accumulatorStart;
+    }
+
+    self->accumulator += FLOAT_ARRAY(self->inputs->source)[0];
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        FLOAT_ARRAY(self->signal.output)[i] = self->accumulator;
+    }
+
+    self->previousReset = reset;
+}
+
+void star_sig_Accumulate_destroy(struct star_Allocator* allocator,
+    struct star_sig_Accumulate* self) {
+    star_sig_Signal_destroy(allocator, (void*) self);
+}
+
+
 struct star_sig_GatedTimer* star_sig_GatedTimer_new(
     struct star_Allocator* allocator,
     struct star_AudioSettings* settings,
@@ -281,6 +380,7 @@ void star_sig_GatedTimer_init(struct star_sig_GatedTimer* self,
     self->prevGate = 0.0f;
 }
 
+// TODO: Unit tests
 void star_sig_GatedTimer_generate(void* signal) {
     struct star_sig_GatedTimer* self =
         (struct star_sig_GatedTimer*) signal;
@@ -326,7 +426,7 @@ void star_sig_GatedTimer_destroy(struct star_Allocator* allocator,
     star_sig_Signal_destroy(allocator, (void*) self);
 }
 
-
+// TODO: Unit tests
 struct star_sig_TimedTriggerCounter* star_sig_TimedTriggerCounter_new(
     struct star_Allocator* allocator,
     struct star_AudioSettings* settings,
@@ -426,6 +526,7 @@ struct star_sig_ToggleGate* star_sig_ToggleGate_new(
     return self;
 
 }
+
 void star_sig_ToggleGate_init(
     struct star_sig_ToggleGate* self,
     struct star_AudioSettings* settings,
@@ -438,6 +539,7 @@ void star_sig_ToggleGate_init(
     self->prevTrig = 0.0f;
 }
 
+// TODO: Unit tests
 void star_sig_ToggleGate_generate(void* signal) {
     struct star_sig_ToggleGate* self =
         (struct star_sig_ToggleGate*) signal;
@@ -568,6 +670,7 @@ struct star_sig_OnePole* star_sig_OnePole_new(
     return self;
 }
 
+// TODO: Unit tests
 void star_sig_OnePole_generate(void* signal) {
     struct star_sig_OnePole* self = (struct star_sig_OnePole*) signal;
 
@@ -631,6 +734,7 @@ struct star_sig_Looper* star_sig_Looper_new(
 // * Should we check if the buffer is null and output silence,
 //   or should this be considered a user error?
 //   (Or should we introduce some kind of validation function for signals?)
+// * Unit tests
 void star_sig_Looper_generate(void* signal) {
     struct star_sig_Looper* self = (struct star_sig_Looper*) signal;
     float* samples = FLOAT_ARRAY(self->buffer->samples);

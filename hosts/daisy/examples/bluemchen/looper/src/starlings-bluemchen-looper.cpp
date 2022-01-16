@@ -11,6 +11,7 @@ Parameter startKnob;
 Parameter lengthKnob;
 Parameter speedCV;
 Parameter recordGateCV;
+float speed = 0.0f;
 
 #define SIGNAL_HEAP_SIZE 1024 * 384
 char signalHeap[SIGNAL_HEAP_SIZE];
@@ -33,8 +34,11 @@ struct star_sig_Value* start;
 struct star_sig_OnePole* startSmoother;
 struct star_sig_Value* length;
 struct star_sig_OnePole* lengthSmoother;
-struct star_sig_Value* speed;
-struct star_sig_OnePole* speedSmoother;
+struct star_sig_Value* speedIncrement;
+struct star_sig_Accumulate* speedControl;
+struct star_sig_Value* speedMod;
+struct star_sig_OnePole* speedModSmoother;
+struct star_sig_Add* speedAdder;
 struct star_sig_Value* encoderButton;
 struct star_sig_TimedTriggerCounter* encoderTap;
 struct star_sig_GatedTimer* encoderLongPress;
@@ -57,7 +61,7 @@ void UpdateOled() {
 
     displayStr.Clear();
     displayStr.Append("Spd ");
-    displayStr.AppendFloat(speed->parameters.value, 2);
+    displayStr.AppendFloat(speed, 2);
     bluemchen.display.SetCursor(0, 16);
     bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
@@ -82,15 +86,20 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
     // for knob inputs, CV, and the encoder's various parameters.
     start->parameters.value = startKnob.Value();
     length->parameters.value = lengthKnob.Value();
-    speed->parameters.value = speedCV.Value();
+    speedIncrement->parameters.value = bluemchen.encoder.Increment() *
+        0.01;
     encoderButton->parameters.value = encoderPressed;
+    speedMod->parameters.value = speedCV.Value();
 
     start->signal.generate(start);
     startSmoother->signal.generate(startSmoother);
     length->signal.generate(length);
     lengthSmoother->signal.generate(lengthSmoother);
-    speed->signal.generate(speed);
-    speedSmoother->signal.generate(speedSmoother);
+    speedIncrement->signal.generate(speedIncrement);
+    speedControl->signal.generate(speedControl);
+    speedMod->signal.generate(speedMod);
+    speedModSmoother->signal.generate(speedModSmoother);
+    speedAdder->signal.generate(speedAdder);
     encoderButton->signal.generate(encoderButton);
     encoderTap->signal.generate(encoderTap);
     encoderLongPress->signal.generate(encoderLongPress);
@@ -112,6 +121,12 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
         out[0][i] = gain->signal.output[i];
         out[1][i] = gain->signal.output[i];
     }
+
+    // Note: this is required until we have something that
+    // offers some way to get the current value from a Signal.
+    // See https://github.com/continuing-creativity/starlings/issues/19
+    speed = speedAdder->signal.output[
+        speedAdder->signal.audioSettings->blockSize -1];
 }
 
 void initControls() {
@@ -119,8 +134,6 @@ void initControls() {
         0.0f, 1.0f, Parameter::LINEAR);
     lengthKnob.Init(bluemchen.controls[bluemchen.CTRL_2],
         0.0f, 1.0f, Parameter::LINEAR);
-
-    // TODO: Adjust speed scaling so regular playback speed is at 0.0
     speedCV.Init(bluemchen.controls[bluemchen.CTRL_3],
         -1.5f, 1.5f, Parameter::LINEAR);
 }
@@ -163,14 +176,39 @@ int main(void) {
         &audioSettings, &lengthSmootherInputs);
 
 
-    speed = star_sig_Value_new(&allocator, &audioSettings);
-    speed->parameters.value = 1.0f;
-    struct star_sig_OnePole_Inputs speedSmootherInputs = {
-        .source = speed->signal.output,
+    speedIncrement = star_sig_Value_new(&allocator, &audioSettings);
+    speedIncrement->parameters.value = 1.0f;
+
+    struct star_sig_Accumulate_Inputs speedControlInputs = {
+        .source = speedIncrement->signal.output,
+        .reset = star_AudioBlock_newWithValue(0.0f, &allocator,
+            &audioSettings)
+    };
+
+    struct star_sig_Accumulate_Parameters speedControlParams = {
+        .accumulatorStart = 1.0f
+    };
+    speedControl = star_sig_Accumulate_new(&allocator, &audioSettings,
+        &speedControlInputs, speedControlParams);
+
+    speedMod = star_sig_Value_new(&allocator, &audioSettings);
+    speedMod->parameters.value = 0.0f;
+
+    struct star_sig_OnePole_Inputs speedModSmootherInputs = {
+        .source = speedMod->signal.output,
         .coefficient = smoothCoefficient
     };
-    speedSmoother = star_sig_OnePole_new(&allocator,
-        &audioSettings, &speedSmootherInputs);
+
+    speedModSmoother = star_sig_OnePole_new(&allocator,
+        &audioSettings, &speedModSmootherInputs);
+
+    struct star_sig_Add_Inputs speedAdderInputs = {
+        .left = speedControl->signal.output,
+        .right = speedModSmoother->signal.output
+    };
+
+    speedAdder = star_sig_Add_new(&allocator, &audioSettings,
+        &speedAdderInputs);
 
     encoderButton = star_sig_Value_new(&allocator, &audioSettings);
     encoderButton->parameters.value = 0.0f;
@@ -219,7 +257,7 @@ int main(void) {
             &allocator, &audioSettings),
         .start = startSmoother->signal.output,
         .length = lengthSmoother->signal.output,
-        .speed = speedSmoother->signal.output,
+        .speed = speedAdder->signal.output,
         .record = recordGate->signal.output,
         .clear = encoderLongPress->signal.output
     };

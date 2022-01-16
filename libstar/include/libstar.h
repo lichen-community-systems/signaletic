@@ -280,6 +280,83 @@ void star_sig_Value_generate(void* signal);
 void star_sig_Value_destroy(struct star_Allocator* allocator,
     struct star_sig_Value* self);
 
+
+struct star_sig_Add_Inputs {
+    float_array_ptr left;
+    float_array_ptr right;
+};
+
+struct star_sig_Add {
+    struct star_sig_Signal signal;
+    struct star_sig_Add_Inputs* inputs;
+};
+
+struct star_sig_Add* star_sig_Add_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_Add_Inputs* inputs);
+void star_sig_Add_init(struct star_sig_Add* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_Add_Inputs* inputs,
+    float_array_ptr output);
+void star_sig_Add_generate(void* signal);
+void star_sig_Add_destroy(struct star_Allocator* allocator,
+    struct star_sig_Add* self);
+
+
+/**
+ * The inputs for an Accumulator Signal.
+ */
+struct star_sig_Accumulate_Inputs {
+    /**
+     * The source input.
+     * Only the first value of each block will be read.
+     */
+    float_array_ptr source;
+
+    /**
+     * When a positive trigger is received from this input,
+     * the accumulator will be reset to zero.
+     */
+    float_array_ptr reset;
+};
+
+struct star_sig_Accumulate_Parameters {
+    float accumulatorStart;
+};
+
+/**
+ * A Signal that accumulates its "source" input.
+ *
+ * Note: while Starlings doesn't have a formal
+ * concept of a control rate, this Signal
+ * currently only read the first sample from each block
+ * of its source input, and so effectively runs at kr.
+ */
+struct star_sig_Accumulate {
+    struct star_sig_Signal signal;
+    struct star_sig_Accumulate_Inputs* inputs;
+    struct star_sig_Accumulate_Parameters parameters;
+    float accumulator;
+    float previousReset;
+};
+
+struct star_sig_Accumulate* star_sig_Accumulate_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_Accumulate_Inputs* inputs,
+    struct star_sig_Accumulate_Parameters parameters);
+void star_sig_Accumulate_init(
+    struct star_sig_Accumulate* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_Accumulate_Inputs* inputs,
+    struct star_sig_Accumulate_Parameters parameters,
+    float_array_ptr output);
+void star_sig_Accumulate_generate(void* signal);
+void star_sig_Accumulate_destroy(struct star_Allocator* allocator,
+    struct star_sig_Accumulate* self);
+
+
 /**
  * Inputs for a GatedTimer.
  */
