@@ -564,6 +564,28 @@ void star_sig_OnePole_destroy(struct star_Allocator* allocator,
     struct star_sig_OnePole* self);
 
 
+struct star_sig_Tanh_Inputs {
+    float_array_ptr source;
+};
+
+struct star_sig_Tanh {
+    struct star_sig_Signal signal;
+    struct star_sig_Tanh_Inputs* inputs;
+};
+
+void star_sig_Tanh_init(struct star_sig_Tanh* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_Tanh_Inputs* inputs,
+    float_array_ptr output);
+struct star_sig_Tanh* star_sig_Tanh_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_Tanh_Inputs* inputs);
+void star_sig_Tanh_generate(void* signal);
+void star_sig_Tanh_destroy(struct star_Allocator* allocator,
+    struct star_sig_Tanh* self);
+
+
 struct star_sig_Looper_Inputs {
     float_array_ptr source;
     float_array_ptr start;

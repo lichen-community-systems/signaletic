@@ -690,6 +690,46 @@ void star_sig_OnePole_destroy(struct star_Allocator* allocator,
 }
 
 
+void star_sig_Tanh_init(struct star_sig_Tanh* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_Tanh_Inputs* inputs,
+    float_array_ptr output) {
+
+    star_sig_Signal_init(self, settings, output,
+        *star_sig_Tanh_generate);
+    self->inputs = inputs;
+}
+
+struct star_sig_Tanh* star_sig_Tanh_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_Tanh_Inputs* inputs) {
+
+    float_array_ptr output = star_AudioBlock_new(allocator, settings);
+    struct star_sig_Tanh* self = star_Allocator_malloc(allocator,
+        sizeof(struct star_sig_Tanh));
+    star_sig_Tanh_init(self, settings, inputs, output);
+
+    return self;
+}
+
+// TODO: Unit tests.
+void star_sig_Tanh_generate(void* signal) {
+    struct star_sig_Tanh* self = (struct star_sig_Tanh*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float inSamp = FLOAT_ARRAY(self->inputs->source)[i];
+        float outSamp = tanhf(inSamp);
+        FLOAT_ARRAY(self->signal.output)[i] = outSamp;
+    }
+}
+
+void star_sig_Tanh_destroy(struct star_Allocator* allocator,
+    struct star_sig_Tanh* self) {
+    return star_sig_Signal_destroy(allocator, self);
+}
+
+
 void star_sig_Looper_init(struct star_sig_Looper* self,
     struct star_AudioSettings* settings,
     struct star_sig_Looper_Inputs* inputs,
@@ -781,6 +821,9 @@ void star_sig_Looper_generate(void* signal) {
             size_t playbackIdx = (size_t) playbackPos;
             float sample = samples[playbackIdx] +
                 FLOAT_ARRAY(self->inputs->source)[i];
+
+            // Add a little distortion/limiting.
+            sample = tanhf(sample);
             samples[playbackIdx] = sample;
 
             // No interpolation is needed because we're

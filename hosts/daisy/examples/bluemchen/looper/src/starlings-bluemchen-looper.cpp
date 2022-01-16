@@ -20,7 +20,7 @@ struct star_Allocator allocator = {
     .heap = (void*) signalHeap
 };
 
-#define LOOP_TIME_SECS 15
+#define LOOP_TIME_SECS 30
 #define LOOP_LENGTH 48000 * LOOP_TIME_SECS
 #define LONG_ENCODER_PRESS 2.0f
 
@@ -247,6 +247,7 @@ int main(void) {
     };
     encoderLongPress = star_sig_GatedTimer_new(&allocator,
         &audioSettings, &encoderPressTimerInputs);
+
 
     struct star_sig_Looper_Inputs inputs = {
         // TODO: Need a Daisy Host-provided Signal
