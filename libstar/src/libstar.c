@@ -802,11 +802,7 @@ struct star_sig_Looper* star_sig_Looper_new(
 //        on each end of the clip, or a very quick fade in/out
 //        (e.g. 1-10ms/48-480 samples)?
 // * Fade out before clearing. A whole loop's duration, or shorter?
-// * Set the maximum loop end point
-//   (or start point, if we're running in reverse)
-//    automatically after the first overdub
 // * Address glitches when the length is very short
-// * Display a visual rendering of the loop points on screen
 // * Should we check if the buffer is null and output silence,
 //   or should this be considered a user error?
 //   (Or should we introduce some kind of validation function for signals?)
@@ -821,11 +817,18 @@ void star_sig_Looper_generate(void* signal) {
         float speed = FLOAT_ARRAY(self->inputs->speed)[i];
         float start = star_clamp(FLOAT_ARRAY(self->inputs->start)[i],
             0.0, 1.0);
-        float length = star_clamp(FLOAT_ARRAY(self->inputs->length)[i],
+        float end = star_clamp(FLOAT_ARRAY(self->inputs->end)[i],
             0.0, 1.0);
+
+        // Flip the start and end points if they're reversed.
+        if (start > end) {
+            float temp = start;
+            start = end;
+            end = temp;
+        }
+
         float startPos = roundf(bufferLastIdx * start);
-        float endPos = roundf(startPos + ((bufferLastIdx - startPos) *
-            length));
+        float endPos = roundf(bufferLastIdx * end);
 
         // If the loop size is smaller than the speed
         // we're playing back at, just output silence.

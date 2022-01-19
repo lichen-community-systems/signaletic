@@ -58,15 +58,7 @@ void star_Canvas_drawLine(struct star_Canvas* canvas,
 struct star_BufferView {
     struct star_Canvas* canvas;
     struct star_Buffer* buffer;
-    int prevX;
-    int prevY;
 };
-
-void star_BufferView_init(struct star_BufferView* bufferView) {
-    struct star_CanvasGeometry geom = bufferView->canvas->geometry;
-    bufferView->prevX = geom.xStart;
-    bufferView->prevY = geom.yStart + geom.yCentre;
-}
 
 void star_BufferView_drawWaveform(struct star_BufferView* bufferView,
     bool foregroundOn) {
@@ -79,8 +71,8 @@ void star_BufferView_drawWaveform(struct star_BufferView* bufferView,
     int xStart = geom.xStart;
     int yStart = geom.yStart;
     int xEnd = geom.width - xStart;
-    int prevX = bufferView->prevX;
-    int prevY = bufferView->prevY;
+    int prevX = geom.xStart;
+    int prevY = geom.yStart + geom.yCentre;
 
     for (int x = xStart; x < xEnd; x += 2) {
         float samp = samples[(size_t) x * step];
@@ -93,21 +85,26 @@ void star_BufferView_drawWaveform(struct star_BufferView* bufferView,
         prevX = x;
         prevY = y;
     }
+}
 
-    bufferView->prevX = prevX;
-    bufferView->prevY = prevY;
+// TODO: Add customizable height so this function can be used
+// by drawLoopPoints.
+void star_BufferView_drawLine(struct star_BufferView* bufferView,
+    float relativePosition, int thickness, int foregroundOn) {
+    struct star_CanvasGeometry geom = bufferView->canvas->geometry;
+    int x = (int) roundf(relativePosition * (geom.xEnd - thickness));
+    star_Canvas_drawLine(bufferView->canvas,
+        thickness, x, geom.yStart, x, geom.yEnd, foregroundOn);
 }
 
 void star_BufferView_drawPositionLine(
     struct star_BufferView* bufferView, float pos, int thickness,
     bool foregroundOn) {
-    struct star_CanvasGeometry geom = bufferView->canvas->geometry;
-
+    // Although it's a float "pos" is expressed in samples,
+    // so needs to be scaled to a relative value between 0 and 1.
     float scaledPlaybackPos = pos / bufferView->buffer->length;
-    int x = (int) roundf(scaledPlaybackPos * (geom.xEnd - thickness));
-
-    star_Canvas_drawLine(bufferView->canvas,
-        1, x, geom.yStart, x, geom.yEnd, foregroundOn);
+    star_BufferView_drawLine(bufferView, scaledPlaybackPos, thickness,
+        foregroundOn);
 }
 
 struct star_LooperView {
@@ -132,8 +129,7 @@ void star_LooperView_drawLoopPoints(struct star_LooperView* looperView,
     int yEnd = yStart + lineHeight;
 
     int startPointX = roundf(startPos * (geom.xEnd - lineThickness));
-    int endPointX = roundf(startPointX +
-        (geom.xEnd - startPointX - lineThickness) * endPos);
+    int endPointX = roundf(endPos * (geom.xEnd - lineThickness));
 
     star_Canvas_drawLine(looperView->canvas,
         lineThickness, startPointX, yStart, startPointX, yEnd, foregroundOn);

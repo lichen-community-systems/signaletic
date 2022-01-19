@@ -611,7 +611,7 @@ void star_sig_Tanh_destroy(struct star_Allocator* allocator,
 struct star_sig_Looper_Inputs {
     float_array_ptr source;
     float_array_ptr start;
-    float_array_ptr length;
+    float_array_ptr end;
     float_array_ptr speed;
     float_array_ptr record;
     float_array_ptr clear;

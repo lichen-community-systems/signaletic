@@ -9,7 +9,7 @@ using namespace daisy;
 
 Bluemchen bluemchen;
 Parameter startKnob;
-Parameter lengthKnob;
+Parameter endKnob;
 Parameter speedCV;
 Parameter skewCV;
 Parameter recordGateCV;
@@ -38,8 +38,8 @@ struct star_Buffer rightBuffer = {
 
 struct star_sig_Value* start;
 struct star_sig_OnePole* startSmoother;
-struct star_sig_Value* length;
-struct star_sig_OnePole* lengthSmoother;
+struct star_sig_Value* end;
+struct star_sig_OnePole* endSmoother;
 struct star_sig_Value* speedIncrement;
 struct star_sig_Accumulate* speedControl;
 struct star_sig_Value* speedMod;
@@ -67,7 +67,7 @@ void UpdateOled() {
 
     star_LooperView_render(&looperView,
         startSmoother->previousSample,
-        lengthSmoother->previousSample,
+        endSmoother->previousSample,
         leftLooper->playbackPos,
         foregroundOn);
 
@@ -77,7 +77,7 @@ void UpdateOled() {
 void UpdateControls() {
     bluemchen.encoder.Debounce();
     startKnob.Process();
-    lengthKnob.Process();
+    endKnob.Process();
     speedCV.Process();
     skewCV.Process();
 }
@@ -92,7 +92,7 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
     // TODO: These should be handled by Host-provided Signals
     // for knob inputs, CV, and the encoder's various parameters.
     start->parameters.value = startKnob.Value();
-    length->parameters.value = lengthKnob.Value();
+    end->parameters.value = endKnob.Value();
     speedIncrement->parameters.value = bluemchen.encoder.Increment() *
         0.01;
     encoderButton->parameters.value = encoderPressed;
@@ -101,8 +101,8 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
 
     start->signal.generate(start);
     startSmoother->signal.generate(startSmoother);
-    length->signal.generate(length);
-    lengthSmoother->signal.generate(lengthSmoother);
+    end->signal.generate(end);
+    endSmoother->signal.generate(endSmoother);
     speedIncrement->signal.generate(speedIncrement);
     speedControl->signal.generate(speedControl);
     speedMod->signal.generate(speedMod);
@@ -147,10 +147,10 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
 void initControls() {
     startKnob.Init(bluemchen.controls[bluemchen.CTRL_1],
         0.0f, 1.0f, Parameter::LINEAR);
-    lengthKnob.Init(bluemchen.controls[bluemchen.CTRL_2],
+    endKnob.Init(bluemchen.controls[bluemchen.CTRL_2],
         0.0f, 1.0f, Parameter::LINEAR);
     speedCV.Init(bluemchen.controls[bluemchen.CTRL_3],
-        -1.5f, 1.5f, Parameter::LINEAR);
+        -2f, 2f, Parameter::LINEAR);
     skewCV.Init(bluemchen.controls[bluemchen.CTRL_4],
         -0.5f, 0.5f, Parameter::LINEAR);
 }
@@ -183,14 +183,14 @@ int main(void) {
         &audioSettings, &startSmootherInputs);
 
 
-    length = star_sig_Value_new(&allocator, &audioSettings);
-    length->parameters.value = 1.0f;
-    struct star_sig_OnePole_Inputs lengthSmootherInputs = {
-        .source = length->signal.output,
+    end = star_sig_Value_new(&allocator, &audioSettings);
+    end->parameters.value = 1.0f;
+    struct star_sig_OnePole_Inputs endSmootherInputs = {
+        .source = end->signal.output,
         .coefficient = smoothCoefficient
     };
-    lengthSmoother = star_sig_OnePole_new(&allocator,
-        &audioSettings, &lengthSmootherInputs);
+    endSmoother = star_sig_OnePole_new(&allocator,
+        &audioSettings, &endSmootherInputs);
 
 
     speedIncrement = star_sig_Value_new(&allocator, &audioSettings);
@@ -304,7 +304,7 @@ int main(void) {
         .source = star_AudioBlock_newWithValue(0.0f,
             &allocator, &audioSettings),
         .start = startSmoother->signal.output,
-        .length = lengthSmoother->signal.output,
+        .end = endSmoother->signal.output,
         .speed = leftSpeedAdder->signal.output,
         .record = recordGate->signal.output,
         .clear = encoderLongPress->signal.output
@@ -321,7 +321,7 @@ int main(void) {
         .source = star_AudioBlock_newWithValue(0.0f,
             &allocator, &audioSettings),
         .start = leftLooperInputs.start,
-        .length = leftLooperInputs.length,
+        .end = leftLooperInputs.end,
         .speed = rightSpeedAdder->signal.output,
         .record = leftLooperInputs.record,
         .clear = leftLooperInputs.clear
@@ -363,10 +363,10 @@ int main(void) {
         .display = &(bluemchen.display)
     };
 
-    struct star_BufferView bufferView;
-    bufferView.canvas = &canvas;
-    bufferView.buffer = leftLooper->buffer;
-    star_BufferView_init(&bufferView);
+    struct star_BufferView bufferView = {
+        .canvas = &canvas,
+        .buffer = leftLooper->buffer
+    };
 
     looperView.canvas = &canvas;
     looperView.bufferView = &bufferView;
