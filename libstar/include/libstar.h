@@ -304,6 +304,28 @@ void star_sig_Add_destroy(struct star_Allocator* allocator,
     struct star_sig_Add* self);
 
 
+struct star_sig_Invert_Inputs {
+    float_array_ptr source;
+};
+
+struct star_sig_Invert {
+    struct star_sig_Signal signal;
+    struct star_sig_Invert_Inputs* inputs;
+};
+
+struct star_sig_Invert* star_sig_Invert_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_Invert_Inputs* inputs);
+void star_sig_Invert_init(struct star_sig_Invert* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_Invert_Inputs* inputs,
+    float_array_ptr output);
+void star_sig_Invert_generate(void* signal);
+void star_sig_Invert_destroy(struct star_Allocator* allocator,
+    struct star_sig_Invert* self);
+
+
 /**
  * The inputs for an Accumulator Signal.
  */

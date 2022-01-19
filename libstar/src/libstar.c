@@ -300,6 +300,42 @@ void star_sig_Add_destroy(struct star_Allocator* allocator,
 }
 
 
+struct star_sig_Invert* star_sig_Invert_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_Invert_Inputs* inputs) {
+    float_array_ptr output = star_AudioBlock_new(allocator, settings);
+    struct star_sig_Invert* self = star_Allocator_malloc(allocator,
+        sizeof(struct star_sig_Invert));
+    star_sig_Invert_init(self, settings, inputs, output);
+
+    return self;
+}
+
+void star_sig_Invert_init(struct star_sig_Invert* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_Invert_Inputs* inputs,
+    float_array_ptr output) {
+    star_sig_Signal_init(self, settings, output,
+        *star_sig_Invert_generate);
+    self->inputs = inputs;
+}
+
+void star_sig_Invert_generate(void* signal) {
+    struct star_sig_Invert* self = (struct star_sig_Invert*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float inSamp = FLOAT_ARRAY(self->inputs->source)[i];
+        FLOAT_ARRAY(self->signal.output)[i] = -inSamp;
+    }
+}
+
+void star_sig_Invert_destroy(struct star_Allocator* allocator,
+    struct star_sig_Invert* self) {
+    return star_sig_Signal_destroy(allocator, self);
+}
+
+
 struct star_sig_Accumulate* star_sig_Accumulate_new(
     struct star_Allocator* allocator,
     struct star_AudioSettings* settings,
