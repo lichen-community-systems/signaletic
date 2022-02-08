@@ -114,7 +114,7 @@ float star_filter_onepole(float current, float previous, float coeff) {
 
 // TODO: Implement enough test coverage for star_Allocator
 // to support a switch from TLSF to another memory allocator
-// implementation sometime in the future.
+// implementation sometime in the future (gh-26).
 void star_Allocator_init(struct star_Allocator* self) {
     tlsf_create_with_pool(self->heap, self->heapSize);
 }
@@ -282,6 +282,7 @@ void star_sig_Add_init(struct star_sig_Add* self,
     self->inputs = inputs;
 }
 
+// TODO: Unit tests.
 void star_sig_Add_generate(void* signal) {
     struct star_sig_Add* self = (struct star_sig_Add*) signal;
 
@@ -321,6 +322,7 @@ void star_sig_Invert_init(struct star_sig_Invert* self,
     self->inputs = inputs;
 }
 
+// TODO: Unit tests.
 void star_sig_Invert_generate(void* signal) {
     struct star_sig_Invert* self = (struct star_sig_Invert*) signal;
 
@@ -367,6 +369,7 @@ void star_sig_Accumulate_init(
 }
 
 // TODO: Implement an audio rate version of this signal.
+// TODO: Unit tests
 void star_sig_Accumulate_generate(void* signal) {
     struct star_sig_Accumulate* self =
         (struct star_sig_Accumulate*) signal;
@@ -462,7 +465,6 @@ void star_sig_GatedTimer_destroy(struct star_Allocator* allocator,
     star_sig_Signal_destroy(allocator, (void*) self);
 }
 
-// TODO: Unit tests
 struct star_sig_TimedTriggerCounter* star_sig_TimedTriggerCounter_new(
     struct star_Allocator* allocator,
     struct star_AudioSettings* settings,
@@ -877,12 +879,8 @@ void star_sig_Looper_generate(void* signal) {
 
             if (FLOAT_ARRAY(self->inputs->clear)[i] > 0.0f &&
                 self->previousClear == 0.0f) {
-                // TODO: The cost of erasing the entire buffer
-                // while in the midst of generating one sample
-                // seems very high and may limit buffer sizes.
-                // But an alternative implementation needs to take
-                // into account the samples outside the current
-                // window.
+                // TODO: Fade out before clearing the buffer
+                // (gh-28)
                 star_Buffer_fillWithSilence(self->buffer);
                 self->isBufferEmpty = true;
             }

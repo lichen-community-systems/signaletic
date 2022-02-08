@@ -35,8 +35,9 @@ jobs:
           meson compile -C build/native
 
       # Build libstar for wasm
-      # TODO: Windows can't run generate-wasm-bindings.sh,
+      # TODO: Windows can't run generate-wasm-bindings.sh;
       # need to add cross-platform support for it.
+      # This will be fixed by gh-18 (Docker support)
       - name: Web Assembly build
         if: runner.os != 'Windows'
         run: |

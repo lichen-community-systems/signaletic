@@ -132,13 +132,13 @@ struct star_AudioSettings {
      */
     float sampleRate;
 
-    // TODO: Should this just be an unsigned short?
+    // TODO: Should this just be an unsigned short? (gh-24)
     /**
      * The number of audio output channels.
      */
     size_t numChannels;
 
-    // TODO: Should this also be an unsigned short?
+    // TODO: Should this also be an unsigned short? (gh-24)
     /**
      * The number of samples in an audio block.
      */

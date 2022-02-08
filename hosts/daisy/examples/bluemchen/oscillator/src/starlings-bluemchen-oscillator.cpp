@@ -58,7 +58,8 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
     UpdateControls();
 
     // Bind control values to Signals.
-    // TODO: This should be handled by a Host-provided Signal
+    // TODO: This should be handled by a
+    // Host-provided Signal (gh-22).
     gainValue->parameters.value = knob1.Value();
     ampMod->parameters.value = cv1.Value();
     freqMod->parameters.value = star_midiToFreq(cv2.Value());

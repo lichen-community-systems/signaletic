@@ -91,6 +91,7 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
     // Bind control values to Signals.
     // TODO: These should be handled by Host-provided Signals
     // for knob inputs, CV, and the encoder's various parameters.
+    // https://github.com/continuing-creativity/signaletic/issues/22
     start->parameters.value = startKnob.Value();
     end->parameters.value = endKnob.Value();
     speedIncrement->parameters.value = bluemchen.encoder.Increment() *
@@ -116,6 +117,7 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
     recordGate->signal.generate(recordGate);
 
     // TODO: Need a host-provided Signal to do this.
+    // https://github.com/continuing-creativity/signaletic/issues/22
     for (size_t i = 0; i < size; i++) {
         leftLooper->inputs->source[i] = in[0][i];
         rightLooper->inputs->source[i] = in[1][i];
@@ -170,6 +172,7 @@ int main(void) {
     initControls();
 
     // TODO: Introduce a constant Signal type
+    // https://github.com/continuing-creativity/signaletic/issues/23
     float* smoothCoefficient = star_AudioBlock_newWithValue(0.01f,
         &allocator, &audioSettings);
 
@@ -263,11 +266,11 @@ int main(void) {
     struct star_sig_TimedTriggerCounter_Inputs encoderClickInputs = {
         .source = encoderButton->signal.output,
 
-        // TODO: Replace with constant value signal
+        // TODO: Replace with constant value signal (gh-23).
         .duration = star_AudioBlock_newWithValue(0.5f, &allocator,
             &audioSettings),
 
-        // TODO: Replace with constant value signal
+        // TODO: Replace with constant value signal (gh-23).
         .count = star_AudioBlock_newWithValue(1.0f, &allocator,
             &audioSettings)
     };
@@ -284,11 +287,11 @@ int main(void) {
     struct star_sig_GatedTimer_Inputs encoderPressTimerInputs = {
         .gate = encoderButton->signal.output,
 
-        // TODO: Replace with constant value signal
+        // TODO: Replace with constant value signal (gh-23).
         .duration = star_AudioBlock_newWithValue(LONG_ENCODER_PRESS,
             &allocator, &audioSettings),
 
-        // TODO: Replace with constant value signal
+        // TODO: Replace with constant value signal (gh-23).
         .loop = star_AudioBlock_newWithValue(0.0f, &allocator,
             &audioSettings)
     };
@@ -298,7 +301,7 @@ int main(void) {
 
     struct star_sig_Looper_Inputs leftLooperInputs = {
         // TODO: Need a Daisy Host-provided Signal
-        // for reading audio input.
+        // for reading audio input (gh-22).
         // For now, just use an empty block that
         // is copied into manually in the audio callback.
         .source = star_AudioBlock_newWithValue(0.0f,
@@ -334,7 +337,7 @@ int main(void) {
     struct star_sig_Gain_Inputs leftGainInputs = {
         // Bluemchen's output circuit clips as it approaches full gain,
         // so 0.85 seems to be around the practical maximum value.
-        // TODO: Replace with constant value Signal.
+        // TODO: Replace with constant value Signal (gh-23).
         .gain = star_AudioBlock_newWithValue(0.85f, &allocator,
             &audioSettings),
         .source = leftLooper->signal.output
