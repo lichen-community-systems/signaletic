@@ -152,7 +152,7 @@ void initControls() {
     endKnob.Init(bluemchen.controls[bluemchen.CTRL_2],
         0.0f, 1.0f, Parameter::LINEAR);
     speedCV.Init(bluemchen.controls[bluemchen.CTRL_3],
-        -2f, 2f, Parameter::LINEAR);
+        -2.0f, 2.0f, Parameter::LINEAR);
     skewCV.Init(bluemchen.controls[bluemchen.CTRL_4],
         -0.5f, 0.5f, Parameter::LINEAR);
 }
