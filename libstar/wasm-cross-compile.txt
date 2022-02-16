@@ -5,12 +5,11 @@ ar = 'emar'
 exe_wrapper = 'node'
 
 [properties]
-needs_exe_wrapper = true
+needs_exe_wrapper = false
 
 [built-in options]
-c_args = []
-c_link_args = ['-s', 'LINKABLE=1']
-cpp_link_args = ['-s', 'LINKABLE=1']
+c_link_args = ['-s', 'LINKABLE=1', '-s', 'EXPORTED_RUNTIME_METHODS=ccall', '-s', 'MODULARIZE=1', '-s', 'EXPORT_ES6=1', '-s', 'SINGLE_FILE=1', '-s', 'ENVIRONMENT=shell', '-s', 'WASM_ASYNC_COMPILATION=0']
+cpp_link_args = ['-s', 'LINKABLE=1', '-s', 'EXPORTED_RUNTIME_METHODS=ccall', '-s', 'MODULARIZE=1', '-s', 'EXPORT_ES6=1', '-s', 'SINGLE_FILE=1', '-s', 'ENVIRONMENT=shell', '-s', 'WASM_ASYNC_COMPILATION=0']
 
 [host_machine]
 system = 'emscripten'

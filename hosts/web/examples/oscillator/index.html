@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Oscillator - libstar wasm example</title>
+        <link href="web-bluemchen.css" rel="stylesheet">
+        <script src="https://g200kg.github.io/webaudio-controls/webaudio-controls.js"></script>
+    </head>
+
+    <body>
+		<div id="bluemchen">
+			<!-- encoder -->
+			<webaudio-knob id="enc" colors="#000;#000;#fff"></webaudio-knob>
+
+			<canvas id="oled"></canvas>
+
+			<!-- knobs -->
+			<webaudio-knob id="blueKnob" colors="#fff;#00f;#fff"></webaudio-knob>
+			<webaudio-knob id="redKnob" colors="#fff;#f00;#fff"></webaudio-knob>
+
+			<!-- jacks midi out, cv, in, out-->
+			<div class="jack"></div>
+			<div>midi</div>
+			<span class="jack"></span>
+			<span class="jack"></span>
+			<div>cv</div>
+			<span class="jack"></span>
+			<span class="jack"></span>
+			<div>in</div>
+			<span class="jack"></span>
+			<span class="jack"></span>
+			<div>out</div>
+			<div>&nbsp; </div>
+			<div>bluem</div>
+			<div>chen</div>
+		</div>
+        <script>
+            async function initAudioGraph() {
+                let context = new AudioContext();
+
+                let stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        channelCount: 2,
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false
+                    },
+                    video: false
+                });
+
+                let source = context.createMediaStreamSource(stream);
+
+                await context.audioWorklet.addModule(
+                    "signaletic-oscillator-worklet.js");
+
+                const signaleticOsc = new AudioWorkletNode(context,
+                    "SignaleticOscillator");
+
+                source.connect(signaleticOsc);
+                signaleticOsc.connect(context.destination);
+
+                function bindKnobChange(knobEl, param) {
+                    knobEl.addEventListener("input", (event) => {
+                        if (context.state === "suspended") {
+                            context.resume();
+                        }
+
+                        param.value = event.target.value / 100;
+                    });
+                }
+
+                bindKnobChange(document.getElementById("blueKnob"),
+                    signaleticOsc.parameters.get("blueKnobParam"));
+                bindKnobChange(document.getElementById("redKnob"),
+                    signaleticOsc.parameters.get("redKnobParam"));
+            }
+
+            initAudioGraph();
+
+            // set resolution to same as device
+            var oled = document.getElementById("oled");
+            oled.width = 64;
+            oled.height = 32;
+        </script>
+    </body>
+</html>

@@ -111,11 +111,11 @@ int main(void) {
     /** Carrier **/
     struct star_sig_Sine_Inputs carrierInputs = {
         .freq = freqMod->signal.output,
-        .phaseOffset = star_AudioBlock_newWithValue(0.0f,
-            &allocator, &audioSettings),
+        .phaseOffset = star_AudioBlock_newWithValue(&allocator,
+            &audioSettings, 0.0f),
         .mul = ampMod->signal.output,
-        .add = star_AudioBlock_newWithValue(0.0f,
-            &allocator, &audioSettings),
+        .add = star_AudioBlock_newWithValue(&allocator,
+            &audioSettings, 0.0f),
     };
 
     carrier = star_sig_Sine_new(&allocator, &audioSettings,

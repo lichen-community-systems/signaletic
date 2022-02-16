@@ -30,14 +30,14 @@ int main(int argc, char *argv[]) {
     star_Allocator_init(&allocator);
 
     struct star_sig_Sine_Inputs inputs = {
-        .freq = star_AudioBlock_newWithValue(440.0f, &allocator,
-            &settings),
-        .phaseOffset = star_AudioBlock_newWithValue(0.0f, &allocator,
-            &settings),
-        .mul = star_AudioBlock_newWithValue(1.0f, &allocator,
-            &settings),
-        .add = star_AudioBlock_newWithValue(0.0f, &allocator,
-            &settings)
+        .freq = star_AudioBlock_newWithValue(&allocator,
+            &settings, 440.0f),
+        .phaseOffset = star_AudioBlock_newWithValue(&allocator,
+            &settings, 0.0f),
+        .mul = star_AudioBlock_newWithValue(&allocator,
+            &settings, 1.0f),
+        .add = star_AudioBlock_newWithValue(&allocator,
+            &settings, 0.0f)
     };
 
     struct star_sig_Sine* sine = star_sig_Sine_new(&allocator,

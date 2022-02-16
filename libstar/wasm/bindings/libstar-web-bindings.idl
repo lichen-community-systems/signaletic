@@ -1,8 +1,43 @@
+interface Signals {
+    star_sig_Value Value_new(star_Allocator allocator,
+        star_AudioSettings audioSettings);
+
+    void Value_destroy(star_Allocator allocator,
+        star_sig_Value value);
+
+    star_sig_Sine Sine_new(star_Allocator allocator,
+        star_AudioSettings audioSettings,
+        star_sig_Sine_Inputs inputs);
+
+    void Sine_destroy(star_Allocator allocator,
+        star_sig_Sine sine);
+
+    star_sig_Sine_Inputs Sine_Inputs_new(star_Allocator allocator,
+        any freq, any phaseOffset, any mul, any add);
+
+    void Sine_Inputs_destroy(star_Allocator allocator,
+        star_sig_Sine_Inputs inputs);
+
+    star_sig_Gain Gain_new(star_Allocator allocator,
+        star_AudioSettings audioSettings,
+        star_sig_Gain_Inputs inputs);
+
+    void Gain_destroy(star_Allocator allocator, star_sig_Gain gain);
+
+    star_sig_Gain_Inputs Gain_Inputs_new(star_Allocator allocator,
+        any gain, any source);
+
+    void Gain_Inputs_destroy(star_Allocator allocator,
+        star_sig_Gain_Inputs inputs);
+};
+
 interface Starlings {
     readonly attribute float PI;
     readonly attribute float TWOPI;
 
     void Starlings();
+
+    [Value] attribute Signals sig;
 
     float fminf(float a, float b);
     float fmaxf(float a, float b);
@@ -33,9 +68,8 @@ interface Starlings {
 
     any AudioBlock_new(star_Allocator allocator,
         star_AudioSettings audioSettings);
-    any AudioBlock_newWithValue(float value,
-        star_Allocator allocator,
-        star_AudioSettings audioSettings);
+    any AudioBlock_newWithValue(star_Allocator allocator,
+        star_AudioSettings audioSettings, float value);
 };
 
 interface star_Allocator {
@@ -52,4 +86,43 @@ interface star_AudioSettings {
 interface star_Buffer {
     attribute unsigned long length;
     attribute any samples;
+};
+
+interface star_sig_Signal {
+    attribute star_AudioSettings audioSettings;
+    attribute any output;
+    void generate(any signal);
+};
+
+interface star_sig_Sine {
+    [Value] attribute star_sig_Signal signal;
+    attribute star_sig_Sine_Inputs inputs;
+    attribute float phaseAccumulator;
+};
+
+interface star_sig_Sine_Inputs {
+    attribute any freq;
+    attribute any phaseOffset;
+    attribute any mul;
+    attribute any add;
+};
+
+interface star_sig_Value {
+    [Value] attribute star_sig_Signal signal;
+    [Value] attribute star_sig_Value_Parameters parameters;
+    attribute float lastSample;
+};
+
+interface star_sig_Value_Parameters {
+    attribute float value;
+};
+
+interface star_sig_Gain {
+    [Value] attribute star_sig_Signal signal;
+    attribute star_sig_Gain_Inputs inputs;
+};
+
+interface star_sig_Gain_Inputs {
+    attribute any gain;
+    attribute any source;
 };

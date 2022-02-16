@@ -173,8 +173,8 @@ int main(void) {
 
     // TODO: Introduce a constant Signal type
     // https://github.com/continuing-creativity/signaletic/issues/23
-    float* smoothCoefficient = star_AudioBlock_newWithValue(0.01f,
-        &allocator, &audioSettings);
+    float* smoothCoefficient = star_AudioBlock_newWithValue(
+        &allocator, &audioSettings, 0.01f);
 
     start = star_sig_Value_new(&allocator, &audioSettings);
     start->parameters.value = 0.0f;
@@ -201,8 +201,8 @@ int main(void) {
 
     struct star_sig_Accumulate_Inputs speedControlInputs = {
         .source = speedIncrement->signal.output,
-        .reset = star_AudioBlock_newWithValue(0.0f, &allocator,
-            &audioSettings)
+        .reset = star_AudioBlock_newWithValue(&allocator,
+            &audioSettings, 0.0f)
     };
 
     struct star_sig_Accumulate_Parameters speedControlParams = {
@@ -267,12 +267,12 @@ int main(void) {
         .source = encoderButton->signal.output,
 
         // TODO: Replace with constant value signal (gh-23).
-        .duration = star_AudioBlock_newWithValue(0.5f, &allocator,
-            &audioSettings),
+        .duration = star_AudioBlock_newWithValue(&allocator,
+            &audioSettings, 0.5f),
 
         // TODO: Replace with constant value signal (gh-23).
-        .count = star_AudioBlock_newWithValue(1.0f, &allocator,
-            &audioSettings)
+        .count = star_AudioBlock_newWithValue(&allocator,
+            &audioSettings, 1.0f)
     };
     encoderTap = star_sig_TimedTriggerCounter_new(&allocator,
         &audioSettings, &encoderClickInputs);
@@ -288,12 +288,12 @@ int main(void) {
         .gate = encoderButton->signal.output,
 
         // TODO: Replace with constant value signal (gh-23).
-        .duration = star_AudioBlock_newWithValue(LONG_ENCODER_PRESS,
-            &allocator, &audioSettings),
+        .duration = star_AudioBlock_newWithValue(
+            &allocator, &audioSettings, LONG_ENCODER_PRESS),
 
         // TODO: Replace with constant value signal (gh-23).
-        .loop = star_AudioBlock_newWithValue(0.0f, &allocator,
-            &audioSettings)
+        .loop = star_AudioBlock_newWithValue(&allocator,
+            &audioSettings, 0.0f)
     };
     encoderLongPress = star_sig_GatedTimer_new(&allocator,
         &audioSettings, &encoderPressTimerInputs);
@@ -304,8 +304,8 @@ int main(void) {
         // for reading audio input (gh-22).
         // For now, just use an empty block that
         // is copied into manually in the audio callback.
-        .source = star_AudioBlock_newWithValue(0.0f,
-            &allocator, &audioSettings),
+        .source = star_AudioBlock_newWithValue(&allocator,
+            &audioSettings, 0.0f),
         .start = startSmoother->signal.output,
         .end = endSmoother->signal.output,
         .speed = leftSpeedAdder->signal.output,
@@ -321,8 +321,8 @@ int main(void) {
     leftLooper->buffer = &leftBuffer;
 
     struct star_sig_Looper_Inputs rightLooperInputs = {
-        .source = star_AudioBlock_newWithValue(0.0f,
-            &allocator, &audioSettings),
+        .source = star_AudioBlock_newWithValue(&allocator,
+            &audioSettings, 0.0f),
         .start = leftLooperInputs.start,
         .end = leftLooperInputs.end,
         .speed = rightSpeedAdder->signal.output,
@@ -338,8 +338,8 @@ int main(void) {
         // Bluemchen's output circuit clips as it approaches full gain,
         // so 0.85 seems to be around the practical maximum value.
         // TODO: Replace with constant value Signal (gh-23).
-        .gain = star_AudioBlock_newWithValue(0.85f, &allocator,
-            &audioSettings),
+        .gain = star_AudioBlock_newWithValue(&allocator,
+            &audioSettings, 0.85f),
         .source = leftLooper->signal.output
     };
     leftGain = star_sig_Gain_new(&allocator, &audioSettings,

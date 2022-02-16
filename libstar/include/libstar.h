@@ -239,9 +239,10 @@ void star_Buffer_destroy(struct star_Allocator* allocator, struct star_Buffer* s
 
 float_array_ptr star_AudioBlock_new(struct star_Allocator* allocator,
     struct star_AudioSettings* audioSettings);
-float_array_ptr star_AudioBlock_newWithValue(float value,
+float_array_ptr star_AudioBlock_newWithValue(
     struct star_Allocator* allocator,
-    struct star_AudioSettings* audioSettings);
+    struct star_AudioSettings* audioSettings,
+    float value);
 
 // TODO: Should the signal argument at least be defined
 // as a struct star_sig_Signal*, rather than void*?
@@ -555,7 +556,8 @@ struct star_sig_Gain {
 
 void star_sig_Gain_init(struct star_sig_Gain* self,
     struct star_AudioSettings* settings, struct star_sig_Gain_Inputs* inputs, float_array_ptr output);
-struct star_sig_Gain* star_sig_Gain_new(struct star_Allocator* allocator,
+struct star_sig_Gain* star_sig_Gain_new(
+    struct star_Allocator* allocator,
     struct star_AudioSettings* settings,
     struct star_sig_Gain_Inputs* inputs);
 void star_sig_Gain_generate(void* signal);

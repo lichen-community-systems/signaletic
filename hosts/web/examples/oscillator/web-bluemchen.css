@@ -1,0 +1,30 @@
+#bluemchen {
+    width: 20.32mm;
+    height: 128.5mm;
+    background-color: black;
+    color: white;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    -webkit-transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%);
+    text-align:center;
+    align-content: center;
+}
+
+#oled {
+    width: 11.2mm;
+    height: 5.6mm;
+}
+
+.jack {
+    height: 9mm;
+    width: 9mm;
+    background-color: silver;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+canvas {
+    background-color: slateblue;
+}

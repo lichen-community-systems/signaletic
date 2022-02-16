@@ -147,22 +147,26 @@ void star_AudioSettings_destroy(struct star_Allocator* allocator,
 }
 
 
-float_array_ptr star_samples_new(struct star_Allocator* allocator, size_t length) {
+float_array_ptr star_samples_new(struct star_Allocator* allocator,
+    size_t length) {
     return (float_array_ptr) star_Allocator_malloc(allocator,
         sizeof(float) * length);
 }
 
 // TODO: Does an AudioBlock type need to be introduced?
 // TODO: Do we need a destroy function too?
-float_array_ptr star_AudioBlock_new(struct star_Allocator* allocator,
-    struct star_AudioSettings* settings) {
-    return star_samples_new(allocator, settings->blockSize);
-}
-
-float_array_ptr star_AudioBlock_newWithValue(float value,
+float_array_ptr star_AudioBlock_new(
     struct star_Allocator* allocator,
     struct star_AudioSettings* audioSettings) {
-    float_array_ptr block = star_AudioBlock_new(allocator, audioSettings);
+    return star_samples_new(allocator, audioSettings->blockSize);
+}
+
+float_array_ptr star_AudioBlock_newWithValue(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* audioSettings,
+    float value) {
+    float_array_ptr block = star_AudioBlock_new(allocator,
+        audioSettings);
     star_fillWithValue(block, audioSettings->blockSize, value);
 
     return block;
