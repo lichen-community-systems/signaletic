@@ -50,7 +50,7 @@
                 let source = context.createMediaStreamSource(stream);
 
                 await context.audioWorklet.addModule(
-                    "signaletic-oscillator-worklet.js");
+                    "../../../../libstar/build/wasm/wasm-oscillator-example.js");
 
                 const signaleticOsc = new AudioWorkletNode(context,
                     "SignaleticOscillator");

@@ -45,6 +45,35 @@ if host_machine.system() == 'emscripten'
             '--post-js', '..'/'bindings'/'libstar-web-bindings.js'
         ]
     )
+
+    executable(
+        'libstar-worklet',
+        [
+            'wasm'/'bindings'/'src'/'libstar-web-wrapper.cpp'
+        ],
+        dependencies: [libstar_dep],
+        link_args: [
+            '--no-entry',
+            '-s', 'ENVIRONMENT=shell',
+            '-s', 'WASM_ASYNC_COMPILATION=0',
+            '--post-js', '..'/'bindings'/'libstar-web-bindings.js'
+        ]
+    )
+
+    executable(
+        'wasm-oscillator-example',
+        [
+            'wasm'/'bindings'/'src'/'libstar-web-wrapper.cpp'
+        ],
+        dependencies: [libstar_dep],
+        link_args: [
+            '--no-entry',
+            '-s', 'ENVIRONMENT=shell',
+            '-s', 'WASM_ASYNC_COMPILATION=0',
+            '--post-js', '..'/'bindings'/'libstar-web-bindings.js',
+            '--post-js', '..'/'..'/'..'/'hosts'/'web'/'examples'/'oscillator'/'signaletic-oscillator-worklet.js'
+        ]
+    )
 endif
 
 # Examples

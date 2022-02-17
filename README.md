@@ -60,6 +60,7 @@ To remove all previous build artifacts and rebuild, run ```rm -r build/native &&
 
 #### libstar (Web Assembly)
 1. ```cd libstar```
+2. ```source ./setup-emscripten-env.sh```
 2. ```meson setup build/wasm --cross-file wasm-cross-compile.txt```
 3. ```./generate-wasm-bindings.sh```
 4. ```meson compile -C build/wasm```

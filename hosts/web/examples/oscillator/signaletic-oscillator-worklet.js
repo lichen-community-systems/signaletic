@@ -1,6 +1,3 @@
-import ModuleLoader from "../../../../libstar/build/wasm/libstar.js";
-
-let Module = ModuleLoader();
 let star = new Module.Starlings();
 
 star.TYPED_VIEWS = {
@@ -102,12 +99,23 @@ class SignaleticOscillator extends AudioWorkletProcessor {
         this.gainValue.parameters.value =
             parameters.blueKnobParam[0];
 
+        // Inputs may not be connected,
+        // so we have to check before we read them.
         // TODO: Read inputs at audio rate.
-        this.ampMod.parameters.value = inputs[0][0][0];
+        // TODO: Treat the two modulation sources (freq and mul)
+        // as separate inputs, rather than as a single
+        // multichannel input.
+        let cvInputs = inputs[0];
+        if (cvInputs.length > 0) {
+            this.ampMod.parameters.value = cvInputs[0][0];
+        }
 
-        // Map to MIDI notes between 0..120
-        let freqNote = inputs[0][1][0] * 60.0 + 60.0;
-        this.freqMod.parameters.value = star.midiToFreq(freqNote);
+        if (cvInputs.length > 1) {
+            // Map to MIDI notes between 0..120
+            let freqNote = cvInputs[1][0] * 60.0 + 60.0;
+            this.freqMod.parameters.value = star.midiToFreq(
+                freqNote);
+        }
 
         for (let output of outputs) {
             // Evaluate the Signaletic graph.
