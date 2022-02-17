@@ -301,7 +301,7 @@ void star_sig_Add_generate(void* signal) {
 
 void star_sig_Add_destroy(struct star_Allocator* allocator,
     struct star_sig_Add* self) {
-    return star_sig_Signal_destroy(allocator, self);
+    star_sig_Signal_destroy(allocator, self);
 }
 
 
@@ -338,7 +338,7 @@ void star_sig_Invert_generate(void* signal) {
 
 void star_sig_Invert_destroy(struct star_Allocator* allocator,
     struct star_sig_Invert* self) {
-    return star_sig_Signal_destroy(allocator, self);
+    star_sig_Signal_destroy(allocator, self);
 }
 
 
@@ -768,7 +768,7 @@ void star_sig_Tanh_generate(void* signal) {
 
 void star_sig_Tanh_destroy(struct star_Allocator* allocator,
     struct star_sig_Tanh* self) {
-    return star_sig_Signal_destroy(allocator, self);
+    star_sig_Signal_destroy(allocator, self);
 }
 
 
