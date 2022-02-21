@@ -429,6 +429,7 @@ void star_sig_GatedTimer_generate(void* signal) {
         (struct star_sig_GatedTimer*) signal;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        // TODO: MSVC compiler warning loss of precision.
         unsigned long durationSamps = (unsigned long)
             FLOAT_ARRAY(self->inputs->duration)[i] *
             self->signal.audioSettings->sampleRate;

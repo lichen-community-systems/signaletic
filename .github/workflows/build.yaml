@@ -52,13 +52,13 @@ jobs:
       - name: Run native unit tests
         run: |
           cd libstar
-          meson test -C build/native -v || cat build/native/meson-logs/testlog.txt
+          meson test -C build/native -v
 
       - name: Run unit tests in Node.js
         if: runner.os != 'Windows'
         run: |
           cd libstar
-          meson test -C build/wasm -v || cat build/wasm/meson-logs/testlog.txt
+          meson test -C build/wasm -v
 
       # Run examples
       - name: run console example

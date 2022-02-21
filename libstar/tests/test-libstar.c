@@ -17,7 +17,7 @@ struct star_AudioSettings* audioSettings;
 float* silentBlock;
 
 // TODO: Factor into a test utilities file.
-void TEST_ASSERT_FLOAT_ARRAY_CONTAINS_VALUE_ONLY(
+void testAssertFloatArrayContainsValueOnly(
     float expectedValue, float* actual, size_t length) {
     float* expectedArray = (float*) star_Allocator_malloc(&allocator,
         length * sizeof(float));
@@ -28,7 +28,7 @@ void TEST_ASSERT_FLOAT_ARRAY_CONTAINS_VALUE_ONLY(
 
 void TEST_ASSERT_BUFFER_CONTAINS_SILENCE(
     float* buffer, size_t bufferLen) {
-    TEST_ASSERT_FLOAT_ARRAY_CONTAINS_VALUE_ONLY(
+    testAssertFloatArrayContainsValueOnly(
         0.0f, buffer, bufferLen);
 }
 
@@ -91,16 +91,16 @@ void test_star_Audio_Block_newWithValue_testForValue(
     float value) {
     float* actual = star_AudioBlock_newWithValue(alloc,
         settings, value);
-    TEST_ASSERT_FLOAT_ARRAY_CONTAINS_VALUE_ONLY(value, actual,
+    testAssertFloatArrayContainsValueOnly(value, actual,
         settings->blockSize);
     star_Allocator_free(alloc, actual);
 }
 
 void test_star_AudioBlock_newWithValue(void) {
-    char customHeap[1048576];
+    char customHeap[262144];
     struct star_Allocator customAlloc = {
         .heap = (void*) customHeap,
-        .heapSize = 1048576
+        .heapSize = 262144
     };
     star_Allocator_init(&customAlloc);
 
@@ -124,13 +124,13 @@ void test_star_sig_Value(void) {
 
     // Output should contain the value parameter.
     value->signal.generate(value);
-    TEST_ASSERT_FLOAT_ARRAY_CONTAINS_VALUE_ONLY(
+    testAssertFloatArrayContainsValueOnly(
         123.45f, value->signal.output, audioSettings->blockSize);
 
     // Output should contain the updated value parameter.
     value->parameters.value = 1.111f;
     value->signal.generate(value);
-    TEST_ASSERT_FLOAT_ARRAY_CONTAINS_VALUE_ONLY(
+    testAssertFloatArrayContainsValueOnly(
         1.111f, value->signal.output, audioSettings->blockSize);
 
     // The lastSample member should have been updated.
@@ -142,7 +142,7 @@ void test_star_sig_Value(void) {
     // the output should continue to contain the value parameter.
     value->signal.generate(value);
     value->signal.generate(value);
-    TEST_ASSERT_FLOAT_ARRAY_CONTAINS_VALUE_ONLY(
+    testAssertFloatArrayContainsValueOnly(
         1.111f, value->signal.output, audioSettings->blockSize);
 
     star_sig_Value_destroy(&allocator, value);
@@ -233,22 +233,22 @@ void test_star_sig_Gain(void) {
         audioSettings, &inputs);
 
     gain->signal.generate(gain);
-    TEST_ASSERT_FLOAT_ARRAY_CONTAINS_VALUE_ONLY(
+    testAssertFloatArrayContainsValueOnly(
         220.0f, gain->signal.output, audioSettings->blockSize);
 
     star_fillWithValue(inputs.gain, audioSettings->blockSize, 0.0f);
     gain->signal.generate(gain);
-    TEST_ASSERT_FLOAT_ARRAY_CONTAINS_VALUE_ONLY(
+    testAssertFloatArrayContainsValueOnly(
         0.0f, gain->signal.output, audioSettings->blockSize);
 
     star_fillWithValue(inputs.gain, audioSettings->blockSize, 2.0f);
     gain->signal.generate(gain);
-    TEST_ASSERT_FLOAT_ARRAY_CONTAINS_VALUE_ONLY(
+    testAssertFloatArrayContainsValueOnly(
         880.0f, gain->signal.output, audioSettings->blockSize);
 
     star_fillWithValue(inputs.gain, audioSettings->blockSize, -1.0f);
     gain->signal.generate(gain);
-    TEST_ASSERT_FLOAT_ARRAY_CONTAINS_VALUE_ONLY(
+    testAssertFloatArrayContainsValueOnly(
         -440.0f, gain->signal.output, audioSettings->blockSize);
 
     star_sig_Gain_destroy(&allocator, gain);

@@ -47,18 +47,25 @@ To cross-compile the Starlings examples for the Daisy STM32 platform using gcc a
 1. ```brew install gcc-arm-embedded```
 2. Follow the [Daisy Toolchain](https://github.com/electro-smith/DaisyWiki/wiki/1.-Setting-Up-Your-Development-Environment#1-install-the-toolchain) installation instructions.
 
+### Windows
+1. Install Meson using the [Meson Installer](https://github.com/mesonbuild/meson/releases)
+2. Install Emscripten according to the [Emscripten installation documentation](https://emscripten.org/docs/getting_started/downloads.html)
+3. Install the [Daisy Toolchain for Windows](https://github.com/electro-smith/DaisyWiki/wiki/1c.-Installing-the-Toolchain-on-Windows)
+
 ## Building Starlings
 
-### macOS and Linux
+### macOS, Linux, and Windows
 
-#### libstar (native)
+On Windows, use a VS Command Prompt or set the appropriate environment variables so that MSVC is the default compiler.
+
+#### libstar Native
 1. ```cd libstar```
 2. ```meson setup build/native```
 3. ```meson compile -C build/native```
 
 To remove all previous build artifacts and rebuild, run ```rm -r build/native && meson setup build/native``` or run ```meson setup build/native --wipe```.
 
-#### libstar (Web Assembly)
+#### libstar for Web Assembly (not currently supported on Windows)
 1. ```cd libstar```
 2. ```source ./setup-emscripten-env.sh```
 2. ```meson setup build/wasm --cross-file wasm-cross-compile.txt```
@@ -69,6 +76,7 @@ To remove all previous build artifacts and rebuild, run ```rm -r build/native &&
 1. Native: ```meson test -C build/native -v```
 2. Node.js wasm: ```meson test -C build/wasm -v```
 3. Browser wasm: Open ```libstar/tests/test-libstar.html``` using VS Code's Live Server plugin or other web server.
+
 
 #### Running the Examples
 
@@ -81,6 +89,8 @@ To remove all previous build artifacts and rebuild, run ```rm -r build/native &&
 2. Open ```hosts/web/examples/midi-to-freq/index.html``` using VS Code's Live Server plugin or other web server.
 
 ##### Daisy Bluemchen Example
+On Windows, use a Git Bash terminal, since Daisy's Makefiles don't seem to provide Windows support.
+
 1. ```cd hosts/daisy/vendor/libDaisy```
 2. ```make```
 3. ```cd ../../examples/bluemchen```
