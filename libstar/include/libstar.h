@@ -7,7 +7,7 @@ extern "C" {
 
 #include <stdbool.h>
 
-// This typedef if necessary because Emscripten's
+// This typedef is necessary because Emscripten's
 // WebIDL binder is unable to produce viable
 // (i.e. performant and bug-free) bindings for
 // array pointers. As a result, for Emscripten

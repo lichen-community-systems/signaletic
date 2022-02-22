@@ -2,7 +2,7 @@
 // considering how to wrap Daisy objects in C,
 // and doing so doesn't seem hugely important since we're certain
 // to be compiling Daisy apps with a C++ compiler anyway.
-// Nonetheless the API is C-style in case part of it end up being
+// Nonetheless the API is C-style in case part of it ends up being
 // generalized for different environments
 // (e.g. a version that draws to an HTML canvas instead.)
 

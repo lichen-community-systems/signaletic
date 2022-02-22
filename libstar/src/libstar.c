@@ -5,7 +5,7 @@
                     // stdio.h, stdlib.h, string.h (for errors etc.)
 #include <libstar.h>
 
-// This macro if necessary because Emscripten's
+// This macro is necessary because Emscripten's
 // WebIDL binder is unable to produce viable
 // (i.e. performant and bug-free) bindings for
 // array pointers. All access to float* variables
