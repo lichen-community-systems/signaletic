@@ -74,10 +74,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Install ARM build toolchain
+      - name: Install Daisy toolchain
         run: |
           git clone https://github.com/electro-smith/DaisyToolchain.git
-          cd DaisyToolchain
+          cd DaisyToolchain/macOS
           ./install.command
 
       - name: Build libDaisy dependency
