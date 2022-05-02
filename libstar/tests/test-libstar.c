@@ -2,6 +2,7 @@
 #include <unity.h>
 #include <tlsf.h>
 #include <libstar.h>
+#include <stdlib.h> // TODO: Remove when a custom RNG is implemented.
 
 #define FLOAT_EPSILON powf(2, -23)
 #define HEAP_SIZE 1048576 // 1 MB
@@ -17,19 +18,83 @@ struct star_AudioSettings* audioSettings;
 float* silentBlock;
 
 // TODO: Factor into a test utilities file.
-void testAssertFloatArrayContainsValueOnly(
-    float expectedValue, float* actual, size_t length) {
+void testAssertBufferContainsValueOnly(
+    float expectedValue, float* actual, size_t len) {
     float* expectedArray = (float*) star_Allocator_malloc(&allocator,
-        length * sizeof(float));
-    star_fillWithValue(expectedArray, length, expectedValue);
-    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expectedArray, actual, length);
+        len * sizeof(float));
+    star_fillWithValue(expectedArray, len, expectedValue);
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expectedArray, actual, len);
     star_Allocator_free(&allocator, expectedArray);
 }
 
-void TEST_ASSERT_BUFFER_CONTAINS_SILENCE(
-    float* buffer, size_t bufferLen) {
-    testAssertFloatArrayContainsValueOnly(
-        0.0f, buffer, bufferLen);
+void testAssertBuffersNotEqual(float* first, float* second,
+    size_t len) {
+    size_t numMatches = 0;
+
+    for (size_t i = 0; i < len; i++) {
+        if (first[i] == second[i]) {
+            numMatches++;
+        }
+    }
+
+    TEST_ASSERT_FALSE_MESSAGE(numMatches == len,
+        "All values in both buffers were identical.");
+}
+
+void testAssertBuffersNoValuesEqual(float* first, float* second,
+    size_t len) {
+    int32_t failureIdx = -1;
+
+    for (int32_t i = 0; i < len; i++) {
+        if (first[i] == second[i]) {
+            failureIdx = i;
+            break;
+        }
+    }
+
+    TEST_ASSERT_EQUAL_INT32_MESSAGE(-1, failureIdx,
+        "Value at index was the same in both buffers.");
+}
+
+void testAssertBufferIsSilent(
+    float* buffer, size_t len) {
+    testAssertBufferContainsValueOnly(0.0f, buffer, len);
+}
+
+void testAssertBufferNotSilent(float* buffer, size_t len) {
+    float* silence = star_Allocator_malloc(&allocator,
+        sizeof(float) * len);
+    star_fillWithSilence(silence, len);
+    testAssertBuffersNotEqual(silence, buffer, len);
+}
+
+void testAssertBufferValuesInRange(float* buffer, size_t len,
+    float min, float max) {
+    int32_t failureIdx = -1;
+
+    for (int32_t i = 0; i < len; i++) {
+        if (buffer[i] < min || buffer[i] > max) {
+            failureIdx = i;
+            break;
+        }
+    }
+
+    TEST_ASSERT_EQUAL_INT32_MESSAGE(-1, failureIdx,
+        "Value at index was not within the expected range.");
+}
+
+void testAssertBufferContainsNumberOfNonZeroSamples(float* buffer,
+    size_t len, size_t expectedNumNonZeroSamples) {
+    size_t numNonZero = 0;
+    for (size_t i = 0; i < len; i++) {
+        if (buffer[i] != 0) {
+            numNonZero++;
+        }
+    }
+
+    TEST_ASSERT_EQUAL_size_t_MESSAGE(expectedNumNonZeroSamples,
+        numNonZero,
+        "An unexpected number of non-zero samples was found.");
 }
 
 void setUp(void) {
@@ -82,7 +147,37 @@ void test_star_fillWithValue(void) {
 void test_star_fillWithSilence(void) {
     float buffer[16];
     star_fillWithSilence(buffer, 16);
-    TEST_ASSERT_BUFFER_CONTAINS_SILENCE(buffer, 16);
+    testAssertBufferIsSilent(buffer, 16);
+}
+
+void fillBufferRandom(float* buffer, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        buffer[i] = star_randf();
+    }
+}
+
+void test_star_randf(void) {
+    size_t numSamples = 8192;
+
+    // Values should be within 0.0 to 1.0
+    float firstRun[numSamples];
+    fillBufferRandom(firstRun, numSamples);
+    testAssertBufferValuesInRange(firstRun, numSamples, 0.0f, 1.0f);
+
+    // Consecutive runs should contain different values.
+    float secondRun[numSamples];
+    fillBufferRandom(secondRun, numSamples);
+    testAssertBuffersNotEqual(firstRun, secondRun, numSamples);
+
+    // Using the same seed for each run
+    // should produce identical results.
+    float thirdRun[numSamples];
+    float fourthRun[numSamples];
+    srand(1);
+    fillBufferRandom(thirdRun, numSamples);
+    srand(1);
+    fillBufferRandom(fourthRun, numSamples);
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(thirdRun, fourthRun, numSamples);
 }
 
 void test_star_Audio_Block_newWithValue_testForValue(
@@ -91,7 +186,7 @@ void test_star_Audio_Block_newWithValue_testForValue(
     float value) {
     float* actual = star_AudioBlock_newWithValue(alloc,
         settings, value);
-    testAssertFloatArrayContainsValueOnly(value, actual,
+    testAssertBufferContainsValueOnly(value, actual,
         settings->blockSize);
     star_Allocator_free(alloc, actual);
 }
@@ -124,13 +219,13 @@ void test_star_sig_Value(void) {
 
     // Output should contain the value parameter.
     value->signal.generate(value);
-    testAssertFloatArrayContainsValueOnly(
+    testAssertBufferContainsValueOnly(
         123.45f, value->signal.output, audioSettings->blockSize);
 
     // Output should contain the updated value parameter.
     value->parameters.value = 1.111f;
     value->signal.generate(value);
-    testAssertFloatArrayContainsValueOnly(
+    testAssertBufferContainsValueOnly(
         1.111f, value->signal.output, audioSettings->blockSize);
 
     // The lastSample member should have been updated.
@@ -142,7 +237,7 @@ void test_star_sig_Value(void) {
     // the output should continue to contain the value parameter.
     value->signal.generate(value);
     value->signal.generate(value);
-    testAssertFloatArrayContainsValueOnly(
+    testAssertBufferContainsValueOnly(
         1.111f, value->signal.output, audioSettings->blockSize);
 
     star_sig_Value_destroy(&allocator, value);
@@ -233,22 +328,22 @@ void test_star_sig_Gain(void) {
         audioSettings, &inputs);
 
     gain->signal.generate(gain);
-    testAssertFloatArrayContainsValueOnly(
+    testAssertBufferContainsValueOnly(
         220.0f, gain->signal.output, audioSettings->blockSize);
 
     star_fillWithValue(inputs.gain, audioSettings->blockSize, 0.0f);
     gain->signal.generate(gain);
-    testAssertFloatArrayContainsValueOnly(
+    testAssertBufferContainsValueOnly(
         0.0f, gain->signal.output, audioSettings->blockSize);
 
     star_fillWithValue(inputs.gain, audioSettings->blockSize, 2.0f);
     gain->signal.generate(gain);
-    testAssertFloatArrayContainsValueOnly(
+    testAssertBufferContainsValueOnly(
         880.0f, gain->signal.output, audioSettings->blockSize);
 
     star_fillWithValue(inputs.gain, audioSettings->blockSize, -1.0f);
     gain->signal.generate(gain);
-    testAssertFloatArrayContainsValueOnly(
+    testAssertBufferContainsValueOnly(
         -440.0f, gain->signal.output, audioSettings->blockSize);
 
     star_sig_Gain_destroy(&allocator, gain);
@@ -389,12 +484,45 @@ void test_star_sig_Sine_phaseWrapsAt2PI(void) {
     star_sig_Sine_destroy(&allocator, sine);
 }
 
+// TODO: Implement the tests from
+// Flocking's unit test suite for flock.ugen.dust
+// https://github.com/continuing-creativity/Flocking/blob/master/tests/unit/js/random-ugen-tests.js#L147-L178
+void test_star_sig_Dust(void) {
+    float density = audioSettings->sampleRate /
+        audioSettings->blockSize;
+
+    struct star_sig_Dust_Inputs inputs = {
+        .density = star_AudioBlock_newWithValue(&allocator,
+            audioSettings, density)
+    };
+
+    struct star_sig_Dust* dust = star_sig_Dust_new(&allocator,
+        audioSettings, &inputs);
+
+    // Unipolar output.
+    dust->signal.generate(dust);
+    testAssertBufferNotSilent(dust->signal.output,
+        audioSettings->blockSize);
+    testAssertBufferValuesInRange(dust->signal.output,
+        audioSettings->blockSize, 0.0f, 1.0f);
+
+
+    // Bipolar output.
+    dust->parameters.bipolar = 1.0f;
+    dust->signal.generate(dust);
+    testAssertBufferNotSilent(dust->signal.output,
+        audioSettings->blockSize);
+    testAssertBufferValuesInRange(dust->signal.output,
+        audioSettings->blockSize, -1.0f, 1.0f);
+}
+
 int main(void) {
     UNITY_BEGIN();
 
     RUN_TEST(test_star_midiToFreq);
     RUN_TEST(test_star_fillWithValue);
     RUN_TEST(test_star_fillWithSilence);
+    RUN_TEST(test_star_randf);
     RUN_TEST(test_star_AudioBlock_newWithValue);
     RUN_TEST(test_star_sig_Value);
     RUN_TEST(test_star_sig_TimedTriggerCounter);
@@ -403,5 +531,7 @@ int main(void) {
     RUN_TEST(test_star_sig_Sine_accumulatesPhase);
     RUN_TEST(test_star_sig_Sine_phaseWrapsAt2PI);
     RUN_TEST(test_test_star_sig_Sine_isOffset);
+    RUN_TEST(test_star_sig_Dust);
+
     return UNITY_END();
 }

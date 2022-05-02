@@ -73,6 +73,36 @@
         "showDevDebugOutput": true,
         "svdFile": "${workspaceRoot}/.vscode/STM32H750x.svd",
         "type": "cortex-debug"
+      },
+      {
+        "name": "Remote Bluemchen Dusting",
+        "configFiles": [
+          "interface/stlink.cfg",
+          "target/stm32h7x.cfg"
+        ],
+        "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/dusting",
+        "debuggerArgs": [
+          "-d",
+          "${workspaceRoot}/hosts/daisy/examples/bluemchen/dusting"
+        ],
+        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/dusting/build/starlings-bluemchen-dusting.elf",
+        "interface": "swd",
+        "openOCDLaunchCommands": [
+          "init",
+          "reset init"
+        ],
+        "preLaunchTask": "Debug Build Bluemchen Examples",
+        "preRestartCommands": [
+          "load",
+          "enable breakpoint",
+          "monitor reset"
+        ],
+        "request": "launch",
+        "runToMain": true,
+        "servertype": "openocd",
+        "showDevDebugOutput": true,
+        "svdFile": "${workspaceRoot}/.vscode/STM32H750x.svd",
+        "type": "cortex-debug"
       }
     ],
     "version": "0.2.0"

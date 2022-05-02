@@ -205,11 +205,9 @@ int main(void) {
             &audioSettings, 0.0f)
     };
 
-    struct star_sig_Accumulate_Parameters speedControlParams = {
-        .accumulatorStart = 1.0f
-    };
     speedControl = star_sig_Accumulate_new(&allocator, &audioSettings,
-        &speedControlInputs, speedControlParams);
+        &speedControlInputs);
+    speedControl->parameters.accumulatorStart = 1.0f;
 
     speedMod = star_sig_Value_new(&allocator, &audioSettings);
     speedMod->parameters.value = 0.0f;

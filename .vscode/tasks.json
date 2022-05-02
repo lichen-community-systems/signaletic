@@ -141,6 +141,20 @@
             "type": "shell"
         },
         {
+            "label": "Build and Flash Bluemchen Dusting",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/dusting"
+            },
+            "dependsOn": [
+                "Build Bluemchen Examples"
+            ],
+            "command": "make program",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
             "label": "Build libdaisy",
             "options": {
                 "cwd": "${workspaceFolder}/hosts/daisy/vendor/libDaisy/"

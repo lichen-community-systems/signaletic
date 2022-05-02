@@ -11,6 +11,8 @@ Parameter knob1;
 Parameter cv1;
 Parameter cv2;
 
+FixedCapStr<20> displayStr;
+
 #define HEAP_SIZE 1024 * 256 // 256KB
 char heap[HEAP_SIZE];
 struct star_Allocator allocator = {
@@ -26,9 +28,9 @@ struct star_sig_Gain* gain;
 
 void UpdateOled() {
     bluemchen.display.Fill(false);
-    FixedCapStr<20> displayStr;
 
-    displayStr.Append("STARSCILL");
+    displayStr.Clear();
+    displayStr.Append("Starscill");
     bluemchen.display.SetCursor(0, 0);
     bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 

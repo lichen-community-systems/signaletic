@@ -64,6 +64,13 @@ float star_fmaxf(float a, float b);
 float star_clamp(float value, float min, float max);
 
 /**
+ * Generates a random float between 0.0 and 1.0.
+ *
+ * @return a random value
+ */
+float star_randf();
+
+/**
  * Converts MIDI note numbers into frequencies in hertz.
  * This algorithm assumes A4 = 440 Hz = MIDI note #69.
  *
@@ -367,13 +374,11 @@ struct star_sig_Accumulate {
 struct star_sig_Accumulate* star_sig_Accumulate_new(
     struct star_Allocator* allocator,
     struct star_AudioSettings* settings,
-    struct star_sig_Accumulate_Inputs* inputs,
-    struct star_sig_Accumulate_Parameters parameters);
+    struct star_sig_Accumulate_Inputs* inputs);
 void star_sig_Accumulate_init(
     struct star_sig_Accumulate* self,
     struct star_AudioSettings* settings,
     struct star_sig_Accumulate_Inputs* inputs,
-    struct star_sig_Accumulate_Parameters parameters,
     float_array_ptr output);
 void star_sig_Accumulate_generate(void* signal);
 void star_sig_Accumulate_destroy(struct star_Allocator* allocator,
@@ -640,6 +645,52 @@ struct star_sig_Looper* star_sig_Looper_new(
 void star_sig_Looper_generate(void* signal);
 void star_sig_Looper_destroy(struct star_Allocator* allocator,
     struct star_sig_Looper* self);
+
+struct star_sig_Dust_Parameters {
+    float bipolar;
+};
+
+struct star_sig_Dust_Inputs {
+    float_array_ptr density;
+};
+
+/**
+ * Generates random impulses.
+ *
+ * If the bipolar parameter is set to 0 (the default),
+ * the output will be in the range of 0 to 1.
+ * If bipolar >0, impulses between -1 and 1 will be generated.
+ *
+ * Inputs:
+ * - density: the number of impulses per second
+ *
+ * Parameters:
+ * - bipolar: the output will be unipolar if <=0, bipolar if >0
+ */
+struct star_sig_Dust {
+    struct star_sig_Signal signal;
+    struct star_sig_Dust_Inputs* inputs;
+    struct star_sig_Dust_Parameters parameters;
+
+    // TODO: Should this be part of AudioSettings?
+    float sampleDuration;
+
+    float previousDensity;
+    float threshold;
+    float scale;
+};
+
+void star_sig_Dust_init(struct star_sig_Dust* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_Dust_Inputs* inputs,
+    float_array_ptr output);
+struct star_sig_Dust* star_sig_Dust_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_Dust_Inputs* inputs);
+void star_sig_Dust_generate(void* signal);
+void star_sig_Dust_destroy(struct star_Allocator* allocator,
+    struct star_sig_Dust* self);
 
 #ifdef __cplusplus
 }

@@ -1,4 +1,5 @@
-#include <math.h>   // For powf, fmodf, sinf, roundf, fabsf
+#include <math.h>   // For powf, fmodf, sinf, roundf, fabsf, rand
+#include <stdlib.h> // For RAND_MAX
 #include <stddef.h> // For size_t
 #include <stdint.h> // For int32_t
 #include <tlsf.h>   // Includes assert.h, limits.h, stddef.h
@@ -49,6 +50,11 @@ float star_fmaxf(float a, float b) {
 float star_clamp(float value, float min, float max) {
     return star_fminf(star_fmaxf(value, min), max);
 }
+
+// TODO: Inline?
+float star_randf() {
+    return (float) ((double) rand() / ((double) RAND_MAX + 1));
+};
 
 // TODO: Inline? http://www.greenend.org.uk/rjk/tech/inline.html
 float star_midiToFreq(float midiNum) {
@@ -345,14 +351,12 @@ void star_sig_Invert_destroy(struct star_Allocator* allocator,
 struct star_sig_Accumulate* star_sig_Accumulate_new(
     struct star_Allocator* allocator,
     struct star_AudioSettings* settings,
-    struct star_sig_Accumulate_Inputs* inputs,
-    struct star_sig_Accumulate_Parameters parameters) {
+    struct star_sig_Accumulate_Inputs* inputs) {
     float_array_ptr output = star_AudioBlock_new(allocator, settings);
     struct star_sig_Accumulate* self = star_Allocator_malloc(
         allocator,
         sizeof(struct star_sig_Accumulate));
-    star_sig_Accumulate_init(self, settings, inputs, parameters,
-        output);
+    star_sig_Accumulate_init(self, settings, inputs, output);
 
     return self;
 }
@@ -361,10 +365,13 @@ void star_sig_Accumulate_init(
     struct star_sig_Accumulate* self,
     struct star_AudioSettings* settings,
     struct star_sig_Accumulate_Inputs* inputs,
-    struct star_sig_Accumulate_Parameters parameters,
     float_array_ptr output) {
     star_sig_Signal_init(self, settings, output,
         *star_sig_Accumulate_generate);
+
+    struct star_sig_Accumulate_Parameters parameters = {
+        .accumulatorStart = 1.0
+    };
 
     self->inputs = inputs;
     self->parameters = parameters;
@@ -915,5 +922,66 @@ void star_sig_Looper_generate(void* signal) {
 
 void star_sig_Looper_destroy(struct star_Allocator* allocator,
     struct star_sig_Looper* self) {
+    star_sig_Signal_destroy(allocator, self);
+}
+
+
+void star_sig_Dust_init(struct star_sig_Dust* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_Dust_Inputs* inputs,
+    float_array_ptr output) {
+
+    star_sig_Signal_init(self, settings, output,
+        *star_sig_Dust_generate);
+
+    struct star_sig_Dust_Parameters parameters = {
+        .bipolar = 0.0
+    };
+
+    self->inputs = inputs;
+    self->parameters = parameters;
+    self->sampleDuration = 1.0 / settings->sampleRate;
+    self->previousDensity = 0.0;
+    self->threshold = 0.0;
+}
+
+struct star_sig_Dust* star_sig_Dust_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_Dust_Inputs* inputs) {
+
+    float_array_ptr output = star_AudioBlock_new(allocator, settings);
+    struct star_sig_Dust* self = star_Allocator_malloc(allocator,
+        sizeof(struct star_sig_Dust));
+    star_sig_Dust_init(self, settings, inputs, output);
+
+    return self;
+}
+
+void star_sig_Dust_generate(void* signal) {
+    struct star_sig_Dust* self = (struct star_sig_Dust*) signal;
+
+    float scaleDiv = self->parameters.bipolar > 0.0f ? 2.0f : 1.0f;
+    float scaleSub = self->parameters.bipolar > 0.0f ? 1.0f : 0.0f;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float density = FLOAT_ARRAY(self->inputs->density)[i];
+
+        if (density != self->previousDensity) {
+            self->previousDensity = density;
+            self->threshold = density * self->sampleDuration;
+            self->scale = self->threshold > 0.0f ?
+                scaleDiv / self->threshold : 0.0f;
+        }
+
+        float rand = star_randf();
+        float val = rand < self->threshold ?
+            rand * self->scale - scaleSub : 0.0f;
+        FLOAT_ARRAY(self->signal.output)[i] = val;
+    }
+}
+
+void star_sig_Dust_destroy(struct star_Allocator* allocator,
+    struct star_sig_Dust* self) {
     star_sig_Signal_destroy(allocator, self);
 }
