@@ -160,24 +160,31 @@ void test_star_randf(void) {
     size_t numSamples = 8192;
 
     // Values should be within 0.0 to 1.0
-    float firstRun[numSamples];
-    fillBufferRandom(firstRun, numSamples);
-    testAssertBufferValuesInRange(firstRun, numSamples, 0.0f, 1.0f);
+    struct star_Buffer* firstRun = star_Buffer_new(&allocator,
+        numSamples);
+    fillBufferRandom(firstRun->samples, numSamples);
+    testAssertBufferValuesInRange(firstRun->samples, numSamples,
+        0.0f, 1.0f);
 
     // Consecutive runs should contain different values.
-    float secondRun[numSamples];
-    fillBufferRandom(secondRun, numSamples);
-    testAssertBuffersNotEqual(firstRun, secondRun, numSamples);
+    struct star_Buffer* secondRun = star_Buffer_new(&allocator,
+        numSamples);
+    fillBufferRandom(secondRun->samples, numSamples);
+    testAssertBuffersNotEqual(firstRun->samples, secondRun->samples,
+        numSamples);
 
     // Using the same seed for each run
     // should produce identical results.
-    float thirdRun[numSamples];
-    float fourthRun[numSamples];
+    struct star_Buffer* thirdRun = star_Buffer_new(&allocator,
+        numSamples);
+    struct star_Buffer* fourthRun = star_Buffer_new(&allocator,
+        numSamples);
     srand(1);
-    fillBufferRandom(thirdRun, numSamples);
+    fillBufferRandom(thirdRun->samples, numSamples);
     srand(1);
-    fillBufferRandom(fourthRun, numSamples);
-    TEST_ASSERT_EQUAL_FLOAT_ARRAY(thirdRun, fourthRun, numSamples);
+    fillBufferRandom(fourthRun->samples, numSamples);
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(thirdRun->samples,
+        fourthRun->samples, numSamples);
 }
 
 void test_star_Audio_Block_newWithValue_testForValue(

@@ -75,7 +75,10 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Install ARM build toolchain
-        run: brew install gcc-arm-embedded
+        run: |
+          git clone https://github.com/electro-smith/DaisyToolchain.git
+          cd DaisyToolchain
+          ./install.command
 
       - name: Build libDaisy dependency
         run: |
