@@ -83,18 +83,52 @@ void testAssertBufferValuesInRange(float* buffer, size_t len,
         "Value at index was not within the expected range.");
 }
 
-void testAssertBufferContainsNumberOfNonZeroSamples(float* buffer,
-    size_t len, size_t expectedNumNonZeroSamples) {
+size_t countNonZeroSamples(float* buffer, size_t len) {
     size_t numNonZero = 0;
     for (size_t i = 0; i < len; i++) {
-        if (buffer[i] != 0) {
+        if (buffer[i] != 0.0f) {
             numNonZero++;
         }
     }
+    return numNonZero;
+}
 
-    TEST_ASSERT_EQUAL_size_t_MESSAGE(expectedNumNonZeroSamples,
+int16_t countNonZeroSamplesGenerated(struct star_sig_Signal* signal,
+    int numRuns) {
+    int16_t numNonZero = 0;
+    for (int i = 0; i < numRuns; i++) {
+        signal->generate(signal);
+        numNonZero += countNonZeroSamples(signal->output,
+            signal->audioSettings->blockSize);
+    }
+
+    return numNonZero;
+}
+
+void testAssertBufferContainsNumZeroSamples(float* buffer,
+    size_t len, int16_t expectedNumNonZero) {
+    int16_t numNonZero = countNonZeroSamples(buffer, len);
+    TEST_ASSERT_EQUAL_size_t_MESSAGE(
+        expectedNumNonZero,
         numNonZero,
         "An unexpected number of non-zero samples was found.");
+}
+
+void testAssertGeneratedSignalContainsApproxNumNonZeroSamples(
+    struct star_sig_Signal* signal, int16_t expectedNumNonZero,
+    double errorFactor, int numRuns) {
+    double expectedNumNonZeroD = (double) expectedNumNonZero;
+    double errorNumSamps = expectedNumNonZeroD * errorFactor;
+    double high = expectedNumNonZeroD + errorNumSamps;
+    double low = expectedNumNonZeroD - errorNumSamps;
+
+    double avgNumNonZero = (double)
+        countNonZeroSamplesGenerated(signal, numRuns) /
+        (double) numRuns;
+    double actualRoundedAvgNumNonZero = round(avgNumNonZero);
+    TEST_ASSERT_TRUE_MESSAGE(actualRoundedAvgNumNonZero >= low &&
+        actualRoundedAvgNumNonZero <= high,
+        "The actual average number of non-zero samples was not within the expected range.");
 }
 
 void setUp(void) {
@@ -491,12 +525,24 @@ void test_star_sig_Sine_phaseWrapsAt2PI(void) {
     star_sig_Sine_destroy(&allocator, sine);
 }
 
-// TODO: Implement the tests from
-// Flocking's unit test suite for flock.ugen.dust
-// https://github.com/continuing-creativity/Flocking/blob/master/tests/unit/js/random-ugen-tests.js#L147-L178
+void testDust(struct star_sig_Dust* dust,
+    float min, float max, int16_t expectedNumDustPerBlock) {
+    dust->signal.generate(dust);
+
+    testAssertBufferNotSilent(dust->signal.output,
+        audioSettings->blockSize);
+    testAssertBufferValuesInRange(dust->signal.output,
+        audioSettings->blockSize, min, max);
+    // Signal should generate a number of non-zero samples
+    // within 5% of the expected number (since it's random).
+    testAssertGeneratedSignalContainsApproxNumNonZeroSamples(
+        &dust->signal, expectedNumDustPerBlock, 0.005, 1500);
+}
+
 void test_star_sig_Dust(void) {
-    float density = audioSettings->sampleRate /
-        audioSettings->blockSize;
+    int32_t expectedNumDustPerBlock = 5;
+    float density = (audioSettings->sampleRate /
+        audioSettings->blockSize) * expectedNumDustPerBlock;
 
     struct star_sig_Dust_Inputs inputs = {
         .density = star_AudioBlock_newWithValue(&allocator,
@@ -507,20 +553,14 @@ void test_star_sig_Dust(void) {
         audioSettings, &inputs);
 
     // Unipolar output.
-    dust->signal.generate(dust);
-    testAssertBufferNotSilent(dust->signal.output,
-        audioSettings->blockSize);
-    testAssertBufferValuesInRange(dust->signal.output,
-        audioSettings->blockSize, 0.0f, 1.0f);
-
+    testDust(dust, 0.0f, 1.0f, expectedNumDustPerBlock);
 
     // Bipolar output.
     dust->parameters.bipolar = 1.0f;
-    dust->signal.generate(dust);
-    testAssertBufferNotSilent(dust->signal.output,
-        audioSettings->blockSize);
-    testAssertBufferValuesInRange(dust->signal.output,
-        audioSettings->blockSize, -1.0f, 1.0f);
+    testDust(dust, -1.0f, 1.0f, expectedNumDustPerBlock);
+
+    star_Allocator_free(&allocator, inputs.density);
+    star_sig_Dust_destroy(&allocator, dust);
 }
 
 int main(void) {
