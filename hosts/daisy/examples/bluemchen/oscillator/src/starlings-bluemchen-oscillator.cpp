@@ -24,7 +24,7 @@ struct star_sig_Value* freqMod;
 struct star_sig_Value* ampMod;
 struct star_sig_Sine* carrier;
 struct star_sig_Value* gainValue;
-struct star_sig_Gain* gain;
+struct star_sig_BinaryOp* gain;
 
 void UpdateOled() {
     bluemchen.display.Fill(false);
@@ -129,11 +129,11 @@ int main(void) {
     gainValue = star_sig_Value_new(&allocator, &audioSettings);
     gainValue->parameters.value = 0.85f;
 
-    struct star_sig_Gain_Inputs gainInputs = {
-        .gain = gainValue->signal.output,
-        .source = carrier->signal.output
+    struct star_sig_BinaryOp_Inputs gainInputs = {
+        .left = carrier->signal.output,
+        .right = gainValue->signal.output
     };
-    gain = star_sig_Gain_new(&allocator, &audioSettings,
+    gain = star_sig_Mul_new(&allocator, &audioSettings,
         &gainInputs);
 
     bluemchen.StartAudio(AudioCallback);

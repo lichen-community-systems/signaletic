@@ -80,32 +80,32 @@ public:
         star_Allocator_free(allocator, self);
     }
 
-    struct star_sig_Gain* Gain_new(struct star_Allocator* allocator,
+    struct star_sig_BinaryOp* Mul_new(struct star_Allocator* allocator,
         struct star_AudioSettings* audioSettings,
-        struct star_sig_Gain_Inputs* inputs) {
-        return star_sig_Gain_new(allocator, audioSettings,
+        struct star_sig_BinaryOp_Inputs* inputs) {
+        return star_sig_Mul_new(allocator, audioSettings,
             inputs);
     }
 
-    void Gain_destroy(struct star_Allocator* allocator,
-        struct star_sig_Gain* self) {
-        return star_sig_Gain_destroy(allocator, self);
+    void Mul_destroy(struct star_Allocator* allocator,
+        struct star_sig_BinaryOp* self) {
+        return star_sig_Mul_destroy(allocator, self);
     }
 
     // TODO: Address duplication with other Input_new functions.
-    struct star_sig_Gain_Inputs* Gain_Inputs_new(
+    struct star_sig_BinaryOp_Inputs* BinaryOp_Inputs_new(
         struct star_Allocator* allocator,
-        float_array_ptr gain, float_array_ptr source) {
-        struct star_sig_Gain_Inputs* inputs = (struct star_sig_Gain_Inputs*) star_Allocator_malloc(allocator, sizeof(star_sig_Gain_Inputs));
+        float_array_ptr left, float_array_ptr right) {
+        struct star_sig_BinaryOp_Inputs* inputs = (struct star_sig_BinaryOp_Inputs*) star_Allocator_malloc(allocator, sizeof(star_sig_BinaryOp_Inputs));
 
-        inputs->gain = gain;
-        inputs->source = source;
+        inputs->left = left;
+        inputs->right = right;
 
         return inputs;
     }
 
-    void Gain_Inputs_destroy(struct star_Allocator* allocator,
-        struct star_sig_Gain_Inputs* self) {
+    void BinaryOp_Inputs_destroy(struct star_Allocator* allocator,
+        struct star_sig_BinaryOp_Inputs* self) {
         star_Allocator_free(allocator, self);
     }
 };

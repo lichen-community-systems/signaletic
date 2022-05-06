@@ -44,20 +44,20 @@ struct star_sig_Value* speedIncrement;
 struct star_sig_Accumulate* speedControl;
 struct star_sig_Value* speedMod;
 struct star_sig_OnePole* speedModSmoother;
-struct star_sig_Add* speedAdder;
+struct star_sig_BinaryOp* speedAdder;
 struct star_sig_Value* speedSkew;
 struct star_sig_OnePole* speedSkewSmoother;
 struct star_sig_Invert* leftSpeedSkewInverter;
-struct star_sig_Add* leftSpeedAdder;
-struct star_sig_Add* rightSpeedAdder;
+struct star_sig_BinaryOp* leftSpeedAdder;
+struct star_sig_BinaryOp* rightSpeedAdder;
 struct star_sig_Value* encoderButton;
 struct star_sig_TimedTriggerCounter* encoderTap;
 struct star_sig_GatedTimer* encoderLongPress;
 struct star_sig_ToggleGate* recordGate;
 struct star_sig_Looper* leftLooper;
 struct star_sig_Looper* rightLooper;
-struct star_sig_Gain* leftGain;
-struct star_sig_Gain* rightGain;
+struct star_sig_BinaryOp* leftGain;
+struct star_sig_BinaryOp* rightGain;
 
 struct star_LooperView looperView;
 
@@ -220,7 +220,7 @@ int main(void) {
     speedModSmoother = star_sig_OnePole_new(&allocator,
         &audioSettings, &speedModSmootherInputs);
 
-    struct star_sig_Add_Inputs speedAdderInputs = {
+    struct star_sig_BinaryOp_Inputs speedAdderInputs = {
         .left = speedControl->signal.output,
         .right = speedModSmoother->signal.output
     };
@@ -244,14 +244,14 @@ int main(void) {
     leftSpeedSkewInverter = star_sig_Invert_new(&allocator, &audioSettings,
         &leftSpeedSkewInverterInputs);
 
-    struct star_sig_Add_Inputs leftSpeedAdderInputs = {
+    struct star_sig_BinaryOp_Inputs leftSpeedAdderInputs = {
         .left = speedAdder->signal.output,
         .right = leftSpeedSkewInverter->signal.output
     };
     leftSpeedAdder = star_sig_Add_new(&allocator, &audioSettings,
         &leftSpeedAdderInputs);
 
-    struct star_sig_Add_Inputs rightSpeedAdderInputs = {
+    struct star_sig_BinaryOp_Inputs rightSpeedAdderInputs = {
         .left = speedAdder->signal.output,
         .right = speedSkewSmoother->signal.output
     };
@@ -332,22 +332,22 @@ int main(void) {
         &rightLooperInputs);
     rightLooper->buffer = &rightBuffer;
 
-    struct star_sig_Gain_Inputs leftGainInputs = {
+    struct star_sig_BinaryOp_Inputs leftGainInputs = {
         // Bluemchen's output circuit clips as it approaches full gain,
         // so 0.85 seems to be around the practical maximum value.
         // TODO: Replace with constant value Signal (gh-23).
-        .gain = star_AudioBlock_newWithValue(&allocator,
-            &audioSettings, 0.85f),
-        .source = leftLooper->signal.output
+        .left = leftLooper->signal.output,
+        .right = star_AudioBlock_newWithValue(&allocator,
+            &audioSettings, 0.85f)
     };
-    leftGain = star_sig_Gain_new(&allocator, &audioSettings,
+    leftGain = star_sig_Mul_new(&allocator, &audioSettings,
         &leftGainInputs);
 
-    struct star_sig_Gain_Inputs rightGainInputs = {
-        .gain = leftGainInputs.gain,
-        .source = rightLooper->signal.output
+    struct star_sig_BinaryOp_Inputs rightGainInputs = {
+        .left = rightLooper->signal.output,
+        .right = leftGainInputs.left
     };
-    rightGain = star_sig_Gain_new(&allocator, &audioSettings,
+    rightGain = star_sig_Mul_new(&allocator, &audioSettings,
         &rightGainInputs);
 
     bluemchen.StartAudio(AudioCallback);

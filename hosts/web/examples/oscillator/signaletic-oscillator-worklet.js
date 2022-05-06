@@ -58,13 +58,13 @@ class SignaleticOscillator extends AudioWorkletProcessor {
             this.audioSettings);
         this.gainValue.parameters.value = 0.85;
 
-        this.gainInputs = star.sig.Gain_Inputs_new(
+        this.gainInputs = star.sig.BinaryOp_Inputs_new(
             this.allocator,
-            this.gainValue.signal.output,
-            this.carrier.signal.output
+            this.carrier.signal.output,
+            this.gainValue.signal.output
         );
 
-        this.gain = star.sig.Gain_new(this.allocator,
+        this.gain = star.sig.Mul_new(this.allocator,
             this.audioSettings, this.gainInputs);
 
         this.gainOutput = star.dereferenceArray(

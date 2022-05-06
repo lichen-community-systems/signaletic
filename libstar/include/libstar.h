@@ -289,27 +289,51 @@ void star_sig_Value_destroy(struct star_Allocator* allocator,
     struct star_sig_Value* self);
 
 
-struct star_sig_Add_Inputs {
+struct star_sig_BinaryOp_Inputs {
     float_array_ptr left;
     float_array_ptr right;
 };
 
-struct star_sig_Add {
+struct star_sig_BinaryOp {
     struct star_sig_Signal signal;
-    struct star_sig_Add_Inputs* inputs;
+    struct star_sig_BinaryOp_Inputs* inputs;
 };
 
-struct star_sig_Add* star_sig_Add_new(
+
+struct star_sig_BinaryOp* star_sig_Add_new(
     struct star_Allocator* allocator,
     struct star_AudioSettings* settings,
-    struct star_sig_Add_Inputs* inputs);
-void star_sig_Add_init(struct star_sig_Add* self,
+    struct star_sig_BinaryOp_Inputs* inputs);
+void star_sig_Add_init(struct star_sig_BinaryOp* self,
     struct star_AudioSettings* settings,
-    struct star_sig_Add_Inputs* inputs,
+    struct star_sig_BinaryOp_Inputs* inputs,
     float_array_ptr output);
 void star_sig_Add_generate(void* signal);
 void star_sig_Add_destroy(struct star_Allocator* allocator,
-    struct star_sig_Add* self);
+    struct star_sig_BinaryOp* self);
+
+
+void star_sig_Mul_init(struct star_sig_BinaryOp* self,
+    struct star_AudioSettings* settings, struct star_sig_BinaryOp_Inputs* inputs, float_array_ptr output);
+struct star_sig_BinaryOp* star_sig_Mul_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_BinaryOp_Inputs* inputs);
+void star_sig_Mul_generate(void* signal);
+void star_sig_Mul_destroy(struct star_Allocator* allocator, struct star_sig_BinaryOp* self);
+
+
+struct star_sig_BinaryOp* star_sig_Div_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_BinaryOp_Inputs* inputs);
+void star_sig_Div_init(struct star_sig_BinaryOp* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_BinaryOp_Inputs* inputs,
+    float_array_ptr output);
+void star_sig_Div_generate(void* signal);
+void star_sig_Div_destroy(struct star_Allocator* allocator,
+    struct star_sig_BinaryOp* self);
 
 
 struct star_sig_Invert_Inputs {
@@ -549,25 +573,6 @@ struct star_sig_Sine* star_sig_Sine_new(struct star_Allocator* allocator,
 void star_sig_Sine_generate(void* signal);
 void star_sig_Sine_destroy(struct star_Allocator* allocator, struct star_sig_Sine* self);
 
-struct star_sig_Gain_Inputs {
-    float_array_ptr gain;
-    float_array_ptr source;
-};
-
-struct star_sig_Gain {
-    struct star_sig_Signal signal;
-    struct star_sig_Gain_Inputs* inputs;
-};
-
-void star_sig_Gain_init(struct star_sig_Gain* self,
-    struct star_AudioSettings* settings, struct star_sig_Gain_Inputs* inputs, float_array_ptr output);
-struct star_sig_Gain* star_sig_Gain_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* settings,
-    struct star_sig_Gain_Inputs* inputs);
-void star_sig_Gain_generate(void* signal);
-void star_sig_Gain_destroy(struct star_Allocator* allocator, struct star_sig_Gain* self);
-
 
 struct star_sig_OnePole_Inputs {
     float_array_ptr source;
@@ -691,6 +696,57 @@ struct star_sig_Dust* star_sig_Dust_new(
 void star_sig_Dust_generate(void* signal);
 void star_sig_Dust_destroy(struct star_Allocator* allocator,
     struct star_sig_Dust* self);
+
+
+
+struct star_sig_TimedGate_Parameters {
+    float resetOnTrigger;
+};
+
+struct star_sig_TimedGate_Inputs {
+    float_array_ptr trigger;
+    float_array_ptr duration;
+};
+
+/**
+ * A triggerable timed gate.
+ *
+ * This signal will output 1.0 for the specified
+ * duration whenever it is triggered.
+ *
+ * Similar to SuperCollider's Trig1 unit generator.
+ *
+ * Inputs:
+ *  - duration: the duration (in seconds) to remain open
+ *  - trigger: a rising edge that will cause the gate to open
+ *
+ * Parameters:
+ * - resetOnTrigger: when >0, the gate will close and then reopen
+ *                   if a trigger is received while the gate is open
+ */
+struct star_sig_TimedGate {
+    struct star_sig_Signal signal;
+    struct star_sig_TimedGate_Inputs* inputs;
+    struct star_sig_TimedGate_Parameters parameters;
+
+    float previousTrigger;
+    float previousDuration;
+    long durationSamps;
+    long samplesRemaining;
+};
+
+void star_sig_TimedGate_init(struct star_sig_TimedGate* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_TimedGate_Inputs* inputs,
+    float_array_ptr output);
+struct star_sig_TimedGate* star_sig_TimedGate_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_TimedGate_Inputs* inputs);
+void star_sig_TimedGate_generate(void* signal);
+void star_sig_TimedGate_destroy(struct star_Allocator* allocator,
+    struct star_sig_TimedGate* self);
+
 
 #ifdef __cplusplus
 }

@@ -271,21 +271,21 @@ void star_sig_Value_generate(void* signal) {
 }
 
 
-struct star_sig_Add* star_sig_Add_new(
+struct star_sig_BinaryOp* star_sig_Add_new(
     struct star_Allocator* allocator,
     struct star_AudioSettings* settings,
-    struct star_sig_Add_Inputs* inputs) {
+    struct star_sig_BinaryOp_Inputs* inputs) {
     float_array_ptr output = star_AudioBlock_new(allocator, settings);
-    struct star_sig_Add* self = star_Allocator_malloc(allocator,
-        sizeof(struct star_sig_Add));
+    struct star_sig_BinaryOp* self = star_Allocator_malloc(allocator,
+        sizeof(struct star_sig_BinaryOp));
     star_sig_Add_init(self, settings, inputs, output);
 
     return self;
 }
 
-void star_sig_Add_init(struct star_sig_Add* self,
+void star_sig_Add_init(struct star_sig_BinaryOp* self,
     struct star_AudioSettings* settings,
-    struct star_sig_Add_Inputs* inputs,
+    struct star_sig_BinaryOp_Inputs* inputs,
     float_array_ptr output) {
     star_sig_Signal_init(self, settings, output,
         *star_sig_Add_generate);
@@ -294,19 +294,91 @@ void star_sig_Add_init(struct star_sig_Add* self,
 
 // TODO: Unit tests.
 void star_sig_Add_generate(void* signal) {
-    struct star_sig_Add* self = (struct star_sig_Add*) signal;
+    struct star_sig_BinaryOp* self = (struct star_sig_BinaryOp*) signal;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
         float left = FLOAT_ARRAY(self->inputs->left)[i];
         float right = FLOAT_ARRAY(self->inputs->right)[i];
-        float outputSample = left + right;
+        float val = left + right;
 
-        FLOAT_ARRAY(self->signal.output)[i] = outputSample;
+        FLOAT_ARRAY(self->signal.output)[i] = val;
     }
 }
 
 void star_sig_Add_destroy(struct star_Allocator* allocator,
-    struct star_sig_Add* self) {
+    struct star_sig_BinaryOp* self) {
+    star_sig_Signal_destroy(allocator, self);
+}
+
+
+void star_sig_Mul_init(struct star_sig_BinaryOp* self,
+    struct star_AudioSettings* settings, struct star_sig_BinaryOp_Inputs* inputs, float_array_ptr output) {
+    star_sig_Signal_init(self, settings, output, *star_sig_Mul_generate);
+    self->inputs = inputs;
+};
+
+struct star_sig_BinaryOp* star_sig_Mul_new(struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_BinaryOp_Inputs* inputs) {
+    float_array_ptr output = star_AudioBlock_new(allocator, settings);
+    struct star_sig_BinaryOp* self = star_Allocator_malloc(allocator,
+        sizeof(struct star_sig_BinaryOp));
+    star_sig_Mul_init(self, settings, inputs, output);
+
+    return self;
+}
+
+void star_sig_Mul_destroy(struct star_Allocator* allocator,
+    struct star_sig_BinaryOp* self) {
+    star_sig_Signal_destroy(allocator, (void*) self);
+};
+
+void star_sig_Mul_generate(void* signal) {
+    struct star_sig_BinaryOp* self = (struct star_sig_BinaryOp*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float left = FLOAT_ARRAY(self->inputs->left)[i];
+        float right = FLOAT_ARRAY(self->inputs->right)[i];
+        float val = left * right;
+        FLOAT_ARRAY(self->signal.output)[i] = val;
+    }
+}
+
+
+struct star_sig_BinaryOp* star_sig_Div_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_BinaryOp_Inputs* inputs) {
+    float_array_ptr output = star_AudioBlock_new(allocator, settings);
+    struct star_sig_BinaryOp* self = star_Allocator_malloc(allocator,
+        sizeof(struct star_sig_BinaryOp));
+    star_sig_Div_init(self, settings, inputs, output);
+
+    return self;
+}
+
+void star_sig_Div_init(struct star_sig_BinaryOp* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_BinaryOp_Inputs* inputs,
+    float_array_ptr output) {
+    star_sig_Signal_init(self, settings, output,
+        *star_sig_Div_generate);
+    self->inputs = inputs;
+}
+
+void star_sig_Div_generate(void* signal) {
+    struct star_sig_BinaryOp* self = (struct star_sig_BinaryOp*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float left = FLOAT_ARRAY(self->inputs->left)[i];
+        float right = FLOAT_ARRAY(self->inputs->right)[i];
+        float val = left / right;
+        FLOAT_ARRAY(self->signal.output)[i] = val;
+    }
+}
+
+void star_sig_Div_destroy(struct star_Allocator* allocator,
+    struct star_sig_BinaryOp* self) {
     star_sig_Signal_destroy(allocator, self);
 }
 
@@ -661,40 +733,6 @@ void star_sig_Sine_generate(void* signal) {
     }
 }
 
-void star_sig_Gain_init(struct star_sig_Gain* self,
-    struct star_AudioSettings* settings, struct star_sig_Gain_Inputs* inputs, float_array_ptr output) {
-
-    star_sig_Signal_init(self, settings, output,
-        *star_sig_Gain_generate);
-    self->inputs = inputs;
-};
-
-struct star_sig_Gain* star_sig_Gain_new(struct star_Allocator* allocator,
-    struct star_AudioSettings* settings,
-    struct star_sig_Gain_Inputs* inputs) {
-    float_array_ptr output = star_AudioBlock_new(allocator, settings);
-    struct star_sig_Gain* self = star_Allocator_malloc(allocator,
-        sizeof(struct star_sig_Gain));
-    star_sig_Gain_init(self, settings, inputs, output);
-
-    return self;
-}
-
-void star_sig_Gain_destroy(struct star_Allocator* allocator,
-    struct star_sig_Gain* self) {
-    star_sig_Signal_destroy(allocator, (void*) self);
-};
-
-void star_sig_Gain_generate(void* signal) {
-    struct star_sig_Gain* self = (struct star_sig_Gain*) signal;
-
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        FLOAT_ARRAY(self->signal.output)[i] =
-            FLOAT_ARRAY(self->inputs->source)[i] *
-            FLOAT_ARRAY(self->inputs->gain)[i];
-    }
-}
-
 
 void star_sig_OnePole_init(struct star_sig_OnePole* self,
     struct star_AudioSettings* settings,
@@ -983,5 +1021,84 @@ void star_sig_Dust_generate(void* signal) {
 
 void star_sig_Dust_destroy(struct star_Allocator* allocator,
     struct star_sig_Dust* self) {
+    star_sig_Signal_destroy(allocator, self);
+}
+
+
+void star_sig_TimedGate_init(struct star_sig_TimedGate* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_TimedGate_Inputs* inputs,
+    float_array_ptr output) {
+    star_sig_Signal_init(self, settings, output,
+        *star_sig_TimedGate_generate);
+
+    struct star_sig_TimedGate_Parameters parameters = {
+        .resetOnTrigger = 0.0
+    };
+
+    self->inputs = inputs;
+    self->parameters = parameters;
+    self->previousTrigger = 0.0f;
+    self->durationSamps = 0;
+    self->samplesRemaining = 0;
+}
+
+struct star_sig_TimedGate* star_sig_TimedGate_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_TimedGate_Inputs* inputs) {
+    float_array_ptr output = star_AudioBlock_new(allocator, settings);
+    struct star_sig_TimedGate* self = star_Allocator_malloc(allocator,
+        sizeof(struct star_sig_TimedGate));
+    star_sig_TimedGate_init(self, settings, inputs, output);
+
+    return self;
+}
+
+void star_sig_TimedGate_generate(void* signal) {
+    struct star_sig_TimedGate* self = (struct star_sig_TimedGate*)
+        signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float currentTrigger = FLOAT_ARRAY(self->inputs->trigger)[i];
+        float duration = FLOAT_ARRAY(self->inputs->duration)[i];
+        float val;
+
+        if (currentTrigger > 0.0f && self->previousTrigger <= 0.0f) {
+            // A new trigger was received.
+            if (duration != self->previousDuration) {
+                // The duration input has changed.
+                self->durationSamps = lroundf(duration *
+                    self->signal.audioSettings->sampleRate);
+                self->previousDuration = duration;
+            }
+
+            self->samplesRemaining = self->durationSamps;
+
+            if (self->parameters.resetOnTrigger > 0.0f &&
+                self->samplesRemaining > 0) {
+                // Gate is open and needs to be reset.
+                // Close the gate for one sample,
+                // and don't count down the duration
+                // until next time.
+                val = 0.0f;
+            } else {
+                val = 1.0f;
+                self->samplesRemaining--;
+            }
+        } else if (self->samplesRemaining > 0) {
+            val = 1.0f;
+            self->samplesRemaining--;
+        } else {
+            val = 0.0f;
+        }
+
+        FLOAT_ARRAY(self->signal.output)[i] = val;
+        self->previousTrigger = currentTrigger;
+    }
+}
+
+void star_sig_TimedGate_destroy(struct star_Allocator* allocator,
+    struct star_sig_TimedGate* self) {
     star_sig_Signal_destroy(allocator, self);
 }

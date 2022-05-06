@@ -8,6 +8,7 @@ using namespace daisy;
 
 Bluemchen bluemchen;
 Parameter densityKnob;
+Parameter durationKnob;
 
 FixedCapStr<20> displayStr;
 
@@ -19,7 +20,11 @@ struct star_Allocator allocator = {
 };
 
 struct star_sig_Value* density;
+struct star_sig_Value* duration;
+struct star_sig_BinaryOp* reciprocalDensity;
+struct star_sig_BinaryOp* densityDurationMultiplier;
 struct star_sig_Dust* dust;
+struct star_sig_TimedGate* gate;
 
 void UpdateOled() {
     bluemchen.display.Fill(false);
@@ -28,12 +33,26 @@ void UpdateOled() {
     displayStr.Append("Dust Dust");
     bluemchen.display.SetCursor(0, 0);
     bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+
+    displayStr.Clear();
+    displayStr.Append("Den: ");
+    displayStr.AppendFloat(density->signal.output[0], 3);
+    bluemchen.display.SetCursor(0, 8);
+    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+
+    displayStr.Clear();
+    displayStr.Append("Dur: ");
+    displayStr.AppendFloat(densityDurationMultiplier->signal.output[0], 3);
+    bluemchen.display.SetCursor(0, 16);
+    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+
     bluemchen.display.Update();
 }
 
 void UpdateControls() {
     bluemchen.encoder.Debounce();
     densityKnob.Process();
+    durationKnob.Process();
 }
 
 void AudioCallback(daisy::AudioHandle::InputBuffer in,
@@ -41,19 +60,26 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
     UpdateControls();
 
     density->parameters.value = densityKnob.Value();
+    duration->parameters.value = durationKnob.Value();
+    reciprocalDensity->signal.generate(reciprocalDensity);
+    densityDurationMultiplier->signal.generate(densityDurationMultiplier);
     density->signal.generate(density);
+    duration->signal.generate(duration);
     dust->signal.generate(dust);
+    gate->signal.generate(gate);
 
     // Copy mono buffer to stereo output.
     for (size_t i = 0; i < size; i++) {
-        out[0][i] = dust->signal.output[i];
-        out[1][i] = dust->signal.output[i];
+        out[0][i] = gate->signal.output[i];
+        out[1][i] = gate->signal.output[i];
     }
 }
 
 void initControls() {
     densityKnob.Init(bluemchen.controls[bluemchen.CTRL_1],
-        1.0f/120.0f, 1000.0f, Parameter::LINEAR);
+        1.0f/60.0f, 20.0f, Parameter::LINEAR);
+    durationKnob.Init(bluemchen.controls[bluemchen.CTRL_2],
+        0, 1, Parameter::LINEAR);
 }
 
 int main(void) {
@@ -72,13 +98,37 @@ int main(void) {
 
     density = star_sig_Value_new(&allocator, &audioSettings);
     density->parameters.value = 1.0f;
+    duration = star_sig_Value_new(&allocator, &audioSettings);
+    duration->parameters.value = 1.0f;
+
+    struct star_sig_BinaryOp_Inputs reciprocalDensityInputs = {
+        .left = star_AudioBlock_newWithValue(&allocator,
+            &audioSettings, 1.0f),
+        .right = density->signal.output
+    };
+
+    reciprocalDensity = star_sig_Div_new(&allocator,
+        &audioSettings, &reciprocalDensityInputs);
+
+    struct star_sig_BinaryOp_Inputs muliplierInputs = {
+        .left = reciprocalDensity->signal.output,
+        .right = duration->signal.output
+    };
+
+    densityDurationMultiplier = star_sig_Mul_new(&allocator,
+        &audioSettings, &muliplierInputs);
 
     struct star_sig_Dust_Inputs dustInputs = {
         .density = density->signal.output
     };
-
     dust = star_sig_Dust_new(&allocator, &audioSettings, &dustInputs);
     dust->parameters.bipolar = 0.0f;
+
+    struct star_sig_TimedGate_Inputs gateInputs = {
+        .trigger = dust->signal.output,
+        .duration = densityDurationMultiplier->signal.output
+    };
+    gate = star_sig_TimedGate_new(&allocator, &audioSettings, &gateInputs);
 
     bluemchen.StartAudio(AudioCallback);
 

@@ -357,39 +357,39 @@ void test_star_sig_TimedTriggerCounter(void) {
         audioSettings->blockSize);
 }
 
-void test_star_sig_Gain(void) {
-    struct star_sig_Gain_Inputs inputs = {
-        .gain = star_AudioBlock_newWithValue(&allocator,
+void test_star_sig_Mul(void) {
+    struct star_sig_BinaryOp_Inputs inputs = {
+        .left = star_AudioBlock_newWithValue(&allocator,
             audioSettings, 0.5f),
-        .source = star_AudioBlock_newWithValue(&allocator,
+        .right = star_AudioBlock_newWithValue(&allocator,
             audioSettings, 440.0f)
     };
 
-    struct star_sig_Gain* gain = star_sig_Gain_new(&allocator,
+    struct star_sig_BinaryOp* gain = star_sig_Mul_new(&allocator,
         audioSettings, &inputs);
 
     gain->signal.generate(gain);
     testAssertBufferContainsValueOnly(
         220.0f, gain->signal.output, audioSettings->blockSize);
 
-    star_fillWithValue(inputs.gain, audioSettings->blockSize, 0.0f);
+    star_fillWithValue(inputs.left, audioSettings->blockSize, 0.0f);
     gain->signal.generate(gain);
     testAssertBufferContainsValueOnly(
         0.0f, gain->signal.output, audioSettings->blockSize);
 
-    star_fillWithValue(inputs.gain, audioSettings->blockSize, 2.0f);
+    star_fillWithValue(inputs.left, audioSettings->blockSize, 2.0f);
     gain->signal.generate(gain);
     testAssertBufferContainsValueOnly(
         880.0f, gain->signal.output, audioSettings->blockSize);
 
-    star_fillWithValue(inputs.gain, audioSettings->blockSize, -1.0f);
+    star_fillWithValue(inputs.left, audioSettings->blockSize, -1.0f);
     gain->signal.generate(gain);
     testAssertBufferContainsValueOnly(
         -440.0f, gain->signal.output, audioSettings->blockSize);
 
-    star_sig_Gain_destroy(&allocator, gain);
-    star_Allocator_free(&allocator, inputs.gain);
-    star_Allocator_free(&allocator, inputs.source);
+    star_sig_Mul_destroy(&allocator, gain);
+    star_Allocator_free(&allocator, inputs.left);
+    star_Allocator_free(&allocator, inputs.right);
 }
 
 // TODO: Move into libstar itself
@@ -573,7 +573,7 @@ int main(void) {
     RUN_TEST(test_star_AudioBlock_newWithValue);
     RUN_TEST(test_star_sig_Value);
     RUN_TEST(test_star_sig_TimedTriggerCounter);
-    RUN_TEST(test_star_sig_Gain);
+    RUN_TEST(test_star_sig_Mul);
     RUN_TEST(test_star_sig_Sine);
     RUN_TEST(test_star_sig_Sine_accumulatesPhase);
     RUN_TEST(test_star_sig_Sine_phaseWrapsAt2PI);

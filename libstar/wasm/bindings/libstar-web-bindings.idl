@@ -18,17 +18,17 @@ interface Signals {
     void Sine_Inputs_destroy(star_Allocator allocator,
         star_sig_Sine_Inputs inputs);
 
-    star_sig_Gain Gain_new(star_Allocator allocator,
+    star_sig_BinaryOp Mul_new(star_Allocator allocator,
         star_AudioSettings audioSettings,
-        star_sig_Gain_Inputs inputs);
+        star_sig_BinaryOp_Inputs inputs);
 
-    void Gain_destroy(star_Allocator allocator, star_sig_Gain gain);
+    void Mul_destroy(star_Allocator allocator, star_sig_BinaryOp mul);
 
-    star_sig_Gain_Inputs Gain_Inputs_new(star_Allocator allocator,
-        any gain, any source);
+    star_sig_BinaryOp_Inputs BinaryOp_Inputs_new(star_Allocator allocator,
+        any left, any right);
 
-    void Gain_Inputs_destroy(star_Allocator allocator,
-        star_sig_Gain_Inputs inputs);
+    void BinaryOp_Inputs_destroy(star_Allocator allocator,
+        star_sig_BinaryOp_Inputs inputs);
 };
 
 interface Starlings {
@@ -117,12 +117,12 @@ interface star_sig_Value_Parameters {
     attribute float value;
 };
 
-interface star_sig_Gain {
+interface star_sig_BinaryOp {
     [Value] attribute star_sig_Signal signal;
-    attribute star_sig_Gain_Inputs inputs;
+    attribute star_sig_BinaryOp_Inputs inputs;
 };
 
-interface star_sig_Gain_Inputs {
-    attribute any gain;
-    attribute any source;
+interface star_sig_BinaryOp_Inputs {
+    attribute any left;
+    attribute any right;
 };
