@@ -4,11 +4,260 @@
 
 ### Breaking Changes
 
+* driver: MAX11300 driver interface changed considerably
+* spi: Order of arguments of the `SpiHandle` DMA functions changed
+* dma: `SpiHandle` previously used `DMA1_Stream7`, now uses `DMA2_Stream2` and `DMA2_Stream3`
+
 ### Features
+
+* spi: `SpiHandle` now has callbacks before and after a DMA transaction starts (can be used for software driven chip select)
+* spi: `SpiHandle` now supports simultaneous transmit and receive with DMA using `SpiHandle::DmaTransmitAndReceive()`
+* spi: added `MultiSlaveSpiHandle` that allows to connect to multiple SPI slave devices on a shared bus
+* driver: MAX11300 now supports multiple chips on a shared bus
+* driver: MAX11300 now uses DMA to handle updates without blocking
+* driver: MAX11300 now updates the chips continuously until manually stopped
+* driver: MAX11300 can now call a user-provided callback after an update is complete
+* debugging: added additional debugging aids to the HardFault handler
+
+### Bug Fixes
+
+* logger: Added 10ms delay at the end of `StartLog` function. Without this, messages immediatly following the `StartLog` function were getting missed when `wait_for_pc` is set to `true`.
+* testing: debugging configuration now uses `lldb` debugging extension to support unit test debugging on macOS with Apple Silicon
+
+### Other
+
+### Migrating
+
+#### SPI
+
+```c++
+// Old
+SpiHandle::Result DmaTransmit(uint8_t*            buff,
+                              size_t              size,
+                              SpiHandle::CallbackFunctionPtr callback,
+                              void*               callback_context);
+// New
+SpiHandle::Result DmaTransmit(uint8_t*                            buff,
+                              size_t                              size,
+                              SpiHandle::StartCallbackFunctionPtr start_callback,
+                              SpiHandle::EndCallbackFunctionPtr   end_callback,
+                              void*                               callback_context);
+// Same for DmaReceive and DmaTransmitAndReceive
+```
+
+#### MAX11300
+
+```c++
+// Old: MAX11300 takes no template arguments
+MAX11300 max11300driver;
+// New: MAX11300 takes number of chips as template argument
+constexpr size_t num_devices = 4;
+MAX11300<num_devices> max11300driver;
+
+// Old: constructor only takes a config struct
+max11300driver.Init(config);
+// New: constructor takes a DMA buffer situated in non-cached and DMA-accessible memory
+MAX11300Types::DmaBuffer DMA_BUFFER_MEM_SECTION max11300DmaBuffer;
+max11300driver.Init(config, &max11300DmaBuffer);
+
+// Old: most types are inside the MAX11300 classname scope
+daisy::MAX11300::PIN_0
+daisy::MAX11300::AdcVoltageRange
+// New: types are in a separate namespace to keep them independent from the "num_devices" template argument
+daisy::MAX11300Types::PIN_0
+daisy::MAX11300Types::AdcVoltageRange
+
+// Old: only a single chip was handled by the driver
+max11300driver.ConfigurePinAsAnalogRead(daisy::MAX11300::PIN_0, daisy::MAX11300::AdcVoltageRange::NEGATIVE_5_TO_5);
+max11300driver.ConfigurePinAsAnalogWrite(daisy::MAX11300::PIN_1, daisy::MAX11300::DacVoltageRange::NEGATIVE_5_TO_5);
+// New: each function now takes an additional argument, the index of the chip
+max11300driver.ConfigurePinAsAnalogRead(0, daisy::MAX11300Types::PIN_0, daisy::MAX11300Types::AdcVoltageRange::NEGATIVE_5_TO_5);
+max11300driver.ConfigurePinAsAnalogWrite(1, daisy::MAX11300Types::PIN_1, daisy::MAX11300Types::DacVoltageRange::NEGATIVE_5_TO_5);
+
+// Old: Update() synchronously updates the chip and blocks until the update is complete
+max11300driver.Update(); // blocks
+// New: - Start() works asynchronously in the background using DMA
+//      - Start() will retrigger updates itself automatically, until stopped by calling Stop()
+//      - A callback can be called after each update cycle that was completed successfully
+void MyUpdateCompleteCallback(void* context) {
+    // The context is the pointer you passed when calling `.Update()`
+    // This callback comes from an interrupt, keep is fast.
+}
+max11300driver.Start(
+    &MyUpdateCompleteCallback, // or nullptr if you don't need a callback. default: nullptr
+    &someThingThatYouWantToGetPassedToYourCallback // callback context, or nullptr if not needed
+);
+// you don't have to specify the arguments, then the defaults will be used
+max11300driver.Start();
+// you can stop the auto update after you started it
+max11300driver.Stop();
+```
+
+## v4.0.0
+
+### Breaking Changes
+
+* driver: added support for the 0 .. 2.5V ADC range to MAX11300, splitting the `enum VoltageRange` into two enums for the ADC and DAC configurations.
+
+### Features
+
+* driver: added support for the MCP23x17 I/O Expander with I2C transport implementation
+
+### Bug Fixes
+
+* usb: fixed bug where using FatFS and a USB Device class simultaneously would result in a linker error.
+  * Shared IRQHandlers for the USB HS peripheral have been moved to sys/system.cpp
+* driver: made MAX11300 getter functions `const`
+* cmake: changed optimization to `-O0` for Debug builds
+
+### Other
+
+### Migrating
+
+#### MAX11300
+
+```c++
+// Old: Same enum used for DAC and ADC configurations
+max11300driver.ConfigurePinAsAnalogRead(daisy::MAX11300::PIN_0, daisy::MAX11300::VoltageRange::NEGATIVE_5_TO_5);
+max11300driver.ConfigurePinAsAnalogWrite(daisy::MAX11300::PIN_1, daisy::MAX11300::VoltageRange::NEGATIVE_5_TO_5);
+
+// New: Different enum used for DAC and ADC configurations
+max11300driver.ConfigurePinAsAnalogRead(daisy::MAX11300::PIN_0, daisy::MAX11300::AdcVoltageRange::NEGATIVE_5_TO_5);
+max11300driver.ConfigurePinAsAnalogWrite(daisy::MAX11300::PIN_1, daisy::MAX11300::DacVoltageRange::NEGATIVE_5_TO_5);
+```
+
+## v3.0.0
+
+### Breaking Changes
+
+* fatfs: the `dsy_fatfs_init()` function has been replaced with the `FatFSInterface` class that allows for multi-volume filesystem use with SDMMC and/or USB drives.
+  * The previous global variables `SDPath`, `SDFatFS`, `SDFile`, and `retSD` have been removed as they could not be used effectively with the addition of multi-volume support.
+  * The path, and FATFS objects can be acquired from the new `FatFSInteface` objects, and any `FIL` object(s) can be placed in AXI SRAM (or any other memory with USB).
+* namespace: new namespace "seed" was added for new pinout Daisy Seed pinout mappings.
+  * This isn't a breaking change on it's own, but when `using namespace seed;` a variable cannot be named, `seed` else it will throw ambiguity errors.
+
+### Features
+
+* bootloader: the bootloader can now be flashed directly from libDaisy using `make program-boot`
+  * apps can be built by overwriting `LDSCRIPT` with one of the new (\_sram.lds, or \_qspi.lds) linker scripts, and adding `-DBOOT_APP` to the `C_DEFS` within the user makefile.
+  * once the bootloader is on the device, apps compiled with the above changes can be flashed to the bootloader using `make program-app`
+  * this process is subject to change, and will be improved and documented in the coming weeks.
+* driver: added support for the MAX11300 ADC/DAC/GPI/GPO device
+* usb_midi: added `MidiUsbTransport` class for easy usb midi functionality via `MidiUsbHandler`
+* ui: addition of `CanvasDescriptor::screenSaverTimeout` setting turns off display after as many milliseconds. Useful for preventing screen burn-in on sensitive displays like OLEDs.
+* usb_host: basic support for Mass Storage USB host class has been added.
+* fatfs: interface has been reworked, and now supports mounting SDMMC, and/or USB drives. Multi-volume usage with simultaneous use of both is supported.
+* core: added new C++ `Pin` type that is constexpr friendly, and backwards compatible with existing C-style `dsy_gpio_pin` type.
+  * the old, `dsy_gpio_pin` and it's accompanying functions should no longer be used, and will be removed in a later version of the library.
+* gpio: added new C++ API for access to GPIO
+  * the old, `dsy_gpio` and it's accompanying functions should no longer be used, and will be removed in a later version of the library.
+* seed: new pinout consts have been added using the new type. This is to simplify addressing pins on Daisy Seed, and the names are shared with the Arduino Integration.
+  * These constants live in the `daisy::seed` namespace.
+  * Digital pins D0-D30 have been added, these return the equivalent pin as `DaisySeed::GetPin(int pinno)`
+  * Analog pins A0-A11 map to the ADC accessible pins labeled as "ADCn" in the pinout diagram.
+  * The `Ax` analog pin constants can be used when using digital functions, and vice-versa.
 
 ### Bug fixes
 
+* patch_sm: corrected the order of the gate out pins
+* sai: fixed occasional output audio channel swap (#268)
+* sd_diskio: removed extraneous strobing of unrelated GPIO pin
+* patch: fixed seed1.1 compatibility to properly initialize the primary codec due to special 4-channel audio
+
 ### Other
+
+* switch: Use `System::GetNow()` rather than the update rate to calculate `TimeHeldMs()`.  
+  * This has also been applied to the `Encoder` class (since it uses `Switch` internally).
+* usb host: ST Middleware for USB Host support has been added to the Middlewares folder
+* fatfs: changed default `FS_LOCK` to 0, allowing for more simultaneously open FIL objects.
+* seed: the contents of `DaisySeed::Configure()` have been moved into the `DaisySeed::Init()` function, leaving it empty. This function can now be omitted.
+  * the function was left in place to preserve backwards compatibility, and will be removed in a future version.
+
+### Migrating
+
+* switch/encoder: Backwards compatability for Initializing switches/encoders will be maintained until the next breaking change, at which point the `update_rate` argument will be removed from `Switch::Init`, and `Encoder::Init`.
+* fatfs: If file locking was being used, `FS_LOCK` will have to be changed back to a non-zero, positive value.
+
+#### FatFS
+
+Existing code using SDMMC for FatFS only requires a small change to replace the previous `dsy_fatfs_init()` function:
+
+```c++
+FatFSInterface fsi;
+
+int main(void) {
+  // Daisy, SDMMC, etc. initialization unchanged
+  // before:
+  dsy_fatfs_init();
+  . . .
+  // now:
+  fsi.Init(FatFSInterface::Config::MEDIA_SD);
+
+  // and instead of the global FATFS object you can now:
+  FATFS& fs = fsi.GetSDFileSystem();
+
+  // and instead of the global SDPath object you can now:
+  const char* rootpath = fsi.GetSDPath();
+
+  // and then file system works as usual now
+  f_mount(&fs, rootpath, 1);
+  . . .
+}
+```
+
+#### GPIO
+
+The new `GPIO` class, and `Pin` type have been added to replace the previous C versions.
+
+The C versions will remain in place for some time to support backwards compatibility, and give people time to migrate.
+
+To make this easier, the new `Pin` type can be automatically converted to the old, `dsy_gpio_pin` to use with classes that have not been updated yet (like Switch, Encoder, etc.)
+
+Here's an example comparing the new and old versions of dealing with GPIO (only one of the many initialization methods is shown here):
+
+```c++
+//////////////////////////////////////////
+// Initialization:
+//////////////////////////////////////////
+// Old:
+dsy_gpio_pin pa1 = {DSY_GPIOA, 1};
+dsy_gpio gpio1;
+gpio1.mode = DSY_GPIO_OUTPUT_PP;
+gpio1.pull = DSY_GPIO_NOPULL;
+gpio1.pin = pa1;
+dsy_gpio_init(&gpio1);
+
+// New:
+Pin pa1 = Pin(PORTA, 1);
+GPIO gpio1;
+gpio1.Init(pa1, GPIO::Mode::OUTPUT, GPIO::Pull::NOPULL);
+
+//////////////////////////////////////////
+// Read
+//////////////////////////////////////////
+// Old:
+uint8_t state = dsy_gpio_read(&gpio1);
+// New:
+bool state = gpio1.Read();
+
+//////////////////////////////////////////
+// Write
+//////////////////////////////////////////
+// Old:
+dsy_gpio_write(&gpio1, 1); // HIGH
+dsy_gpio_write(&gpio1, 0); // LOW
+// New:
+gpio1.Write(true); // HIGH
+gpio1.Write(false); // LOW
+
+//////////////////////////////////////////
+// Toggle
+//////////////////////////////////////////
+// Old:
+dsy_gpio_toggle(&gpio1);
+// New:
+gpio1.Toggle();
+```
 
 ## v2.0.1
 
@@ -20,6 +269,7 @@
 
 * qspi: fixed bug with GetData() that wouldn't return correct data when passed actual address instead of normalized offset (i.e. >= 0x90000000)
 * sdram: fixed occasional hard fault caused by `RPDelay`, which is now set to 16 (same as in v1.0.0 and earlier)
+* patch_sm: fixed integer overflow error with `VoltageToCode` method
 
 ### Other
 

@@ -4,6 +4,7 @@ CHIPSET ?= stm32h7x
 
 TARGET_BIN=$(TARGET).bin
 TARGET_ELF=$(TARGET).elf
+BOOT_BIN ?= $(wildcard $(SYSTEM_FILES_DIR)/dsy_bootloader*)
 FLASH_ADDRESS ?= 0x08000000
 QSPI_ADDRESS  ?= 0x90040000
 
@@ -133,11 +134,14 @@ C_INCLUDES += \
 -I$(LIBDAISY_DIR)/src/ \
 -I$(LIBDAISY_DIR)/src/sys \
 -I$(LIBDAISY_DIR)/src/usbd \
+-I$(LIBDAISY_DIR)/src/usbh \
 -I$(LIBDAISY_DIR)/Drivers/CMSIS/Include/ \
 -I$(LIBDAISY_DIR)/Drivers/CMSIS/DSP/Include \
 -I$(LIBDAISY_DIR)/Drivers/CMSIS/Device/ST/STM32H7xx/Include \
 -I$(LIBDAISY_DIR)/Drivers/STM32H7xx_HAL_Driver/Inc/ \
 -I$(LIBDAISY_DIR)/Middlewares/ST/STM32_USB_Device_Library/Core/Inc \
+-I$(LIBDAISY_DIR)/Middlewares/ST/STM32_USB_Host_Library/Core/Inc \
+-I$(LIBDAISY_DIR)/Middlewares/ST/STM32_USB_Host_Library/Class/MSC/Inc \
 -I$(SYSTEM_FILES_DIR)/
 
 ifdef DAISYSP_DIR
@@ -164,11 +168,12 @@ C_INCLUDES += -I$(FATFS_DIR)
 # compile gcc flags
 ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-sections
 
+ifeq ($(DEBUG), 1)
+ASFLAGS += -g -ggdb
+endif
+
 CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -Wno-missing-attributes -fasm -fdata-sections -ffunction-sections -Wno-stringop-overflow
 
-ifeq ($(DEBUG), 1)
-#CFLAGS += -g -gdwarf-2
-endif
 CFLAGS += -g -ggdb
 
 # Generate dependency information
@@ -285,6 +290,9 @@ program-dfu:
 
 program-app:
 	dfu-util -a 0 -s $(QSPI_ADDRESS):leave -D $(BUILD_DIR)/$(TARGET_BIN) -d ,0483:df11
+
+program-boot:
+	dfu-util -a 0 -s $(FLASH_ADDRESS):leave -D $(BOOT_BIN) -d ,0483:df11
 
 #######################################
 # dependencies
