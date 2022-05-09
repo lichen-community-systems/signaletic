@@ -10,14 +10,20 @@ using namespace daisy;
 
 Bluemchen bluemchen;
 
+FatFSInterface fsi;
+FIL            SDFile;
+
 int enc_val = 0;
 int midi_note = 0;
 bool sd_test_result = false;
 
 Parameter knob1;
+Parameter knob1_dac;
 Parameter knob2;
+Parameter knob2_dac;
 Parameter cv1;
 Parameter cv2;
+
 
 void UpdateOled()
 {
@@ -121,6 +127,9 @@ void UpdateControls()
     knob1.Process();
     knob2.Process();
 
+    bluemchen.seed.dac.WriteValue(daisy::DacHandle::Channel::ONE, static_cast<uint16_t>(knob1_dac.Process()));
+    bluemchen.seed.dac.WriteValue(daisy::DacHandle::Channel::TWO, static_cast<uint16_t>(knob2_dac.Process()));
+
     cv1.Process();
     cv2.Process();
 
@@ -145,8 +154,10 @@ bool TestSdCard()
     // SdmmcHandler::Config sd_cfg;
     // sd_cfg.Defaults();
     // sd.Init(sd_cfg);
-    dsy_fatfs_init();
-    f_mount(&SDFatFS, SDPath, 1);
+    fsi.Init(FatFSInterface::Config::MEDIA_SD);
+    FATFS& fs = fsi.GetSDFileSystem();
+    const char* rootpath = fsi.GetSDPath();
+    f_mount(&fs, rootpath, 1);
 
     // Fill reference buffer with test contents
     sprintf(refbuff, "%s", TEST_FILE_CONTENTS);
@@ -188,8 +199,11 @@ int main(void)
     bluemchen.Init();
     bluemchen.StartAdc();
 
-    knob1.Init(bluemchen.controls[bluemchen.CTRL_1], 0.0f, 3300.0f, Parameter::LINEAR);
-    knob2.Init(bluemchen.controls[bluemchen.CTRL_2], 0.0f, 3300.0f, Parameter::LINEAR);
+    knob1.Init(bluemchen.controls[bluemchen.CTRL_1], 0.0f, 5000.0f, Parameter::LINEAR);
+    knob2.Init(bluemchen.controls[bluemchen.CTRL_2], 0.0f, 5000.0f, Parameter::LINEAR);
+
+    knob1_dac.Init(bluemchen.controls[bluemchen.CTRL_1], 0.0f, 4095.0f, Parameter::LINEAR);
+    knob2_dac.Init(bluemchen.controls[bluemchen.CTRL_2], 0.0f, 4095.0f, Parameter::LINEAR);
 
     cv1.Init(bluemchen.controls[bluemchen.CTRL_3], -5000.0f, 5000.0f, Parameter::LINEAR);
     cv2.Init(bluemchen.controls[bluemchen.CTRL_4], -5000.0f, 5000.0f, Parameter::LINEAR);
