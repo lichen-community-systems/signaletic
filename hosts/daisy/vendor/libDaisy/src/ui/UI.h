@@ -9,7 +9,7 @@ class UI;
 
 /** @brief The type of arrow button in the UI system.
  *  @author jelliesen
- *  @addtogroup ui
+ *  @ingroup ui
  */
 enum class ArrowButtonType
 {
@@ -25,7 +25,7 @@ enum class ArrowButtonType
 
 /** @brief A descriptor for a canvas in the UI system.
  *  @author jelliesen
- *  @addtogroup ui
+ *  @ingroup ui
  * 
  *  A descriptor for a generic display / led / output device 
  *  that's used in the UI system.
@@ -45,6 +45,15 @@ struct UiCanvasDescriptor
     /** The desired update rate in ms */
     uint32_t updateRateMs_;
 
+    /** The desired timeout in ms before a display will shut off. 
+     *  This defaults to 0, which will keep the display on all the time.
+     *  Nonzero values are useful for displays that can suffer from burn-in,
+     *  such as OLEDs. 
+     */
+    uint32_t screenSaverTimeOut = 0;
+
+    bool screenSaverOn = false;
+
     /** A function to clear the display before the UiPages are drawn. */
     using ClearFuncPtr = void (*)(const UiCanvasDescriptor& canvasToClear);
     ClearFuncPtr clearFunction_;
@@ -60,7 +69,7 @@ class OneBitGraphicsLookAndFeel;
 
 /** @brief The base class for a page in the UI system.
  *  @author jelliesen
- *  @addtogroup ui
+ *  @ingroup ui
  */
 class UiPage
 {
@@ -327,7 +336,7 @@ class UiPage
 
 /** @brief A generic UI system
  *  @author jelliesen
- *  @addtogroup ui
+ *  @ingroup ui
  *
  *  This system allows you to create complex and dynamic user interfaces 
  *  with menus, pages and dialogs. It holds a stack of pages. Each page 
@@ -439,6 +448,7 @@ class UI
     Stack<UiPage*, kMaxNumPages>               pages_;
     Stack<UiCanvasDescriptor, kMaxNumCanvases> canvases_;
     uint32_t          lastUpdateTimes_[kMaxNumCanvases];
+    uint32_t          lastEventTime_;
     UiEventQueue*     eventQueue_;
     SpecialControlIds specialControlIds_;
     uint16_t          primaryOneBitGraphicsDisplayId_ = invalidCanvasId;

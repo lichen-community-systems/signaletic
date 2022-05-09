@@ -144,7 +144,11 @@ namespace patch_sm
         /** Based on a 0-5V output with a 0-4095 12-bit DAC */
         static inline uint16_t VoltageToCode(float input)
         {
-            float pre = input * 819.2f;
+            float pre = input * 819.f;
+            if(pre > 4095.f)
+                pre = 4095.f;
+            else if(pre < 0.f)
+                pre = 0.f;
             return (uint16_t)pre;
         }
 
@@ -223,7 +227,7 @@ namespace patch_sm
         pimpl_ = &patch_sm_hw;
         /** Initialize the MCU and clock tree */
         System::Config syscfg;
-        syscfg.Defaults();
+        syscfg.Boost();
 
         auto memory = System::GetProgramMemoryRegion();
         if(memory != System::MemoryRegion::INTERNAL_FLASH)
@@ -327,12 +331,12 @@ namespace patch_sm
 
         gate_out_1.mode = DSY_GPIO_MODE_OUTPUT_PP;
         gate_out_1.pull = DSY_GPIO_NOPULL;
-        gate_out_1.pin  = B5;
+        gate_out_1.pin  = B6;
         dsy_gpio_init(&gate_out_1);
 
         gate_out_2.mode = DSY_GPIO_MODE_OUTPUT_PP;
         gate_out_2.pull = DSY_GPIO_NOPULL;
-        gate_out_2.pin  = B6;
+        gate_out_2.pin  = B5;
         dsy_gpio_init(&gate_out_2);
 
         /** DAC init */
@@ -393,6 +397,13 @@ namespace patch_sm
             default: sai_sr = SaiHandle::Config::SampleRate::SAI_48KHZ; break;
         }
         audio.SetSampleRate(sai_sr);
+        callback_rate_ = AudioSampleRate() / AudioBlockSize();
+    }
+
+    void
+    DaisyPatchSM::SetAudioSampleRate(SaiHandle::Config::SampleRate sample_rate)
+    {
+        audio.SetSampleRate(sample_rate);
         callback_rate_ = AudioSampleRate() / AudioBlockSize();
     }
 
