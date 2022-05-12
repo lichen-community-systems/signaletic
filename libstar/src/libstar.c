@@ -1033,12 +1033,14 @@ void star_sig_TimedGate_init(struct star_sig_TimedGate* self,
         *star_sig_TimedGate_generate);
 
     struct star_sig_TimedGate_Parameters parameters = {
-        .resetOnTrigger = 0.0
+        .resetOnTrigger = 0.0,
+        .bipolar = 0.0
     };
 
     self->inputs = inputs;
     self->parameters = parameters;
     self->previousTrigger = 0.0f;
+    self->gateValue = 0.0f;
     self->durationSamps = 0;
     self->samplesRemaining = 0;
 }
@@ -1055,6 +1057,17 @@ struct star_sig_TimedGate* star_sig_TimedGate_new(
     return self;
 }
 
+static inline void star_sig_TimedGate_outputHigh(struct star_sig_TimedGate* self,
+    size_t index) {
+    FLOAT_ARRAY(self->signal.output)[index] = self->gateValue;
+    self->samplesRemaining--;
+}
+
+static inline void star_sig_TimedGate_outputLow(struct star_sig_TimedGate* self,
+    size_t index) {
+    FLOAT_ARRAY(self->signal.output)[index] = 0.0f;
+}
+
 void star_sig_TimedGate_generate(void* signal) {
     struct star_sig_TimedGate* self = (struct star_sig_TimedGate*)
         signal;
@@ -1062,10 +1075,12 @@ void star_sig_TimedGate_generate(void* signal) {
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
         float currentTrigger = FLOAT_ARRAY(self->inputs->trigger)[i];
         float duration = FLOAT_ARRAY(self->inputs->duration)[i];
-        float val;
 
-        if (currentTrigger > 0.0f && self->previousTrigger <= 0.0f) {
+        if ((currentTrigger > 0.0f && self->previousTrigger <= 0.0f) ||
+            (self->parameters.bipolar > 0.0 && currentTrigger < 0.0f && self->previousTrigger >= 0.0f)) {
             // A new trigger was received.
+            self->gateValue = currentTrigger;
+
             if (duration != self->previousDuration) {
                 // The duration input has changed.
                 self->durationSamps = lroundf(duration *
@@ -1081,19 +1096,16 @@ void star_sig_TimedGate_generate(void* signal) {
                 // Close the gate for one sample,
                 // and don't count down the duration
                 // until next time.
-                val = 0.0f;
+                star_sig_TimedGate_outputLow(self, i);
             } else {
-                val = 1.0f;
-                self->samplesRemaining--;
+                star_sig_TimedGate_outputHigh(self, i);
             }
         } else if (self->samplesRemaining > 0) {
-            val = 1.0f;
-            self->samplesRemaining--;
+            star_sig_TimedGate_outputHigh(self, i);
         } else {
-            val = 0.0f;
+            star_sig_TimedGate_outputLow(self, i);
         }
 
-        FLOAT_ARRAY(self->signal.output)[i] = val;
         self->previousTrigger = currentTrigger;
     }
 }

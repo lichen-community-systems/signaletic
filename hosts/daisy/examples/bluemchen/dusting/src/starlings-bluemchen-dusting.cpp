@@ -1,6 +1,7 @@
 #include "../../vendor/kxmx_bluemchen/src/kxmx_bluemchen.h"
 #include <tlsf.h>
 #include <libstar.h>
+#include "../../../../include/cc-signals.h"
 #include <string>
 
 using namespace kxmx;
@@ -21,10 +22,9 @@ struct star_Allocator allocator = {
 
 struct star_sig_Value* density;
 struct star_sig_Value* duration;
-struct star_sig_BinaryOp* reciprocalDensity;
-struct star_sig_BinaryOp* densityDurationMultiplier;
-struct star_sig_Dust* dust;
-struct star_sig_TimedGate* gate;
+struct cc_sig_DustingGate* cvDustingGate;
+struct star_sig_BinaryOp* audioDensityMultiplier;
+struct cc_sig_DustingGate* audioDustingGate;
 
 void UpdateOled() {
     bluemchen.display.Fill(false);
@@ -42,7 +42,7 @@ void UpdateOled() {
 
     displayStr.Clear();
     displayStr.Append("Dur: ");
-    displayStr.AppendFloat(densityDurationMultiplier->signal.output[0], 3);
+    displayStr.AppendFloat(cvDustingGate->densityDurationMultiplier->signal.output[0], 3);
     bluemchen.display.SetCursor(0, 16);
     bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
@@ -55,23 +55,29 @@ void UpdateControls() {
     durationKnob.Process();
 }
 
+void EvaluateSignalGraph() {
+    density->parameters.value = densityKnob.Value();
+    density->signal.generate(density);
+    duration->parameters.value = durationKnob.Value();
+    duration->signal.generate(duration);
+
+    cvDustingGate->signal.generate(cvDustingGate);
+    audioDensityMultiplier->signal.generate(audioDensityMultiplier);
+    audioDustingGate->signal.generate(audioDustingGate);
+}
+
 void AudioCallback(daisy::AudioHandle::InputBuffer in,
     daisy::AudioHandle::OutputBuffer out, size_t size) {
     UpdateControls();
+    EvaluateSignalGraph();
 
-    density->parameters.value = densityKnob.Value();
-    duration->parameters.value = durationKnob.Value();
-    reciprocalDensity->signal.generate(reciprocalDensity);
-    densityDurationMultiplier->signal.generate(densityDurationMultiplier);
-    density->signal.generate(density);
-    duration->signal.generate(duration);
-    dust->signal.generate(dust);
-    gate->signal.generate(gate);
+    bluemchen.seed.dac.WriteValue(daisy::DacHandle::Channel::BOTH,
+        (uint16_t) (cvDustingGate->gate->signal.output[0] * 4095.0f));
 
     // Copy mono buffer to stereo output.
     for (size_t i = 0; i < size; i++) {
-        out[0][i] = gate->signal.output[i];
-        out[1][i] = gate->signal.output[i];
+        out[0][i] = audioDustingGate->gate->signal.output[i];
+        out[1][i] = audioDustingGate->dust->signal.output[i];
     }
 }
 
@@ -82,14 +88,16 @@ void initControls() {
         0, 1, Parameter::LINEAR);
 }
 
+
+
 int main(void) {
     bluemchen.Init();
     star_Allocator_init(&allocator);
 
     struct star_AudioSettings audioSettings = {
         .sampleRate = bluemchen.AudioSampleRate(),
-        .numChannels = 1,
-        .blockSize = 48
+        .numChannels = 2,
+        .blockSize = 2
     };
 
     bluemchen.SetAudioBlockSize(audioSettings.blockSize);
@@ -101,34 +109,31 @@ int main(void) {
     duration = star_sig_Value_new(&allocator, &audioSettings);
     duration->parameters.value = 1.0f;
 
-    struct star_sig_BinaryOp_Inputs reciprocalDensityInputs = {
-        .left = star_AudioBlock_newWithValue(&allocator,
-            &audioSettings, 1.0f),
-        .right = density->signal.output
+    struct cc_sig_DustingGate_Inputs cvInputs = {
+        density: density->signal.output,
+        durationPercentage: duration->signal.output
     };
 
-    reciprocalDensity = star_sig_Div_new(&allocator,
-        &audioSettings, &reciprocalDensityInputs);
+    cvDustingGate = cc_sig_DustingGate_new(&allocator,
+        &audioSettings, &cvInputs);
 
-    struct star_sig_BinaryOp_Inputs muliplierInputs = {
-        .left = reciprocalDensity->signal.output,
-        .right = duration->signal.output
+    struct star_sig_BinaryOp_Inputs audioDensityMuliplierInputs = {
+        .left = density->signal.output,
+        .right = star_AudioBlock_newWithValue(&allocator,
+            &audioSettings, 200.0f),
+    };
+    audioDensityMultiplier = star_sig_Mul_new(&allocator, &audioSettings,
+        &audioDensityMuliplierInputs);
+
+    struct cc_sig_DustingGate_Inputs audioInputs = {
+        density: audioDensityMultiplier->signal.output,
+        durationPercentage: duration->signal.output
     };
 
-    densityDurationMultiplier = star_sig_Mul_new(&allocator,
-        &audioSettings, &muliplierInputs);
-
-    struct star_sig_Dust_Inputs dustInputs = {
-        .density = density->signal.output
-    };
-    dust = star_sig_Dust_new(&allocator, &audioSettings, &dustInputs);
-    dust->parameters.bipolar = 0.0f;
-
-    struct star_sig_TimedGate_Inputs gateInputs = {
-        .trigger = dust->signal.output,
-        .duration = densityDurationMultiplier->signal.output
-    };
-    gate = star_sig_TimedGate_new(&allocator, &audioSettings, &gateInputs);
+    audioDustingGate = cc_sig_DustingGate_new(&allocator,
+        &audioSettings, &audioInputs);
+    audioDustingGate->dust->parameters.bipolar = 1.0f;
+    audioDustingGate->gate->parameters.bipolar = 1.0f;
 
     bluemchen.StartAudio(AudioCallback);
 

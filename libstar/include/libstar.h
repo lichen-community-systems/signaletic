@@ -268,6 +268,11 @@ struct star_sig_Signal {
     star_sig_generateFn generate;
 };
 
+void star_sig_Signal_init(void* signal, struct star_AudioSettings* settings,
+    float_array_ptr output, star_sig_generateFn generate);
+void star_sig_Signal_generate(void* signal);
+void star_sig_Signal_destroy(struct star_Allocator* allocator, void* signal);
+
 
 struct star_sig_Value_Parameters {
     float value;
@@ -701,6 +706,7 @@ void star_sig_Dust_destroy(struct star_Allocator* allocator,
 
 struct star_sig_TimedGate_Parameters {
     float resetOnTrigger;
+    float bipolar;
 };
 
 struct star_sig_TimedGate_Inputs {
@@ -730,6 +736,7 @@ struct star_sig_TimedGate {
     struct star_sig_TimedGate_Parameters parameters;
 
     float previousTrigger;
+    float gateValue;
     float previousDuration;
     long durationSamps;
     long samplesRemaining;
