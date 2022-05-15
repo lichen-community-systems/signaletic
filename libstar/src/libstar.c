@@ -51,6 +51,14 @@ float star_clamp(float value, float min, float max) {
     return star_fminf(star_fmaxf(value, min), max);
 }
 
+// TODO: Replace this with an object that implements
+// the quick and dirty LCR method from Numerical Recipes:
+//     unsigned long jran = seed,
+//                   ia = 4096,
+//                   ic = 150889,
+//                   im = 714025;
+//     jran=(jran*ia+ic) % im;
+//     float ran=(float) jran / (float) im;
 // TODO: Inline?
 float star_randf() {
     return (float) ((double) rand() / ((double) RAND_MAX + 1));
