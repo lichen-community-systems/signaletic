@@ -1122,3 +1122,110 @@ void star_sig_TimedGate_destroy(struct star_Allocator* allocator,
     struct star_sig_TimedGate* self) {
     star_sig_Signal_destroy(allocator, self);
 }
+
+
+void star_sig_TempoClockDetector_init(
+    struct star_sig_TempoClockDetector* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_TempoClockDetector_Inputs* inputs,
+    float_array_ptr output) {
+    star_sig_Signal_init(self, settings, output,
+        *star_sig_TempoClockDetector_generate);
+
+    struct star_sig_TempoClockDetector_Parameters params = {
+        .threshold = 0.1f,
+        .timeoutDuration = 120.0f
+    };
+
+    self->inputs = inputs;
+    self->parameters = params;
+    self->previousTrigger = 0.0f;
+    self->samplesSinceLastPulse = 0;
+    self->tempoFreq = 0.0f;
+    self->tempoDurSamples = 0;
+}
+
+struct star_sig_TempoClockDetector* star_sig_TempoClockDetector_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_TempoClockDetector_Inputs* inputs) {
+
+    float_array_ptr output = star_AudioBlock_new(allocator, settings);
+    struct star_sig_TempoClockDetector* self =
+        star_Allocator_malloc(allocator,
+        sizeof(struct star_sig_TempoClockDetector));
+    star_sig_TempoClockDetector_init(self, settings, inputs, output);
+
+    return self;
+}
+
+static inline float star_sig_TempoClockDetector_calcTempoFreq(
+    float sampleRate, uint32_t samplesSinceLastPulse,
+    float prevTempoFreq) {
+    float freq = sampleRate / (float) samplesSinceLastPulse;
+    // TODO: Is an LPF good, or is a moving average better?
+    return star_filter_onepole(freq, prevTempoFreq, 0.01f);
+}
+
+void star_sig_TempoClockDetector_generate(void* signal) {
+    struct star_sig_TempoClockDetector* self =
+        (struct star_sig_TempoClockDetector*) signal;
+    float_array_ptr source = FLOAT_ARRAY(self->inputs->source);
+    float_array_ptr output = FLOAT_ARRAY(self->signal.output);
+
+    float previousTrigger = self->previousTrigger;
+    float tempoFreq = self->tempoFreq;
+    bool isRisingEdge = self->isRisingEdge;
+    uint32_t samplesSinceLastPulse = self->samplesSinceLastPulse;
+    float sampleRate = self->signal.audioSettings->sampleRate;
+    float threshold = self->parameters.threshold;
+    float timeoutDuration = self->parameters.timeoutDuration;
+    float tempoDurSamples = self->tempoDurSamples;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        samplesSinceLastPulse++;
+
+        float sourceSamp = source[i];
+        if (sourceSamp > 0.0f && previousTrigger <= 0.0f) {
+            // Start of rising edge.
+            isRisingEdge = true;
+        } else if (sourceSamp < previousTrigger) {
+            // Failed to reach the threshold before
+            // the signal fell again.
+            isRisingEdge = false;
+        }
+
+        if (isRisingEdge && sourceSamp >= threshold) {
+            // Signal is rising and threshold has been reached,
+            // so this is a pulse.
+            tempoFreq = star_sig_TempoClockDetector_calcTempoFreq(
+                sampleRate, samplesSinceLastPulse, tempoFreq);
+            tempoDurSamples = samplesSinceLastPulse;
+            samplesSinceLastPulse = 0;
+            isRisingEdge = false;
+        } else if (samplesSinceLastPulse > sampleRate * timeoutDuration) {
+            // It's been too long since we've received a pulse.
+            // Just reset everything.
+            tempoFreq = 0.0f;
+            samplesSinceLastPulse = 0;
+        } else if (samplesSinceLastPulse > tempoDurSamples) {
+            // Tempo is slowing down; recalculate it.
+            tempoFreq = star_sig_TempoClockDetector_calcTempoFreq(
+                sampleRate, samplesSinceLastPulse, tempoFreq);
+        }
+
+        output[i] = tempoFreq;
+        previousTrigger = sourceSamp;
+    }
+
+    self->previousTrigger = previousTrigger;
+    self->tempoFreq = tempoFreq;
+    self->isRisingEdge = isRisingEdge;
+    self->samplesSinceLastPulse = samplesSinceLastPulse;
+    self->tempoDurSamples = tempoDurSamples;
+}
+
+void star_sig_TempoClockDetector_destroy(struct star_Allocator* allocator,
+    struct star_sig_TempoClockDetector* self) {
+    star_sig_Signal_destroy(allocator, self);
+}

@@ -755,6 +755,50 @@ void star_sig_TimedGate_destroy(struct star_Allocator* allocator,
     struct star_sig_TimedGate* self);
 
 
+
+struct star_sig_TempoClockDetector_Inputs {
+    float_array_ptr source;
+};
+
+struct star_sig_TempoClockDetector_Parameters {
+    float threshold;
+    float timeoutDuration;
+};
+
+/**
+ * Detects the number of pulses per second of an incoming clock signal
+ * (i.e. any signal that outputs a rising edge to denote clock pulses)
+ * and outputs the clock's tempo in pulses per second.
+ *
+ * Inputs:
+ *  - source the incoming clock signal
+ */
+struct star_sig_TempoClockDetector {
+    struct star_sig_Signal signal;
+    struct star_sig_TempoClockDetector_Inputs* inputs;
+    struct star_sig_TempoClockDetector_Parameters parameters;
+
+    float previousTrigger;
+    bool isRisingEdge;
+    uint32_t samplesSinceLastPulse;
+    float tempoFreq;
+    uint32_t tempoDurSamples;
+};
+
+void star_sig_TempoClockDetector_init(
+    struct star_sig_TempoClockDetector* self,
+    struct star_AudioSettings* settings,
+    struct star_sig_TempoClockDetector_Inputs* inputs,
+    float_array_ptr output);
+struct star_sig_TempoClockDetector* star_sig_TempoClockDetector_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* settings,
+    struct star_sig_TempoClockDetector_Inputs* inputs);
+void star_sig_TempoClockDetector_generate(void* signal);
+void star_sig_TempoClockDetector_destroy(struct star_Allocator* allocator,
+    struct star_sig_TempoClockDetector* self);
+
+
 #ifdef __cplusplus
 }
 #endif

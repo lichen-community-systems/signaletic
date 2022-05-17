@@ -1,25 +1,25 @@
 #include <libstar.h>
 
-struct cc_sig_DustingGate_Inputs {
+struct cc_sig_DustGate_Inputs {
     float_array_ptr density;
     float_array_ptr durationPercentage;
 };
 
-struct cc_sig_DustingGate_Parameters {
+struct cc_sig_DustGate_Parameters {
     float bipolar;
 };
 
-struct cc_sig_DustingGate {
+struct cc_sig_DustGate {
     struct star_sig_Signal signal;
-    struct cc_sig_DustingGate_Inputs* inputs;
+    struct cc_sig_DustGate_Inputs* inputs;
     struct star_sig_Dust* dust;
     struct star_sig_BinaryOp* reciprocalDensity;
     struct star_sig_BinaryOp* densityDurationMultiplier;
     struct star_sig_TimedGate* gate;
 };
 
-void cc_sig_DustingGate_generate(void* signal) {
-    struct cc_sig_DustingGate* self = (struct cc_sig_DustingGate*) signal;
+void cc_sig_DustGate_generate(void* signal) {
+    struct cc_sig_DustGate* self = (struct cc_sig_DustGate*) signal;
 
     self->reciprocalDensity->signal.generate(self->reciprocalDensity);
     self->densityDurationMultiplier->signal.generate(
@@ -28,20 +28,20 @@ void cc_sig_DustingGate_generate(void* signal) {
     self->gate->signal.generate(self->gate);
 }
 
-void cc_sig_DustingGate_init(struct cc_sig_DustingGate* self,
+void cc_sig_DustGate_init(struct cc_sig_DustGate* self,
     struct star_AudioSettings* audioSettings, float_array_ptr output) {
     star_sig_Signal_init(self, audioSettings, output,
-        *cc_sig_DustingGate_generate);
+        *cc_sig_DustGate_generate);
 };
 
-struct cc_sig_DustingGate* cc_sig_DustingGate_new(
+struct cc_sig_DustGate* cc_sig_DustGate_new(
     struct star_Allocator* allocator,
     struct star_AudioSettings* audioSettings,
-    cc_sig_DustingGate_Inputs* inputs) {
+    cc_sig_DustGate_Inputs* inputs) {
 
-    struct cc_sig_DustingGate* self =
-        (cc_sig_DustingGate*) star_Allocator_malloc(allocator,
-        sizeof(struct cc_sig_DustingGate));
+    struct cc_sig_DustGate* self =
+        (cc_sig_DustGate*) star_Allocator_malloc(allocator,
+        sizeof(struct cc_sig_DustGate));
 
     struct star_sig_Dust_Inputs* dustInputs = (struct star_sig_Dust_Inputs*)
         star_Allocator_malloc(allocator,
@@ -82,13 +82,13 @@ struct cc_sig_DustingGate* cc_sig_DustingGate_new(
     self->gate = star_sig_TimedGate_new(allocator,
         audioSettings, gateInputs);
 
-    cc_sig_DustingGate_init(self, audioSettings, self->gate->signal.output);
+    cc_sig_DustGate_init(self, audioSettings, self->gate->signal.output);
 
     return self;
 }
 
-void cc_sig_DustingGate_destroy(struct star_Allocator* allocator,
-    struct cc_sig_DustingGate* self) {
+void cc_sig_DustGate_destroy(struct star_Allocator* allocator,
+    struct cc_sig_DustGate* self) {
     star_Allocator_free(allocator, self->gate->inputs);
     star_sig_TimedGate_destroy(allocator, self->gate);
 
