@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
+#include <stdint.h> // For uint32_t
 
 // This typedef is necessary because Emscripten's
 // WebIDL binder is unable to produce viable

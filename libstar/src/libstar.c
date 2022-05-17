@@ -1170,8 +1170,8 @@ static inline float star_sig_TempoClockDetector_calcTempoFreq(
 void star_sig_TempoClockDetector_generate(void* signal) {
     struct star_sig_TempoClockDetector* self =
         (struct star_sig_TempoClockDetector*) signal;
-    float_array_ptr source = FLOAT_ARRAY(self->inputs->source);
-    float_array_ptr output = FLOAT_ARRAY(self->signal.output);
+    float_array_ptr source = self->inputs->source;
+    float_array_ptr output = self->signal.output;
 
     float previousTrigger = self->previousTrigger;
     float tempoFreq = self->tempoFreq;
@@ -1185,7 +1185,7 @@ void star_sig_TempoClockDetector_generate(void* signal) {
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
         samplesSinceLastPulse++;
 
-        float sourceSamp = source[i];
+        float sourceSamp = FLOAT_ARRAY(source)[i];
         if (sourceSamp > 0.0f && previousTrigger <= 0.0f) {
             // Start of rising edge.
             isRisingEdge = true;
@@ -1214,7 +1214,7 @@ void star_sig_TempoClockDetector_generate(void* signal) {
                 sampleRate, samplesSinceLastPulse, tempoFreq);
         }
 
-        output[i] = tempoFreq;
+        FLOAT_ARRAY(output)[i] = tempoFreq;
         previousTrigger = sourceSamp;
     }
 
