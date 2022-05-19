@@ -62,7 +62,11 @@ float star_clamp(float value, float min, float max) {
 // TODO: Inline?
 float star_randf() {
     return (float) ((double) rand() / ((double) RAND_MAX + 1));
-};
+}
+
+uint16_t fToUint12(float sample) {
+    return (uint16_t) (sample * 4095.0f);
+}
 
 // TODO: Inline? http://www.greenend.org.uk/rjk/tech/inline.html
 float star_midiToFreq(float midiNum) {

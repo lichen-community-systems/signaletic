@@ -72,6 +72,15 @@ float star_clamp(float value, float min, float max);
 float star_randf();
 
 /**
+ * Converts a floating point sample to an unsigned
+ * 12-bit integer, suitable for writing to DACs.
+ *
+ * @param sample the floating point sample to convert
+ * @return the sample as an unsigned 12-bit integer
+ */
+uint16_t fToUint12(float sample);
+
+/**
  * Converts MIDI note numbers into frequencies in hertz.
  * This algorithm assumes A4 = 440 Hz = MIDI note #69.
  *
