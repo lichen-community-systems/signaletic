@@ -64,8 +64,17 @@ float star_randf() {
     return (float) ((double) rand() / ((double) RAND_MAX + 1));
 }
 
-uint16_t fToUint12(float sample) {
+uint16_t star_unipolarToUint12(float sample) {
     return (uint16_t) (sample * 4095.0f);
+}
+
+uint16_t star_bipolarToUint12(float sample) {
+    float normalized = sample * 0.5 + 0.5;
+    return (uint16_t) (normalized * 4095.0f);
+}
+
+uint16_t star_bipolarToInvUint12(float sample) {
+    return star_bipolarToUint12(-sample);
 }
 
 // TODO: Inline? http://www.greenend.org.uk/rjk/tech/inline.html
@@ -145,7 +154,6 @@ void star_Allocator_free(struct star_Allocator* self, void* obj) {
     tlsf_free(self->heap, obj);
 }
 
-// TODO: Unit tests.
 struct star_AudioSettings* star_AudioSettings_new(
     struct star_Allocator* allocator) {
         struct star_AudioSettings* settings =
@@ -199,12 +207,10 @@ struct star_Buffer* star_Buffer_new(struct star_Allocator* allocator,
     return buffer;
 }
 
-// TODO: Unit tests
 void star_Buffer_fill(struct star_Buffer* self, float value) {
     star_fillWithValue(self->samples, self->length, value);
 }
 
-// TODO: Unit tests
 void star_Buffer_fillWithSilence(struct star_Buffer* self) {
     star_fillWithSilence(self->samples, self->length);
 }

@@ -72,13 +72,37 @@ float star_clamp(float value, float min, float max);
 float star_randf();
 
 /**
- * Converts a floating point sample to an unsigned
- * 12-bit integer, suitable for writing to DACs.
+ * Converts a unipolar floating point sample in the range 0.0 to 1.0
+ * into to an unsigned 12-bit integer in the range 0 to 4095.
+ *
+ * This function does not clamp the sample.
  *
  * @param sample the floating point sample to convert
- * @return the sample as an unsigned 12-bit integer
+ * @return the sample converted to an unsigned 12-bit integer
  */
-uint16_t fToUint12(float sample);
+uint16_t star_unipolarToUint12(float sample);
+
+/**
+ * Converts a bipolar floating point sample in the range -1.0 to 1.0
+ * into to an unsigned 12-bit integer in the range 0 to 4095.
+ *
+ * This function does not clamp the sample.
+ *
+ * @param sample the floating point sample to convert
+ * @return the sample converted to an unsigned 12-bit integer
+ */
+uint16_t star_bipolarToUint12(float sample);
+
+/**
+ * Converts a bipolar floating point sample in the range -1.0 to 1.0
+ * into to an  unsigned 12-bit integer in the range 4095-0.
+ *
+ * This function does not clamp the sample.
+ *
+ * @param sample the floating point sample to convert
+ * @return the sample converted to an unsigned 12-bit integer
+ */
+uint16_t star_bipolarToInvUint12(float sample);
 
 /**
  * Converts MIDI note numbers into frequencies in hertz.

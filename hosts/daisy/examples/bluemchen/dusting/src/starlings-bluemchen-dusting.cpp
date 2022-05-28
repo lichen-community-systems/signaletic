@@ -85,7 +85,7 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
     EvaluateSignalGraph();
 
     bluemchen.seed.dac.WriteValue(daisy::DacHandle::Channel::BOTH,
-        fToUint12(cvDustGate->gate->signal.output[0]));
+        star_unipolarToUint12(cvDustGate->gate->signal.output[0]));
 
     // Copy mono buffer to stereo output.
     for (size_t i = 0; i < size; i++) {

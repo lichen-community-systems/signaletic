@@ -140,6 +140,79 @@ void setUp(void) {
 
 void tearDown(void) {}
 
+void test_star_unipolarToUint12(void) {
+    TEST_ASSERT_EQUAL_UINT16(2047, star_unipolarToUint12(0.5f));
+    TEST_ASSERT_EQUAL_UINT16(0, star_unipolarToUint12(0.0f));
+    TEST_ASSERT_EQUAL_UINT16(4095, star_unipolarToUint12(1.0f));
+
+    // Out of range values.
+    // We don't clamp and we're storing in an unsigned 16-bit integer.
+    TEST_ASSERT_EQUAL_UINT16(8190, star_unipolarToUint12(2.0f));
+}
+
+void test_star_bipolarToUint12(void) {
+    TEST_ASSERT_EQUAL_UINT16(4095, star_bipolarToUint12(1.0f));
+    TEST_ASSERT_EQUAL_UINT16(3071, star_bipolarToUint12(0.5f));
+    TEST_ASSERT_EQUAL_UINT16(2047, star_bipolarToUint12(0.0f));
+    TEST_ASSERT_EQUAL_UINT16(1023, star_bipolarToUint12(-0.5f));
+    TEST_ASSERT_EQUAL_UINT16(0, star_bipolarToUint12(-1.0f));
+
+    // Out of range values.
+    // We don't clamp and we're storing in an unsigned 16-bit integer.
+    TEST_ASSERT_EQUAL_UINT16(6142, star_bipolarToUint12(2.0f));
+    TEST_ASSERT_EQUAL_UINT16(0, star_bipolarToUint12(-1.0f));
+}
+
+void test_star_bipolarToInvUint12(void) {
+    TEST_ASSERT_EQUAL_UINT16(0, star_bipolarToInvUint12(1.0f));
+    TEST_ASSERT_EQUAL_UINT16(1023, star_bipolarToInvUint12(0.5f));
+    TEST_ASSERT_EQUAL_UINT16(2047, star_bipolarToInvUint12(0.0f));
+    TEST_ASSERT_EQUAL_UINT16(3071, star_bipolarToInvUint12(-0.5f));
+    TEST_ASSERT_EQUAL_UINT16(4095, star_bipolarToInvUint12(-1.0f));
+
+    // Out of range values.
+    // We don't clamp and we're storing in an unsigned 16-bit integer.
+    TEST_ASSERT_EQUAL_UINT16(0, star_bipolarToInvUint12(2.0f));
+    TEST_ASSERT_EQUAL_UINT16(6142, star_bipolarToInvUint12(-2.0f));
+}
+
+void fillBufferRandom(float* buffer, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        buffer[i] = star_randf();
+    }
+}
+
+void test_star_randf(void) {
+    size_t numSamples = 8192;
+
+    // Values should be within 0.0 to 1.0
+    struct star_Buffer* firstRun = star_Buffer_new(&allocator,
+        numSamples);
+    fillBufferRandom(firstRun->samples, numSamples);
+    testAssertBufferValuesInRange(firstRun->samples, numSamples,
+        0.0f, 1.0f);
+
+    // Consecutive runs should contain different values.
+    struct star_Buffer* secondRun = star_Buffer_new(&allocator,
+        numSamples);
+    fillBufferRandom(secondRun->samples, numSamples);
+    testAssertBuffersNotEqual(firstRun->samples, secondRun->samples,
+        numSamples);
+
+    // Using the same seed for each run
+    // should produce identical results.
+    struct star_Buffer* thirdRun = star_Buffer_new(&allocator,
+        numSamples);
+    struct star_Buffer* fourthRun = star_Buffer_new(&allocator,
+        numSamples);
+    srand(1);
+    fillBufferRandom(thirdRun->samples, numSamples);
+    srand(1);
+    fillBufferRandom(fourthRun->samples, numSamples);
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(thirdRun->samples,
+        fourthRun->samples, numSamples);
+}
+
 void test_star_midiToFreq(void) {
     // 69 A 440
     float actual = star_midiToFreq(69.0f);
@@ -184,41 +257,19 @@ void test_star_fillWithSilence(void) {
     testAssertBufferIsSilent(buffer, 16);
 }
 
-void fillBufferRandom(float* buffer, size_t len) {
-    for (size_t i = 0; i < len; i++) {
-        buffer[i] = star_randf();
-    }
-}
+void test_star_AudioSettings_new() {
+    struct star_AudioSettings* s = star_AudioSettings_new(&allocator);
 
-void test_star_randf(void) {
-    size_t numSamples = 8192;
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(star_DEFAULT_AUDIOSETTINGS.sampleRate,
+        s->sampleRate, "The sample rate should be set to the default.");
 
-    // Values should be within 0.0 to 1.0
-    struct star_Buffer* firstRun = star_Buffer_new(&allocator,
-        numSamples);
-    fillBufferRandom(firstRun->samples, numSamples);
-    testAssertBufferValuesInRange(firstRun->samples, numSamples,
-        0.0f, 1.0f);
+    TEST_ASSERT_EQUAL_size_t_MESSAGE(star_DEFAULT_AUDIOSETTINGS.numChannels,
+        s->numChannels, "The channels should be set to the default.");
 
-    // Consecutive runs should contain different values.
-    struct star_Buffer* secondRun = star_Buffer_new(&allocator,
-        numSamples);
-    fillBufferRandom(secondRun->samples, numSamples);
-    testAssertBuffersNotEqual(firstRun->samples, secondRun->samples,
-        numSamples);
+    TEST_ASSERT_EQUAL_size_t_MESSAGE(star_DEFAULT_AUDIOSETTINGS.blockSize,
+        s->blockSize, "The block size should be set to the default.");
 
-    // Using the same seed for each run
-    // should produce identical results.
-    struct star_Buffer* thirdRun = star_Buffer_new(&allocator,
-        numSamples);
-    struct star_Buffer* fourthRun = star_Buffer_new(&allocator,
-        numSamples);
-    srand(1);
-    fillBufferRandom(thirdRun->samples, numSamples);
-    srand(1);
-    fillBufferRandom(fourthRun->samples, numSamples);
-    TEST_ASSERT_EQUAL_FLOAT_ARRAY(thirdRun->samples,
-        fourthRun->samples, numSamples);
+    star_AudioSettings_destroy(&allocator, s);
 }
 
 void test_star_Audio_Block_newWithValue_testForValue(
@@ -251,6 +302,22 @@ void test_star_AudioBlock_newWithValue(void) {
         customSettings, 1.0);
     test_star_Audio_Block_newWithValue_testForValue(&customAlloc,
         customSettings, 0.0);
+}
+
+void test_star_Buffer(void) {
+    size_t len = 1024;
+    struct star_Buffer* b = star_Buffer_new(&allocator, len);
+    TEST_ASSERT_EQUAL_size_t_MESSAGE(len, b->length,
+        "The buffer should be initialized with the correct length");
+
+    float fillVal = 1.0f;
+    star_Buffer_fill(b, fillVal);
+    testAssertBufferContainsValueOnly(fillVal, b->samples, b->length);
+
+    star_Buffer_fillWithSilence(b);
+    testAssertBufferContainsValueOnly(0.0f, b->samples, b->length);
+
+    star_Buffer_destroy(&allocator, b);
 }
 
 void test_star_sig_Value(void) {
@@ -566,11 +633,16 @@ void test_star_sig_Dust(void) {
 int main(void) {
     UNITY_BEGIN();
 
+    RUN_TEST(test_star_randf);
+    RUN_TEST(test_star_unipolarToUint12);
+    RUN_TEST(test_star_bipolarToUint12);
+    RUN_TEST(test_star_bipolarToInvUint12);
     RUN_TEST(test_star_midiToFreq);
     RUN_TEST(test_star_fillWithValue);
     RUN_TEST(test_star_fillWithSilence);
-    RUN_TEST(test_star_randf);
+    RUN_TEST(test_star_AudioSettings_new);
     RUN_TEST(test_star_AudioBlock_newWithValue);
+    RUN_TEST(test_star_Buffer);
     RUN_TEST(test_star_sig_Value);
     RUN_TEST(test_star_sig_TimedTriggerCounter);
     RUN_TEST(test_star_sig_Mul);
