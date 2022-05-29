@@ -144,10 +144,6 @@ void test_star_unipolarToUint12(void) {
     TEST_ASSERT_EQUAL_UINT16(2047, star_unipolarToUint12(0.5f));
     TEST_ASSERT_EQUAL_UINT16(0, star_unipolarToUint12(0.0f));
     TEST_ASSERT_EQUAL_UINT16(4095, star_unipolarToUint12(1.0f));
-
-    // Out of range values.
-    // We don't clamp and we're storing in an unsigned 16-bit integer.
-    TEST_ASSERT_EQUAL_UINT16(8190, star_unipolarToUint12(2.0f));
 }
 
 void test_star_bipolarToUint12(void) {
@@ -155,11 +151,6 @@ void test_star_bipolarToUint12(void) {
     TEST_ASSERT_EQUAL_UINT16(3071, star_bipolarToUint12(0.5f));
     TEST_ASSERT_EQUAL_UINT16(2047, star_bipolarToUint12(0.0f));
     TEST_ASSERT_EQUAL_UINT16(1023, star_bipolarToUint12(-0.5f));
-    TEST_ASSERT_EQUAL_UINT16(0, star_bipolarToUint12(-1.0f));
-
-    // Out of range values.
-    // We don't clamp and we're storing in an unsigned 16-bit integer.
-    TEST_ASSERT_EQUAL_UINT16(6142, star_bipolarToUint12(2.0f));
     TEST_ASSERT_EQUAL_UINT16(0, star_bipolarToUint12(-1.0f));
 }
 
@@ -169,11 +160,6 @@ void test_star_bipolarToInvUint12(void) {
     TEST_ASSERT_EQUAL_UINT16(2047, star_bipolarToInvUint12(0.0f));
     TEST_ASSERT_EQUAL_UINT16(3071, star_bipolarToInvUint12(-0.5f));
     TEST_ASSERT_EQUAL_UINT16(4095, star_bipolarToInvUint12(-1.0f));
-
-    // Out of range values.
-    // We don't clamp and we're storing in an unsigned 16-bit integer.
-    TEST_ASSERT_EQUAL_UINT16(0, star_bipolarToInvUint12(2.0f));
-    TEST_ASSERT_EQUAL_UINT16(6142, star_bipolarToInvUint12(-2.0f));
 }
 
 void fillBufferRandom(float* buffer, size_t len) {

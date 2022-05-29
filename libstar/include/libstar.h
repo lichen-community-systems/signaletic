@@ -790,11 +790,11 @@ void star_sig_TimedGate_destroy(struct star_Allocator* allocator,
 
 
 
-struct star_sig_TempoClockDetector_Inputs {
+struct star_sig_ClockFreqDetector_Inputs {
     float_array_ptr source;
 };
 
-struct star_sig_TempoClockDetector_Parameters {
+struct star_sig_ClockFreqDetector_Parameters {
     float threshold;
     float timeoutDuration;
 };
@@ -807,30 +807,30 @@ struct star_sig_TempoClockDetector_Parameters {
  * Inputs:
  *  - source the incoming clock signal
  */
-struct star_sig_TempoClockDetector {
+struct star_sig_ClockFreqDetector {
     struct star_sig_Signal signal;
-    struct star_sig_TempoClockDetector_Inputs* inputs;
-    struct star_sig_TempoClockDetector_Parameters parameters;
+    struct star_sig_ClockFreqDetector_Inputs* inputs;
+    struct star_sig_ClockFreqDetector_Parameters parameters;
 
     float previousTrigger;
     bool isRisingEdge;
     uint32_t samplesSinceLastPulse;
-    float tempoFreq;
-    uint32_t tempoDurSamples;
+    float clockFreq;
+    uint32_t pulseDurSamples;
 };
 
-void star_sig_TempoClockDetector_init(
-    struct star_sig_TempoClockDetector* self,
+void star_sig_ClockFreqDetector_init(
+    struct star_sig_ClockFreqDetector* self,
     struct star_AudioSettings* settings,
-    struct star_sig_TempoClockDetector_Inputs* inputs,
+    struct star_sig_ClockFreqDetector_Inputs* inputs,
     float_array_ptr output);
-struct star_sig_TempoClockDetector* star_sig_TempoClockDetector_new(
+struct star_sig_ClockFreqDetector* star_sig_ClockFreqDetector_new(
     struct star_Allocator* allocator,
     struct star_AudioSettings* settings,
-    struct star_sig_TempoClockDetector_Inputs* inputs);
-void star_sig_TempoClockDetector_generate(void* signal);
-void star_sig_TempoClockDetector_destroy(struct star_Allocator* allocator,
-    struct star_sig_TempoClockDetector* self);
+    struct star_sig_ClockFreqDetector_Inputs* inputs);
+void star_sig_ClockFreqDetector_generate(void* signal);
+void star_sig_ClockFreqDetector_destroy(struct star_Allocator* allocator,
+    struct star_sig_ClockFreqDetector* self);
 
 
 #ifdef __cplusplus

@@ -22,7 +22,7 @@ struct star_Allocator allocator = {
 
 struct star_sig_Value* density;
 struct star_sig_Value* duration;
-struct star_sig_TempoClockDetector* clockFreq;
+struct star_sig_ClockFreqDetector* clockFreq;
 struct star_sig_BinaryOp* densityClockSum;
 struct cc_sig_DustGate* cvDustGate;
 struct star_sig_BinaryOp* audioDensityMultiplier;
@@ -120,11 +120,11 @@ int main(void) {
     duration = star_sig_Value_new(&allocator, &audioSettings);
     duration->parameters.value = 1.0f;
 
-    struct star_sig_TempoClockDetector_Inputs clockFreqInputs = {
+    struct star_sig_ClockFreqDetector_Inputs clockFreqInputs = {
         .source = star_AudioBlock_newWithValue(&allocator,
             &audioSettings, 0.0f)
     };
-    clockFreq = star_sig_TempoClockDetector_new(&allocator, &audioSettings,
+    clockFreq = star_sig_ClockFreqDetector_new(&allocator, &audioSettings,
         &clockFreqInputs);
 
     struct star_sig_BinaryOp_Inputs densityClockSumInputs = {
