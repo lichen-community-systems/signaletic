@@ -675,24 +675,43 @@ void test_star_sig_Dust(void) {
     star_sig_Dust_destroy(&allocator, dust);
 }
 
-void test_star_sig_ClockFreqDetector() {
-    // Pre-generate a set of clock signals to detect,
-    // and use the star_test_BufferPlayer to play it back
-    // as an input to the ClockFreqDetector
-    //   1. Square wave at x Hz
-    //   2. Sine wave at y Hz
-    // Generate samples for a period of time,
-    // assert that the detector's output matches input Hz
-    float clockFreq = 2.0f;
 
-    struct star_Buffer* twoHzSquare = star_Buffer_new(&allocator,
-        (size_t) audioSettings->sampleRate * 2);
+struct star_test_BufferPlayer* WaveformPlayer_new(
+    star_waveform_generator waveform,
+    float sampleRate, float freq, float duration) {
+    struct star_Buffer* waveformBuffer = star_Buffer_new(&allocator,
+        (size_t) audioSettings->sampleRate * duration);
 
-    star_Buffer_fillWithWaveform(twoHzSquare, star_waveform_square,
-        audioSettings->sampleRate, 0.0f, clockFreq);
+    star_Buffer_fillWithWaveform(waveformBuffer, waveform,
+        sampleRate, 0.0f, freq);
 
-    struct star_test_BufferPlayer* clockPlayer = star_test_BufferPlayer_new(
-        &allocator, audioSettings, twoHzSquare);
+    return star_test_BufferPlayer_new(&allocator, audioSettings,
+        waveformBuffer);
+}
+
+void WaveformPlayer_destroy(struct star_test_BufferPlayer* player) {
+    star_Buffer_destroy(&allocator, player->buffer);
+    star_test_BufferPlayer_destroy(&allocator, player);
+}
+
+// TODO: Generalize this into a test utility.
+void generateClockDetector(struct star_test_BufferPlayer* clockPlayer,
+    struct star_sig_ClockFreqDetector* det, float duration) {
+    size_t numBlocks = (size_t) duration *
+        (audioSettings->sampleRate / audioSettings->blockSize);
+
+    for (size_t i = 0; i < numBlocks; i++) {
+        clockPlayer->signal.generate(clockPlayer);
+        det->signal.generate(det);
+    }
+}
+
+void testClockDetector(star_waveform_generator waveform, float clockFreq) {
+    float bufferDuration = 2.0f;
+
+    struct star_test_BufferPlayer* clockPlayer =
+        WaveformPlayer_new(waveform, audioSettings->sampleRate, clockFreq,
+            bufferDuration);
 
     struct star_sig_ClockFreqDetector_Inputs inputs = {
         .source = clockPlayer->signal.output
@@ -701,19 +720,25 @@ void test_star_sig_ClockFreqDetector() {
     struct star_sig_ClockFreqDetector* det = star_sig_ClockFreqDetector_new(
         &allocator, audioSettings, &inputs);
 
-    // TODO: Generalize this into a test utility.
-    size_t numBlocks = (size_t) 2 *
-        (audioSettings->sampleRate / audioSettings->blockSize);
-
-    for (size_t i = 0; i < numBlocks; i++) {
-        clockPlayer->signal.generate(clockPlayer);
-        det->signal.generate(det);
-    }
+    generateClockDetector(clockPlayer, det, bufferDuration);
 
     TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.0001,
         clockFreq,
         FLOAT_ARRAY(det->signal.output)[0],
-        "The clock frequency should have been detected as approximately 2 Hz.");
+        "The clock's frequency should have been detected correctly.");
+
+    WaveformPlayer_destroy(clockPlayer);
+    star_sig_ClockFreqDetector_destroy(&allocator, det);
+}
+
+void test_star_sig_ClockFreqDetector_square() {
+    // Square wave, 2Hz.
+    testClockDetector(star_waveform_square, 2.0f);
+}
+
+void test_star_sig_ClockFreqDetector_sine() {
+    // Sine wave, 10 Hz.
+    testClockDetector(star_waveform_sine, 10.0f);
 }
 
 int main(void) {
@@ -737,7 +762,8 @@ int main(void) {
     RUN_TEST(test_star_sig_Sine_phaseWrapsAt2PI);
     RUN_TEST(test_test_star_sig_Sine_isOffset);
     RUN_TEST(test_star_sig_Dust);
-    RUN_TEST(test_star_sig_ClockFreqDetector);
+    RUN_TEST(test_star_sig_ClockFreqDetector_square);
+    RUN_TEST(test_star_sig_ClockFreqDetector_sine);
 
     return UNITY_END();
 }
