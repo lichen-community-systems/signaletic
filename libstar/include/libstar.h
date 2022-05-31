@@ -5,8 +5,9 @@
 extern "C" {
 #endif
 
+#include <stddef.h> // For size_t
 #include <stdbool.h>
-#include <stdint.h> // For uint32_t
+#include <stdint.h> // For int32_t, uint32_t
 
 // This typedef is necessary because Emscripten's
 // WebIDL binder is unable to produce viable
@@ -19,8 +20,10 @@ extern "C" {
 // in public interface must use this type instead.
 #ifdef __EMSCRIPTEN__
     typedef void* float_array_ptr;
+    #define FLOAT_ARRAY(array) ((float*)array)
 #else
     typedef float* float_array_ptr;
+    #define FLOAT_ARRAY(array) array
 #endif
 
 static const float star_PI = 3.14159265358979323846f;
@@ -159,7 +162,60 @@ float star_interpolate_linear(float idx, float_array_ptr table,
  */
 float star_interpolate_cubic(float idx, float_array_ptr table, size_t length);
 
+/**
+ * A one pole filter.
+ *
+ * @param current {float} the current sample (n)
+ * @param previous {float} the previous sample (n-1)
+ * @param coeff {float} the filter coefficient
+ */
 float star_filter_onepole(float current, float previous, float coeff);
+
+/**
+ * Defines a waveform generator function.
+ */
+typedef float (*star_waveform_generator)(float phase);
+
+/**
+ * Generates one sample of a sine wave at the specified phase.
+ *
+ * @param phase {float} the current phase of the oscillator
+ * @return {float} the generated sample
+ */
+float star_waveform_sine(float phase);
+
+/**
+ * Generates one sample of a square wave at the specified phase.
+ *
+ * @param phase {float} the current phase of the oscillator
+ * @return {float} the generated sample
+ */
+float star_waveform_square(float phase);
+
+/**
+ * Generates one sample of a saw wave at the specified phase.
+ *
+ * @param phase {float} the current phase of the oscillator
+ * @return {float} the generated sample
+ */
+float star_waveform_saw(float phase);
+
+/**
+ * Generates one sample of a reverse saw wave at the specified phase.
+ *
+ * @param phase {float} the current phase of the oscillator
+ * @return {float} the generated sample
+ */
+float star_waveform_reverseSaw(float phase);
+
+/**
+ * Generates one sample of a triangle wave at the specified phase.
+ *
+ * @param phase {float} the current phase of the oscillator
+ * @return {float} the generated sample
+ */
+float star_waveform_triangle(float phase);
+
 
 /**
  * An AudioSettings structure holds key information
@@ -267,6 +323,20 @@ void star_Buffer_fill(struct star_Buffer* self, float value);
 void star_Buffer_fillWithSilence(struct star_Buffer* self);
 
 /**
+ * Fills a Buffer with a waveform using the specified
+ * waveform generator function.
+ *
+ * @param self the buffer to fill
+ * @param generate a pointer to a waveform generator function
+ * @param sampleRate the sample rate at which to generate the waveform
+ * @param phase the initial phase of the waveform
+ * @param freq the frequency of the waveform
+ */
+void star_Buffer_fillWithWaveform(struct star_Buffer* self,
+    star_waveform_generator generate, float sampleRate,
+    float phase, float freq);
+
+/**
  * Destroys a Buffer and frees its memory.
  *
  * After calling this function, the pointer to
@@ -284,6 +354,8 @@ float_array_ptr star_AudioBlock_newWithValue(
     struct star_Allocator* allocator,
     struct star_AudioSettings* audioSettings,
     float value);
+
+
 
 // TODO: Should the signal argument at least be defined
 // as a struct star_sig_Signal*, rather than void*?

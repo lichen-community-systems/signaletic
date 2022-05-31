@@ -67,10 +67,11 @@ To remove all previous build artifacts and rebuild, run ```rm -r build/native &&
 
 #### libstar for Web Assembly (not currently supported on Windows)
 1. ```cd libstar```
-2. ```source ./setup-emscripten-env.sh```
-2. ```meson setup build/wasm --cross-file wasm-cross-compile.txt```
-3. ```./generate-wasm-bindings.sh```
-4. ```meson compile -C build/wasm```
+2. ```source ../../emsdk/emsdk_env.sh```
+3. ```source ./setup-emscripten-env.sh```
+4. ```meson setup build/wasm --cross-file wasm-cross-compile.txt```
+5. ```./generate-wasm-bindings.sh```
+6. ```meson compile -C build/wasm```
 
 #### Running the Unit Tests
 1. Native: ```meson test -C build/native -v```

@@ -1,29 +1,9 @@
 #include <math.h>   // For powf, fmodf, sinf, roundf, fabsf, rand
 #include <stdlib.h> // For RAND_MAX
-#include <stddef.h> // For size_t
-#include <stdint.h> // For int32_t
 #include <tlsf.h>   // Includes assert.h, limits.h, stddef.h
                     // stdio.h, stdlib.h, string.h (for errors etc.)
 #include <libstar.h>
 
-// This macro is necessary because Emscripten's
-// WebIDL binder is unable to produce viable
-// (i.e. performant and bug-free) bindings for
-// array pointers. All access to float* variables
-// that are exposed to the public interface must
-// use this macro prior to accessing the array.
-/**
- * Casts the argument to a float pointer if necessary.
- *
- * @param array the value to cast to float*
- */
-#ifdef __EMSCRIPTEN__
-    #define FLOAT_ARRAY(array) ((float*)array)
-#else
-    #define FLOAT_ARRAY(array) array
-#endif
-
-// TODO: Inline?
 float star_fminf(float a, float b) {
     float r;
 #ifdef __arm__
@@ -34,7 +14,6 @@ float star_fminf(float a, float b) {
     return r;
 }
 
-// TODO: Inline?
 float star_fmaxf(float a, float b) {
     float r;
 #ifdef __arm__
@@ -46,7 +25,6 @@ float star_fmaxf(float a, float b) {
 }
 
 // TODO: Unit tests
-// TODO: Inline?
 float star_clamp(float value, float min, float max) {
     return star_fminf(star_fmaxf(value, min), max);
 }
@@ -59,7 +37,6 @@ float star_clamp(float value, float min, float max) {
 //                   im = 714025;
 //     jran=(jran*ia+ic) % im;
 //     float ran=(float) jran / (float) im;
-// TODO: Inline?
 float star_randf() {
     return (float) ((double) rand() / ((double) RAND_MAX + 1));
 }
@@ -77,12 +54,10 @@ uint16_t star_bipolarToInvUint12(float sample) {
     return star_bipolarToUint12(-sample);
 }
 
-// TODO: Inline? http://www.greenend.org.uk/rjk/tech/inline.html
 float star_midiToFreq(float midiNum) {
     return powf(2, (midiNum - 69.0f) / 12.0f) * 440.0f;
 }
 
-// TODO: Inline?
 void star_fillWithValue(float_array_ptr buffer, size_t size,
     float value) {
     for (size_t i = 0; i < size; i++) {
@@ -90,13 +65,11 @@ void star_fillWithValue(float_array_ptr buffer, size_t size,
     }
 }
 
-// TODO: Inline?
 void star_fillWithSilence(float_array_ptr buffer, size_t size) {
     star_fillWithValue(buffer, size, 0.0f);
 }
 
 // TODO: Unit tests.
-// TODO: Inline?
 float star_interpolate_linear(float idx, float_array_ptr table,
     size_t length) {
     int32_t idxIntegral = (int32_t) idx;
@@ -110,7 +83,6 @@ float star_interpolate_linear(float idx, float_array_ptr table,
 }
 
 // TODO: Unit tests.
-// TODO: Inline?
 float star_interpolate_cubic(float idx, float_array_ptr table,
     size_t length) {
     size_t idxIntegral = (size_t) idx;
@@ -134,9 +106,38 @@ float star_interpolate_cubic(float idx, float_array_ptr table,
 }
 
 // TODO: Unit tests.
-// TODO: Inline?
 float star_filter_onepole(float current, float previous, float coeff) {
     return current + coeff * (previous - current);
+}
+
+// TODO: Unit tests.
+float star_waveform_sine(float phase) {
+    return sinf(phase);
+}
+
+// TODO: Unit tests.
+float star_waveform_square(float phase) {
+    return phase <= star_PI ? 1.0f : -1.0f;
+}
+
+// TODO: Unit tests.
+float star_waveform_saw(float phase) {
+    return (2.0f * (phase * (1.0f / star_TWOPI))) - 1.0f;
+}
+
+// TODO: Unit tests.
+float star_waveform_reverseSaw(float phase) {
+    return 1.0f - 2.0f * (phase * (1.0f / star_TWOPI));
+}
+
+// TODO: Unit tests.
+float star_waveform_triangle(float phase) {
+    float val = star_waveform_saw(phase);
+    if (val < 0.0) {
+        val = -val;
+    }
+
+    return 2.0f * (val - 0.5f);
 }
 
 // TODO: Implement enough test coverage for star_Allocator
@@ -215,10 +216,28 @@ void star_Buffer_fillWithSilence(struct star_Buffer* self) {
     star_fillWithSilence(self->samples, self->length);
 }
 
+// TODO: Unit tests.
+void star_Buffer_fillWithWaveform(struct star_Buffer* self,
+    star_waveform_generator generate, float sampleRate,
+    float phase, float freq) {
+    float phaseInc = freq * star_TWOPI / sampleRate;
+    for (size_t i = 0; i < self->length; i++) {
+        FLOAT_ARRAY(self->samples)[i] = generate(phase);
+        phase += phaseInc;
+        if (phase >= star_TWOPI) {
+            phase -= star_TWOPI;
+        } else if (phase < 0.0) {
+            phase += star_TWOPI;
+        }
+    }
+}
+
 void star_Buffer_destroy(struct star_Allocator* allocator, struct star_Buffer* self) {
     star_Allocator_free(allocator, self->samples);
     star_Allocator_free(allocator, self);
 };
+
+
 
 void star_sig_Signal_init(void* signal,
     struct star_AudioSettings* settings,

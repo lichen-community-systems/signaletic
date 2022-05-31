@@ -5,6 +5,32 @@ interface Signals {
     void Value_destroy(star_Allocator allocator,
         star_sig_Value value);
 
+
+    star_sig_BinaryOp_Inputs BinaryOp_Inputs_new(star_Allocator allocator,
+        any left, any right);
+
+    void BinaryOp_Inputs_destroy(star_Allocator allocator,
+        star_sig_BinaryOp_Inputs inputs);
+
+    star_sig_BinaryOp Mul_new(star_Allocator allocator,
+        star_AudioSettings audioSettings,
+        star_sig_BinaryOp_Inputs inputs);
+
+    void Mul_destroy(star_Allocator allocator, star_sig_BinaryOp mul);
+
+    star_sig_BinaryOp Add_new(star_Allocator allocator,
+        star_AudioSettings audioSettings,
+        star_sig_BinaryOp_Inputs inputs);
+
+    void Add_destroy(star_Allocator allocator, star_sig_BinaryOp add);
+
+    star_sig_BinaryOp Div_new(star_Allocator allocator,
+        star_AudioSettings audioSettings,
+        star_sig_BinaryOp_Inputs inputs);
+
+    void Div_destroy(star_Allocator allocator, star_sig_BinaryOp div);
+
+
     star_sig_Sine Sine_new(star_Allocator allocator,
         star_AudioSettings audioSettings,
         star_sig_Sine_Inputs inputs);
@@ -18,17 +44,18 @@ interface Signals {
     void Sine_Inputs_destroy(star_Allocator allocator,
         star_sig_Sine_Inputs inputs);
 
-    star_sig_BinaryOp Mul_new(star_Allocator allocator,
+
+    star_sig_ClockFreqDetector ClockFreqDetector_new(star_Allocator allocator,
         star_AudioSettings audioSettings,
-        star_sig_BinaryOp_Inputs inputs);
+        star_sig_ClockFreqDetector_Inputs inputs);
 
-    void Mul_destroy(star_Allocator allocator, star_sig_BinaryOp mul);
+    void ClockFreqDetector_destroy(star_Allocator allocator,
+        star_sig_ClockFreqDetector detector);
 
-    star_sig_BinaryOp_Inputs BinaryOp_Inputs_new(star_Allocator allocator,
-        any left, any right);
+    star_sig_ClockFreqDetector_Inputs ClockFreqDetector_Inputs_new(star_Allocator allocator, any source);
 
-    void BinaryOp_Inputs_destroy(star_Allocator allocator,
-        star_sig_BinaryOp_Inputs inputs);
+    void ClockFreqDetector_Inputs_destroy(star_Allocator allocator,
+        star_sig_ClockFreqDetector_Inputs inputs);
 };
 
 interface Starlings {
@@ -50,6 +77,11 @@ interface Starlings {
     float interpolate_cubic(float idx, any table,
         unsigned long length);
     float filter_onepole(float current, float previous, float coeff);
+    float waveform_sine(float phase);
+    float waveform_square(float phase);
+    float waveform_saw(float phase);
+    float waveform_reverseSaw(float phase);
+    float waveform_triangle(float phase);
 
     star_Allocator Allocator_new(unsigned long heapSize);
     void Allocator_init(star_Allocator allocator);
@@ -94,6 +126,18 @@ interface star_sig_Signal {
     void generate(any signal);
 };
 
+
+interface star_sig_Value {
+    [Value] attribute star_sig_Signal signal;
+    [Value] attribute star_sig_Value_Parameters parameters;
+    attribute float lastSample;
+};
+
+interface star_sig_Value_Parameters {
+    attribute float value;
+};
+
+
 interface star_sig_Sine {
     [Value] attribute star_sig_Signal signal;
     attribute star_sig_Sine_Inputs inputs;
@@ -107,15 +151,6 @@ interface star_sig_Sine_Inputs {
     attribute any add;
 };
 
-interface star_sig_Value {
-    [Value] attribute star_sig_Signal signal;
-    [Value] attribute star_sig_Value_Parameters parameters;
-    attribute float lastSample;
-};
-
-interface star_sig_Value_Parameters {
-    attribute float value;
-};
 
 interface star_sig_BinaryOp {
     [Value] attribute star_sig_Signal signal;
@@ -125,4 +160,14 @@ interface star_sig_BinaryOp {
 interface star_sig_BinaryOp_Inputs {
     attribute any left;
     attribute any right;
+};
+
+
+interface star_sig_ClockFreqDetector {
+    [Value] attribute star_sig_Signal signal;
+    attribute star_sig_ClockFreqDetector_Inputs inputs;
+};
+
+interface star_sig_ClockFreqDetector_Inputs {
+    attribute any source;
 };

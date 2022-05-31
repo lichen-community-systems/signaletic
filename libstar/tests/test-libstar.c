@@ -8,6 +8,65 @@
 #define HEAP_SIZE 1048576 // 1 MB
 #define BLOCK_SIZE 64
 
+/**
+ * A straight-through buffer player with no interpolation
+ * or other fancy features. Primarily used for providing deterministic
+ * inputs to signals for unit testing.
+ *
+ * This Signal should always only be for unit tests, so that
+ * additional features aren't accidentally added to it that
+ * might impact the determinism of the testing environment.
+ */
+struct star_test_BufferPlayer {
+    struct star_sig_Signal signal;
+    struct star_Buffer* buffer;
+    size_t currentSample;
+};
+
+void star_test_BufferPlayer_generate(void* signal) {
+    struct star_test_BufferPlayer* self =
+        (struct star_test_BufferPlayer*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        if (self->currentSample >= self->buffer->length) {
+            // Wrap around to the beginning of the buffer.
+            self->currentSample = 0;
+        }
+
+        FLOAT_ARRAY(self->signal.output)[i] =
+            FLOAT_ARRAY(self->buffer->samples)[self->currentSample];
+        self->currentSample++;
+    }
+}
+
+void star_test_BufferPlayer_init(struct star_test_BufferPlayer* self,
+    struct star_AudioSettings* audioSettings,
+    struct star_Buffer* buffer,
+    float_array_ptr output) {
+    star_sig_Signal_init(self, audioSettings, output,
+        star_test_BufferPlayer_generate);
+    self->buffer = buffer;
+    self->currentSample = 0;
+}
+
+struct star_test_BufferPlayer* star_test_BufferPlayer_new(
+    struct star_Allocator* allocator,
+    struct star_AudioSettings* audioSettings,
+    struct star_Buffer* buffer) {
+    float_array_ptr output = star_AudioBlock_new(allocator, audioSettings);
+    struct star_test_BufferPlayer* self = star_Allocator_malloc(allocator,
+        sizeof(struct star_test_BufferPlayer));
+    star_test_BufferPlayer_init(self, audioSettings, buffer, output);
+
+    return self;
+}
+
+void star_test_BufferPlayer_destroy(struct star_Allocator* allocator,
+    struct star_test_BufferPlayer* self) {
+    star_sig_Signal_destroy(allocator, self);
+}
+
+
 char heap[HEAP_SIZE];
 struct star_Allocator allocator = {
     .heapSize = HEAP_SIZE,
@@ -616,6 +675,47 @@ void test_star_sig_Dust(void) {
     star_sig_Dust_destroy(&allocator, dust);
 }
 
+void test_star_sig_ClockFreqDetector() {
+    // Pre-generate a set of clock signals to detect,
+    // and use the star_test_BufferPlayer to play it back
+    // as an input to the ClockFreqDetector
+    //   1. Square wave at x Hz
+    //   2. Sine wave at y Hz
+    // Generate samples for a period of time,
+    // assert that the detector's output matches input Hz
+    float clockFreq = 2.0f;
+
+    struct star_Buffer* twoHzSquare = star_Buffer_new(&allocator,
+        (size_t) audioSettings->sampleRate * 2);
+
+    star_Buffer_fillWithWaveform(twoHzSquare, star_waveform_square,
+        audioSettings->sampleRate, 0.0f, clockFreq);
+
+    struct star_test_BufferPlayer* clockPlayer = star_test_BufferPlayer_new(
+        &allocator, audioSettings, twoHzSquare);
+
+    struct star_sig_ClockFreqDetector_Inputs inputs = {
+        .source = clockPlayer->signal.output
+    };
+
+    struct star_sig_ClockFreqDetector* det = star_sig_ClockFreqDetector_new(
+        &allocator, audioSettings, &inputs);
+
+    // TODO: Generalize this into a test utility.
+    size_t numBlocks = (size_t) 2 *
+        (audioSettings->sampleRate / audioSettings->blockSize);
+
+    for (size_t i = 0; i < numBlocks; i++) {
+        clockPlayer->signal.generate(clockPlayer);
+        det->signal.generate(det);
+    }
+
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.0001,
+        clockFreq,
+        FLOAT_ARRAY(det->signal.output)[0],
+        "The clock frequency should have been detected as approximately 2 Hz.");
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -637,6 +737,7 @@ int main(void) {
     RUN_TEST(test_star_sig_Sine_phaseWrapsAt2PI);
     RUN_TEST(test_test_star_sig_Sine_isOffset);
     RUN_TEST(test_star_sig_Dust);
+    RUN_TEST(test_star_sig_ClockFreqDetector);
 
     return UNITY_END();
 }

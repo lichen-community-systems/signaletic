@@ -45,6 +45,59 @@ public:
         return star_sig_Value_destroy(allocator, self);
     }
 
+    // TODO: Address duplication with other Input_new functions.
+    struct star_sig_BinaryOp_Inputs* BinaryOp_Inputs_new(
+        struct star_Allocator* allocator,
+        float_array_ptr left, float_array_ptr right) {
+        struct star_sig_BinaryOp_Inputs* inputs = (struct star_sig_BinaryOp_Inputs*) star_Allocator_malloc(allocator, sizeof(star_sig_BinaryOp_Inputs));
+
+        inputs->left = left;
+        inputs->right = right;
+
+        return inputs;
+    }
+
+    void BinaryOp_Inputs_destroy(struct star_Allocator* allocator,
+        struct star_sig_BinaryOp_Inputs* self) {
+        star_Allocator_free(allocator, self);
+    }
+
+    struct star_sig_BinaryOp* Add_new(struct star_Allocator* allocator,
+        struct star_AudioSettings* audioSettings,
+        struct star_sig_BinaryOp_Inputs* inputs) {
+        return star_sig_Add_new(allocator, audioSettings,
+            inputs);
+    }
+
+    void Add_destroy(struct star_Allocator* allocator,
+        struct star_sig_BinaryOp* self) {
+        return star_sig_Add_destroy(allocator, self);
+    }
+
+    struct star_sig_BinaryOp* Mul_new(struct star_Allocator* allocator,
+        struct star_AudioSettings* audioSettings,
+        struct star_sig_BinaryOp_Inputs* inputs) {
+        return star_sig_Mul_new(allocator, audioSettings,
+            inputs);
+    }
+
+    void Mul_destroy(struct star_Allocator* allocator,
+        struct star_sig_BinaryOp* self) {
+        return star_sig_Mul_destroy(allocator, self);
+    }
+
+    struct star_sig_BinaryOp* Div_new(struct star_Allocator* allocator,
+        struct star_AudioSettings* audioSettings,
+        struct star_sig_BinaryOp_Inputs* inputs) {
+        return star_sig_Div_new(allocator, audioSettings,
+            inputs);
+    }
+
+    void Div_destroy(struct star_Allocator* allocator,
+        struct star_sig_BinaryOp* self) {
+        return star_sig_Div_destroy(allocator, self);
+    }
+
     struct star_sig_Sine* Sine_new(struct star_Allocator* allocator,
         struct star_AudioSettings* audioSettings,
         struct star_sig_Sine_Inputs* inputs) {
@@ -80,32 +133,29 @@ public:
         star_Allocator_free(allocator, self);
     }
 
-    struct star_sig_BinaryOp* Mul_new(struct star_Allocator* allocator,
-        struct star_AudioSettings* audioSettings,
-        struct star_sig_BinaryOp_Inputs* inputs) {
-        return star_sig_Mul_new(allocator, audioSettings,
-            inputs);
-    }
 
-    void Mul_destroy(struct star_Allocator* allocator,
-        struct star_sig_BinaryOp* self) {
-        return star_sig_Mul_destroy(allocator, self);
-    }
-
-    // TODO: Address duplication with other Input_new functions.
-    struct star_sig_BinaryOp_Inputs* BinaryOp_Inputs_new(
+    struct star_sig_ClockFreqDetector* ClockFreqDetector_new(
         struct star_Allocator* allocator,
-        float_array_ptr left, float_array_ptr right) {
-        struct star_sig_BinaryOp_Inputs* inputs = (struct star_sig_BinaryOp_Inputs*) star_Allocator_malloc(allocator, sizeof(star_sig_BinaryOp_Inputs));
+        struct star_AudioSettings* audioSettings,
+        struct star_sig_ClockFreqDetector_Inputs* inputs) {
+        return star_sig_ClockFreqDetector_new(allocator, audioSettings, inputs);
+    }
 
-        inputs->left = left;
-        inputs->right = right;
+    void ClockFreqDetector_destroy(struct star_Allocator* allocator,
+        struct star_sig_ClockFreqDetector* self) {
+        return star_sig_ClockFreqDetector_destroy(allocator, self);
+    }
+
+    struct star_sig_ClockFreqDetector_Inputs* ClockFreqDetector_Inputs_new(
+        struct star_Allocator* allocator, float_array_ptr source) {
+        struct star_sig_ClockFreqDetector_Inputs* inputs = (struct star_sig_ClockFreqDetector_Inputs*) star_Allocator_malloc(allocator, sizeof(star_sig_ClockFreqDetector_Inputs));
+        inputs->source = source;
 
         return inputs;
     }
 
-    void BinaryOp_Inputs_destroy(struct star_Allocator* allocator,
-        struct star_sig_BinaryOp_Inputs* self) {
+    void ClockFreqDetector_Inputs_destroy(struct star_Allocator* allocator,
+        struct star_sig_ClockFreqDetector_Inputs* self) {
         star_Allocator_free(allocator, self);
     }
 };
@@ -161,6 +211,27 @@ public:
         return star_filter_onepole(current, previous, coeff);
     }
 
+    float waveform_sine(float phase) {
+        return star_waveform_sine(phase);
+    }
+
+    float waveform_square(float phase) {
+        return star_waveform_square(phase);
+    }
+
+    float waveform_saw(float phase) {
+        return star_waveform_saw(phase);
+    }
+
+    float waveform_reverseSaw(float phase) {
+        return star_waveform_reverseSaw(phase);
+    }
+
+    float waveform_triangle(float phase) {
+        return star_waveform_triangle(phase);
+    }
+
+
     struct star_AudioSettings* AudioSettings_new(
         struct star_Allocator* allocator) {
         return star_AudioSettings_new(allocator);
@@ -187,6 +258,7 @@ public:
     void Allocator_free(struct star_Allocator* allocator, void* obj) {
         return star_Allocator_free(allocator, obj);
     }
+
 
     struct star_Buffer* Buffer_new(struct star_Allocator* allocator,
         size_t length) {
