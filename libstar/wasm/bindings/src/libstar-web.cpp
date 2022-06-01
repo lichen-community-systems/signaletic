@@ -266,7 +266,7 @@ public:
     }
 
     void Buffer_fill(struct star_Buffer* buffer, float value) {
-        return star_Buffer_fill(buffer, value);
+        return star_Buffer_fillWithValue(buffer, value);
     }
 
     void Buffer_fillWithSilence(struct star_Buffer* buffer) {

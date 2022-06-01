@@ -221,26 +221,20 @@ void test_star_bipolarToInvUint12(void) {
     TEST_ASSERT_EQUAL_UINT16(4095, star_bipolarToInvUint12(-1.0f));
 }
 
-void fillBufferRandom(float* buffer, size_t len) {
-    for (size_t i = 0; i < len; i++) {
-        buffer[i] = star_randf();
-    }
-}
-
 void test_star_randf(void) {
     size_t numSamples = 8192;
 
     // Values should be within 0.0 to 1.0
     struct star_Buffer* firstRun = star_Buffer_new(&allocator,
         numSamples);
-    fillBufferRandom(firstRun->samples, numSamples);
+    star_Buffer_fill(firstRun, star_randomFill);
     testAssertBufferValuesInRange(firstRun->samples, numSamples,
         0.0f, 1.0f);
 
     // Consecutive runs should contain different values.
     struct star_Buffer* secondRun = star_Buffer_new(&allocator,
         numSamples);
-    fillBufferRandom(secondRun->samples, numSamples);
+    star_Buffer_fill(secondRun, star_randomFill);
     testAssertBuffersNotEqual(firstRun->samples, secondRun->samples,
         numSamples);
 
@@ -251,9 +245,10 @@ void test_star_randf(void) {
     struct star_Buffer* fourthRun = star_Buffer_new(&allocator,
         numSamples);
     srand(1);
-    fillBufferRandom(thirdRun->samples, numSamples);
+    star_Buffer_fill(thirdRun, star_randomFill);
+
     srand(1);
-    fillBufferRandom(fourthRun->samples, numSamples);
+    star_Buffer_fill(fourthRun, star_randomFill);
     TEST_ASSERT_EQUAL_FLOAT_ARRAY(thirdRun->samples,
         fourthRun->samples, numSamples);
 }
@@ -356,13 +351,45 @@ void test_star_Buffer(void) {
         "The buffer should be initialized with the correct length");
 
     float fillVal = 1.0f;
-    star_Buffer_fill(b, fillVal);
+    star_Buffer_fillWithValue(b, fillVal);
     testAssertBufferContainsValueOnly(fillVal, b->samples, b->length);
 
     star_Buffer_fillWithSilence(b);
     testAssertBufferContainsValueOnly(0.0f, b->samples, b->length);
 
     star_Buffer_destroy(&allocator, b);
+}
+
+float fillWithIndices(size_t i, float_array_ptr array) {
+    return (float) i;
+}
+
+void test_star_BufferView(void) {
+    size_t superLen = 1024;
+    size_t viewLen = 256;
+    size_t viewStart = 256;
+
+    struct star_Buffer* b = star_Buffer_new(&allocator, superLen);
+    star_Buffer_fill(b, fillWithIndices);
+
+    struct star_Buffer* expectedViewContents =
+        star_Buffer_new(&allocator, viewLen);
+    for (size_t i = 0; i < expectedViewContents->length; i++) {
+        FLOAT_ARRAY(expectedViewContents->samples)[i] =
+            (float) i + viewStart;
+    }
+
+    struct star_Buffer* view = star_BufferView_new(&allocator,
+        b, viewStart, viewLen);
+
+    TEST_ASSERT_EQUAL_size_t_MESSAGE(viewLen, view->length,
+        "The BufferView should have the correct length.");
+
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY_MESSAGE(
+        expectedViewContents->samples,
+        view->samples,
+        viewLen,
+        "The subarray should contain the correct values.");
 }
 
 void test_star_sig_Value(void) {
@@ -754,6 +781,7 @@ int main(void) {
     RUN_TEST(test_star_AudioSettings_new);
     RUN_TEST(test_star_AudioBlock_newWithValue);
     RUN_TEST(test_star_Buffer);
+    RUN_TEST(test_star_BufferView);
     RUN_TEST(test_star_sig_Value);
     RUN_TEST(test_star_sig_TimedTriggerCounter);
     RUN_TEST(test_star_sig_Mul);

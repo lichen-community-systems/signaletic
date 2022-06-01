@@ -58,15 +58,26 @@ float star_midiToFreq(float midiNum) {
     return powf(2, (midiNum - 69.0f) / 12.0f) * 440.0f;
 }
 
-void star_fillWithValue(float_array_ptr buffer, size_t size,
-    float value) {
-    for (size_t i = 0; i < size; i++) {
-        FLOAT_ARRAY(buffer)[i] = value;
+float star_randomFill(size_t i, float_array_ptr array) {
+    return star_randf();
+}
+
+void star_fill(float_array_ptr array, size_t length,
+    star_array_filler filler) {
+    for (size_t i = 0; i < length; i++) {
+        FLOAT_ARRAY(array)[i] = filler(i, array);
     }
 }
 
-void star_fillWithSilence(float_array_ptr buffer, size_t size) {
-    star_fillWithValue(buffer, size, 0.0f);
+void star_fillWithValue(float_array_ptr array, size_t size,
+    float value) {
+    for (size_t i = 0; i < size; i++) {
+        FLOAT_ARRAY(array)[i] = value;
+    }
+}
+
+void star_fillWithSilence(float_array_ptr array, size_t size) {
+    star_fillWithValue(array, size, 0.0f);
 }
 
 // TODO: Unit tests.
@@ -201,14 +212,19 @@ float_array_ptr star_AudioBlock_newWithValue(
 
 struct star_Buffer* star_Buffer_new(struct star_Allocator* allocator,
     size_t length) {
-    struct star_Buffer* buffer = (struct star_Buffer*) star_Allocator_malloc(allocator, sizeof(struct star_Buffer));
-    buffer->length = length;
-    buffer->samples = star_samples_new(allocator, length);
+    struct star_Buffer* self = (struct star_Buffer*) star_Allocator_malloc(allocator, sizeof(struct star_Buffer));
+    self->length = length;
+    self->samples = star_samples_new(allocator, length);
 
-    return buffer;
+    return self;
 }
 
-void star_Buffer_fill(struct star_Buffer* self, float value) {
+void star_Buffer_fill(struct star_Buffer* self,
+    star_array_filler filler) {
+    star_fill(self->samples, self->length, filler);
+}
+
+void star_Buffer_fillWithValue(struct star_Buffer* self, float value) {
     star_fillWithValue(self->samples, self->length, value);
 }
 
@@ -237,6 +253,32 @@ void star_Buffer_destroy(struct star_Allocator* allocator, struct star_Buffer* s
     star_Allocator_free(allocator, self);
 };
 
+
+struct star_Buffer* star_BufferView_new(
+    struct star_Allocator* allocator,
+    struct star_Buffer* buffer, size_t startIdx, size_t length) {
+    struct star_Buffer* self = (struct star_Buffer*) star_Allocator_malloc(allocator, sizeof(struct star_Buffer));
+
+    // TODO: Need to signal an error rather than
+    // just returning the parent buffer's samples and a length of zero.
+    // Or is the zero length sufficient for this purpose?
+    if (startIdx < 0 || length >= (buffer->length - startIdx)) {
+        self->samples = buffer->samples;
+        self->length = 0;
+    } else {
+        self->samples = FLOAT_ARRAY(buffer->samples) + startIdx;
+        self->length = length;
+    }
+
+    return self;
+}
+
+void star_BufferView_destroy(struct star_Allocator* allocator,
+    struct star_Buffer* self) {
+    // Don't destroy the samples array;
+    // it is shared with other Buffers.
+    star_Allocator_free(allocator, self);
+}
 
 
 void star_sig_Signal_init(void* signal,

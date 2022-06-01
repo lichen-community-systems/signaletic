@@ -1,3 +1,10 @@
+/*! \file libstar.h
+    \brief The core Signaletic library.
+
+    Signaletic is music signal processing library designed for use
+    in embedded environments and Web Assembly.
+*/
+
 #ifndef LIBSTAR_H
 #define LIBSTAR_H
 
@@ -111,10 +118,36 @@ uint16_t star_bipolarToInvUint12(float sample);
  * Converts MIDI note numbers into frequencies in hertz.
  * This algorithm assumes A4 = 440 Hz = MIDI note #69.
  *
- * @param midiNum the MIDI note number to convert
- * @return the frequency in Hz of the note number
+ * @param midiNum {float} the MIDI note number to convert
+ * @return {float} the frequency in Hz of the note number
  */
 float star_midiToFreq(float midiNum);
+
+/**
+ * Type definition for array fill functions.
+ *
+ * @param i {size_t} the current index of the array
+ * @param array {float_array_ptr} the array being filled
+ */
+typedef float (*star_array_filler)(size_t i, float_array_ptr array);
+
+/**
+ * A fill function that returns random floats.
+ *
+ * @param i {size_t} unused
+ * @param array {float_array_ptr} unused
+ */
+float star_randomFill(size_t i, float_array_ptr array);
+
+/**
+ * Fills an array of floats using the specified filler function.
+ *
+ * @param array {float_array_ptr} the array to fill
+ * @param length {size_t} the lengthg of the array
+ * @param filler {star_array_filler} a pointer to a fill function
+ */
+void star_fill(float_array_ptr array, size_t length,
+    star_array_filler filler);
 
 /**
  * Fills an array of floats with the specified value.
@@ -172,7 +205,10 @@ float star_interpolate_cubic(float idx, float_array_ptr table, size_t length);
 float star_filter_onepole(float current, float previous, float coeff);
 
 /**
- * Defines a waveform generator function.
+ * Type definition for a waveform generator function.
+ *
+ * @param phase {float} the current phase
+ * @return {float} a sample for the current phase of the waveform
  */
 typedef float (*star_waveform_generator)(float phase);
 
@@ -308,12 +344,20 @@ struct star_Buffer* star_Buffer_new(struct star_Allocator* allocator,
     size_t length);
 
 /**
+ * Fills a buffer using the specified array fill function.
+ *
+ * @param self {struct star_Buffer*} the buffer to fill
+ * @param filler {star_array_filler} a pointer to an array filler
+ */
+void star_Buffer_fill(struct star_Buffer* self, star_array_filler filler);
+
+/**
  * Fills a Buffer instance with a value.
  *
  * @param self the buffer instance to fill
  * @param value the value to which all samples will be set
  */
-void star_Buffer_fill(struct star_Buffer* self, float value);
+void star_Buffer_fillWithValue(struct star_Buffer* self, float value);
 
 /**
  * Fills a Buffer with silence.
@@ -346,6 +390,32 @@ void star_Buffer_fillWithWaveform(struct star_Buffer* self,
  * @param self the buffer instance to destroy
  */
 void star_Buffer_destroy(struct star_Allocator* allocator, struct star_Buffer* self);
+
+
+/**
+ * Creates a new Buffer that references a portion of another Buffer.
+ * Be aware that destroying the parent buffer will
+ * invalidate any BufferViews that have been created from it.
+ *
+ * @param allocator {struct star_Allocator*} the allocator to use
+ * @param buffer {struct star_Buffer*} the parent buffer
+ * @param startIdx {size_t} the index in the parent buffer to start at
+ * @param length {size_t} the length of the subbuffer
+ */
+struct star_Buffer* star_BufferView_new(
+    struct star_Allocator* allocator, struct star_Buffer* buffer,
+    size_t startIdx, size_t length);
+
+/**
+ * Destroys a BufferView.
+ * Note that this will not free the samples array,
+ * since it is a shared object borrowed from another Buffer.
+ *
+ * @param allocator {struct star_Allocator*} the allocator to use
+ * @param self {struct star_Buffer*} the subbuffer to destroy
+ */
+void star_BufferView_destroy(struct star_Allocator* allocator,
+    struct star_Buffer* self);
 
 
 float_array_ptr star_AudioBlock_new(struct star_Allocator* allocator,
