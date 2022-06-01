@@ -260,10 +260,9 @@ struct star_Buffer* star_BufferView_new(
     struct star_Buffer* self = (struct star_Buffer*) star_Allocator_malloc(allocator, sizeof(struct star_Buffer));
 
     // TODO: Need to signal an error rather than
-    // just returning the parent buffer's samples and a length of zero.
-    // Or is the zero length sufficient for this purpose?
-    if (startIdx < 0 || length >= (buffer->length - startIdx)) {
-        self->samples = buffer->samples;
+    // just returning a null pointer and a length of zero.
+    if (startIdx < 0 || length > (buffer->length - startIdx)) {
+        self->samples = NULL;
         self->length = 0;
     } else {
         self->samples = FLOAT_ARRAY(buffer->samples) + startIdx;
@@ -1251,7 +1250,7 @@ void star_sig_ClockFreqDetector_generate(void* signal) {
     float sampleRate = self->signal.audioSettings->sampleRate;
     float threshold = self->parameters.threshold;
     float timeoutDuration = self->parameters.timeoutDuration;
-    float pulseDurSamples = self->pulseDurSamples;
+    uint32_t pulseDurSamples = self->pulseDurSamples;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
         samplesSinceLastPulse++;
@@ -1276,9 +1275,7 @@ void star_sig_ClockFreqDetector_generate(void* signal) {
             isRisingEdge = false;
         } else if (samplesSinceLastPulse > sampleRate * timeoutDuration) {
             // It's been too long since we've received a pulse.
-            // Just reset everything.
             clockFreq = 0.0f;
-            samplesSinceLastPulse = 0;
         } else if (samplesSinceLastPulse > pulseDurSamples) {
             // Tempo is slowing down; recalculate it.
             clockFreq = star_sig_ClockFreqDetector_calcClockFreq(

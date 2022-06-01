@@ -5,7 +5,7 @@
 #include <stdlib.h> // TODO: Remove when a custom RNG is implemented.
 
 #define FLOAT_EPSILON powf(2, -23)
-#define HEAP_SIZE 1048576 // 1 MB
+#define HEAP_SIZE 26214400 // 25 MB
 #define BLOCK_SIZE 64
 
 /**
@@ -722,7 +722,7 @@ void WaveformPlayer_destroy(struct star_test_BufferPlayer* player) {
 }
 
 // TODO: Generalize this into a test utility.
-void generateClockDetector(struct star_test_BufferPlayer* clockPlayer,
+void runClockDetector(struct star_test_BufferPlayer* clockPlayer,
     struct star_sig_ClockFreqDetector* det, float duration) {
     size_t numBlocks = (size_t) duration *
         (audioSettings->sampleRate / audioSettings->blockSize);
@@ -733,13 +733,8 @@ void generateClockDetector(struct star_test_BufferPlayer* clockPlayer,
     }
 }
 
-void testClockDetector(star_waveform_generator waveform, float clockFreq) {
-    float bufferDuration = 2.0f;
-
-    struct star_test_BufferPlayer* clockPlayer =
-        WaveformPlayer_new(waveform, audioSettings->sampleRate, clockFreq,
-            bufferDuration);
-
+void testClockDetector(struct star_test_BufferPlayer* clockPlayer,
+    float duration, float expectedFreq) {
     struct star_sig_ClockFreqDetector_Inputs inputs = {
         .source = clockPlayer->signal.output
     };
@@ -747,25 +742,96 @@ void testClockDetector(star_waveform_generator waveform, float clockFreq) {
     struct star_sig_ClockFreqDetector* det = star_sig_ClockFreqDetector_new(
         &allocator, audioSettings, &inputs);
 
-    generateClockDetector(clockPlayer, det, bufferDuration);
+    runClockDetector(clockPlayer, det, duration);
 
-    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.0001,
-        clockFreq,
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.0002,
+        expectedFreq,
         FLOAT_ARRAY(det->signal.output)[0],
         "The clock's frequency should have been detected correctly.");
 
-    WaveformPlayer_destroy(clockPlayer);
     star_sig_ClockFreqDetector_destroy(&allocator, det);
 }
 
+void testClockDetector_SingleWaveform(star_waveform_generator waveform,
+    float bufferDuration, float clockFreq) {
+    struct star_test_BufferPlayer* clockPlayer =
+        WaveformPlayer_new(waveform, audioSettings->sampleRate,
+            clockFreq, bufferDuration);
+
+    testClockDetector(clockPlayer, bufferDuration, clockFreq);
+
+    WaveformPlayer_destroy(clockPlayer);
+}
+
 void test_star_sig_ClockFreqDetector_square() {
-    // Square wave, 2Hz.
-    testClockDetector(star_waveform_square, 2.0f);
+    // Square wave, 2Hz for two seconds.
+    testClockDetector_SingleWaveform(star_waveform_square, 2.0f, 2.0f);
 }
 
 void test_star_sig_ClockFreqDetector_sine() {
     // Sine wave, 10 Hz.
-    testClockDetector(star_waveform_sine, 10.0f);
+    testClockDetector_SingleWaveform(star_waveform_sine, 2.0f, 10.0f);
+}
+
+void test_star_sig_ClockFreqDetector_slowDown() {
+    float bufferDuration = 2.0f;
+    size_t bufferLen = (size_t) audioSettings->sampleRate * bufferDuration;
+    size_t halfBufferLen = bufferLen / 2;
+    float fastSpeed = 10.0f;
+    float slowSpeed = 2.0f;
+
+    struct star_Buffer* waveformBuffer = star_Buffer_new(&allocator, bufferLen);
+
+    struct star_Buffer* fastSection = star_BufferView_new(&allocator,
+        waveformBuffer, 0, halfBufferLen);
+    star_Buffer_fillWithWaveform(fastSection, star_waveform_square,
+        audioSettings->sampleRate, 0.0f, fastSpeed);
+
+    struct star_Buffer* slowSection = star_BufferView_new(&allocator,
+        waveformBuffer, halfBufferLen, halfBufferLen);
+    star_Buffer_fillWithWaveform(slowSection, star_waveform_square,
+        audioSettings->sampleRate, 0.0f, slowSpeed);
+
+    struct star_test_BufferPlayer* clockPlayer = star_test_BufferPlayer_new(
+        &allocator, audioSettings, waveformBuffer);
+
+    testClockDetector(clockPlayer, bufferDuration, slowSpeed);
+
+    star_BufferView_destroy(&allocator, fastSection);
+    star_BufferView_destroy(&allocator, slowSection);
+    star_Buffer_destroy(&allocator, waveformBuffer);
+    star_test_BufferPlayer_destroy(&allocator, clockPlayer);
+}
+
+void test_star_sig_ClockFreqDetector_stop() {
+    float bufferDuration = 122.0f;
+    float clockDuration = 1.0f;
+    size_t bufferLen = (size_t) audioSettings->sampleRate * bufferDuration;
+    size_t clockSectionLen = (size_t) audioSettings->sampleRate * clockDuration;
+    size_t silentSectionLen = (size_t)
+        audioSettings->sampleRate * (bufferDuration - clockDuration);
+    float clockFreq = 10.0f;
+
+    struct star_Buffer* waveformBuffer = star_Buffer_new(&allocator, bufferLen);
+
+    struct star_Buffer* clockSection = star_BufferView_new(&allocator,
+        waveformBuffer, 0, clockSectionLen);
+    star_Buffer_fillWithWaveform(clockSection, star_waveform_square,
+        audioSettings->sampleRate, 0.0f, clockFreq);
+
+    struct star_Buffer* silentSection = star_BufferView_new(&allocator,
+        waveformBuffer, clockSectionLen, silentSectionLen);
+    star_Buffer_fillWithSilence(silentSection);
+
+    struct star_test_BufferPlayer* clockPlayer = star_test_BufferPlayer_new(
+        &allocator, audioSettings, waveformBuffer);
+
+    testClockDetector(clockPlayer, bufferDuration, 0.0f);
+
+    star_BufferView_destroy(&allocator, silentSection);
+    star_BufferView_destroy(&allocator, clockSection);
+    star_test_BufferPlayer_destroy(&allocator, clockPlayer);
+    star_Buffer_destroy(&allocator, waveformBuffer);
 }
 
 int main(void) {
@@ -792,6 +858,8 @@ int main(void) {
     RUN_TEST(test_star_sig_Dust);
     RUN_TEST(test_star_sig_ClockFreqDetector_square);
     RUN_TEST(test_star_sig_ClockFreqDetector_sine);
+    RUN_TEST(test_star_sig_ClockFreqDetector_slowDown);
+    RUN_TEST(test_star_sig_ClockFreqDetector_stop);
 
     return UNITY_END();
 }
