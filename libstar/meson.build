@@ -13,6 +13,7 @@ source_files = [
 ]
 
 test_files = [
+    'tests'/'util'/'buffer-test-utils.c',
     'tests'/'test-libstar.c'
 ]
 
@@ -101,6 +102,7 @@ test('all_tests',
     executable(
         'run_tests',
         files(test_files),
+        include_directories: 'tests'/'util'/'include',
         dependencies: [libstar_dep, unity_dep],
         install: false,
         link_args: '-lm'

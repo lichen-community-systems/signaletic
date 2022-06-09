@@ -184,6 +184,14 @@ void star_AudioSettings_destroy(struct star_Allocator* allocator,
     star_Allocator_free(allocator, self);
 }
 
+// TODO: Unit tests.
+size_t star_secondsToSamples(struct star_AudioSettings* audioSettings,
+    float duration) {
+    float numSamplesF = audioSettings->sampleRate * duration;
+    long rounded = lroundf(numSamplesF);
+    return (size_t) labs(rounded);
+}
+
 
 float_array_ptr star_samples_new(struct star_Allocator* allocator,
     size_t length) {
@@ -1118,6 +1126,7 @@ void star_sig_TimedGate_init(struct star_sig_TimedGate* self,
     self->inputs = inputs;
     self->parameters = parameters;
     self->previousTrigger = 0.0f;
+    self->previousDuration = 0.0f;
     self->gateValue = 0.0f;
     self->durationSamps = 0;
     self->samplesRemaining = 0;
@@ -1166,8 +1175,6 @@ void star_sig_TimedGate_generate(void* signal) {
                 self->previousDuration = duration;
             }
 
-            self->samplesRemaining = self->durationSamps;
-
             if (self->parameters.resetOnTrigger > 0.0f &&
                 self->samplesRemaining > 0) {
                 // Gate is open and needs to be reset.
@@ -1175,7 +1182,9 @@ void star_sig_TimedGate_generate(void* signal) {
                 // and don't count down the duration
                 // until next time.
                 star_sig_TimedGate_outputLow(self, i);
+                self->samplesRemaining = self->durationSamps;
             } else {
+                self->samplesRemaining = self->durationSamps;
                 star_sig_TimedGate_outputHigh(self, i);
             }
         } else if (self->samplesRemaining > 0) {

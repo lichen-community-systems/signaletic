@@ -290,6 +290,16 @@ static const struct star_AudioSettings star_DEFAULT_AUDIOSETTINGS = {
 
 
 /**
+ * Converts a duration from seconds to number of samples.
+ *
+ * @param audioSettings a pointer to the audio settings
+ * @param duration {float} the duration in seconds
+ * @return {size_t} the duration in number of samples
+ */
+size_t star_secondsToSamples(struct star_AudioSettings* audioSettings,
+    float duration);
+
+/**
  * A realtime-capable memory allocator.
  */
 struct star_Allocator {
@@ -893,10 +903,8 @@ struct star_sig_TimedGate_Inputs {
 /**
  * A triggerable timed gate.
  *
- * This signal will output 1.0 for the specified
- * duration whenever it is triggered.
- *
- * Similar to SuperCollider's Trig1 unit generator.
+ * When triggered, this signal will output a gate that matches the
+ * amplitude and polarity of the trigger, for the specified duration.
  *
  * Inputs:
  *  - duration: the duration (in seconds) to remain open
@@ -905,6 +913,11 @@ struct star_sig_TimedGate_Inputs {
  * Parameters:
  * - resetOnTrigger: when >0, the gate will close and then reopen
  *                   if a trigger is received while the gate is open
+ * - bipolar: when >0, the gate will open when the trigger is
+ *            either positive or negative.
+ *
+ * Output: the gate's amplitude will reflect the value and
+ *         polarity of the trigger
  */
 struct star_sig_TimedGate {
     struct star_sig_Signal signal;

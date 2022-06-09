@@ -3,69 +3,11 @@
 #include <tlsf.h>
 #include <libstar.h>
 #include <stdlib.h> // TODO: Remove when a custom RNG is implemented.
+#include <buffer-test-utils.h>
 
 #define FLOAT_EPSILON powf(2, -23)
 #define HEAP_SIZE 26214400 // 25 MB
 #define BLOCK_SIZE 64
-
-/**
- * A straight-through buffer player with no interpolation
- * or other fancy features. Primarily used for providing deterministic
- * inputs to signals for unit testing.
- *
- * This Signal should always only be for unit tests, so that
- * additional features aren't accidentally added to it that
- * might impact the determinism of the testing environment.
- */
-struct star_test_BufferPlayer {
-    struct star_sig_Signal signal;
-    struct star_Buffer* buffer;
-    size_t currentSample;
-};
-
-void star_test_BufferPlayer_generate(void* signal) {
-    struct star_test_BufferPlayer* self =
-        (struct star_test_BufferPlayer*) signal;
-
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        if (self->currentSample >= self->buffer->length) {
-            // Wrap around to the beginning of the buffer.
-            self->currentSample = 0;
-        }
-
-        FLOAT_ARRAY(self->signal.output)[i] =
-            FLOAT_ARRAY(self->buffer->samples)[self->currentSample];
-        self->currentSample++;
-    }
-}
-
-void star_test_BufferPlayer_init(struct star_test_BufferPlayer* self,
-    struct star_AudioSettings* audioSettings,
-    struct star_Buffer* buffer,
-    float_array_ptr output) {
-    star_sig_Signal_init(self, audioSettings, output,
-        star_test_BufferPlayer_generate);
-    self->buffer = buffer;
-    self->currentSample = 0;
-}
-
-struct star_test_BufferPlayer* star_test_BufferPlayer_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* audioSettings,
-    struct star_Buffer* buffer) {
-    float_array_ptr output = star_AudioBlock_new(allocator, audioSettings);
-    struct star_test_BufferPlayer* self = star_Allocator_malloc(allocator,
-        sizeof(struct star_test_BufferPlayer));
-    star_test_BufferPlayer_init(self, audioSettings, buffer, output);
-
-    return self;
-}
-
-void star_test_BufferPlayer_destroy(struct star_Allocator* allocator,
-    struct star_test_BufferPlayer* self) {
-    star_sig_Signal_destroy(allocator, self);
-}
-
 
 char heap[HEAP_SIZE];
 struct star_Allocator allocator = {
@@ -75,120 +17,6 @@ struct star_Allocator allocator = {
 
 struct star_AudioSettings* audioSettings;
 float* silentBlock;
-
-// TODO: Factor into a test utilities file.
-void testAssertBufferContainsValueOnly(
-    float expectedValue, float* actual, size_t len) {
-    float* expectedArray = (float*) star_Allocator_malloc(&allocator,
-        len * sizeof(float));
-    star_fillWithValue(expectedArray, len, expectedValue);
-    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expectedArray, actual, len);
-    star_Allocator_free(&allocator, expectedArray);
-}
-
-void testAssertBuffersNotEqual(float* first, float* second,
-    size_t len) {
-    size_t numMatches = 0;
-
-    for (size_t i = 0; i < len; i++) {
-        if (first[i] == second[i]) {
-            numMatches++;
-        }
-    }
-
-    TEST_ASSERT_FALSE_MESSAGE(numMatches == len,
-        "All values in both buffers were identical.");
-}
-
-void testAssertBuffersNoValuesEqual(float* first, float* second,
-    size_t len) {
-    int32_t failureIdx = -1;
-
-    for (int32_t i = 0; i < len; i++) {
-        if (first[i] == second[i]) {
-            failureIdx = i;
-            break;
-        }
-    }
-
-    TEST_ASSERT_EQUAL_INT32_MESSAGE(-1, failureIdx,
-        "Value at index was the same in both buffers.");
-}
-
-void testAssertBufferIsSilent(
-    float* buffer, size_t len) {
-    testAssertBufferContainsValueOnly(0.0f, buffer, len);
-}
-
-void testAssertBufferNotSilent(float* buffer, size_t len) {
-    float* silence = star_Allocator_malloc(&allocator,
-        sizeof(float) * len);
-    star_fillWithSilence(silence, len);
-    testAssertBuffersNotEqual(silence, buffer, len);
-}
-
-void testAssertBufferValuesInRange(float* buffer, size_t len,
-    float min, float max) {
-    int32_t failureIdx = -1;
-
-    for (int32_t i = 0; i < len; i++) {
-        if (buffer[i] < min || buffer[i] > max) {
-            failureIdx = i;
-            break;
-        }
-    }
-
-    TEST_ASSERT_EQUAL_INT32_MESSAGE(-1, failureIdx,
-        "Value at index was not within the expected range.");
-}
-
-size_t countNonZeroSamples(float* buffer, size_t len) {
-    size_t numNonZero = 0;
-    for (size_t i = 0; i < len; i++) {
-        if (buffer[i] != 0.0f) {
-            numNonZero++;
-        }
-    }
-    return numNonZero;
-}
-
-int16_t countNonZeroSamplesGenerated(struct star_sig_Signal* signal,
-    int numRuns) {
-    int16_t numNonZero = 0;
-    for (int i = 0; i < numRuns; i++) {
-        signal->generate(signal);
-        numNonZero += countNonZeroSamples(signal->output,
-            signal->audioSettings->blockSize);
-    }
-
-    return numNonZero;
-}
-
-void testAssertBufferContainsNumZeroSamples(float* buffer,
-    size_t len, int16_t expectedNumNonZero) {
-    int16_t numNonZero = countNonZeroSamples(buffer, len);
-    TEST_ASSERT_EQUAL_size_t_MESSAGE(
-        expectedNumNonZero,
-        numNonZero,
-        "An unexpected number of non-zero samples was found.");
-}
-
-void testAssertGeneratedSignalContainsApproxNumNonZeroSamples(
-    struct star_sig_Signal* signal, int16_t expectedNumNonZero,
-    double errorFactor, int numRuns) {
-    double expectedNumNonZeroD = (double) expectedNumNonZero;
-    double errorNumSamps = expectedNumNonZeroD * errorFactor;
-    double high = expectedNumNonZeroD + errorNumSamps;
-    double low = expectedNumNonZeroD - errorNumSamps;
-
-    double avgNumNonZero = (double)
-        countNonZeroSamplesGenerated(signal, numRuns) /
-        (double) numRuns;
-    double actualRoundedAvgNumNonZero = round(avgNumNonZero);
-    TEST_ASSERT_TRUE_MESSAGE(actualRoundedAvgNumNonZero >= low &&
-        actualRoundedAvgNumNonZero <= high,
-        "The actual average number of non-zero samples was not within the expected range.");
-}
 
 void setUp(void) {
     star_Allocator_init(&allocator);
@@ -294,7 +122,7 @@ void test_star_fillWithValue(void) {
 void test_star_fillWithSilence(void) {
     float buffer[16];
     star_fillWithSilence(buffer, 16);
-    testAssertBufferIsSilent(buffer, 16);
+    testAssertBufferIsSilent(&allocator, buffer, 16);
 }
 
 void test_star_AudioSettings_new() {
@@ -312,13 +140,39 @@ void test_star_AudioSettings_new() {
     star_AudioSettings_destroy(&allocator, s);
 }
 
+void test_star_samplesToSeconds() {
+    struct star_AudioSettings* s = star_AudioSettings_new(&allocator);
+
+    size_t expected = 48000;
+    size_t actual = star_secondsToSamples(s, 1.0f);
+    TEST_ASSERT_EQUAL_size_t_MESSAGE(expected, actual,
+        "One second should be the same as the sample rate.");
+
+    expected = 16000;
+    actual = star_secondsToSamples(s, 1.0f/3.0f);
+    TEST_ASSERT_EQUAL_size_t_MESSAGE(expected, actual,
+        "Even division of sample rate should as expected.");
+
+    // Fractional samples should be rounded: 1/7" = 6857.142857142857143 samps
+    expected = 6857;
+    actual = star_secondsToSamples(s, 1.0f/7.0f);
+    TEST_ASSERT_EQUAL_size_t_MESSAGE(expected, actual,
+        "Fractional samples < 0.5 should be rounded down.");
+
+    // 1/11" = 4363.636363636363757 samps
+    expected = 4364;
+    actual = star_secondsToSamples(s, 1.0f/11.0f);
+    TEST_ASSERT_EQUAL_size_t_MESSAGE(expected, actual,
+        "Fractional samples >= 0.5 should be rounded up.");
+}
+
 void test_star_Audio_Block_newWithValue_testForValue(
     struct star_Allocator* alloc,
     struct star_AudioSettings* settings,
     float value) {
     float* actual = star_AudioBlock_newWithValue(alloc,
         settings, value);
-    testAssertBufferContainsValueOnly(value, actual,
+    testAssertBufferContainsValueOnly(&allocator, value, actual,
         settings->blockSize);
     star_Allocator_free(alloc, actual);
 }
@@ -352,10 +206,11 @@ void test_star_Buffer(void) {
 
     float fillVal = 1.0f;
     star_Buffer_fillWithValue(b, fillVal);
-    testAssertBufferContainsValueOnly(fillVal, b->samples, b->length);
+    testAssertBufferContainsValueOnly(&allocator, fillVal, b->samples,
+        b->length);
 
     star_Buffer_fillWithSilence(b);
-    testAssertBufferContainsValueOnly(0.0f, b->samples, b->length);
+    testAssertBufferContainsValueOnly(&allocator, 0.0f, b->samples, b->length);
 
     star_Buffer_destroy(&allocator, b);
 }
@@ -399,13 +254,13 @@ void test_star_sig_Value(void) {
 
     // Output should contain the value parameter.
     value->signal.generate(value);
-    testAssertBufferContainsValueOnly(
+    testAssertBufferContainsValueOnly(&allocator,
         123.45f, value->signal.output, audioSettings->blockSize);
 
     // Output should contain the updated value parameter.
     value->parameters.value = 1.111f;
     value->signal.generate(value);
-    testAssertBufferContainsValueOnly(
+    testAssertBufferContainsValueOnly(&allocator,
         1.111f, value->signal.output, audioSettings->blockSize);
 
     // The lastSample member should have been updated.
@@ -417,7 +272,7 @@ void test_star_sig_Value(void) {
     // the output should continue to contain the value parameter.
     value->signal.generate(value);
     value->signal.generate(value);
-    testAssertBufferContainsValueOnly(
+    testAssertBufferContainsValueOnly(&allocator,
         1.111f, value->signal.output, audioSettings->blockSize);
 
     star_sig_Value_destroy(&allocator, value);
@@ -508,22 +363,22 @@ void test_star_sig_Mul(void) {
         audioSettings, &inputs);
 
     gain->signal.generate(gain);
-    testAssertBufferContainsValueOnly(
+    testAssertBufferContainsValueOnly(&allocator,
         220.0f, gain->signal.output, audioSettings->blockSize);
 
     star_fillWithValue(inputs.left, audioSettings->blockSize, 0.0f);
     gain->signal.generate(gain);
-    testAssertBufferContainsValueOnly(
+    testAssertBufferContainsValueOnly(&allocator,
         0.0f, gain->signal.output, audioSettings->blockSize);
 
     star_fillWithValue(inputs.left, audioSettings->blockSize, 2.0f);
     gain->signal.generate(gain);
-    testAssertBufferContainsValueOnly(
+    testAssertBufferContainsValueOnly(&allocator,
         880.0f, gain->signal.output, audioSettings->blockSize);
 
     star_fillWithValue(inputs.left, audioSettings->blockSize, -1.0f);
     gain->signal.generate(gain);
-    testAssertBufferContainsValueOnly(
+    testAssertBufferContainsValueOnly(&allocator,
         -440.0f, gain->signal.output, audioSettings->blockSize);
 
     star_sig_Mul_destroy(&allocator, gain);
@@ -668,7 +523,7 @@ void testDust(struct star_sig_Dust* dust,
     float min, float max, int16_t expectedNumDustPerBlock) {
     dust->signal.generate(dust);
 
-    testAssertBufferNotSilent(dust->signal.output,
+    testAssertBufferNotSilent(&allocator, dust->signal.output,
         audioSettings->blockSize);
     testAssertBufferValuesInRange(dust->signal.output,
         audioSettings->blockSize, min, max);
@@ -721,18 +576,6 @@ void WaveformPlayer_destroy(struct star_test_BufferPlayer* player) {
     star_test_BufferPlayer_destroy(&allocator, player);
 }
 
-// TODO: Generalize this into a test utility.
-void runClockDetector(struct star_test_BufferPlayer* clockPlayer,
-    struct star_sig_ClockFreqDetector* det, float duration) {
-    size_t numBlocks = (size_t) duration *
-        (audioSettings->sampleRate / audioSettings->blockSize);
-
-    for (size_t i = 0; i < numBlocks; i++) {
-        clockPlayer->signal.generate(clockPlayer);
-        det->signal.generate(det);
-    }
-}
-
 void testClockDetector(struct star_test_BufferPlayer* clockPlayer,
     float duration, float expectedFreq) {
     struct star_sig_ClockFreqDetector_Inputs inputs = {
@@ -742,7 +585,8 @@ void testClockDetector(struct star_test_BufferPlayer* clockPlayer,
     struct star_sig_ClockFreqDetector* det = star_sig_ClockFreqDetector_new(
         &allocator, audioSettings, &inputs);
 
-    runClockDetector(clockPlayer, det, duration);
+    struct star_sig_Signal* signals[2] = {&clockPlayer->signal, &det->signal};
+    evaluateSignals(audioSettings, signals, 2, duration);
 
     TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.0002,
         expectedFreq,
@@ -834,6 +678,178 @@ void test_star_sig_ClockFreqDetector_stop() {
     star_Buffer_destroy(&allocator, waveformBuffer);
 }
 
+void runTimedGate(struct star_test_BufferPlayer* triggerPlayer,
+    struct star_Buffer* recBuffer, float recDuration, float gateDuration,
+    float resetOnTrigger, float bipolar) {
+    struct star_sig_TimedGate_Inputs gateInputs = {
+        .duration = star_AudioBlock_newWithValue(&allocator,
+            audioSettings, gateDuration),
+        .trigger = triggerPlayer->signal.output
+    };
+
+    struct star_sig_TimedGate* timedGate = star_sig_TimedGate_new(
+        &allocator, audioSettings, &gateInputs);
+    timedGate->parameters.resetOnTrigger = resetOnTrigger;
+    timedGate->parameters.bipolar = bipolar;
+
+    struct star_test_BufferRecorder_Inputs recInputs = {
+        .source = timedGate->signal.output
+    };
+
+    struct star_test_BufferRecorder* recorder = star_test_BufferRecorder_new(
+        &allocator, audioSettings, &recInputs, recBuffer);
+
+    struct star_sig_Signal* signals[3] = {
+        &triggerPlayer->signal, &timedGate->signal, &recorder->signal};
+
+    evaluateSignals(audioSettings, signals, 3, recDuration);
+}
+
+
+void test_star_sig_TimedGate_unipolar(void) {
+    float recDuration = 1.0f;
+    float recDurationSamples = star_secondsToSamples(audioSettings,
+        recDuration);
+    float gateDuration = 0.1f;
+    float gateDurationSamples = star_secondsToSamples(audioSettings,
+        gateDuration);
+
+    // One trigger, after 10 samples have elapsed.
+    struct star_Buffer* triggerBuffer = star_Buffer_new(&allocator,
+        recDurationSamples);
+    star_Buffer_fillWithSilence(triggerBuffer);
+    FLOAT_ARRAY(triggerBuffer->samples)[10] = 1.0f;
+    struct star_test_BufferPlayer* triggerPlayer = star_test_BufferPlayer_new(
+        &allocator, audioSettings, triggerBuffer);
+
+    struct star_Buffer* recBuffer = star_Buffer_new(&allocator,
+        recDurationSamples);
+
+    runTimedGate(triggerPlayer, recBuffer, recDuration, gateDuration,
+        0.0f, 0.0f);
+
+    // First 9 samples, prior to the trigger, should be silent.
+    struct star_Buffer* startSection = star_BufferView_new(&allocator,
+        recBuffer, 0, 10);
+    testAssertBufferIsSilent(&allocator,
+        startSection->samples, startSection->length);
+
+    // Gate should be high for the specified duration.
+    struct star_Buffer* gateSection = star_BufferView_new(&allocator,
+        recBuffer, 10, gateDurationSamples);
+    testAssertBufferContainsValueOnly(&allocator, 1.0,
+        gateSection->samples, gateSection->length);
+
+    // All samples after the gate should be silent.
+    size_t endSectionIdx = 10 + gateDurationSamples;
+    struct star_Buffer* endSection = star_BufferView_new(&allocator,
+        recBuffer, endSectionIdx, recBuffer->length - endSectionIdx);
+    testAssertBufferIsSilent(&allocator, endSection->samples,
+        endSection->length);
+}
+
+void test_star_sig_TimedGate_resetOnTrigger(void) {
+    float recDuration = 0.3f;
+    size_t recDurationSamples = star_secondsToSamples(audioSettings,
+        recDuration);
+    float gateDuration = 0.1f;
+    size_t gateDurationSamples = star_secondsToSamples(audioSettings,
+        gateDuration);
+    size_t triggerIndices[2] = {0, (size_t) gateDurationSamples / 2};
+
+    struct star_Buffer* triggerBuffer = star_Buffer_new(&allocator,
+        recDurationSamples);
+    star_Buffer_fillWithSilence(triggerBuffer);
+    FLOAT_ARRAY(triggerBuffer->samples)[triggerIndices[0]] = 1.0f;
+    FLOAT_ARRAY(triggerBuffer->samples)[triggerIndices[1]] = 1.0f;
+
+    struct star_test_BufferPlayer* triggerPlayer = star_test_BufferPlayer_new(
+        &allocator, audioSettings, triggerBuffer);
+
+    struct star_Buffer* recBuffer = star_Buffer_new(&allocator,
+        recDurationSamples);
+
+    runTimedGate(triggerPlayer, recBuffer, recDuration, gateDuration,
+        1.0f, 0.0f);
+
+    // The gate should open right away.
+    // Halfway through the first gate, the signal should drop for one sample
+    // and then reopen, staying high for gateDurationSamples.
+    struct star_Buffer* firstGate = star_BufferView_new(&allocator,
+        recBuffer, 0, triggerIndices[1]);
+
+    testAssertBufferContainsValueOnly(&allocator, 1.0,
+        firstGate->samples, firstGate->length);
+
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(0.0f,
+        FLOAT_ARRAY(recBuffer->samples)[triggerIndices[1]],
+        "When the second trigger fires, the gate should drop to zero for one sample.");
+
+    // The second gate should be high for the full gate duration.
+    size_t secondGateStartIdx = triggerIndices[1] + 1;
+    size_t secondGateLen = gateDurationSamples;
+    struct star_Buffer* secondGate = star_BufferView_new(&allocator,
+        recBuffer, secondGateStartIdx, secondGateLen);
+    testAssertBufferContainsValueOnly(&allocator, 1.0,
+        secondGate->samples, secondGate->length);
+
+    // Afterwards we should have only silence.
+    size_t silenceStartIdx = secondGateStartIdx + secondGateLen;
+    size_t silenceLength = recBuffer->length - silenceStartIdx;
+    struct star_Buffer* silence = star_BufferView_new(&allocator,
+        recBuffer, silenceStartIdx, silenceLength);
+    testAssertBufferIsSilent(&allocator, silence->samples, silence->length);
+}
+
+void test_star_sig_TimedGate_bipolar(void) {
+    float recDuration = 0.3f;
+    size_t recDurationSamples = star_secondsToSamples(audioSettings,
+        recDuration);
+    float gateDuration = 0.1f;
+    size_t gateDurationSamples = star_secondsToSamples(audioSettings,
+        gateDuration);
+
+    struct star_Buffer* triggerBuffer = star_Buffer_new(&allocator,
+        recDurationSamples);
+    star_Buffer_fillWithSilence(triggerBuffer);
+    FLOAT_ARRAY(triggerBuffer->samples)[0] = 0.5f;
+    FLOAT_ARRAY(triggerBuffer->samples)[gateDurationSamples] = -0.5f;
+    FLOAT_ARRAY(triggerBuffer->samples)[gateDurationSamples * 2] = 0.75f;
+
+    struct star_test_BufferPlayer* triggerPlayer = star_test_BufferPlayer_new(
+        &allocator, audioSettings, triggerBuffer);
+
+    struct star_Buffer* recBuffer = star_Buffer_new(&allocator,
+        recDurationSamples);
+
+    runTimedGate(triggerPlayer, recBuffer, recDuration, gateDuration,
+        0.0f, 1.0f);
+
+    // The gate should open right away and be positive,
+    // and match the amplitude of the trigger.
+    struct star_Buffer* firstGate = star_BufferView_new(&allocator,
+        recBuffer, 0, gateDurationSamples);
+    testAssertBufferContainsValueOnly(&allocator, 0.5f,
+        firstGate->samples, firstGate->length);
+
+    // The second gate should be negative and also match the amplitude
+    // of the trigger.
+    size_t secondGateStartIdx = gateDurationSamples;
+    size_t secondGateLen = gateDurationSamples;
+    struct star_Buffer* secondGate = star_BufferView_new(&allocator,
+        recBuffer, secondGateStartIdx, secondGateLen);
+    testAssertBufferContainsValueOnly(&allocator, -0.5f,
+        secondGate->samples, secondGate->length);
+
+    // The third gate should also match the gate value.
+    size_t thirdGateStartIdx = gateDurationSamples * 2;
+    size_t thirdGateLen = gateDurationSamples;
+    struct star_Buffer* thirdGate = star_BufferView_new(&allocator,
+        recBuffer, thirdGateStartIdx, thirdGateLen);
+    testAssertBufferContainsValueOnly(&allocator, 0.75f,
+        thirdGate->samples, thirdGate->length);
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -845,6 +861,7 @@ int main(void) {
     RUN_TEST(test_star_fillWithValue);
     RUN_TEST(test_star_fillWithSilence);
     RUN_TEST(test_star_AudioSettings_new);
+    RUN_TEST(test_star_samplesToSeconds);
     RUN_TEST(test_star_AudioBlock_newWithValue);
     RUN_TEST(test_star_Buffer);
     RUN_TEST(test_star_BufferView);
@@ -860,6 +877,9 @@ int main(void) {
     RUN_TEST(test_star_sig_ClockFreqDetector_sine);
     RUN_TEST(test_star_sig_ClockFreqDetector_slowDown);
     RUN_TEST(test_star_sig_ClockFreqDetector_stop);
+    RUN_TEST(test_star_sig_TimedGate_unipolar);
+    RUN_TEST(test_star_sig_TimedGate_resetOnTrigger);
+    RUN_TEST(test_star_sig_TimedGate_bipolar);
 
     return UNITY_END();
 }
