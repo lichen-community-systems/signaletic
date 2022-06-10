@@ -9,7 +9,7 @@ Signals currently require quite a bit of boilerplate code to implement. This wil
 This section, located in a header file, defines the structure of your signal. It must always contain
 (or "inherit from" if you're OO-minded) a ```star_sig_Signal``` as its first member. It can optionally have a set of inputs, parameters, and any kind of free-form instance state needed.
 
-It's likely in the future that instance state will be moved into more formal container struct, and others will be defined for things like buffers, in order to provider greater lifecycle support and a normalized constructor/initializer signature for all signals.
+It's likely in the future that instance state will be moved into more formal container struct, and other containers will be defined for things like buffers, in order to provide greater lifecycle support and a normalized constructor/initializer signature for all signals.
 
 ```c
 struct star_sig_${SignalName} {
@@ -27,6 +27,8 @@ struct star_sig_${SignalName} {
 
 If your signal will read inputs from other signals, you must define them in an Inputs object. For the moment, all inputs are simply defined as ```float_array_ptr``` types, and are typically pointers directly to the output arrays of other signals.
 
+In the future, inputs will become more complex, since it will be possible to define groups of signals that run at different block sizes yet interconnect them, which will require some additional metadata about how to read an input. Connection objects will also be created to provide a first class representation for a connection between two or more Signals.
+
 ```c
 struct star_sig_${SignalName}_Inputs {
     float_array_ptr ${inputName};
@@ -35,7 +37,7 @@ struct star_sig_${SignalName}_Inputs {
 
 ### Signal Parameters Definition
 
-Parameters are user-mutatable values that are not expected to change at audio rates. They may in the future be part of an Observer system.
+Parameters are user-mutatable values that are not expected to change at audio rates. They may in the future be implemented via an Observer or event system.
 
 ```c
 struct star_sig_${SignalName}_Parameters {
@@ -45,7 +47,7 @@ struct star_sig_${SignalName}_Parameters {
 
 ### Constructor
 
-A signal's constructor is responsible for allocating memory for the signal as well as any owned objects such as its inputs. The constructor should defer to the initializer to assign any state or set default values.
+A signal's constructor is responsible for allocating memory for the signal's struct as well as any owned objects such as its output. The constructor should only allocate memory; it should defer to an initializer function to set up any state or assign default values. This separation between construction (i.e. dynamic memory allocation) and initialization allows Signaletic to be used in an entirely static memory environment, as is common on embedded devices. Signaletic, however, provides a custom memory allocator that is suited to real-time systems.
 
 ```c
 struct star_sig_${SignalName}* star_sig_${SignalName}_new(
@@ -86,7 +88,7 @@ void star_sig_${SignalName}_init(struct star_sig_${SignalName}* self,
 
 ### Generator
 
-The generator function, which has a fixed type signature conforming to the ```star_sig_generateFn``` interface, is where your main sample generation loop is located. Signaletic supports variable block sizes, so it is essential to always read the block size from the signal's ```AudioSettings``` struct when generating samples.
+The generator function, which has a fixed type signature conforming to the ```star_sig_generateFn``` interface, is where your main sample generation loop is located. Signaletic supports configurable block sizes, so it is important to always read the block size from the signal's ```AudioSettings``` struct when generating samples.
 
 Any time you access inputs or outputs (or any other ```float_array_ptr``` array), you'll need to use the ```FLOAT_ARRAY()``` macro to correctly deference it.
 
@@ -106,7 +108,7 @@ void star_sig_${SignalName}_generate(void* signal) {
 
 ### Destructor
 
-The destructor is responsible for freeing all memory allocated by the signal's constructor. It should not deallocator any pointers that were passed in as arguments to the signal's constructor--this is the responsibility of the caller.
+The destructor is responsible for freeing all memory allocated by the signal's constructor. It should not deallocate any pointers that were passed in as arguments to the signal's constructor--this is the responsibility of the caller.
 
 ````c
 void star_sig_${SignalName}_destroy(struct star_Allocator* allocator,

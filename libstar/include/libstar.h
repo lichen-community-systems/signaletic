@@ -118,33 +118,33 @@ uint16_t star_bipolarToInvUint12(float sample);
  * Converts MIDI note numbers into frequencies in hertz.
  * This algorithm assumes A4 = 440 Hz = MIDI note #69.
  *
- * @param midiNum {float} the MIDI note number to convert
- * @return {float} the frequency in Hz of the note number
+ * @param midiNum the MIDI note number to convert
+ * @return the frequency in Hz of the note number
  */
 float star_midiToFreq(float midiNum);
 
 /**
  * Type definition for array fill functions.
  *
- * @param i {size_t} the current index of the array
- * @param array {float_array_ptr} the array being filled
+ * @param i the current index of the array
+ * @param array the array being filled
  */
 typedef float (*star_array_filler)(size_t i, float_array_ptr array);
 
 /**
  * A fill function that returns random floats.
  *
- * @param i {size_t} unused
- * @param array {float_array_ptr} unused
+ * @param i unused
+ * @param array unused
  */
 float star_randomFill(size_t i, float_array_ptr array);
 
 /**
  * Fills an array of floats using the specified filler function.
  *
- * @param array {float_array_ptr} the array to fill
- * @param length {size_t} the lengthg of the array
- * @param filler {star_array_filler} a pointer to a fill function
+ * @param array the array to fill
+ * @param length the lengthg of the array
+ * @param filler a pointer to a fill function
  */
 void star_fill(float_array_ptr array, size_t length,
     star_array_filler filler);
@@ -188,67 +188,67 @@ float star_interpolate_linear(float idx, float_array_ptr table,
  * Based on Laurent De Soras' implementation at:
  * http://www.musicdsp.org/showArchiveComment.php?ArchiveID=93
  *
- * @param idx {float} an index into the table
- * @param table {float*} the table from which values around idx should be drawn and interpolated
- * @param length {size_t} the length of the buffer
- * @return {float} the interpolated value
+ * @param idx an index into the table
+ * @param table the table from which values around idx should be drawn and interpolated
+ * @param length the length of the buffer
+ * @return the interpolated value
  */
 float star_interpolate_cubic(float idx, float_array_ptr table, size_t length);
 
 /**
  * A one pole filter.
  *
- * @param current {float} the current sample (n)
- * @param previous {float} the previous sample (n-1)
- * @param coeff {float} the filter coefficient
+ * @param current the current sample (n)
+ * @param previous the previous sample (n-1)
+ * @param coeff the filter coefficient
  */
 float star_filter_onepole(float current, float previous, float coeff);
 
 /**
  * Type definition for a waveform generator function.
  *
- * @param phase {float} the current phase
- * @return {float} a sample for the current phase of the waveform
+ * @param phase the current phase
+ * @return a sample for the current phase of the waveform
  */
 typedef float (*star_waveform_generator)(float phase);
 
 /**
  * Generates one sample of a sine wave at the specified phase.
  *
- * @param phase {float} the current phase of the oscillator
- * @return {float} the generated sample
+ * @param phase the current phase of the waveform
+ * @return the generated sample
  */
 float star_waveform_sine(float phase);
 
 /**
  * Generates one sample of a square wave at the specified phase.
  *
- * @param phase {float} the current phase of the oscillator
- * @return {float} the generated sample
+ * @param phase the current phase of the waveform
+ * @return the generated sample
  */
 float star_waveform_square(float phase);
 
 /**
  * Generates one sample of a saw wave at the specified phase.
  *
- * @param phase {float} the current phase of the oscillator
- * @return {float} the generated sample
+ * @param phase the current phase of the waveform
+ * @return the generated sample
  */
 float star_waveform_saw(float phase);
 
 /**
  * Generates one sample of a reverse saw wave at the specified phase.
  *
- * @param phase {float} the current phase of the oscillator
- * @return {float} the generated sample
+ * @param phase the current phase of the waveform
+ * @return the generated sample
  */
 float star_waveform_reverseSaw(float phase);
 
 /**
  * Generates one sample of a triangle wave at the specified phase.
  *
- * @param phase {float} the current phase of the oscillator
- * @return {float} the generated sample
+ * @param phase the current phase of the waveform
+ * @return the generated sample
  */
 float star_waveform_triangle(float phase);
 
@@ -293,8 +293,8 @@ static const struct star_AudioSettings star_DEFAULT_AUDIOSETTINGS = {
  * Converts a duration from seconds to number of samples.
  *
  * @param audioSettings a pointer to the audio settings
- * @param duration {float} the duration in seconds
- * @return {size_t} the duration in number of samples
+ * @param duration the duration in seconds
+ * @return the duration in number of samples
  */
 size_t star_secondsToSamples(struct star_AudioSettings* audioSettings,
     float duration);
@@ -356,8 +356,8 @@ struct star_Buffer* star_Buffer_new(struct star_Allocator* allocator,
 /**
  * Fills a buffer using the specified array fill function.
  *
- * @param self {struct star_Buffer*} the buffer to fill
- * @param filler {star_array_filler} a pointer to an array filler
+ * @param self the buffer to fill
+ * @param filler a pointer to an array filler
  */
 void star_Buffer_fill(struct star_Buffer* self, star_array_filler filler);
 
@@ -407,10 +407,10 @@ void star_Buffer_destroy(struct star_Allocator* allocator, struct star_Buffer* s
  * Be aware that destroying the parent buffer will
  * invalidate any BufferViews that have been created from it.
  *
- * @param allocator {struct star_Allocator*} the allocator to use
- * @param buffer {struct star_Buffer*} the parent buffer
- * @param startIdx {size_t} the index in the parent buffer to start at
- * @param length {size_t} the length of the subbuffer
+ * @param allocator the allocator to use
+ * @param buffer the parent buffer
+ * @param startIdx the index in the parent buffer to start at
+ * @param length the length of the subbuffer
  */
 struct star_Buffer* star_BufferView_new(
     struct star_Allocator* allocator, struct star_Buffer* buffer,
@@ -421,8 +421,8 @@ struct star_Buffer* star_BufferView_new(
  * Note that this will not free the samples array,
  * since it is a shared object borrowed from another Buffer.
  *
- * @param allocator {struct star_Allocator*} the allocator to use
- * @param self {struct star_Buffer*} the subbuffer to destroy
+ * @param allocator the allocator to use
+ * @param self the subbuffer to destroy
  */
 void star_BufferView_destroy(struct star_Allocator* allocator,
     struct star_Buffer* self);
@@ -914,7 +914,8 @@ struct star_sig_TimedGate_Inputs {
  * - resetOnTrigger: when >0, the gate will close and then reopen
  *                   if a trigger is received while the gate is open
  * - bipolar: when >0, the gate will open when the trigger is
- *            either positive or negative.
+ *            either positive or negative. Otherwise only positive
+ *            zero-crossings will cause the gate to open.
  *
  * Output: the gate's amplitude will reflect the value and
  *         polarity of the trigger
