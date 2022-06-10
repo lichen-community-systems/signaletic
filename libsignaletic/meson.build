@@ -25,7 +25,7 @@ libsig_library = static_library(
     link_args: '-lm'
 )
 
-libsig_dep = declare_dependency(
+libsignaletic_dep = declare_dependency(
     include_directories: headers,
     link_with: libsig_library
 )
@@ -40,7 +40,7 @@ if host_machine.system() == 'emscripten'
         [
             'wasm'/'bindings'/'src'/'libsignaletic-web-wrapper.cpp'
         ],
-        dependencies: [libsig_dep],
+        dependencies: [libsignaletic_dep],
         link_args: [
             '--no-entry',
             '--post-js', '..'/'bindings'/'libsignaletic-web-bindings.js'
@@ -52,7 +52,7 @@ if host_machine.system() == 'emscripten'
         [
             'wasm'/'bindings'/'src'/'libsignaletic-web-wrapper.cpp'
         ],
-        dependencies: [libsig_dep],
+        dependencies: [libsignaletic_dep],
         link_args: [
             '--no-entry',
             '-s', 'ENVIRONMENT=shell',
@@ -66,7 +66,7 @@ if host_machine.system() == 'emscripten'
         [
             'wasm'/'bindings'/'src'/'libsignaletic-web-wrapper.cpp'
         ],
-        dependencies: [libsig_dep],
+        dependencies: [libsignaletic_dep],
         link_args: [
             '--no-entry',
             '-s', 'ENVIRONMENT=shell',
@@ -81,7 +81,7 @@ endif
 executable(
     'libsignaletic-console-example',
     'examples'/'console'/'src'/'print-sine.c',
-    dependencies: [libsig_dep],
+    dependencies: [libsignaletic_dep],
     link_args: '-lm'
 )
 
@@ -103,7 +103,7 @@ test('all_tests',
         'run_tests',
         files(test_files),
         include_directories: 'tests'/'util'/'include',
-        dependencies: [libsig_dep, unity_dep],
+        dependencies: [libsignaletic_dep, unity_dep],
         install: false,
         link_args: '-lm'
     )
