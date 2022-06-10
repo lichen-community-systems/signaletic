@@ -1,6 +1,6 @@
 {
     "files.associations": {
-        "libstar.h": "c",
+        "libsignaletic.h": "c",
         "tlsf.h": "c",
         "stddef.h": "c"
     }

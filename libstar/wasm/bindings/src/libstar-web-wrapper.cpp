@@ -1,4 +1,4 @@
 #include <stddef.h>
-#include <libstar.h>
-#include "libstar-web.cpp"
-#include "../../../build/bindings/libstar-web-bindings.cpp"
+#include <libsignaletic.h>
+#include "libsignaletic-web.cpp"
+#include "../../../build/bindings/libsignaletic-web-bindings.cpp"

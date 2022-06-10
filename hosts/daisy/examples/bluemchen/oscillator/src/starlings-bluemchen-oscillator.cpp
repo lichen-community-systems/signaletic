@@ -1,6 +1,6 @@
 #include "../../vendor/kxmx_bluemchen/src/kxmx_bluemchen.h"
 #include <tlsf.h>
-#include <libstar.h>
+#include <libsignaletic.h>
 #include <string>
 
 using namespace kxmx;
@@ -15,16 +15,16 @@ FixedCapStr<20> displayStr;
 
 #define HEAP_SIZE 1024 * 256 // 256KB
 char heap[HEAP_SIZE];
-struct star_Allocator allocator = {
+struct sig_Allocator allocator = {
     .heapSize = HEAP_SIZE,
     .heap = (void*) heap
 };
 
-struct star_sig_Value* freqMod;
-struct star_sig_Value* ampMod;
-struct star_sig_Sine* carrier;
-struct star_sig_Value* gainValue;
-struct star_sig_BinaryOp* gain;
+struct sig_dsp_Value* freqMod;
+struct sig_dsp_Value* ampMod;
+struct sig_dsp_Sine* carrier;
+struct sig_dsp_Value* gainValue;
+struct sig_dsp_BinaryOp* gain;
 
 void UpdateOled() {
     bluemchen.display.Fill(false);
@@ -64,7 +64,7 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
     // Host-provided Signal (gh-22).
     gainValue->parameters.value = knob1.Value();
     ampMod->parameters.value = cv1.Value();
-    freqMod->parameters.value = star_midiToFreq(cv2.Value());
+    freqMod->parameters.value = sig_midiToFreq(cv2.Value());
 
     // Evaluate the signal graph.
     ampMod->signal.generate(ampMod);
@@ -92,9 +92,9 @@ void initControls() {
 
 int main(void) {
     bluemchen.Init();
-    star_Allocator_init(&allocator);
+    sig_Allocator_init(&allocator);
 
-    struct star_AudioSettings audioSettings = {
+    struct sig_AudioSettings audioSettings = {
         .sampleRate = bluemchen.AudioSampleRate(),
         .numChannels = 1,
         .blockSize = 1
@@ -105,35 +105,35 @@ int main(void) {
     initControls();
 
     /** Modulators **/
-    freqMod = star_sig_Value_new(&allocator, &audioSettings);
+    freqMod = sig_dsp_Value_new(&allocator, &audioSettings);
     freqMod->parameters.value = 440.0f;
-    ampMod = star_sig_Value_new(&allocator, &audioSettings);
+    ampMod = sig_dsp_Value_new(&allocator, &audioSettings);
     ampMod->parameters.value = 1.0f;
 
     /** Carrier **/
-    struct star_sig_Sine_Inputs carrierInputs = {
+    struct sig_dsp_Sine_Inputs carrierInputs = {
         .freq = freqMod->signal.output,
-        .phaseOffset = star_AudioBlock_newWithValue(&allocator,
+        .phaseOffset = sig_AudioBlock_newWithValue(&allocator,
             &audioSettings, 0.0f),
         .mul = ampMod->signal.output,
-        .add = star_AudioBlock_newWithValue(&allocator,
+        .add = sig_AudioBlock_newWithValue(&allocator,
             &audioSettings, 0.0f),
     };
 
-    carrier = star_sig_Sine_new(&allocator, &audioSettings,
+    carrier = sig_dsp_Sine_new(&allocator, &audioSettings,
         &carrierInputs);
 
     /** Gain **/
     // Bluemchen's output circuit clips as it approaches full gain,
     // so 0.85 seems to be around the practical maximum value.
-    gainValue = star_sig_Value_new(&allocator, &audioSettings);
+    gainValue = sig_dsp_Value_new(&allocator, &audioSettings);
     gainValue->parameters.value = 0.85f;
 
-    struct star_sig_BinaryOp_Inputs gainInputs = {
+    struct sig_dsp_BinaryOp_Inputs gainInputs = {
         .left = carrier->signal.output,
         .right = gainValue->signal.output
     };
-    gain = star_sig_Mul_new(&allocator, &audioSettings,
+    gain = sig_dsp_Mul_new(&allocator, &audioSettings,
         &gainInputs);
 
     bluemchen.StartAudio(AudioCallback);

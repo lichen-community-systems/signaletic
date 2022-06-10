@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <title>midiToFreq - libstar wasm example</title>
+        <title>midiToFreq - libsignaletic wasm example</title>
         <script src="https://g200kg.github.io/webaudio-controls/webaudio-controls.js"></script>
     </head>
 
@@ -21,13 +21,13 @@
             }
             var Module = {
                 onRuntimeInitialized: function() {
-                    star = new Module.Starlings();
+                    star = new Module.Signaletic();
 
                     var keyboard = document.getElementById("keyboard");
                     keyboard.addEventListener("change", onNoteChanged);
                 }
             };
         </script>
-        <script src="../../../../libstar/build/wasm/libstar.js"></script>
+        <script src="../../../../libsignaletic/build/wasm/libsignaletic.js"></script>
     </body>
 </html>

@@ -1,4 +1,4 @@
-let star = new Module.Starlings();
+let star = new Module.Signaletic();
 
 star.TYPED_VIEWS = {
     "int8": "Int8Array",

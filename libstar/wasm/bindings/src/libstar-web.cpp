@@ -1,7 +1,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <libstar.h>
+#include <libsignaletic.h>
 
 /**
  * Creates a new Allocator and heap of the specified size,
@@ -10,13 +10,13 @@
  * @param size the size in bytes of the Allocator's heap
  * @return a pointer to the new Allocator
  */
-struct star_Allocator* star_Allocator_new(size_t heapSize) {
+struct sig_Allocator* sig_Allocator_new(size_t heapSize) {
     char* heap = (char *) malloc(heapSize);
-    struct star_Allocator* allocator = (struct star_Allocator*)
-        malloc(sizeof(struct star_Allocator));
+    struct sig_Allocator* allocator = (struct sig_Allocator*)
+        malloc(sizeof(struct sig_Allocator));
     allocator->heapSize = heapSize;
     allocator->heap = (void *) heap;
-    star_Allocator_init(allocator);
+    sig_Allocator_init(allocator);
 
     return allocator;
 }
@@ -27,29 +27,29 @@ struct star_Allocator* star_Allocator_new(size_t heapSize) {
  *
  * @param allocator the Allocator instance to destroy
  */
-void star_Allocator_destroy(struct star_Allocator* allocator) {
+void sig_Allocator_destroy(struct sig_Allocator* allocator) {
     free(allocator->heap);
     free(allocator);
 }
 
 class Signals {
 public:
-    struct star_sig_Value* Value_new(
-        struct star_Allocator* allocator,
-        struct star_AudioSettings* audioSettings) {
-        return star_sig_Value_new(allocator, audioSettings);
+    struct sig_dsp_Value* Value_new(
+        struct sig_Allocator* allocator,
+        struct sig_AudioSettings* audioSettings) {
+        return sig_dsp_Value_new(allocator, audioSettings);
     }
 
-    void Value_destroy(struct star_Allocator* allocator,
-        struct star_sig_Value* self) {
-        return star_sig_Value_destroy(allocator, self);
+    void Value_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_Value* self) {
+        return sig_dsp_Value_destroy(allocator, self);
     }
 
     // TODO: Address duplication with other Input_new functions.
-    struct star_sig_BinaryOp_Inputs* BinaryOp_Inputs_new(
-        struct star_Allocator* allocator,
+    struct sig_dsp_BinaryOp_Inputs* BinaryOp_Inputs_new(
+        struct sig_Allocator* allocator,
         float_array_ptr left, float_array_ptr right) {
-        struct star_sig_BinaryOp_Inputs* inputs = (struct star_sig_BinaryOp_Inputs*) star_Allocator_malloc(allocator, sizeof(star_sig_BinaryOp_Inputs));
+        struct sig_dsp_BinaryOp_Inputs* inputs = (struct sig_dsp_BinaryOp_Inputs*) sig_Allocator_malloc(allocator, sizeof(sig_dsp_BinaryOp_Inputs));
 
         inputs->left = left;
         inputs->right = right;
@@ -57,68 +57,68 @@ public:
         return inputs;
     }
 
-    void BinaryOp_Inputs_destroy(struct star_Allocator* allocator,
-        struct star_sig_BinaryOp_Inputs* self) {
-        star_Allocator_free(allocator, self);
+    void BinaryOp_Inputs_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_BinaryOp_Inputs* self) {
+        sig_Allocator_free(allocator, self);
     }
 
-    struct star_sig_BinaryOp* Add_new(struct star_Allocator* allocator,
-        struct star_AudioSettings* audioSettings,
-        struct star_sig_BinaryOp_Inputs* inputs) {
-        return star_sig_Add_new(allocator, audioSettings,
+    struct sig_dsp_BinaryOp* Add_new(struct sig_Allocator* allocator,
+        struct sig_AudioSettings* audioSettings,
+        struct sig_dsp_BinaryOp_Inputs* inputs) {
+        return sig_dsp_Add_new(allocator, audioSettings,
             inputs);
     }
 
-    void Add_destroy(struct star_Allocator* allocator,
-        struct star_sig_BinaryOp* self) {
-        return star_sig_Add_destroy(allocator, self);
+    void Add_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_BinaryOp* self) {
+        return sig_dsp_Add_destroy(allocator, self);
     }
 
-    struct star_sig_BinaryOp* Mul_new(struct star_Allocator* allocator,
-        struct star_AudioSettings* audioSettings,
-        struct star_sig_BinaryOp_Inputs* inputs) {
-        return star_sig_Mul_new(allocator, audioSettings,
+    struct sig_dsp_BinaryOp* Mul_new(struct sig_Allocator* allocator,
+        struct sig_AudioSettings* audioSettings,
+        struct sig_dsp_BinaryOp_Inputs* inputs) {
+        return sig_dsp_Mul_new(allocator, audioSettings,
             inputs);
     }
 
-    void Mul_destroy(struct star_Allocator* allocator,
-        struct star_sig_BinaryOp* self) {
-        return star_sig_Mul_destroy(allocator, self);
+    void Mul_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_BinaryOp* self) {
+        return sig_dsp_Mul_destroy(allocator, self);
     }
 
-    struct star_sig_BinaryOp* Div_new(struct star_Allocator* allocator,
-        struct star_AudioSettings* audioSettings,
-        struct star_sig_BinaryOp_Inputs* inputs) {
-        return star_sig_Div_new(allocator, audioSettings,
+    struct sig_dsp_BinaryOp* Div_new(struct sig_Allocator* allocator,
+        struct sig_AudioSettings* audioSettings,
+        struct sig_dsp_BinaryOp_Inputs* inputs) {
+        return sig_dsp_Div_new(allocator, audioSettings,
             inputs);
     }
 
-    void Div_destroy(struct star_Allocator* allocator,
-        struct star_sig_BinaryOp* self) {
-        return star_sig_Div_destroy(allocator, self);
+    void Div_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_BinaryOp* self) {
+        return sig_dsp_Div_destroy(allocator, self);
     }
 
-    struct star_sig_Sine* Sine_new(struct star_Allocator* allocator,
-        struct star_AudioSettings* audioSettings,
-        struct star_sig_Sine_Inputs* inputs) {
-        return star_sig_Sine_new(allocator, audioSettings,
+    struct sig_dsp_Sine* Sine_new(struct sig_Allocator* allocator,
+        struct sig_AudioSettings* audioSettings,
+        struct sig_dsp_Sine_Inputs* inputs) {
+        return sig_dsp_Sine_new(allocator, audioSettings,
             inputs);
     }
 
-    void Sine_destroy(struct star_Allocator* allocator,
-        struct star_sig_Sine* self) {
-        return star_sig_Sine_destroy(allocator, self);
+    void Sine_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_Sine* self) {
+        return sig_dsp_Sine_destroy(allocator, self);
     }
 
     // TODO: Should some version of this go directly into
     // libsignaletic, or is the only purpose of this function to
-    // provide a means for creating star_sig_Sine_Input objects
+    // provide a means for creating sig_dsp_Sine_Input objects
     // from JavaScript?
-    struct star_sig_Sine_Inputs* Sine_Inputs_new(
-        struct star_Allocator* allocator,
+    struct sig_dsp_Sine_Inputs* Sine_Inputs_new(
+        struct sig_Allocator* allocator,
         float_array_ptr freq, float_array_ptr phaseOffset,
         float_array_ptr mul, float_array_ptr add) {
-        struct star_sig_Sine_Inputs* inputs = (struct star_sig_Sine_Inputs*) star_Allocator_malloc(allocator, sizeof(star_sig_Sine_Inputs));
+        struct sig_dsp_Sine_Inputs* inputs = (struct sig_dsp_Sine_Inputs*) sig_Allocator_malloc(allocator, sizeof(sig_dsp_Sine_Inputs));
 
         inputs->freq = freq;
         inputs->phaseOffset = phaseOffset;
@@ -128,169 +128,169 @@ public:
         return inputs;
     }
 
-    void Sine_Inputs_destroy(struct star_Allocator* allocator,
-        struct star_sig_Sine_Inputs* self) {
-        star_Allocator_free(allocator, self);
+    void Sine_Inputs_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_Sine_Inputs* self) {
+        sig_Allocator_free(allocator, self);
     }
 
 
-    struct star_sig_ClockFreqDetector* ClockFreqDetector_new(
-        struct star_Allocator* allocator,
-        struct star_AudioSettings* audioSettings,
-        struct star_sig_ClockFreqDetector_Inputs* inputs) {
-        return star_sig_ClockFreqDetector_new(allocator, audioSettings, inputs);
+    struct sig_dsp_ClockFreqDetector* ClockFreqDetector_new(
+        struct sig_Allocator* allocator,
+        struct sig_AudioSettings* audioSettings,
+        struct sig_dsp_ClockFreqDetector_Inputs* inputs) {
+        return sig_dsp_ClockFreqDetector_new(allocator, audioSettings, inputs);
     }
 
-    void ClockFreqDetector_destroy(struct star_Allocator* allocator,
-        struct star_sig_ClockFreqDetector* self) {
-        return star_sig_ClockFreqDetector_destroy(allocator, self);
+    void ClockFreqDetector_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_ClockFreqDetector* self) {
+        return sig_dsp_ClockFreqDetector_destroy(allocator, self);
     }
 
-    struct star_sig_ClockFreqDetector_Inputs* ClockFreqDetector_Inputs_new(
-        struct star_Allocator* allocator, float_array_ptr source) {
-        struct star_sig_ClockFreqDetector_Inputs* inputs = (struct star_sig_ClockFreqDetector_Inputs*) star_Allocator_malloc(allocator, sizeof(star_sig_ClockFreqDetector_Inputs));
+    struct sig_dsp_ClockFreqDetector_Inputs* ClockFreqDetector_Inputs_new(
+        struct sig_Allocator* allocator, float_array_ptr source) {
+        struct sig_dsp_ClockFreqDetector_Inputs* inputs = (struct sig_dsp_ClockFreqDetector_Inputs*) sig_Allocator_malloc(allocator, sizeof(sig_dsp_ClockFreqDetector_Inputs));
         inputs->source = source;
 
         return inputs;
     }
 
-    void ClockFreqDetector_Inputs_destroy(struct star_Allocator* allocator,
-        struct star_sig_ClockFreqDetector_Inputs* self) {
-        star_Allocator_free(allocator, self);
+    void ClockFreqDetector_Inputs_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_ClockFreqDetector_Inputs* self) {
+        sig_Allocator_free(allocator, self);
     }
 };
 
-class Starlings {
+class Signaletic {
 public:
 
-    const float PI = star_PI;
-    const float TWOPI = star_PI;
+    const float PI = sig_PI;
+    const float TWOPI = sig_PI;
 
     // TODO: How do we expose DEFAULT_AUDIO_SETTINGS
     // here as a pointer?
 
     Signals sig;
 
-    Starlings() {}
+    Signaletic() {}
 
     float fminf(float a, float b) {
-        return star_fminf(a, b);
+        return sig_fminf(a, b);
     }
 
     float fmaxf(float a, float b) {
-        return star_fmaxf(a, b);
+        return sig_fmaxf(a, b);
     }
     float clamp(float value, float min, float max) {
-        return star_clamp(value, min, max);
+        return sig_clamp(value, min, max);
     }
 
     float midiToFreq(float midiNum) {
-        return star_midiToFreq(midiNum);
+        return sig_midiToFreq(midiNum);
     }
 
     void fillWithValue(float_array_ptr array, size_t length,
         float value) {
-        return star_fillWithValue(array, length, value);
+        return sig_fillWithValue(array, length, value);
     }
 
     void fillWithSilence(float_array_ptr array, size_t length) {
-        return star_fillWithSilence(array, length);
+        return sig_fillWithSilence(array, length);
     }
 
     float interpolate_linear(float idx, float_array_ptr table,
         size_t length) {
-        return star_interpolate_linear(idx, table, length);
+        return sig_interpolate_linear(idx, table, length);
     }
 
     float interpolate_cubic(float idx, float_array_ptr table,
         size_t length) {
-        return star_interpolate_cubic(idx, table, length);
+        return sig_interpolate_cubic(idx, table, length);
     }
 
     float filter_onepole(float current, float previous, float coeff) {
-        return star_filter_onepole(current, previous, coeff);
+        return sig_filter_onepole(current, previous, coeff);
     }
 
     float waveform_sine(float phase) {
-        return star_waveform_sine(phase);
+        return sig_waveform_sine(phase);
     }
 
     float waveform_square(float phase) {
-        return star_waveform_square(phase);
+        return sig_waveform_square(phase);
     }
 
     float waveform_saw(float phase) {
-        return star_waveform_saw(phase);
+        return sig_waveform_saw(phase);
     }
 
     float waveform_reverseSaw(float phase) {
-        return star_waveform_reverseSaw(phase);
+        return sig_waveform_reverseSaw(phase);
     }
 
     float waveform_triangle(float phase) {
-        return star_waveform_triangle(phase);
+        return sig_waveform_triangle(phase);
     }
 
 
-    struct star_AudioSettings* AudioSettings_new(
-        struct star_Allocator* allocator) {
-        return star_AudioSettings_new(allocator);
+    struct sig_AudioSettings* AudioSettings_new(
+        struct sig_Allocator* allocator) {
+        return sig_AudioSettings_new(allocator);
     }
 
-    void AudioSettings_destroy(struct star_Allocator* allocator,
-        struct star_AudioSettings* self) {
-        return star_AudioSettings_destroy(allocator, self);
+    void AudioSettings_destroy(struct sig_Allocator* allocator,
+        struct sig_AudioSettings* self) {
+        return sig_AudioSettings_destroy(allocator, self);
     }
 
-    struct star_Allocator* Allocator_new(size_t heapSize) {
-        return star_Allocator_new(heapSize);
+    struct sig_Allocator* Allocator_new(size_t heapSize) {
+        return sig_Allocator_new(heapSize);
     }
 
-    void Allocator_init(struct star_Allocator* allocator) {
-        return star_Allocator_init(allocator);
+    void Allocator_init(struct sig_Allocator* allocator) {
+        return sig_Allocator_init(allocator);
     }
 
-    void* Allocator_malloc(struct star_Allocator* allocator,
+    void* Allocator_malloc(struct sig_Allocator* allocator,
         size_t size) {
-        return star_Allocator_malloc(allocator, size);
+        return sig_Allocator_malloc(allocator, size);
     }
 
-    void Allocator_free(struct star_Allocator* allocator, void* obj) {
-        return star_Allocator_free(allocator, obj);
+    void Allocator_free(struct sig_Allocator* allocator, void* obj) {
+        return sig_Allocator_free(allocator, obj);
     }
 
 
-    struct star_Buffer* Buffer_new(struct star_Allocator* allocator,
+    struct sig_Buffer* Buffer_new(struct sig_Allocator* allocator,
         size_t length) {
-        return star_Buffer_new(allocator, length);
+        return sig_Buffer_new(allocator, length);
     }
 
-    void Buffer_fill(struct star_Buffer* buffer, float value) {
-        return star_Buffer_fillWithValue(buffer, value);
+    void Buffer_fill(struct sig_Buffer* buffer, float value) {
+        return sig_Buffer_fillWithValue(buffer, value);
     }
 
-    void Buffer_fillWithSilence(struct star_Buffer* buffer) {
-        return star_Buffer_fillWithSilence(buffer);
+    void Buffer_fillWithSilence(struct sig_Buffer* buffer) {
+        return sig_Buffer_fillWithSilence(buffer);
     }
 
-    void Buffer_destroy(struct star_Allocator* allocator,
-        struct star_Buffer* buffer) {
-        return star_Buffer_destroy(allocator, buffer);
+    void Buffer_destroy(struct sig_Allocator* allocator,
+        struct sig_Buffer* buffer) {
+        return sig_Buffer_destroy(allocator, buffer);
     }
 
 
-    float_array_ptr AudioBlock_new(struct star_Allocator* allocator,
-        struct star_AudioSettings* audioSettings) {
-        return star_AudioBlock_new(allocator, audioSettings);
+    float_array_ptr AudioBlock_new(struct sig_Allocator* allocator,
+        struct sig_AudioSettings* audioSettings) {
+        return sig_AudioBlock_new(allocator, audioSettings);
     }
 
     float_array_ptr AudioBlock_newWithValue(
-        struct star_Allocator* allocator,
-        struct star_AudioSettings* audioSettings,
+        struct sig_Allocator* allocator,
+        struct sig_AudioSettings* audioSettings,
         float value) {
-            return star_AudioBlock_newWithValue(allocator,
+            return sig_AudioBlock_newWithValue(allocator,
                 audioSettings, value);
     }
 
-    ~Starlings() {}
+    ~Signaletic() {}
 };

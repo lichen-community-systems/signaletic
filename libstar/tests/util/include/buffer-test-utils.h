@@ -1,16 +1,16 @@
-#include <libstar.h>
+#include <libsignaletic.h>
 
-void testAssertBufferContainsValueOnly(struct star_Allocator* allocator,
+void testAssertBufferContainsValueOnly(struct sig_Allocator* allocator,
     float expectedValue, float* actual, size_t len);
 
 void testAssertBuffersNotEqual(float* first, float* second, size_t len);
 
 void testAssertBuffersNoValuesEqual(float* first, float* second, size_t len);
 
-void testAssertBufferIsSilent(struct star_Allocator* allocator,
+void testAssertBufferIsSilent(struct sig_Allocator* allocator,
     float* buffer, size_t len);
 
-void testAssertBufferNotSilent(struct star_Allocator* allocator,
+void testAssertBufferNotSilent(struct sig_Allocator* allocator,
     float* buffer, size_t len);
 
 void testAssertBufferValuesInRange(float* buffer, size_t len, float min,
@@ -18,18 +18,18 @@ void testAssertBufferValuesInRange(float* buffer, size_t len, float min,
 
 size_t countNonZeroSamples(float* buffer, size_t len);
 
-int16_t countNonZeroSamplesGenerated(struct star_sig_Signal* signal,
+int16_t countNonZeroSamplesGenerated(struct sig_dsp_Signal* signal,
     int numRuns);
 
 void testAssertBufferContainsNumZeroSamples(float* buffer,
     size_t len, int16_t expectedNumNonZero);
 
 void testAssertGeneratedSignalContainsApproxNumNonZeroSamples(
-    struct star_sig_Signal* signal, int16_t expectedNumNonZero,
+    struct sig_dsp_Signal* signal, int16_t expectedNumNonZero,
     double errorFactor, int numRuns);
 
-void evaluateSignals(struct star_AudioSettings* audioSettings,
-    struct star_sig_Signal** signals, size_t numSignals, float duration);
+void evaluateSignals(struct sig_AudioSettings* audioSettings,
+    struct sig_dsp_Signal** signals, size_t numSignals, float duration);
 
 /**
  * A straight-through buffer player with no interpolation
@@ -40,29 +40,29 @@ void evaluateSignals(struct star_AudioSettings* audioSettings,
  * additional features aren't accidentally added to it that
  * might impact the determinism of the testing environment.
  */
-struct star_test_BufferPlayer {
-    struct star_sig_Signal signal;
-    struct star_Buffer* buffer;
+struct sig_test_BufferPlayer {
+    struct sig_dsp_Signal signal;
+    struct sig_Buffer* buffer;
     size_t currentSample;
 };
 
-void star_test_BufferPlayer_generate(void* signal);
+void sig_test_BufferPlayer_generate(void* signal);
 
-void star_test_BufferPlayer_init(struct star_test_BufferPlayer* self,
-    struct star_AudioSettings* audioSettings,
-    struct star_Buffer* buffer,
+void sig_test_BufferPlayer_init(struct sig_test_BufferPlayer* self,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_Buffer* buffer,
     float_array_ptr output);
 
-struct star_test_BufferPlayer* star_test_BufferPlayer_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* audioSettings,
-    struct star_Buffer* buffer);
+struct sig_test_BufferPlayer* sig_test_BufferPlayer_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_Buffer* buffer);
 
-void star_test_BufferPlayer_destroy(struct star_Allocator* allocator,
-    struct star_test_BufferPlayer* self);
+void sig_test_BufferPlayer_destroy(struct sig_Allocator* allocator,
+    struct sig_test_BufferPlayer* self);
 
 
-struct star_test_BufferRecorder_Inputs {
+struct sig_test_BufferRecorder_Inputs {
     float_array_ptr source;
 };
 
@@ -75,27 +75,27 @@ struct star_test_BufferRecorder_Inputs {
  * additional features aren't accidentally added to it that
  * might impact the determinism of the testing environment.
  */
-struct star_test_BufferRecorder {
-    struct star_sig_Signal signal;
-    struct star_test_BufferRecorder_Inputs* inputs;
-    struct star_Buffer* buffer;
+struct sig_test_BufferRecorder {
+    struct sig_dsp_Signal signal;
+    struct sig_test_BufferRecorder_Inputs* inputs;
+    struct sig_Buffer* buffer;
     size_t currentSample;
 };
 
-void star_test_BufferRecorder_generate(void* signal);
+void sig_test_BufferRecorder_generate(void* signal);
 
-void star_test_BufferRecorder_init(
-    struct star_test_BufferRecorder* self,
-    struct star_AudioSettings* audioSettings,
-    struct star_test_BufferRecorder_Inputs* inputs,
-    struct star_Buffer* buffer,
+void sig_test_BufferRecorder_init(
+    struct sig_test_BufferRecorder* self,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_test_BufferRecorder_Inputs* inputs,
+    struct sig_Buffer* buffer,
     float_array_ptr output);
 
-struct star_test_BufferRecorder* star_test_BufferRecorder_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* audioSettings,
-    struct star_test_BufferRecorder_Inputs* inputs,
-    struct star_Buffer* buffer);
+struct sig_test_BufferRecorder* sig_test_BufferRecorder_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_test_BufferRecorder_Inputs* inputs,
+    struct sig_Buffer* buffer);
 
-void star_test_BufferRecorder_destroy(struct star_Allocator* allocator,
-    struct star_test_BufferRecorder* self);
+void sig_test_BufferRecorder_destroy(struct sig_Allocator* allocator,
+    struct sig_test_BufferRecorder* self);

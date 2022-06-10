@@ -1,68 +1,68 @@
 interface Signals {
-    star_sig_Value Value_new(star_Allocator allocator,
-        star_AudioSettings audioSettings);
+    sig_dsp_Value Value_new(sig_Allocator allocator,
+        sig_AudioSettings audioSettings);
 
-    void Value_destroy(star_Allocator allocator,
-        star_sig_Value value);
+    void Value_destroy(sig_Allocator allocator,
+        sig_dsp_Value value);
 
 
-    star_sig_BinaryOp_Inputs BinaryOp_Inputs_new(star_Allocator allocator,
+    sig_dsp_BinaryOp_Inputs BinaryOp_Inputs_new(sig_Allocator allocator,
         any left, any right);
 
-    void BinaryOp_Inputs_destroy(star_Allocator allocator,
-        star_sig_BinaryOp_Inputs inputs);
+    void BinaryOp_Inputs_destroy(sig_Allocator allocator,
+        sig_dsp_BinaryOp_Inputs inputs);
 
-    star_sig_BinaryOp Mul_new(star_Allocator allocator,
-        star_AudioSettings audioSettings,
-        star_sig_BinaryOp_Inputs inputs);
+    sig_dsp_BinaryOp Mul_new(sig_Allocator allocator,
+        sig_AudioSettings audioSettings,
+        sig_dsp_BinaryOp_Inputs inputs);
 
-    void Mul_destroy(star_Allocator allocator, star_sig_BinaryOp mul);
+    void Mul_destroy(sig_Allocator allocator, sig_dsp_BinaryOp mul);
 
-    star_sig_BinaryOp Add_new(star_Allocator allocator,
-        star_AudioSettings audioSettings,
-        star_sig_BinaryOp_Inputs inputs);
+    sig_dsp_BinaryOp Add_new(sig_Allocator allocator,
+        sig_AudioSettings audioSettings,
+        sig_dsp_BinaryOp_Inputs inputs);
 
-    void Add_destroy(star_Allocator allocator, star_sig_BinaryOp add);
+    void Add_destroy(sig_Allocator allocator, sig_dsp_BinaryOp add);
 
-    star_sig_BinaryOp Div_new(star_Allocator allocator,
-        star_AudioSettings audioSettings,
-        star_sig_BinaryOp_Inputs inputs);
+    sig_dsp_BinaryOp Div_new(sig_Allocator allocator,
+        sig_AudioSettings audioSettings,
+        sig_dsp_BinaryOp_Inputs inputs);
 
-    void Div_destroy(star_Allocator allocator, star_sig_BinaryOp div);
+    void Div_destroy(sig_Allocator allocator, sig_dsp_BinaryOp div);
 
 
-    star_sig_Sine Sine_new(star_Allocator allocator,
-        star_AudioSettings audioSettings,
-        star_sig_Sine_Inputs inputs);
+    sig_dsp_Sine Sine_new(sig_Allocator allocator,
+        sig_AudioSettings audioSettings,
+        sig_dsp_Sine_Inputs inputs);
 
-    void Sine_destroy(star_Allocator allocator,
-        star_sig_Sine sine);
+    void Sine_destroy(sig_Allocator allocator,
+        sig_dsp_Sine sine);
 
-    star_sig_Sine_Inputs Sine_Inputs_new(star_Allocator allocator,
+    sig_dsp_Sine_Inputs Sine_Inputs_new(sig_Allocator allocator,
         any freq, any phaseOffset, any mul, any add);
 
-    void Sine_Inputs_destroy(star_Allocator allocator,
-        star_sig_Sine_Inputs inputs);
+    void Sine_Inputs_destroy(sig_Allocator allocator,
+        sig_dsp_Sine_Inputs inputs);
 
 
-    star_sig_ClockFreqDetector ClockFreqDetector_new(star_Allocator allocator,
-        star_AudioSettings audioSettings,
-        star_sig_ClockFreqDetector_Inputs inputs);
+    sig_dsp_ClockFreqDetector ClockFreqDetector_new(sig_Allocator allocator,
+        sig_AudioSettings audioSettings,
+        sig_dsp_ClockFreqDetector_Inputs inputs);
 
-    void ClockFreqDetector_destroy(star_Allocator allocator,
-        star_sig_ClockFreqDetector detector);
+    void ClockFreqDetector_destroy(sig_Allocator allocator,
+        sig_dsp_ClockFreqDetector detector);
 
-    star_sig_ClockFreqDetector_Inputs ClockFreqDetector_Inputs_new(star_Allocator allocator, any source);
+    sig_dsp_ClockFreqDetector_Inputs ClockFreqDetector_Inputs_new(sig_Allocator allocator, any source);
 
-    void ClockFreqDetector_Inputs_destroy(star_Allocator allocator,
-        star_sig_ClockFreqDetector_Inputs inputs);
+    void ClockFreqDetector_Inputs_destroy(sig_Allocator allocator,
+        sig_dsp_ClockFreqDetector_Inputs inputs);
 };
 
-interface Starlings {
+interface Signaletic {
     readonly attribute float PI;
     readonly attribute float TWOPI;
 
-    void Starlings();
+    void Signaletic();
 
     [Value] attribute Signals sig;
 
@@ -83,68 +83,68 @@ interface Starlings {
     float waveform_reverseSaw(float phase);
     float waveform_triangle(float phase);
 
-    star_Allocator Allocator_new(unsigned long heapSize);
-    void Allocator_init(star_Allocator allocator);
-    any Allocator_malloc(star_Allocator allocator, unsigned long size);
-    void Allocator_free(star_Allocator allocator, any obj);
+    sig_Allocator Allocator_new(unsigned long heapSize);
+    void Allocator_init(sig_Allocator allocator);
+    any Allocator_malloc(sig_Allocator allocator, unsigned long size);
+    void Allocator_free(sig_Allocator allocator, any obj);
 
-    star_AudioSettings AudioSettings_new(star_Allocator allocator);
-    void AudioSettings_destroy(star_Allocator allocator,
-        star_AudioSettings settings);
+    sig_AudioSettings AudioSettings_new(sig_Allocator allocator);
+    void AudioSettings_destroy(sig_Allocator allocator,
+        sig_AudioSettings settings);
 
-    star_Buffer Buffer_new(star_Allocator allocator,
+    sig_Buffer Buffer_new(sig_Allocator allocator,
         unsigned long length);
-    void Buffer_fill(star_Buffer buffer, float value);
-    void Buffer_fillWithSilence(star_Buffer buffer);
-    void Buffer_destroy(star_Allocator allocator, star_Buffer buffer);
+    void Buffer_fill(sig_Buffer buffer, float value);
+    void Buffer_fillWithSilence(sig_Buffer buffer);
+    void Buffer_destroy(sig_Allocator allocator, sig_Buffer buffer);
 
-    any AudioBlock_new(star_Allocator allocator,
-        star_AudioSettings audioSettings);
-    any AudioBlock_newWithValue(star_Allocator allocator,
-        star_AudioSettings audioSettings, float value);
+    any AudioBlock_new(sig_Allocator allocator,
+        sig_AudioSettings audioSettings);
+    any AudioBlock_newWithValue(sig_Allocator allocator,
+        sig_AudioSettings audioSettings, float value);
 };
 
-interface star_Allocator {
+interface sig_Allocator {
     attribute unsigned long heapSize;
     attribute any heap;
 };
 
-interface star_AudioSettings {
+interface sig_AudioSettings {
     attribute float sampleRate;
     attribute unsigned long numChannels;
     attribute unsigned long blockSize;
 };
 
-interface star_Buffer {
+interface sig_Buffer {
     attribute unsigned long length;
     attribute any samples;
 };
 
-interface star_sig_Signal {
-    attribute star_AudioSettings audioSettings;
+interface sig_dsp_Signal {
+    attribute sig_AudioSettings audioSettings;
     attribute any output;
     void generate(any signal);
 };
 
 
-interface star_sig_Value {
-    [Value] attribute star_sig_Signal signal;
-    [Value] attribute star_sig_Value_Parameters parameters;
+interface sig_dsp_Value {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_Value_Parameters parameters;
     attribute float lastSample;
 };
 
-interface star_sig_Value_Parameters {
+interface sig_dsp_Value_Parameters {
     attribute float value;
 };
 
 
-interface star_sig_Sine {
-    [Value] attribute star_sig_Signal signal;
-    attribute star_sig_Sine_Inputs inputs;
+interface sig_dsp_Sine {
+    [Value] attribute sig_dsp_Signal signal;
+    attribute sig_dsp_Sine_Inputs inputs;
     attribute float phaseAccumulator;
 };
 
-interface star_sig_Sine_Inputs {
+interface sig_dsp_Sine_Inputs {
     attribute any freq;
     attribute any phaseOffset;
     attribute any mul;
@@ -152,22 +152,22 @@ interface star_sig_Sine_Inputs {
 };
 
 
-interface star_sig_BinaryOp {
-    [Value] attribute star_sig_Signal signal;
-    attribute star_sig_BinaryOp_Inputs inputs;
+interface sig_dsp_BinaryOp {
+    [Value] attribute sig_dsp_Signal signal;
+    attribute sig_dsp_BinaryOp_Inputs inputs;
 };
 
-interface star_sig_BinaryOp_Inputs {
+interface sig_dsp_BinaryOp_Inputs {
     attribute any left;
     attribute any right;
 };
 
 
-interface star_sig_ClockFreqDetector {
-    [Value] attribute star_sig_Signal signal;
-    attribute star_sig_ClockFreqDetector_Inputs inputs;
+interface sig_dsp_ClockFreqDetector {
+    [Value] attribute sig_dsp_Signal signal;
+    attribute sig_dsp_ClockFreqDetector_Inputs inputs;
 };
 
-interface star_sig_ClockFreqDetector_Inputs {
+interface sig_dsp_ClockFreqDetector_Inputs {
     attribute any source;
 };

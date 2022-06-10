@@ -1,5 +1,5 @@
 project(
-    'libstar',
+    'libsignaletic',
     'c',
     default_options: ['c_std=c99']
 )
@@ -9,25 +9,25 @@ headers = include_directories('include', 'vendor'/'tlsf')
 
 source_files = [
     'vendor'/'tlsf'/'tlsf.c',
-    'src'/'libstar.c'
+    'src'/'libsignaletic.c'
 ]
 
 test_files = [
     'tests'/'util'/'buffer-test-utils.c',
-    'tests'/'test-libstar.c'
+    'tests'/'test-libsignaletic.c'
 ]
 
-# libstar
-libstar_library = static_library(
+# libsignaletic
+libsig_library = static_library(
     meson.project_name(),
     source_files,
     include_directories: headers,
     link_args: '-lm'
 )
 
-libstar_dep = declare_dependency(
+libsig_dep = declare_dependency(
     include_directories: headers,
-    link_with: libstar_library
+    link_with: libsig_library
 )
 
 # Meson only seems to produce .wasm and .js files for executables
@@ -36,42 +36,42 @@ if host_machine.system() == 'emscripten'
     add_languages('cpp')
 
     executable(
-        'libstar',
+        'libsignaletic',
         [
-            'wasm'/'bindings'/'src'/'libstar-web-wrapper.cpp'
+            'wasm'/'bindings'/'src'/'libsignaletic-web-wrapper.cpp'
         ],
-        dependencies: [libstar_dep],
+        dependencies: [libsig_dep],
         link_args: [
             '--no-entry',
-            '--post-js', '..'/'bindings'/'libstar-web-bindings.js'
+            '--post-js', '..'/'bindings'/'libsignaletic-web-bindings.js'
         ]
     )
 
     executable(
-        'libstar-worklet',
+        'libsignaletic-worklet',
         [
-            'wasm'/'bindings'/'src'/'libstar-web-wrapper.cpp'
+            'wasm'/'bindings'/'src'/'libsignaletic-web-wrapper.cpp'
         ],
-        dependencies: [libstar_dep],
+        dependencies: [libsig_dep],
         link_args: [
             '--no-entry',
             '-s', 'ENVIRONMENT=shell',
             '-s', 'WASM_ASYNC_COMPILATION=0',
-            '--post-js', '..'/'bindings'/'libstar-web-bindings.js'
+            '--post-js', '..'/'bindings'/'libsignaletic-web-bindings.js'
         ]
     )
 
     executable(
         'wasm-oscillator-example',
         [
-            'wasm'/'bindings'/'src'/'libstar-web-wrapper.cpp'
+            'wasm'/'bindings'/'src'/'libsignaletic-web-wrapper.cpp'
         ],
-        dependencies: [libstar_dep],
+        dependencies: [libsig_dep],
         link_args: [
             '--no-entry',
             '-s', 'ENVIRONMENT=shell',
             '-s', 'WASM_ASYNC_COMPILATION=0',
-            '--post-js', '..'/'bindings'/'libstar-web-bindings.js',
+            '--post-js', '..'/'bindings'/'libsignaletic-web-bindings.js',
             '--post-js', '..'/'..'/'..'/'hosts'/'web'/'examples'/'oscillator'/'signaletic-oscillator-worklet.js'
         ]
     )
@@ -79,9 +79,9 @@ endif
 
 # Examples
 executable(
-    'libstar-console-example',
+    'libsignaletic-console-example',
     'examples'/'console'/'src'/'print-sine.c',
-    dependencies: [libstar_dep],
+    dependencies: [libsig_dep],
     link_args: '-lm'
 )
 
@@ -103,7 +103,7 @@ test('all_tests',
         'run_tests',
         files(test_files),
         include_directories: 'tests'/'util'/'include',
-        dependencies: [libstar_dep, unity_dep],
+        dependencies: [libsig_dep, unity_dep],
         install: false,
         link_args: '-lm'
     )

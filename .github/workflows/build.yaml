@@ -3,7 +3,7 @@ name: build-and-run
 on: [push, pull_request]
 
 jobs:
-  build-libstar:
+  build-libsignaletic:
     strategy:
       fail-fast: false
       matrix:
@@ -27,14 +27,14 @@ jobs:
         if: runner.os == 'Windows'
         uses: bus1/cabuild/action/msdevshell@v1
 
-      # Build libstar for the native architecture
+      # Build libsignaletic for the native architecture
       - name: Native build
         run: |
-          cd libstar
+          cd libsignaletic
           meson setup build/native
           meson compile -C build/native
 
-      # Build libstar for wasm
+      # Build libsignaletic for wasm
       # TODO: Windows can't run generate-wasm-bindings.sh;
       # need to add cross-platform support for it.
       # This will be fixed by gh-18 (Docker support)
@@ -43,7 +43,7 @@ jobs:
         run: |
           git clone https://github.com/emscripten-core/emscripten.git
           export EMSCRIPTEN_TOOLS_PATH=$PWD/emscripten/tools
-          cd libstar
+          cd libsignaletic
           meson setup build/wasm --cross-file wasm-cross-compile.txt
           ./generate-wasm-bindings.sh
           meson compile -C build/wasm
@@ -51,22 +51,22 @@ jobs:
       # Tests
       - name: Run native unit tests
         run: |
-          cd libstar
+          cd libsignaletic
           meson test -C build/native -v
 
       - name: Run unit tests in Node.js
         if: runner.os != 'Windows'
         run: |
-          cd libstar
+          cd libsignaletic
           meson test -C build/wasm -v
 
       # Run examples
       - name: run console example
-        run: ./libstar/build/native/libstar-console-example
+        run: ./libsignaletic/build/native/libsignaletic-console-example
 
       - name: run console example in Node.js
         if: runner.os != 'Windows'
-        run: node ./libstar/build/wasm/libstar-console-example.js
+        run: node ./libsignaletic/build/wasm/libsignaletic-console-example.js
 
   build-daisy-host:
     runs-on: macos-latest

@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "libstar.h"
+#include "libsignaletic.h"
 
 #define HEAP_SIZE 1024 * 128
 
@@ -19,28 +19,28 @@ void printBuffer(float* buffer, size_t blockSize) {
 }
 
 int main(int argc, char *argv[]) {
-    struct star_AudioSettings settings = star_DEFAULT_AUDIOSETTINGS;
+    struct sig_AudioSettings settings = sig_DEFAULT_AUDIOSETTINGS;
 
     char heap[HEAP_SIZE];
 
-    struct star_Allocator allocator = {
+    struct sig_Allocator allocator = {
         .heapSize = HEAP_SIZE,
         .heap = heap
     };
-    star_Allocator_init(&allocator);
+    sig_Allocator_init(&allocator);
 
-    struct star_sig_Sine_Inputs inputs = {
-        .freq = star_AudioBlock_newWithValue(&allocator,
+    struct sig_dsp_Sine_Inputs inputs = {
+        .freq = sig_AudioBlock_newWithValue(&allocator,
             &settings, 440.0f),
-        .phaseOffset = star_AudioBlock_newWithValue(&allocator,
+        .phaseOffset = sig_AudioBlock_newWithValue(&allocator,
             &settings, 0.0f),
-        .mul = star_AudioBlock_newWithValue(&allocator,
+        .mul = sig_AudioBlock_newWithValue(&allocator,
             &settings, 1.0f),
-        .add = star_AudioBlock_newWithValue(&allocator,
+        .add = sig_AudioBlock_newWithValue(&allocator,
             &settings, 0.0f)
     };
 
-    struct star_sig_Sine* sine = star_sig_Sine_new(&allocator,
+    struct sig_dsp_Sine* sine = sig_dsp_Sine_new(&allocator,
         &settings, &inputs);
 
     puts("Sine wave (three blocks): ");

@@ -1,4 +1,4 @@
-# Starlings
+# Signaletic
 
 This project is an early-stage effort to rewrite and redesign the core signal processing layers of [Flocking](https://flockingjs.org) in C. The goal is to support instruments that can be deployed without modification across different devices and platforms, with a particular emphasis on the Web and embedded platforms such as Eurorack.
 
@@ -30,20 +30,20 @@ The design of this project is still in flux, and will more fully emerge as I bec
 
 ### macOS
 
-#### libstar
-[Meson](https://mesonbuild.com/) and the XCode command line tools are required to build the core Starlings library:
+#### libsignaletic
+[Meson](https://mesonbuild.com/) and the XCode command line tools are required to build the Signaletic library:
 1. ```brew install meson```
 2. ```xcode-select --install```
 
-#### libstar Web Assembly
-libstar uses the [Emscripten compiler](https://emscripten.org/) for Web Assembly support. This installation process is no fun, and could use some improvement.
+#### libsignaletic Web Assembly
+libsignaletic uses the [Emscripten compiler](https://emscripten.org/) for Web Assembly support. This installation process is no fun, and could use some improvement.
 1. ```brew install emscripten binaryen```
 2. ```export EM_BINARYEN_ROOT=/opt/homebrew/opt/binaryen```
 3. Clone the [emscripten repository](https://github.com/emscripten-core/emscripten).
 4. ```export EMSCRIPTEN_TOOLS_PATH=[path to emscripten repository]/tools```
 
 #### Daisy Eurorack Examples
-To cross-compile the Starlings examples for the Daisy STM32 platform using gcc and make, the GCC ARM embedded toolkit and the Daisy Toolchain must be installed.
+To cross-compile the Signaletic examples for the Daisy STM32 platform using gcc and make, the GCC ARM embedded toolkit and the Daisy Toolchain must be installed.
 1. ```brew install gcc-arm-embedded```
 2. Follow the [Daisy Toolchain](https://github.com/electro-smith/DaisyWiki/wiki/1.-Setting-Up-Your-Development-Environment#1-install-the-toolchain) installation instructions.
 
@@ -52,21 +52,21 @@ To cross-compile the Starlings examples for the Daisy STM32 platform using gcc a
 2. Install Emscripten according to the [Emscripten installation documentation](https://emscripten.org/docs/getting_started/downloads.html)
 3. Install the [Daisy Toolchain for Windows](https://github.com/electro-smith/DaisyWiki/wiki/1c.-Installing-the-Toolchain-on-Windows)
 
-## Building Starlings
+## Building Signaletic
 
 ### macOS, Linux, and Windows
 
 On Windows, use a VS Command Prompt or set the appropriate environment variables so that MSVC is the default compiler.
 
-#### libstar Native
-1. ```cd libstar```
+#### libsignaletic Native
+1. ```cd libsignaletic```
 2. ```meson setup build/native```
 3. ```meson compile -C build/native```
 
 To remove all previous build artifacts and rebuild, run ```rm -r build/native && meson setup build/native``` or run ```meson setup build/native --wipe```.
 
-#### libstar for Web Assembly (not currently supported on Windows)
-1. ```cd libstar```
+#### libsignaletic for Web Assembly (not currently supported on Windows)
+1. ```cd libsignaletic```
 2. ```source ../../emsdk/emsdk_env.sh```
 3. ```source ./setup-emscripten-env.sh```
 4. ```meson setup build/wasm --cross-file wasm-cross-compile.txt```
@@ -76,17 +76,17 @@ To remove all previous build artifacts and rebuild, run ```rm -r build/native &&
 #### Running the Unit Tests
 1. Native: ```meson test -C build/native -v```
 2. Node.js wasm: ```meson test -C build/wasm -v```
-3. Browser wasm: Open ```libstar/tests/test-libstar.html``` using VS Code's Live Server plugin or other web server.
+3. Browser wasm: Open ```libsignaletic/tests/test-libsignaletic.html``` using VS Code's Live Server plugin or other web server.
 
 
 #### Running the Examples
 
 ##### Console Example
-1. Build libstar
-2. ```./build/native/libstar-console-example```
+1. Build libsignaletic
+2. ```./build/native/libsignaletic-console-example```
 
 #### Web Example
-1. Build libstar Web Assembly
+1. Build libsignaletic Web Assembly
 2. Open ```hosts/web/examples/midi-to-freq/index.html``` using VS Code's Live Server plugin or other web server.
 
 ##### Daisy Bluemchen Example
@@ -94,18 +94,18 @@ On Windows, use a Git Bash terminal, since Daisy's Makefiles don't seem to provi
 
 1. ```cd hosts/daisy/vendor/libDaisy```
 2. ```make```
-3. ```cd ../../examples/bluemchen```
+3. ```cd ../../examples/bluemchen/looper```
 2. ```make```
-3. Use the [Daisy Web Programmer](https://electro-smith.github.io/Programmer/) to flash the ```build/libflock-bluemchen-example.bin``` binary to the Daisy board, or run ```make program``` while connected to an ST-Link Mini debugger.
+3. Use the [Daisy Web Programmer](https://electro-smith.github.io/Programmer/) to flash the ```build/signaletic-bluemchen-looper.bin``` binary to the Daisy board, or run ```make program``` while connected to an ST-Link Mini debugger.
 
 
 ## Language and Compiler Support
-Starlings' core is written in C using the C99 standard (due to the use of C++ style comments, for loops with initial declarations, and float math functions like sinef and powf). It is currently compiled and tested on LLVM on macOS, GCC on Ubuntu Linux, and the Visual Studio C compiler on Windows.
+Signaletic's core is written in C using the C99 standard (due to the use of C++ style comments, for loops with initial declarations, and float math functions like sinef and powf). It is currently compiled and tested on LLVM on macOS, GCC on Ubuntu Linux, and the Visual Studio C compiler on Windows.
 
-On the Daisy platform, Starlings is compiled using Daisy's own toolchain, which uses the gnu11 standard for C and gnu++14 for C++. Compiling the Daisy Host and examples is currently supported using GCC on macOS.
+On the Daisy platform, Signaletic is compiled using Daisy's own toolchain, which uses the gnu11 standard for C and gnu++14 for C++. Compiling the Daisy Host and examples is currently supported using GCC on macOS.
 
-On the Web, Starlings is compiled using the Emscripten compiler toolchain.
+On the Web, Signaletic is compiled using the Emscripten compiler toolchain.
 
 ## Attribution
 
-Starlings is developed by Colin Clark and is licenced under the [MIT License](LICENSE).
+Signaletic is developed by Colin Clark and is licenced under the [MIT License](LICENSE).

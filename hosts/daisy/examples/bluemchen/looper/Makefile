@@ -1,12 +1,12 @@
 # Project Name
-TARGET ?= starlings-bluemchen-looper
+TARGET ?= signaletic-bluemchen-looper
 
 DEBUG = 1
 OPT = -O0
 
 # Sources
-C_SOURCES += ../../../../../libstar/vendor/tlsf/tlsf.c ../../../../../libstar/src/libstar.c
-C_INCLUDES += -I../../../../../libstar/vendor/tlsf -I../../../../../libstar/include
+C_SOURCES += ../../../../../libsignaletic/vendor/tlsf/tlsf.c ../../../../../libsignaletic/src/libsignaletic.c
+C_INCLUDES += -I../../../../../libsignaletic/vendor/tlsf -I../../../../../libsignaletic/include
 
 CPP_INCLUDES += -I../../src/include
 CPP_SOURCES = ../vendor/kxmx_bluemchen/src/kxmx_bluemchen.cpp src/${TARGET}.cpp

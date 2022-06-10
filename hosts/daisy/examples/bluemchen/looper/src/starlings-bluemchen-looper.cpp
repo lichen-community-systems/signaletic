@@ -1,6 +1,6 @@
 #include "../../vendor/kxmx_bluemchen/src/kxmx_bluemchen.h"
 #include <tlsf.h>
-#include <libstar.h>
+#include <libsignaletic.h>
 #include "../../../../include/BufferView.h"
 #include <string>
 
@@ -16,7 +16,7 @@ Parameter recordGateCV;
 
 #define SIGNAL_HEAP_SIZE 1024 * 384
 char signalHeap[SIGNAL_HEAP_SIZE];
-struct star_Allocator allocator = {
+struct sig_Allocator allocator = {
     .heapSize = SIGNAL_HEAP_SIZE,
     .heap = (void*) signalHeap
 };
@@ -26,46 +26,46 @@ struct star_Allocator allocator = {
 #define LONG_ENCODER_PRESS 2.0f
 
 float DSY_SDRAM_BSS leftSamples[LOOP_LENGTH];
-struct star_Buffer leftBuffer = {
+struct sig_Buffer leftBuffer = {
     .length = LOOP_LENGTH,
     .samples = leftSamples
 };
 float DSY_SDRAM_BSS rightSamples[LOOP_LENGTH];
-struct star_Buffer rightBuffer = {
+struct sig_Buffer rightBuffer = {
     .length = LOOP_LENGTH,
     .samples = rightSamples
 };
 
-struct star_sig_Value* start;
-struct star_sig_OnePole* startSmoother;
-struct star_sig_Value* end;
-struct star_sig_OnePole* endSmoother;
-struct star_sig_Value* speedIncrement;
-struct star_sig_Accumulate* speedControl;
-struct star_sig_Value* speedMod;
-struct star_sig_OnePole* speedModSmoother;
-struct star_sig_BinaryOp* speedAdder;
-struct star_sig_Value* speedSkew;
-struct star_sig_OnePole* speedSkewSmoother;
-struct star_sig_Invert* leftSpeedSkewInverter;
-struct star_sig_BinaryOp* leftSpeedAdder;
-struct star_sig_BinaryOp* rightSpeedAdder;
-struct star_sig_Value* encoderButton;
-struct star_sig_TimedTriggerCounter* encoderTap;
-struct star_sig_GatedTimer* encoderLongPress;
-struct star_sig_ToggleGate* recordGate;
-struct star_sig_Looper* leftLooper;
-struct star_sig_Looper* rightLooper;
-struct star_sig_BinaryOp* leftGain;
-struct star_sig_BinaryOp* rightGain;
+struct sig_dsp_Value* start;
+struct sig_dsp_OnePole* startSmoother;
+struct sig_dsp_Value* end;
+struct sig_dsp_OnePole* endSmoother;
+struct sig_dsp_Value* speedIncrement;
+struct sig_dsp_Accumulate* speedControl;
+struct sig_dsp_Value* speedMod;
+struct sig_dsp_OnePole* speedModSmoother;
+struct sig_dsp_BinaryOp* speedAdder;
+struct sig_dsp_Value* speedSkew;
+struct sig_dsp_OnePole* speedSkewSmoother;
+struct sig_dsp_Invert* leftSpeedSkewInverter;
+struct sig_dsp_BinaryOp* leftSpeedAdder;
+struct sig_dsp_BinaryOp* rightSpeedAdder;
+struct sig_dsp_Value* encoderButton;
+struct sig_dsp_TimedTriggerCounter* encoderTap;
+struct sig_dsp_GatedTimer* encoderLongPress;
+struct sig_dsp_ToggleGate* recordGate;
+struct sig_dsp_Looper* leftLooper;
+struct sig_dsp_Looper* rightLooper;
+struct sig_dsp_BinaryOp* leftGain;
+struct sig_dsp_BinaryOp* rightGain;
 
-struct star_LooperView looperView;
+struct sig_LooperView looperView;
 
 void UpdateOled() {
     bool foregroundOn = !recordGate->isGateOpen;
     bluemchen.display.Fill(!foregroundOn);
 
-    star_LooperView_render(&looperView,
+    sig_LooperView_render(&looperView,
         startSmoother->previousSample,
         endSmoother->previousSample,
         leftLooper->playbackPos,
@@ -140,7 +140,7 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
 
     // Note: this is required until we have something that
     // offers some way to get the current value from a Signal.
-    // See https://github.com/continuing-creativity/starlings/issues/19
+    // See https://github.com/continuing-creativity/signaletic/issues/19
     size_t lastSamp = leftSpeedAdder->signal.audioSettings->blockSize - 1;
     looperView.leftSpeed = leftSpeedAdder->signal.output[lastSamp];
     looperView.rightSpeed = rightSpeedAdder->signal.output[lastSamp];
@@ -159,9 +159,9 @@ void initControls() {
 
 int main(void) {
     bluemchen.Init();
-    star_Allocator_init(&allocator);
+    sig_Allocator_init(&allocator);
 
-    struct star_AudioSettings audioSettings = {
+    struct sig_AudioSettings audioSettings = {
         .sampleRate = bluemchen.AudioSampleRate(),
         .numChannels = 1,
         .blockSize = 48
@@ -173,136 +173,136 @@ int main(void) {
 
     // TODO: Introduce a constant Signal type
     // https://github.com/continuing-creativity/signaletic/issues/23
-    float* smoothCoefficient = star_AudioBlock_newWithValue(
+    float* smoothCoefficient = sig_AudioBlock_newWithValue(
         &allocator, &audioSettings, 0.01f);
 
-    start = star_sig_Value_new(&allocator, &audioSettings);
+    start = sig_dsp_Value_new(&allocator, &audioSettings);
     start->parameters.value = 0.0f;
-    struct star_sig_OnePole_Inputs startSmootherInputs = {
+    struct sig_dsp_OnePole_Inputs startSmootherInputs = {
         .source = start->signal.output,
         .coefficient = smoothCoefficient
     };
-    startSmoother = star_sig_OnePole_new(&allocator,
+    startSmoother = sig_dsp_OnePole_new(&allocator,
         &audioSettings, &startSmootherInputs);
 
 
-    end = star_sig_Value_new(&allocator, &audioSettings);
+    end = sig_dsp_Value_new(&allocator, &audioSettings);
     end->parameters.value = 1.0f;
-    struct star_sig_OnePole_Inputs endSmootherInputs = {
+    struct sig_dsp_OnePole_Inputs endSmootherInputs = {
         .source = end->signal.output,
         .coefficient = smoothCoefficient
     };
-    endSmoother = star_sig_OnePole_new(&allocator,
+    endSmoother = sig_dsp_OnePole_new(&allocator,
         &audioSettings, &endSmootherInputs);
 
 
-    speedIncrement = star_sig_Value_new(&allocator, &audioSettings);
+    speedIncrement = sig_dsp_Value_new(&allocator, &audioSettings);
     speedIncrement->parameters.value = 1.0f;
 
-    struct star_sig_Accumulate_Inputs speedControlInputs = {
+    struct sig_dsp_Accumulate_Inputs speedControlInputs = {
         .source = speedIncrement->signal.output,
-        .reset = star_AudioBlock_newWithValue(&allocator,
+        .reset = sig_AudioBlock_newWithValue(&allocator,
             &audioSettings, 0.0f)
     };
 
-    speedControl = star_sig_Accumulate_new(&allocator, &audioSettings,
+    speedControl = sig_dsp_Accumulate_new(&allocator, &audioSettings,
         &speedControlInputs);
     speedControl->parameters.accumulatorStart = 1.0f;
 
-    speedMod = star_sig_Value_new(&allocator, &audioSettings);
+    speedMod = sig_dsp_Value_new(&allocator, &audioSettings);
     speedMod->parameters.value = 0.0f;
 
-    struct star_sig_OnePole_Inputs speedModSmootherInputs = {
+    struct sig_dsp_OnePole_Inputs speedModSmootherInputs = {
         .source = speedMod->signal.output,
         .coefficient = smoothCoefficient
     };
 
-    speedModSmoother = star_sig_OnePole_new(&allocator,
+    speedModSmoother = sig_dsp_OnePole_new(&allocator,
         &audioSettings, &speedModSmootherInputs);
 
-    struct star_sig_BinaryOp_Inputs speedAdderInputs = {
+    struct sig_dsp_BinaryOp_Inputs speedAdderInputs = {
         .left = speedControl->signal.output,
         .right = speedModSmoother->signal.output
     };
 
-    speedAdder = star_sig_Add_new(&allocator, &audioSettings,
+    speedAdder = sig_dsp_Add_new(&allocator, &audioSettings,
         &speedAdderInputs);
 
-    speedSkew = star_sig_Value_new(&allocator, &audioSettings);
+    speedSkew = sig_dsp_Value_new(&allocator, &audioSettings);
     speedSkew->parameters.value = 0.0f;
 
-    struct star_sig_OnePole_Inputs speedSkewSmootherInputs = {
+    struct sig_dsp_OnePole_Inputs speedSkewSmootherInputs = {
         .source = speedSkew->signal.output,
         .coefficient = smoothCoefficient
     };
-    speedSkewSmoother = star_sig_OnePole_new(&allocator, &audioSettings,
+    speedSkewSmoother = sig_dsp_OnePole_new(&allocator, &audioSettings,
         &speedSkewSmootherInputs);
 
-    struct star_sig_Invert_Inputs leftSpeedSkewInverterInputs = {
+    struct sig_dsp_Invert_Inputs leftSpeedSkewInverterInputs = {
         .source = speedSkewSmoother->signal.output
     };
-    leftSpeedSkewInverter = star_sig_Invert_new(&allocator, &audioSettings,
+    leftSpeedSkewInverter = sig_dsp_Invert_new(&allocator, &audioSettings,
         &leftSpeedSkewInverterInputs);
 
-    struct star_sig_BinaryOp_Inputs leftSpeedAdderInputs = {
+    struct sig_dsp_BinaryOp_Inputs leftSpeedAdderInputs = {
         .left = speedAdder->signal.output,
         .right = leftSpeedSkewInverter->signal.output
     };
-    leftSpeedAdder = star_sig_Add_new(&allocator, &audioSettings,
+    leftSpeedAdder = sig_dsp_Add_new(&allocator, &audioSettings,
         &leftSpeedAdderInputs);
 
-    struct star_sig_BinaryOp_Inputs rightSpeedAdderInputs = {
+    struct sig_dsp_BinaryOp_Inputs rightSpeedAdderInputs = {
         .left = speedAdder->signal.output,
         .right = speedSkewSmoother->signal.output
     };
-    rightSpeedAdder = star_sig_Add_new(&allocator, &audioSettings,
+    rightSpeedAdder = sig_dsp_Add_new(&allocator, &audioSettings,
         &rightSpeedAdderInputs);
 
-    encoderButton = star_sig_Value_new(&allocator, &audioSettings);
+    encoderButton = sig_dsp_Value_new(&allocator, &audioSettings);
     encoderButton->parameters.value = 0.0f;
 
-    struct star_sig_TimedTriggerCounter_Inputs encoderClickInputs = {
+    struct sig_dsp_TimedTriggerCounter_Inputs encoderClickInputs = {
         .source = encoderButton->signal.output,
 
         // TODO: Replace with constant value signal (gh-23).
-        .duration = star_AudioBlock_newWithValue(&allocator,
+        .duration = sig_AudioBlock_newWithValue(&allocator,
             &audioSettings, 0.5f),
 
         // TODO: Replace with constant value signal (gh-23).
-        .count = star_AudioBlock_newWithValue(&allocator,
+        .count = sig_AudioBlock_newWithValue(&allocator,
             &audioSettings, 1.0f)
     };
-    encoderTap = star_sig_TimedTriggerCounter_new(&allocator,
+    encoderTap = sig_dsp_TimedTriggerCounter_new(&allocator,
         &audioSettings, &encoderClickInputs);
 
 
-    struct star_sig_ToggleGate_Inputs recordGateInputs = {
+    struct sig_dsp_ToggleGate_Inputs recordGateInputs = {
         .trigger = encoderTap->signal.output
     };
-    recordGate = star_sig_ToggleGate_new(&allocator, &audioSettings,
+    recordGate = sig_dsp_ToggleGate_new(&allocator, &audioSettings,
         &recordGateInputs);
 
-    struct star_sig_GatedTimer_Inputs encoderPressTimerInputs = {
+    struct sig_dsp_GatedTimer_Inputs encoderPressTimerInputs = {
         .gate = encoderButton->signal.output,
 
         // TODO: Replace with constant value signal (gh-23).
-        .duration = star_AudioBlock_newWithValue(
+        .duration = sig_AudioBlock_newWithValue(
             &allocator, &audioSettings, LONG_ENCODER_PRESS),
 
         // TODO: Replace with constant value signal (gh-23).
-        .loop = star_AudioBlock_newWithValue(&allocator,
+        .loop = sig_AudioBlock_newWithValue(&allocator,
             &audioSettings, 0.0f)
     };
-    encoderLongPress = star_sig_GatedTimer_new(&allocator,
+    encoderLongPress = sig_dsp_GatedTimer_new(&allocator,
         &audioSettings, &encoderPressTimerInputs);
 
 
-    struct star_sig_Looper_Inputs leftLooperInputs = {
+    struct sig_dsp_Looper_Inputs leftLooperInputs = {
         // TODO: Need a Daisy Host-provided Signal
         // for reading audio input (gh-22).
         // For now, just use an empty block that
         // is copied into manually in the audio callback.
-        .source = star_AudioBlock_newWithValue(&allocator,
+        .source = sig_AudioBlock_newWithValue(&allocator,
             &audioSettings, 0.0f),
         .start = startSmoother->signal.output,
         .end = endSmoother->signal.output,
@@ -313,13 +313,13 @@ int main(void) {
 
     // TODO: Should Buffers be automatically zeroed
     // when created?
-    star_fillWithSilence(leftSamples, LOOP_LENGTH);
-    leftLooper = star_sig_Looper_new(&allocator, &audioSettings,
+    sig_fillWithSilence(leftSamples, LOOP_LENGTH);
+    leftLooper = sig_dsp_Looper_new(&allocator, &audioSettings,
         &leftLooperInputs);
     leftLooper->buffer = &leftBuffer;
 
-    struct star_sig_Looper_Inputs rightLooperInputs = {
-        .source = star_AudioBlock_newWithValue(&allocator,
+    struct sig_dsp_Looper_Inputs rightLooperInputs = {
+        .source = sig_AudioBlock_newWithValue(&allocator,
             &audioSettings, 0.0f),
         .start = leftLooperInputs.start,
         .end = leftLooperInputs.end,
@@ -327,44 +327,44 @@ int main(void) {
         .record = leftLooperInputs.record,
         .clear = leftLooperInputs.clear
     };
-    star_fillWithSilence(rightSamples, LOOP_LENGTH);
-    rightLooper = star_sig_Looper_new(&allocator, &audioSettings,
+    sig_fillWithSilence(rightSamples, LOOP_LENGTH);
+    rightLooper = sig_dsp_Looper_new(&allocator, &audioSettings,
         &rightLooperInputs);
     rightLooper->buffer = &rightBuffer;
 
-    struct star_sig_BinaryOp_Inputs leftGainInputs = {
+    struct sig_dsp_BinaryOp_Inputs leftGainInputs = {
         // Bluemchen's output circuit clips as it approaches full gain,
         // so 0.85 seems to be around the practical maximum value.
         // TODO: Replace with constant value Signal (gh-23).
         .left = leftLooper->signal.output,
-        .right = star_AudioBlock_newWithValue(&allocator,
+        .right = sig_AudioBlock_newWithValue(&allocator,
             &audioSettings, 0.85f)
     };
-    leftGain = star_sig_Mul_new(&allocator, &audioSettings,
+    leftGain = sig_dsp_Mul_new(&allocator, &audioSettings,
         &leftGainInputs);
 
-    struct star_sig_BinaryOp_Inputs rightGainInputs = {
+    struct sig_dsp_BinaryOp_Inputs rightGainInputs = {
         .left = rightLooper->signal.output,
         .right = leftGainInputs.left
     };
-    rightGain = star_sig_Mul_new(&allocator, &audioSettings,
+    rightGain = sig_dsp_Mul_new(&allocator, &audioSettings,
         &rightGainInputs);
 
     bluemchen.StartAudio(AudioCallback);
 
-    struct star_Rect looperViewRect = {
+    struct sig_Rect looperViewRect = {
         .x = 0,
         .y = 8,
         .width = 64,
         .height = 24
     };
 
-    struct star_Canvas canvas = {
-        .geometry = star_Canvas_geometryFromRect(&looperViewRect),
+    struct sig_Canvas canvas = {
+        .geometry = sig_Canvas_geometryFromRect(&looperViewRect),
         .display = &(bluemchen.display)
     };
 
-    struct star_BufferView bufferView = {
+    struct sig_BufferView bufferView = {
         .canvas = &canvas,
         .buffer = leftLooper->buffer
     };

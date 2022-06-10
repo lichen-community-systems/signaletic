@@ -2,4 +2,4 @@
 
 mkdir -p build/bindings
 
-$EMSCRIPTEN_TOOLS_PATH/webidl_binder wasm/bindings/libstar-web-bindings.idl build/bindings/libstar-web-bindings
+$EMSCRIPTEN_TOOLS_PATH/webidl_binder wasm/bindings/libsignaletic-web-bindings.idl build/bindings/libsignaletic-web-bindings

@@ -1,10 +1,10 @@
 {
     "tasks": [
         {
-            "label": "Build libstar",
+            "label": "Build libsignaletic",
             "command": "meson compile -C build/native",
             "options": {
-                "cwd": "${workspaceFolder}/libstar"
+                "cwd": "${workspaceFolder}/libsignaletic"
             },
             "group": {
                 "kind": "build",
@@ -16,10 +16,10 @@
             "type": "shell"
         },
         {
-            "label": "Test libstar",
+            "label": "Test libsignaletic",
             "command": "meson test -C build/native -v",
             "options": {
-                "cwd": "${workspaceFolder}/libstar"
+                "cwd": "${workspaceFolder}/libsignaletic"
             },
             "group": {
                 "kind": "test",
@@ -31,10 +31,10 @@
             "type": "shell"
         },
         {
-            "label": "Build libstar Web Assembly",
+            "label": "Build libsignaletic Web Assembly",
             "command": "meson compile -C build/wasm",
             "options": {
-                "cwd": "${workspaceFolder}/libstar"
+                "cwd": "${workspaceFolder}/libsignaletic"
             },
             "group": "build",
             "problemMatcher": [
@@ -43,10 +43,10 @@
             "type": "shell"
         },
         {
-            "label": "Clean build libstar",
+            "label": "Clean build libsignaletic",
             "command": "meson compile -C build/native --clean; meson compile -C build/native",
             "options": {
-                "cwd": "${workspaceFolder}/libstar"
+                "cwd": "${workspaceFolder}/libsignaletic"
             },
             "group": "build",
             "problemMatcher": [
@@ -55,10 +55,10 @@
             "type": "shell"
         },
         {
-            "label": "Clean build libstar Web Assembly",
+            "label": "Clean build libsignaletic Web Assembly",
             "command": "meson compile -C build/wasm --clean; meson compile -C build/wasm",
             "options": {
-                "cwd": "${workspaceFolder}/libstar"
+                "cwd": "${workspaceFolder}/libsignaletic"
             },
             "group": "build",
             "problemMatcher": [

@@ -1,12 +1,12 @@
-/*! \file libstar.h
+/*! \file libsignaletic.h
     \brief The core Signaletic library.
 
     Signaletic is music signal processing library designed for use
     in embedded environments and Web Assembly.
 */
 
-#ifndef LIBSTAR_H
-#define LIBSTAR_H
+#ifndef LIBSIG_H
+#define LIBSIG_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,7 +23,7 @@ extern "C" {
 // we handle float arrays as void pointers instead,
 // so that we can do manual deferencing on the
 // JavaScript side of the universe.
-// As a result, all float* variables in Starlings
+// As a result, all float* variables in Signaletic
 // in public interface must use this type instead.
 #ifdef __EMSCRIPTEN__
     typedef void* float_array_ptr;
@@ -33,8 +33,8 @@ extern "C" {
     #define FLOAT_ARRAY(array) array
 #endif
 
-static const float star_PI = 3.14159265358979323846f;
-static const float star_TWOPI = 6.28318530717958647693f;
+static const float sig_PI = 3.14159265358979323846f;
+static const float sig_TWOPI = 6.28318530717958647693f;
 
 /**
  * Returns the smaller of two floating point arguments.
@@ -48,7 +48,7 @@ static const float star_TWOPI = 6.28318530717958647693f;
  * @param b the second value to compare
  * @return the samller of the two arguments
 */
-float star_fminf(float a, float b);
+float sig_fminf(float a, float b);
 
 /**
  * Returns the larger of two floating point arguments.
@@ -62,7 +62,7 @@ float star_fminf(float a, float b);
  * @param b the second value to compare
  * @return the larger of the two arguments
 */
-float star_fmaxf(float a, float b);
+float sig_fmaxf(float a, float b);
 
 /**
  * Clamps the value between the specified minimum and maximum.
@@ -72,14 +72,14 @@ float star_fmaxf(float a, float b);
  * @param max the maximum value
  * @return the clamped value
  */
-float star_clamp(float value, float min, float max);
+float sig_clamp(float value, float min, float max);
 
 /**
  * Generates a random float between 0.0 and 1.0.
  *
  * @return a random value
  */
-float star_randf();
+float sig_randf();
 
 /**
  * Converts a unipolar floating point sample in the range 0.0 to 1.0
@@ -90,7 +90,7 @@ float star_randf();
  * @param sample the floating point sample to convert
  * @return the sample converted to an unsigned 12-bit integer
  */
-uint16_t star_unipolarToUint12(float sample);
+uint16_t sig_unipolarToUint12(float sample);
 
 /**
  * Converts a bipolar floating point sample in the range -1.0 to 1.0
@@ -101,7 +101,7 @@ uint16_t star_unipolarToUint12(float sample);
  * @param sample the floating point sample to convert
  * @return the sample converted to an unsigned 12-bit integer
  */
-uint16_t star_bipolarToUint12(float sample);
+uint16_t sig_bipolarToUint12(float sample);
 
 /**
  * Converts a bipolar floating point sample in the range -1.0 to 1.0
@@ -112,7 +112,7 @@ uint16_t star_bipolarToUint12(float sample);
  * @param sample the floating point sample to convert
  * @return the sample converted to an unsigned 12-bit integer
  */
-uint16_t star_bipolarToInvUint12(float sample);
+uint16_t sig_bipolarToInvUint12(float sample);
 
 /**
  * Converts MIDI note numbers into frequencies in hertz.
@@ -121,7 +121,7 @@ uint16_t star_bipolarToInvUint12(float sample);
  * @param midiNum the MIDI note number to convert
  * @return the frequency in Hz of the note number
  */
-float star_midiToFreq(float midiNum);
+float sig_midiToFreq(float midiNum);
 
 /**
  * Type definition for array fill functions.
@@ -129,7 +129,7 @@ float star_midiToFreq(float midiNum);
  * @param i the current index of the array
  * @param array the array being filled
  */
-typedef float (*star_array_filler)(size_t i, float_array_ptr array);
+typedef float (*sig_array_filler)(size_t i, float_array_ptr array);
 
 /**
  * A fill function that returns random floats.
@@ -137,7 +137,7 @@ typedef float (*star_array_filler)(size_t i, float_array_ptr array);
  * @param i unused
  * @param array unused
  */
-float star_randomFill(size_t i, float_array_ptr array);
+float sig_randomFill(size_t i, float_array_ptr array);
 
 /**
  * Fills an array of floats using the specified filler function.
@@ -146,8 +146,8 @@ float star_randomFill(size_t i, float_array_ptr array);
  * @param length the lengthg of the array
  * @param filler a pointer to a fill function
  */
-void star_fill(float_array_ptr array, size_t length,
-    star_array_filler filler);
+void sig_fill(float_array_ptr array, size_t length,
+    sig_array_filler filler);
 
 /**
  * Fills an array of floats with the specified value.
@@ -156,7 +156,7 @@ void star_fill(float_array_ptr array, size_t length,
  * @param array the array to fill
  * @param length the length of the array to fill
  **/
-void star_fillWithValue(float_array_ptr array, size_t length,
+void sig_fillWithValue(float_array_ptr array, size_t length,
     float value);
 
 /**
@@ -165,7 +165,7 @@ void star_fillWithValue(float_array_ptr array, size_t length,
  * @param array the array to fill with silence
  * @param length the length of the array to fill
  **/
-void star_fillWithSilence(float_array_ptr array, size_t length);
+void sig_fillWithSilence(float_array_ptr array, size_t length);
 
 /**
  * Interpolates a value from the specified lookup table
@@ -177,7 +177,7 @@ void star_fillWithSilence(float_array_ptr array, size_t length);
  * @param length the length of the buffer
  * @return the interpolated value
  */
-float star_interpolate_linear(float idx, float_array_ptr table,
+float sig_interpolate_linear(float idx, float_array_ptr table,
     size_t length);
 
 /**
@@ -193,7 +193,7 @@ float star_interpolate_linear(float idx, float_array_ptr table,
  * @param length the length of the buffer
  * @return the interpolated value
  */
-float star_interpolate_cubic(float idx, float_array_ptr table, size_t length);
+float sig_interpolate_cubic(float idx, float_array_ptr table, size_t length);
 
 /**
  * A one pole filter.
@@ -202,7 +202,7 @@ float star_interpolate_cubic(float idx, float_array_ptr table, size_t length);
  * @param previous the previous sample (n-1)
  * @param coeff the filter coefficient
  */
-float star_filter_onepole(float current, float previous, float coeff);
+float sig_filter_onepole(float current, float previous, float coeff);
 
 /**
  * Type definition for a waveform generator function.
@@ -210,7 +210,7 @@ float star_filter_onepole(float current, float previous, float coeff);
  * @param phase the current phase
  * @return a sample for the current phase of the waveform
  */
-typedef float (*star_waveform_generator)(float phase);
+typedef float (*sig_waveform_generator)(float phase);
 
 /**
  * Generates one sample of a sine wave at the specified phase.
@@ -218,7 +218,7 @@ typedef float (*star_waveform_generator)(float phase);
  * @param phase the current phase of the waveform
  * @return the generated sample
  */
-float star_waveform_sine(float phase);
+float sig_waveform_sine(float phase);
 
 /**
  * Generates one sample of a square wave at the specified phase.
@@ -226,7 +226,7 @@ float star_waveform_sine(float phase);
  * @param phase the current phase of the waveform
  * @return the generated sample
  */
-float star_waveform_square(float phase);
+float sig_waveform_square(float phase);
 
 /**
  * Generates one sample of a saw wave at the specified phase.
@@ -234,7 +234,7 @@ float star_waveform_square(float phase);
  * @param phase the current phase of the waveform
  * @return the generated sample
  */
-float star_waveform_saw(float phase);
+float sig_waveform_saw(float phase);
 
 /**
  * Generates one sample of a reverse saw wave at the specified phase.
@@ -242,7 +242,7 @@ float star_waveform_saw(float phase);
  * @param phase the current phase of the waveform
  * @return the generated sample
  */
-float star_waveform_reverseSaw(float phase);
+float sig_waveform_reverseSaw(float phase);
 
 /**
  * Generates one sample of a triangle wave at the specified phase.
@@ -250,7 +250,7 @@ float star_waveform_reverseSaw(float phase);
  * @param phase the current phase of the waveform
  * @return the generated sample
  */
-float star_waveform_triangle(float phase);
+float sig_waveform_triangle(float phase);
 
 
 /**
@@ -259,7 +259,7 @@ float star_waveform_triangle(float phase);
  * including sample rate, number of channels, and the
  * audio block size.
  */
-struct star_AudioSettings {
+struct sig_AudioSettings {
     /**
      * The sampling rate in samples per second.
      */
@@ -279,10 +279,10 @@ struct star_AudioSettings {
 };
 
 /**
- * The default audio settings used by Starlings
+ * The default audio settings used by Signaletic
  * for 48KHz mono audio with a block size of 48.
  */
-static const struct star_AudioSettings star_DEFAULT_AUDIOSETTINGS = {
+static const struct sig_AudioSettings sig_DEFAULT_AUDIOSETTINGS = {
     .sampleRate = 48000.0f,
     .numChannels = 1,
     .blockSize = 48
@@ -296,29 +296,29 @@ static const struct star_AudioSettings star_DEFAULT_AUDIOSETTINGS = {
  * @param duration the duration in seconds
  * @return the duration in number of samples
  */
-size_t star_secondsToSamples(struct star_AudioSettings* audioSettings,
+size_t sig_secondsToSamples(struct sig_AudioSettings* audioSettings,
     float duration);
 
 /**
  * A realtime-capable memory allocator.
  */
-struct star_Allocator {
+struct sig_Allocator {
     size_t heapSize;
     void* heap;
 };
-void star_Allocator_init(struct star_Allocator* self);
-void* star_Allocator_malloc(struct star_Allocator* self, size_t size);
-void star_Allocator_free(struct star_Allocator* self, void* obj);
+void sig_Allocator_init(struct sig_Allocator* self);
+void* sig_Allocator_malloc(struct sig_Allocator* self, size_t size);
+void sig_Allocator_free(struct sig_Allocator* self, void* obj);
 
 
 /**
  * Allocates a new AudioSettings instance with
- * the values from star_DEFAULT_AUDIO_SETTINGS.
+ * the values from sig_DEFAULT_AUDIO_SETTINGS.
  *
  * @param allocator the memory allocator to use
  * @return the AudioSettings
  */
-struct star_AudioSettings* star_AudioSettings_new(struct star_Allocator* allocator);
+struct sig_AudioSettings* sig_AudioSettings_new(struct sig_Allocator* allocator);
 
 /**
  * Destroys an AudioSettings instance.
@@ -326,13 +326,13 @@ struct star_AudioSettings* star_AudioSettings_new(struct star_Allocator* allocat
  * @param allocator the memory allocator to use
  * @param self the AudioSettings instance to destroy
  */
-void star_AudioSettings_destroy(struct star_Allocator* allocator,
-    struct star_AudioSettings* self);
+void sig_AudioSettings_destroy(struct sig_Allocator* allocator,
+    struct sig_AudioSettings* self);
 
 /**
  * A Buffer holds an array of samples and its length.
  */
-struct star_Buffer {
+struct sig_Buffer {
     /**
      * The number of samples the buffer can store.
      */
@@ -350,7 +350,7 @@ struct star_Buffer {
  * @param allocator the memory allocator to use
  * @param length the number of samples this Buffer should store
  */
-struct star_Buffer* star_Buffer_new(struct star_Allocator* allocator,
+struct sig_Buffer* sig_Buffer_new(struct sig_Allocator* allocator,
     size_t length);
 
 /**
@@ -359,7 +359,7 @@ struct star_Buffer* star_Buffer_new(struct star_Allocator* allocator,
  * @param self the buffer to fill
  * @param filler a pointer to an array filler
  */
-void star_Buffer_fill(struct star_Buffer* self, star_array_filler filler);
+void sig_Buffer_fill(struct sig_Buffer* self, sig_array_filler filler);
 
 /**
  * Fills a Buffer instance with a value.
@@ -367,14 +367,14 @@ void star_Buffer_fill(struct star_Buffer* self, star_array_filler filler);
  * @param self the buffer instance to fill
  * @param value the value to which all samples will be set
  */
-void star_Buffer_fillWithValue(struct star_Buffer* self, float value);
+void sig_Buffer_fillWithValue(struct sig_Buffer* self, float value);
 
 /**
  * Fills a Buffer with silence.
  *
  * @param self the buffer to fill with zeroes
  */
-void star_Buffer_fillWithSilence(struct star_Buffer* self);
+void sig_Buffer_fillWithSilence(struct sig_Buffer* self);
 
 /**
  * Fills a Buffer with a waveform using the specified
@@ -386,8 +386,8 @@ void star_Buffer_fillWithSilence(struct star_Buffer* self);
  * @param phase the initial phase of the waveform
  * @param freq the frequency of the waveform
  */
-void star_Buffer_fillWithWaveform(struct star_Buffer* self,
-    star_waveform_generator generate, float sampleRate,
+void sig_Buffer_fillWithWaveform(struct sig_Buffer* self,
+    sig_waveform_generator generate, float sampleRate,
     float phase, float freq);
 
 /**
@@ -399,7 +399,7 @@ void star_Buffer_fillWithWaveform(struct star_Buffer* self,
  * @param allocator the memory allocator to use
  * @param self the buffer instance to destroy
  */
-void star_Buffer_destroy(struct star_Allocator* allocator, struct star_Buffer* self);
+void sig_Buffer_destroy(struct sig_Allocator* allocator, struct sig_Buffer* self);
 
 
 /**
@@ -412,8 +412,8 @@ void star_Buffer_destroy(struct star_Allocator* allocator, struct star_Buffer* s
  * @param startIdx the index in the parent buffer to start at
  * @param length the length of the subbuffer
  */
-struct star_Buffer* star_BufferView_new(
-    struct star_Allocator* allocator, struct star_Buffer* buffer,
+struct sig_Buffer* sig_BufferView_new(
+    struct sig_Allocator* allocator, struct sig_Buffer* buffer,
     size_t startIdx, size_t length);
 
 /**
@@ -424,135 +424,135 @@ struct star_Buffer* star_BufferView_new(
  * @param allocator the allocator to use
  * @param self the subbuffer to destroy
  */
-void star_BufferView_destroy(struct star_Allocator* allocator,
-    struct star_Buffer* self);
+void sig_BufferView_destroy(struct sig_Allocator* allocator,
+    struct sig_Buffer* self);
 
 
-float_array_ptr star_AudioBlock_new(struct star_Allocator* allocator,
-    struct star_AudioSettings* audioSettings);
-float_array_ptr star_AudioBlock_newWithValue(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* audioSettings,
+float_array_ptr sig_AudioBlock_new(struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings);
+float_array_ptr sig_AudioBlock_newWithValue(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
     float value);
 
 
 
 // TODO: Should the signal argument at least be defined
-// as a struct star_sig_Signal*, rather than void*?
+// as a struct sig_dsp_Signal*, rather than void*?
 // Either way, this is cast by the implementation to whatever
 // concrete Signal type is appropriate.
-typedef void (*star_sig_generateFn)(void* signal);
+typedef void (*sig_dsp_generateFn)(void* signal);
 
-void star_sig_generateSilence(void* signal);
+void sig_dsp_generateSilence(void* signal);
 
 // TODO: Should the base Signal define a (void* ?) pointer
-// to inputs, and provide an empty star_sig_Signal_Inputs struct
+// to inputs, and provide an empty sig_dsp_Signal_Inputs struct
 // as the default implementation?
-struct star_sig_Signal {
-    struct star_AudioSettings* audioSettings;
+struct sig_dsp_Signal {
+    struct sig_AudioSettings* audioSettings;
     float_array_ptr output;
-    star_sig_generateFn generate;
+    sig_dsp_generateFn generate;
 };
 
-void star_sig_Signal_init(void* signal, struct star_AudioSettings* settings,
-    float_array_ptr output, star_sig_generateFn generate);
-void star_sig_Signal_generate(void* signal);
-void star_sig_Signal_destroy(struct star_Allocator* allocator, void* signal);
+void sig_dsp_Signal_init(void* signal, struct sig_AudioSettings* settings,
+    float_array_ptr output, sig_dsp_generateFn generate);
+void sig_dsp_Signal_generate(void* signal);
+void sig_dsp_Signal_destroy(struct sig_Allocator* allocator, void* signal);
 
 
-struct star_sig_Value_Parameters {
+struct sig_dsp_Value_Parameters {
     float value;
 };
 
-struct star_sig_Value {
-    struct star_sig_Signal signal;
-    struct star_sig_Value_Parameters parameters;
+struct sig_dsp_Value {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Value_Parameters parameters;
     float lastSample;
 };
 
-struct star_sig_Value* star_sig_Value_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* settings);
-void star_sig_Value_init(struct star_sig_Value* self,
-    struct star_AudioSettings* settings, float_array_ptr output);
-void star_sig_Value_generate(void* signal);
-void star_sig_Value_destroy(struct star_Allocator* allocator,
-    struct star_sig_Value* self);
+struct sig_dsp_Value* sig_dsp_Value_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* settings);
+void sig_dsp_Value_init(struct sig_dsp_Value* self,
+    struct sig_AudioSettings* settings, float_array_ptr output);
+void sig_dsp_Value_generate(void* signal);
+void sig_dsp_Value_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Value* self);
 
 
-struct star_sig_BinaryOp_Inputs {
+struct sig_dsp_BinaryOp_Inputs {
     float_array_ptr left;
     float_array_ptr right;
 };
 
-struct star_sig_BinaryOp {
-    struct star_sig_Signal signal;
-    struct star_sig_BinaryOp_Inputs* inputs;
+struct sig_dsp_BinaryOp {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_BinaryOp_Inputs* inputs;
 };
 
 
-struct star_sig_BinaryOp* star_sig_Add_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* settings,
-    struct star_sig_BinaryOp_Inputs* inputs);
-void star_sig_Add_init(struct star_sig_BinaryOp* self,
-    struct star_AudioSettings* settings,
-    struct star_sig_BinaryOp_Inputs* inputs,
+struct sig_dsp_BinaryOp* sig_dsp_Add_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_BinaryOp_Inputs* inputs);
+void sig_dsp_Add_init(struct sig_dsp_BinaryOp* self,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_BinaryOp_Inputs* inputs,
     float_array_ptr output);
-void star_sig_Add_generate(void* signal);
-void star_sig_Add_destroy(struct star_Allocator* allocator,
-    struct star_sig_BinaryOp* self);
+void sig_dsp_Add_generate(void* signal);
+void sig_dsp_Add_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_BinaryOp* self);
 
 
-void star_sig_Mul_init(struct star_sig_BinaryOp* self,
-    struct star_AudioSettings* settings, struct star_sig_BinaryOp_Inputs* inputs, float_array_ptr output);
-struct star_sig_BinaryOp* star_sig_Mul_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* settings,
-    struct star_sig_BinaryOp_Inputs* inputs);
-void star_sig_Mul_generate(void* signal);
-void star_sig_Mul_destroy(struct star_Allocator* allocator, struct star_sig_BinaryOp* self);
+void sig_dsp_Mul_init(struct sig_dsp_BinaryOp* self,
+    struct sig_AudioSettings* settings, struct sig_dsp_BinaryOp_Inputs* inputs, float_array_ptr output);
+struct sig_dsp_BinaryOp* sig_dsp_Mul_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_BinaryOp_Inputs* inputs);
+void sig_dsp_Mul_generate(void* signal);
+void sig_dsp_Mul_destroy(struct sig_Allocator* allocator, struct sig_dsp_BinaryOp* self);
 
 
-struct star_sig_BinaryOp* star_sig_Div_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* settings,
-    struct star_sig_BinaryOp_Inputs* inputs);
-void star_sig_Div_init(struct star_sig_BinaryOp* self,
-    struct star_AudioSettings* settings,
-    struct star_sig_BinaryOp_Inputs* inputs,
+struct sig_dsp_BinaryOp* sig_dsp_Div_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_BinaryOp_Inputs* inputs);
+void sig_dsp_Div_init(struct sig_dsp_BinaryOp* self,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_BinaryOp_Inputs* inputs,
     float_array_ptr output);
-void star_sig_Div_generate(void* signal);
-void star_sig_Div_destroy(struct star_Allocator* allocator,
-    struct star_sig_BinaryOp* self);
+void sig_dsp_Div_generate(void* signal);
+void sig_dsp_Div_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_BinaryOp* self);
 
 
-struct star_sig_Invert_Inputs {
+struct sig_dsp_Invert_Inputs {
     float_array_ptr source;
 };
 
-struct star_sig_Invert {
-    struct star_sig_Signal signal;
-    struct star_sig_Invert_Inputs* inputs;
+struct sig_dsp_Invert {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Invert_Inputs* inputs;
 };
 
-struct star_sig_Invert* star_sig_Invert_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* settings,
-    struct star_sig_Invert_Inputs* inputs);
-void star_sig_Invert_init(struct star_sig_Invert* self,
-    struct star_AudioSettings* settings,
-    struct star_sig_Invert_Inputs* inputs,
+struct sig_dsp_Invert* sig_dsp_Invert_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_Invert_Inputs* inputs);
+void sig_dsp_Invert_init(struct sig_dsp_Invert* self,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_Invert_Inputs* inputs,
     float_array_ptr output);
-void star_sig_Invert_generate(void* signal);
-void star_sig_Invert_destroy(struct star_Allocator* allocator,
-    struct star_sig_Invert* self);
+void sig_dsp_Invert_generate(void* signal);
+void sig_dsp_Invert_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Invert* self);
 
 
 /**
  * The inputs for an Accumulator Signal.
  */
-struct star_sig_Accumulate_Inputs {
+struct sig_dsp_Accumulate_Inputs {
     /**
      * The source input.
      * Only the first value of each block will be read.
@@ -566,44 +566,44 @@ struct star_sig_Accumulate_Inputs {
     float_array_ptr reset;
 };
 
-struct star_sig_Accumulate_Parameters {
+struct sig_dsp_Accumulate_Parameters {
     float accumulatorStart;
 };
 
 /**
  * A Signal that accumulates its "source" input.
  *
- * Note: while Starlings doesn't have a formal
+ * Note: while Signaletic doesn't have a formal
  * concept of a control rate, this Signal
  * currently only read the first sample from each block
  * of its source input, and so effectively runs at kr.
  */
-struct star_sig_Accumulate {
-    struct star_sig_Signal signal;
-    struct star_sig_Accumulate_Inputs* inputs;
-    struct star_sig_Accumulate_Parameters parameters;
+struct sig_dsp_Accumulate {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Accumulate_Inputs* inputs;
+    struct sig_dsp_Accumulate_Parameters parameters;
     float accumulator;
     float previousReset;
 };
 
-struct star_sig_Accumulate* star_sig_Accumulate_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* settings,
-    struct star_sig_Accumulate_Inputs* inputs);
-void star_sig_Accumulate_init(
-    struct star_sig_Accumulate* self,
-    struct star_AudioSettings* settings,
-    struct star_sig_Accumulate_Inputs* inputs,
+struct sig_dsp_Accumulate* sig_dsp_Accumulate_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_Accumulate_Inputs* inputs);
+void sig_dsp_Accumulate_init(
+    struct sig_dsp_Accumulate* self,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_Accumulate_Inputs* inputs,
     float_array_ptr output);
-void star_sig_Accumulate_generate(void* signal);
-void star_sig_Accumulate_destroy(struct star_Allocator* allocator,
-    struct star_sig_Accumulate* self);
+void sig_dsp_Accumulate_generate(void* signal);
+void sig_dsp_Accumulate_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Accumulate* self);
 
 
 /**
  * Inputs for a GatedTimer.
  */
-struct star_sig_GatedTimer_Inputs {
+struct sig_dsp_GatedTimer_Inputs {
     /**
      * A gate signal that, when open, causes the timer to run.
      */
@@ -628,31 +628,31 @@ struct star_sig_GatedTimer_Inputs {
  * The timer will only run while the gate is open,
  * and will reset whenever the gate closes.
  */
-struct star_sig_GatedTimer {
-    struct star_sig_Signal signal;
-    struct star_sig_GatedTimer_Inputs* inputs;
+struct sig_dsp_GatedTimer {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_GatedTimer_Inputs* inputs;
     unsigned long timer;
     bool hasFired;
     float prevGate;
 };
 
-struct star_sig_GatedTimer* star_sig_GatedTimer_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* settings,
-    struct star_sig_GatedTimer_Inputs* inputs);
-void star_sig_GatedTimer_init(struct star_sig_GatedTimer* self,
-    struct star_AudioSettings* settings,
-    struct star_sig_GatedTimer_Inputs* inputs,
+struct sig_dsp_GatedTimer* sig_dsp_GatedTimer_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_GatedTimer_Inputs* inputs);
+void sig_dsp_GatedTimer_init(struct sig_dsp_GatedTimer* self,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_GatedTimer_Inputs* inputs,
     float_array_ptr output);
-void star_sig_GatedTimer_generate(void* signal);
-void star_sig_GatedTimer_destroy(struct star_Allocator* allocator,
-    struct star_sig_GatedTimer* self);
+void sig_dsp_GatedTimer_generate(void* signal);
+void sig_dsp_GatedTimer_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_GatedTimer* self);
 
 
 /**
  * The inputs for a TimedTriggerCounter Signal.
  */
-struct star_sig_TimedTriggerCounter_Inputs {
+struct sig_dsp_TimedTriggerCounter_Inputs {
     /**
      * The source input, from which incoming triggers will be counted.
      */
@@ -678,34 +678,34 @@ struct star_sig_TimedTriggerCounter_Inputs {
  * This signal will fire trigger if the expected number
  * of triggers are received within the specified duration.
  */
-struct star_sig_TimedTriggerCounter {
-    struct star_sig_Signal signal;
-    struct star_sig_TimedTriggerCounter_Inputs* inputs;
+struct sig_dsp_TimedTriggerCounter {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_TimedTriggerCounter_Inputs* inputs;
     int numTriggers;
     long timer;
     bool isTimerActive;
     float previousSource;
 };
 
-struct star_sig_TimedTriggerCounter* star_sig_TimedTriggerCounter_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* settings,
-    struct star_sig_TimedTriggerCounter_Inputs* inputs);
-void star_sig_TimedTriggerCounter_init(
-    struct star_sig_TimedTriggerCounter* self,
-    struct star_AudioSettings* settings,
-    struct star_sig_TimedTriggerCounter_Inputs* inputs,
+struct sig_dsp_TimedTriggerCounter* sig_dsp_TimedTriggerCounter_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_TimedTriggerCounter_Inputs* inputs);
+void sig_dsp_TimedTriggerCounter_init(
+    struct sig_dsp_TimedTriggerCounter* self,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_TimedTriggerCounter_Inputs* inputs,
     float_array_ptr output);
-void star_sig_TimedTriggerCounter_generate(void* signal);
-void star_sig_TimedTriggerCounter_destroy(
-    struct star_Allocator* allocator,
-    struct star_sig_TimedTriggerCounter* self);
+void sig_dsp_TimedTriggerCounter_generate(void* signal);
+void sig_dsp_TimedTriggerCounter_destroy(
+    struct sig_Allocator* allocator,
+    struct sig_dsp_TimedTriggerCounter* self);
 
 
 /**
  * The inputs for a ToggleGate Signal.
  */
-struct star_sig_ToggleGate_Inputs {
+struct sig_dsp_ToggleGate_Inputs {
 
     /**
      * The incoming trigger signal used to
@@ -722,96 +722,96 @@ struct star_sig_ToggleGate_Inputs {
  * when it receives a trigger to open the gate,
  * and will close it when another trigger is received.
  */
-struct star_sig_ToggleGate {
-    struct star_sig_Signal signal;
-    struct star_sig_ToggleGate_Inputs* inputs;
+struct sig_dsp_ToggleGate {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_ToggleGate_Inputs* inputs;
     bool isGateOpen;
     float prevTrig;
 };
 
-struct star_sig_ToggleGate* star_sig_ToggleGate_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* settings,
-    struct star_sig_ToggleGate_Inputs* inputs);
-void star_sig_ToggleGate_init(
-    struct star_sig_ToggleGate* self,
-    struct star_AudioSettings* settings,
-    struct star_sig_ToggleGate_Inputs* inputs,
+struct sig_dsp_ToggleGate* sig_dsp_ToggleGate_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_ToggleGate_Inputs* inputs);
+void sig_dsp_ToggleGate_init(
+    struct sig_dsp_ToggleGate* self,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_ToggleGate_Inputs* inputs,
     float_array_ptr output);
-void star_sig_ToggleGate_generate(void* signal);
-void star_sig_ToggleGate_destroy(
-    struct star_Allocator* allocator,
-    struct star_sig_ToggleGate* self);
+void sig_dsp_ToggleGate_generate(void* signal);
+void sig_dsp_ToggleGate_destroy(
+    struct sig_Allocator* allocator,
+    struct sig_dsp_ToggleGate* self);
 
-struct star_sig_Sine_Inputs {
+struct sig_dsp_Sine_Inputs {
     float_array_ptr freq;
     float_array_ptr phaseOffset;
     float_array_ptr mul;
     float_array_ptr add;
 };
 
-struct star_sig_Sine {
-    struct star_sig_Signal signal;
-    struct star_sig_Sine_Inputs* inputs;
+struct sig_dsp_Sine {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Sine_Inputs* inputs;
     float phaseAccumulator;
 };
 
-void star_sig_Sine_init(struct star_sig_Sine* self,
-    struct star_AudioSettings* settings, struct star_sig_Sine_Inputs* inputs, float_array_ptr output);
-struct star_sig_Sine* star_sig_Sine_new(struct star_Allocator* allocator,
-    struct star_AudioSettings* settings,
-    struct star_sig_Sine_Inputs* inputs);
-void star_sig_Sine_generate(void* signal);
-void star_sig_Sine_destroy(struct star_Allocator* allocator, struct star_sig_Sine* self);
+void sig_dsp_Sine_init(struct sig_dsp_Sine* self,
+    struct sig_AudioSettings* settings, struct sig_dsp_Sine_Inputs* inputs, float_array_ptr output);
+struct sig_dsp_Sine* sig_dsp_Sine_new(struct sig_Allocator* allocator,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_Sine_Inputs* inputs);
+void sig_dsp_Sine_generate(void* signal);
+void sig_dsp_Sine_destroy(struct sig_Allocator* allocator, struct sig_dsp_Sine* self);
 
 
-struct star_sig_OnePole_Inputs {
+struct sig_dsp_OnePole_Inputs {
     float_array_ptr source;
     float_array_ptr coefficient;
 };
 
-struct star_sig_OnePole {
-    struct star_sig_Signal signal;
-    struct star_sig_OnePole_Inputs* inputs;
+struct sig_dsp_OnePole {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_OnePole_Inputs* inputs;
     float previousSample;
 };
 
-void star_sig_OnePole_init(struct star_sig_OnePole* self,
-    struct star_AudioSettings* settings,
-    struct star_sig_OnePole_Inputs* inputs,
+void sig_dsp_OnePole_init(struct sig_dsp_OnePole* self,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_OnePole_Inputs* inputs,
     float_array_ptr output);
-struct star_sig_OnePole* star_sig_OnePole_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* settings,
-    struct star_sig_OnePole_Inputs* inputs);
-void star_sig_OnePole_generate(void* signal);
-void star_sig_OnePole_destroy(struct star_Allocator* allocator,
-    struct star_sig_OnePole* self);
+struct sig_dsp_OnePole* sig_dsp_OnePole_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_OnePole_Inputs* inputs);
+void sig_dsp_OnePole_generate(void* signal);
+void sig_dsp_OnePole_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_OnePole* self);
 
 
-struct star_sig_Tanh_Inputs {
+struct sig_dsp_Tanh_Inputs {
     float_array_ptr source;
 };
 
-struct star_sig_Tanh {
-    struct star_sig_Signal signal;
-    struct star_sig_Tanh_Inputs* inputs;
+struct sig_dsp_Tanh {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Tanh_Inputs* inputs;
 };
 
-void star_sig_Tanh_init(struct star_sig_Tanh* self,
-    struct star_AudioSettings* settings,
-    struct star_sig_Tanh_Inputs* inputs,
+void sig_dsp_Tanh_init(struct sig_dsp_Tanh* self,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_Tanh_Inputs* inputs,
     float_array_ptr output);
-struct star_sig_Tanh* star_sig_Tanh_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* settings,
-    struct star_sig_Tanh_Inputs* inputs);
-void star_sig_Tanh_generate(void* signal);
-void star_sig_Tanh_destroy(struct star_Allocator* allocator,
-    struct star_sig_Tanh* self);
+struct sig_dsp_Tanh* sig_dsp_Tanh_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_Tanh_Inputs* inputs);
+void sig_dsp_Tanh_generate(void* signal);
+void sig_dsp_Tanh_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Tanh* self);
 
 
-struct star_sig_Looper_Inputs {
+struct sig_dsp_Looper_Inputs {
     float_array_ptr source;
     float_array_ptr start;
     float_array_ptr end;
@@ -820,33 +820,33 @@ struct star_sig_Looper_Inputs {
     float_array_ptr clear;
 };
 
-struct star_sig_Looper {
-    struct star_sig_Signal signal;
-    struct star_sig_Looper_Inputs* inputs;
-    struct star_Buffer* buffer;
+struct sig_dsp_Looper {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Looper_Inputs* inputs;
+    struct sig_Buffer* buffer;
     float playbackPos;
     bool isBufferEmpty;
     float previousRecord;
     float previousClear;
 };
 
-void star_sig_Looper_init(struct star_sig_Looper* self,
-    struct star_AudioSettings* settings,
-    struct star_sig_Looper_Inputs* inputs,
+void sig_dsp_Looper_init(struct sig_dsp_Looper* self,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_Looper_Inputs* inputs,
     float_array_ptr output);
-struct star_sig_Looper* star_sig_Looper_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* settings,
-    struct star_sig_Looper_Inputs* inputs);
-void star_sig_Looper_generate(void* signal);
-void star_sig_Looper_destroy(struct star_Allocator* allocator,
-    struct star_sig_Looper* self);
+struct sig_dsp_Looper* sig_dsp_Looper_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_Looper_Inputs* inputs);
+void sig_dsp_Looper_generate(void* signal);
+void sig_dsp_Looper_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Looper* self);
 
-struct star_sig_Dust_Parameters {
+struct sig_dsp_Dust_Parameters {
     float bipolar;
 };
 
-struct star_sig_Dust_Inputs {
+struct sig_dsp_Dust_Inputs {
     float_array_ptr density;
 };
 
@@ -863,10 +863,10 @@ struct star_sig_Dust_Inputs {
  * Parameters:
  * - bipolar: the output will be unipolar if <=0, bipolar if >0
  */
-struct star_sig_Dust {
-    struct star_sig_Signal signal;
-    struct star_sig_Dust_Inputs* inputs;
-    struct star_sig_Dust_Parameters parameters;
+struct sig_dsp_Dust {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Dust_Inputs* inputs;
+    struct sig_dsp_Dust_Parameters parameters;
 
     // TODO: Should this be part of AudioSettings?
     float sampleDuration;
@@ -876,26 +876,26 @@ struct star_sig_Dust {
     float scale;
 };
 
-void star_sig_Dust_init(struct star_sig_Dust* self,
-    struct star_AudioSettings* settings,
-    struct star_sig_Dust_Inputs* inputs,
+void sig_dsp_Dust_init(struct sig_dsp_Dust* self,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_Dust_Inputs* inputs,
     float_array_ptr output);
-struct star_sig_Dust* star_sig_Dust_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* settings,
-    struct star_sig_Dust_Inputs* inputs);
-void star_sig_Dust_generate(void* signal);
-void star_sig_Dust_destroy(struct star_Allocator* allocator,
-    struct star_sig_Dust* self);
+struct sig_dsp_Dust* sig_dsp_Dust_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_Dust_Inputs* inputs);
+void sig_dsp_Dust_generate(void* signal);
+void sig_dsp_Dust_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Dust* self);
 
 
 
-struct star_sig_TimedGate_Parameters {
+struct sig_dsp_TimedGate_Parameters {
     float resetOnTrigger;
     float bipolar;
 };
 
-struct star_sig_TimedGate_Inputs {
+struct sig_dsp_TimedGate_Inputs {
     float_array_ptr trigger;
     float_array_ptr duration;
 };
@@ -920,10 +920,10 @@ struct star_sig_TimedGate_Inputs {
  * Output: the gate's amplitude will reflect the value and
  *         polarity of the trigger
  */
-struct star_sig_TimedGate {
-    struct star_sig_Signal signal;
-    struct star_sig_TimedGate_Inputs* inputs;
-    struct star_sig_TimedGate_Parameters parameters;
+struct sig_dsp_TimedGate {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_TimedGate_Inputs* inputs;
+    struct sig_dsp_TimedGate_Parameters parameters;
 
     float previousTrigger;
     float gateValue;
@@ -932,25 +932,25 @@ struct star_sig_TimedGate {
     long samplesRemaining;
 };
 
-void star_sig_TimedGate_init(struct star_sig_TimedGate* self,
-    struct star_AudioSettings* settings,
-    struct star_sig_TimedGate_Inputs* inputs,
+void sig_dsp_TimedGate_init(struct sig_dsp_TimedGate* self,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_TimedGate_Inputs* inputs,
     float_array_ptr output);
-struct star_sig_TimedGate* star_sig_TimedGate_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* settings,
-    struct star_sig_TimedGate_Inputs* inputs);
-void star_sig_TimedGate_generate(void* signal);
-void star_sig_TimedGate_destroy(struct star_Allocator* allocator,
-    struct star_sig_TimedGate* self);
+struct sig_dsp_TimedGate* sig_dsp_TimedGate_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_TimedGate_Inputs* inputs);
+void sig_dsp_TimedGate_generate(void* signal);
+void sig_dsp_TimedGate_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_TimedGate* self);
 
 
 
-struct star_sig_ClockFreqDetector_Inputs {
+struct sig_dsp_ClockFreqDetector_Inputs {
     float_array_ptr source;
 };
 
-struct star_sig_ClockFreqDetector_Parameters {
+struct sig_dsp_ClockFreqDetector_Parameters {
     float threshold;
     float timeoutDuration;
 };
@@ -963,10 +963,10 @@ struct star_sig_ClockFreqDetector_Parameters {
  * Inputs:
  *  - source the incoming clock signal
  */
-struct star_sig_ClockFreqDetector {
-    struct star_sig_Signal signal;
-    struct star_sig_ClockFreqDetector_Inputs* inputs;
-    struct star_sig_ClockFreqDetector_Parameters parameters;
+struct sig_dsp_ClockFreqDetector {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_ClockFreqDetector_Inputs* inputs;
+    struct sig_dsp_ClockFreqDetector_Parameters parameters;
 
     float previousTrigger;
     bool isRisingEdge;
@@ -975,18 +975,18 @@ struct star_sig_ClockFreqDetector {
     uint32_t pulseDurSamples;
 };
 
-void star_sig_ClockFreqDetector_init(
-    struct star_sig_ClockFreqDetector* self,
-    struct star_AudioSettings* settings,
-    struct star_sig_ClockFreqDetector_Inputs* inputs,
+void sig_dsp_ClockFreqDetector_init(
+    struct sig_dsp_ClockFreqDetector* self,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_ClockFreqDetector_Inputs* inputs,
     float_array_ptr output);
-struct star_sig_ClockFreqDetector* star_sig_ClockFreqDetector_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* settings,
-    struct star_sig_ClockFreqDetector_Inputs* inputs);
-void star_sig_ClockFreqDetector_generate(void* signal);
-void star_sig_ClockFreqDetector_destroy(struct star_Allocator* allocator,
-    struct star_sig_ClockFreqDetector* self);
+struct sig_dsp_ClockFreqDetector* sig_dsp_ClockFreqDetector_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_ClockFreqDetector_Inputs* inputs);
+void sig_dsp_ClockFreqDetector_generate(void* signal);
+void sig_dsp_ClockFreqDetector_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_ClockFreqDetector* self);
 
 
 #ifdef __cplusplus

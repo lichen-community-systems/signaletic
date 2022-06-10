@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <title>Oscillator - libstar wasm example</title>
+        <title>Oscillator - libsignaletic wasm example</title>
         <link href="web-bluemchen.css" rel="stylesheet">
         <script src="https://g200kg.github.io/webaudio-controls/webaudio-controls.js"></script>
     </head>
@@ -50,7 +50,7 @@
                 let source = context.createMediaStreamSource(stream);
 
                 await context.audioWorklet.addModule(
-                    "../../../../libstar/build/wasm/wasm-oscillator-example.js");
+                    "../../../../libsignaletic/build/wasm/wasm-oscillator-example.js");
 
                 const signaleticOsc = new AudioWorkletNode(context,
                     "SignaleticOscillator");

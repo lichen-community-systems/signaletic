@@ -1,4 +1,4 @@
-#include <libstar.h>
+#include <libsignaletic.h>
 
 struct cc_sig_DustGate_Inputs {
     float_array_ptr density;
@@ -10,12 +10,12 @@ struct cc_sig_DustGate_Parameters {
 };
 
 struct cc_sig_DustGate {
-    struct star_sig_Signal signal;
+    struct sig_dsp_Signal signal;
     struct cc_sig_DustGate_Inputs* inputs;
-    struct star_sig_Dust* dust;
-    struct star_sig_BinaryOp* reciprocalDensity;
-    struct star_sig_BinaryOp* densityDurationMultiplier;
-    struct star_sig_TimedGate* gate;
+    struct sig_dsp_Dust* dust;
+    struct sig_dsp_BinaryOp* reciprocalDensity;
+    struct sig_dsp_BinaryOp* densityDurationMultiplier;
+    struct sig_dsp_TimedGate* gate;
 };
 
 void cc_sig_DustGate_generate(void* signal) {
@@ -29,57 +29,57 @@ void cc_sig_DustGate_generate(void* signal) {
 }
 
 void cc_sig_DustGate_init(struct cc_sig_DustGate* self,
-    struct star_AudioSettings* audioSettings, float_array_ptr output) {
-    star_sig_Signal_init(self, audioSettings, output,
+    struct sig_AudioSettings* audioSettings, float_array_ptr output) {
+    sig_dsp_Signal_init(self, audioSettings, output,
         *cc_sig_DustGate_generate);
 };
 
 struct cc_sig_DustGate* cc_sig_DustGate_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* audioSettings,
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
     cc_sig_DustGate_Inputs* inputs) {
 
     struct cc_sig_DustGate* self =
-        (cc_sig_DustGate*) star_Allocator_malloc(allocator,
+        (cc_sig_DustGate*) sig_Allocator_malloc(allocator,
         sizeof(struct cc_sig_DustGate));
 
-    struct star_sig_Dust_Inputs* dustInputs = (struct star_sig_Dust_Inputs*)
-        star_Allocator_malloc(allocator,
-            sizeof(struct star_sig_Dust_Inputs));
+    struct sig_dsp_Dust_Inputs* dustInputs = (struct sig_dsp_Dust_Inputs*)
+        sig_Allocator_malloc(allocator,
+            sizeof(struct sig_dsp_Dust_Inputs));
     dustInputs->density = inputs->density;
 
-    self->dust = star_sig_Dust_new(allocator,
+    self->dust = sig_dsp_Dust_new(allocator,
         audioSettings, dustInputs);
 
-    struct star_sig_BinaryOp_Inputs* reciprocalDensityInputs =
-        (struct star_sig_BinaryOp_Inputs*) star_Allocator_malloc(allocator,
-            sizeof(struct star_sig_BinaryOp_Inputs));
+    struct sig_dsp_BinaryOp_Inputs* reciprocalDensityInputs =
+        (struct sig_dsp_BinaryOp_Inputs*) sig_Allocator_malloc(allocator,
+            sizeof(struct sig_dsp_BinaryOp_Inputs));
     reciprocalDensityInputs->left =
-        star_AudioBlock_newWithValue(allocator, audioSettings, 1.0f);
+        sig_AudioBlock_newWithValue(allocator, audioSettings, 1.0f);
     reciprocalDensityInputs->right = inputs->density;
 
-    self->reciprocalDensity = star_sig_Div_new(allocator,
+    self->reciprocalDensity = sig_dsp_Div_new(allocator,
         audioSettings, reciprocalDensityInputs);
 
-    struct star_sig_BinaryOp_Inputs* densityDurationMuliplierInputs =
-        (struct star_sig_BinaryOp_Inputs*)
-            star_Allocator_malloc(allocator,
-                sizeof(struct star_sig_BinaryOp_Inputs));
+    struct sig_dsp_BinaryOp_Inputs* densityDurationMuliplierInputs =
+        (struct sig_dsp_BinaryOp_Inputs*)
+            sig_Allocator_malloc(allocator,
+                sizeof(struct sig_dsp_BinaryOp_Inputs));
     densityDurationMuliplierInputs->left =
         self->reciprocalDensity->signal.output;
     densityDurationMuliplierInputs->right = inputs->durationPercentage;
 
-    self->densityDurationMultiplier = star_sig_Mul_new(allocator,
+    self->densityDurationMultiplier = sig_dsp_Mul_new(allocator,
         audioSettings, densityDurationMuliplierInputs);
 
-    struct star_sig_TimedGate_Inputs* gateInputs =
-        (struct star_sig_TimedGate_Inputs*) star_Allocator_malloc(allocator,
-            sizeof(struct star_sig_TimedGate_Inputs));
+    struct sig_dsp_TimedGate_Inputs* gateInputs =
+        (struct sig_dsp_TimedGate_Inputs*) sig_Allocator_malloc(allocator,
+            sizeof(struct sig_dsp_TimedGate_Inputs));
     gateInputs->trigger =self->dust->signal.output;
     gateInputs->duration =
         self->densityDurationMultiplier->signal.output;
 
-    self->gate = star_sig_TimedGate_new(allocator,
+    self->gate = sig_dsp_TimedGate_new(allocator,
         audioSettings, gateInputs);
 
     cc_sig_DustGate_init(self, audioSettings, self->gate->signal.output);
@@ -87,24 +87,24 @@ struct cc_sig_DustGate* cc_sig_DustGate_new(
     return self;
 }
 
-void cc_sig_DustGate_destroy(struct star_Allocator* allocator,
+void cc_sig_DustGate_destroy(struct sig_Allocator* allocator,
     struct cc_sig_DustGate* self) {
-    star_Allocator_free(allocator, self->gate->inputs);
-    star_sig_TimedGate_destroy(allocator, self->gate);
+    sig_Allocator_free(allocator, self->gate->inputs);
+    sig_dsp_TimedGate_destroy(allocator, self->gate);
 
-    star_Allocator_free(allocator,
+    sig_Allocator_free(allocator,
         self->densityDurationMultiplier->inputs);
-    star_sig_Mul_destroy(allocator,
+    sig_dsp_Mul_destroy(allocator,
         self->densityDurationMultiplier);
 
-    star_Allocator_free(allocator, self->reciprocalDensity->inputs);
-    star_sig_Div_destroy(allocator, self->reciprocalDensity);
+    sig_Allocator_free(allocator, self->reciprocalDensity->inputs);
+    sig_dsp_Div_destroy(allocator, self->reciprocalDensity);
 
-    star_Allocator_free(allocator, self->dust->inputs);
-    star_sig_Dust_destroy(allocator, self->dust);
+    sig_Allocator_free(allocator, self->dust->inputs);
+    sig_dsp_Dust_destroy(allocator, self->dust);
 
-    // We don't call star_sig_Signal_destroy
+    // We don't call sig_dsp_Signal_destroy
     // because our output is borrowed from self->gate,
     // and it was already freed in TimeGate's destructor.
-    star_Allocator_free(allocator, self);
+    sig_Allocator_free(allocator, self);
 }

@@ -2,14 +2,14 @@
 #include <unity.h>
 #include <assert.h>
 
-void testAssertBufferContainsValueOnly(struct star_Allocator* allocator,
+void testAssertBufferContainsValueOnly(struct sig_Allocator* allocator,
     float expectedValue, float* actual,
     size_t len) {
-    float* expectedArray = (float*) star_Allocator_malloc(allocator,
+    float* expectedArray = (float*) sig_Allocator_malloc(allocator,
         len * sizeof(float));
-    star_fillWithValue(expectedArray, len, expectedValue);
+    sig_fillWithValue(expectedArray, len, expectedValue);
     TEST_ASSERT_EQUAL_FLOAT_ARRAY(expectedArray, actual, len);
-    star_Allocator_free(allocator, expectedArray);
+    sig_Allocator_free(allocator, expectedArray);
 }
 
 void testAssertBuffersNotEqual(float* first, float* second, size_t len) {
@@ -39,16 +39,16 @@ void testAssertBuffersNoValuesEqual(float* first, float* second, size_t len) {
         "Value at index was the same in both buffers.");
 }
 
-void testAssertBufferIsSilent(struct star_Allocator* allocator,
+void testAssertBufferIsSilent(struct sig_Allocator* allocator,
     float* buffer, size_t len) {
     testAssertBufferContainsValueOnly(allocator, 0.0f, buffer, len);
 }
 
-void testAssertBufferNotSilent(struct star_Allocator* allocator,
+void testAssertBufferNotSilent(struct sig_Allocator* allocator,
     float* buffer, size_t len) {
-    float* silence = star_Allocator_malloc(allocator,
+    float* silence = sig_Allocator_malloc(allocator,
         sizeof(float) * len);
-    star_fillWithSilence(silence, len);
+    sig_fillWithSilence(silence, len);
     testAssertBuffersNotEqual(silence, buffer, len);
 }
 
@@ -77,7 +77,7 @@ size_t countNonZeroSamples(float* buffer, size_t len) {
     return numNonZero;
 }
 
-int16_t countNonZeroSamplesGenerated(struct star_sig_Signal* signal,
+int16_t countNonZeroSamplesGenerated(struct sig_dsp_Signal* signal,
     int numRuns) {
     int16_t numNonZero = 0;
     for (int i = 0; i < numRuns; i++) {
@@ -99,7 +99,7 @@ void testAssertBufferContainsNumZeroSamples(float* buffer,
 }
 
 void testAssertGeneratedSignalContainsApproxNumNonZeroSamples(
-    struct star_sig_Signal* signal, int16_t expectedNumNonZero,
+    struct sig_dsp_Signal* signal, int16_t expectedNumNonZero,
     double errorFactor, int numRuns) {
     double expectedNumNonZeroD = (double) expectedNumNonZero;
     double errorNumSamps = expectedNumNonZeroD * errorFactor;
@@ -115,14 +115,14 @@ void testAssertGeneratedSignalContainsApproxNumNonZeroSamples(
         "The actual average number of non-zero samples was not within the expected range.");
 }
 
-void evaluateSignals(struct star_AudioSettings* audioSettings,
-    struct star_sig_Signal** signals, size_t numSignals, float duration) {
+void evaluateSignals(struct sig_AudioSettings* audioSettings,
+    struct sig_dsp_Signal** signals, size_t numSignals, float duration) {
     size_t numBlocks = (size_t) (duration *
         (audioSettings->sampleRate / audioSettings->blockSize));
 
     for (size_t i = 0; i < numBlocks; i++) {
         for (size_t j = 0; j < numSignals; j++) {
-            struct star_sig_Signal* signal = signals[j];
+            struct sig_dsp_Signal* signal = signals[j];
             signal->generate(signal);
         }
     }
@@ -130,9 +130,9 @@ void evaluateSignals(struct star_AudioSettings* audioSettings,
 
 
 
-void star_test_BufferPlayer_generate(void* signal) {
-    struct star_test_BufferPlayer* self =
-        (struct star_test_BufferPlayer*) signal;
+void sig_test_BufferPlayer_generate(void* signal) {
+    struct sig_test_BufferPlayer* self =
+        (struct sig_test_BufferPlayer*) signal;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
         if (self->currentSample >= self->buffer->length) {
@@ -146,37 +146,37 @@ void star_test_BufferPlayer_generate(void* signal) {
     }
 }
 
-void star_test_BufferPlayer_init(struct star_test_BufferPlayer* self,
-    struct star_AudioSettings* audioSettings,
-    struct star_Buffer* buffer,
+void sig_test_BufferPlayer_init(struct sig_test_BufferPlayer* self,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_Buffer* buffer,
     float_array_ptr output) {
-    star_sig_Signal_init(self, audioSettings, output,
-        star_test_BufferPlayer_generate);
+    sig_dsp_Signal_init(self, audioSettings, output,
+        sig_test_BufferPlayer_generate);
     self->buffer = buffer;
     self->currentSample = 0;
 }
 
-struct star_test_BufferPlayer* star_test_BufferPlayer_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* audioSettings,
-    struct star_Buffer* buffer) {
-    float_array_ptr output = star_AudioBlock_new(allocator, audioSettings);
-    struct star_test_BufferPlayer* self = star_Allocator_malloc(allocator,
-        sizeof(struct star_test_BufferPlayer));
-    star_test_BufferPlayer_init(self, audioSettings, buffer, output);
+struct sig_test_BufferPlayer* sig_test_BufferPlayer_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_Buffer* buffer) {
+    float_array_ptr output = sig_AudioBlock_new(allocator, audioSettings);
+    struct sig_test_BufferPlayer* self = sig_Allocator_malloc(allocator,
+        sizeof(struct sig_test_BufferPlayer));
+    sig_test_BufferPlayer_init(self, audioSettings, buffer, output);
 
     return self;
 }
 
-void star_test_BufferPlayer_destroy(struct star_Allocator* allocator,
-    struct star_test_BufferPlayer* self) {
-    star_sig_Signal_destroy(allocator, self);
+void sig_test_BufferPlayer_destroy(struct sig_Allocator* allocator,
+    struct sig_test_BufferPlayer* self) {
+    sig_dsp_Signal_destroy(allocator, self);
 }
 
 
-void star_test_BufferRecorder_generate(void* signal) {
-    struct star_test_BufferRecorder* self =
-        (struct star_test_BufferRecorder*) signal;
+void sig_test_BufferRecorder_generate(void* signal) {
+    struct sig_test_BufferRecorder* self =
+        (struct sig_test_BufferRecorder*) signal;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
         // Blow up if we're still trying to record after the buffer is full.
@@ -190,33 +190,33 @@ void star_test_BufferRecorder_generate(void* signal) {
     }
 }
 
-void star_test_BufferRecorder_init(
-    struct star_test_BufferRecorder* self,
-    struct star_AudioSettings* audioSettings,
-    struct star_test_BufferRecorder_Inputs* inputs,
-    struct star_Buffer* buffer,
+void sig_test_BufferRecorder_init(
+    struct sig_test_BufferRecorder* self,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_test_BufferRecorder_Inputs* inputs,
+    struct sig_Buffer* buffer,
     float_array_ptr output) {
-    star_sig_Signal_init(self, audioSettings, output,
-        star_test_BufferRecorder_generate);
+    sig_dsp_Signal_init(self, audioSettings, output,
+        sig_test_BufferRecorder_generate);
     self->inputs = inputs;
     self->buffer = buffer;
     self->currentSample = 0;
 }
 
-struct star_test_BufferRecorder* star_test_BufferRecorder_new(
-    struct star_Allocator* allocator,
-    struct star_AudioSettings* audioSettings,
-    struct star_test_BufferRecorder_Inputs* inputs,
-    struct star_Buffer* buffer) {
-    float_array_ptr output = star_AudioBlock_new(allocator, audioSettings);
-    struct star_test_BufferRecorder* self = star_Allocator_malloc(allocator,
-        sizeof(struct star_test_BufferRecorder));
-    star_test_BufferRecorder_init(self, audioSettings, inputs, buffer, output);
+struct sig_test_BufferRecorder* sig_test_BufferRecorder_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_test_BufferRecorder_Inputs* inputs,
+    struct sig_Buffer* buffer) {
+    float_array_ptr output = sig_AudioBlock_new(allocator, audioSettings);
+    struct sig_test_BufferRecorder* self = sig_Allocator_malloc(allocator,
+        sizeof(struct sig_test_BufferRecorder));
+    sig_test_BufferRecorder_init(self, audioSettings, inputs, buffer, output);
 
     return self;
 }
 
-void star_test_BufferRecorder_destroy(struct star_Allocator* allocator,
-    struct star_test_BufferRecorder* self) {
-    star_sig_Signal_destroy(allocator, self);
+void sig_test_BufferRecorder_destroy(struct sig_Allocator* allocator,
+    struct sig_test_BufferRecorder* self) {
+    sig_dsp_Signal_destroy(allocator, self);
 }

@@ -1,18 +1,18 @@
 {
     "configurations": [
       {
-        "name": "libstar Console Example",
+        "name": "libsignaletic Console Example",
         "type": "lldb",
         "request": "launch",
-        "preLaunchTask": "Build libstar",
-        "program": "${workspaceFolder}/libstar/build/native/libstar-console-example"
+        "preLaunchTask": "Build libsignaletic",
+        "program": "${workspaceFolder}/libsignaletic/build/native/libsignaletic-console-example"
       },
       {
-        "name": "libstar Tests",
+        "name": "libsignaletic Tests",
         "type": "lldb",
         "request": "launch",
-        "preLaunchTask": "Build libstar",
-        "program": "${workspaceFolder}/libstar/build/native/run_tests"
+        "preLaunchTask": "Build libsignaletic",
+        "program": "${workspaceFolder}/libsignaletic/build/native/run_tests"
       },
       {
         "name": "Remote Bluemchen Oscillator",
@@ -25,7 +25,7 @@
           "-d",
           "${workspaceRoot}/hosts/daisy/examples/bluemchen/oscillator"
         ],
-        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/oscillator/build/starlings-bluemchen-oscillator.elf",
+        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/oscillator/build/signaletic-bluemchen-oscillator.elf",
         "interface": "swd",
         "openOCDLaunchCommands": [
           "init",
@@ -55,7 +55,7 @@
           "-d",
           "${workspaceRoot}/hosts/daisy/examples/bluemchen/looper"
         ],
-        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/looper/build/starlings-bluemchen-looper.elf",
+        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/looper/build/signaletic-bluemchen-looper.elf",
         "interface": "swd",
         "openOCDLaunchCommands": [
           "init",
@@ -85,7 +85,7 @@
           "-d",
           "${workspaceRoot}/hosts/daisy/examples/bluemchen/dusting"
         ],
-        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/dusting/build/starlings-bluemchen-dusting.elf",
+        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/dusting/build/signaletic-bluemchen-dusting.elf",
         "interface": "swd",
         "openOCDLaunchCommands": [
           "init",

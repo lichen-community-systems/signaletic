@@ -1,6 +1,6 @@
 #include "../../vendor/kxmx_bluemchen/src/kxmx_bluemchen.h"
 #include <tlsf.h>
-#include <libstar.h>
+#include <libsignaletic.h>
 #include "../../../../include/cc-signals.h"
 #include <string>
 
@@ -15,17 +15,17 @@ FixedCapStr<20> displayStr;
 
 #define SIGNAL_HEAP_SIZE 1024 * 384
 char signalHeap[SIGNAL_HEAP_SIZE];
-struct star_Allocator allocator = {
+struct sig_Allocator allocator = {
     .heapSize = SIGNAL_HEAP_SIZE,
     .heap = (void*) signalHeap
 };
 
-struct star_sig_Value* density;
-struct star_sig_Value* duration;
-struct star_sig_ClockFreqDetector* clockFreq;
-struct star_sig_BinaryOp* densityClockSum;
+struct sig_dsp_Value* density;
+struct sig_dsp_Value* duration;
+struct sig_dsp_ClockFreqDetector* clockFreq;
+struct sig_dsp_BinaryOp* densityClockSum;
 struct cc_sig_DustGate* cvDustGate;
-struct star_sig_BinaryOp* audioDensityMultiplier;
+struct sig_dsp_BinaryOp* audioDensityMultiplier;
 struct cc_sig_DustGate* audioDustGate;
 
 void UpdateOled() {
@@ -85,7 +85,7 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
     EvaluateSignalGraph();
 
     bluemchen.seed.dac.WriteValue(daisy::DacHandle::Channel::BOTH,
-        star_unipolarToUint12(cvDustGate->gate->signal.output[0]));
+        sig_unipolarToUint12(cvDustGate->gate->signal.output[0]));
 
     // Copy mono buffer to stereo output.
     for (size_t i = 0; i < size; i++) {
@@ -103,9 +103,9 @@ void initControls() {
 
 int main(void) {
     bluemchen.Init();
-    star_Allocator_init(&allocator);
+    sig_Allocator_init(&allocator);
 
-    struct star_AudioSettings audioSettings = {
+    struct sig_AudioSettings audioSettings = {
         .sampleRate = bluemchen.AudioSampleRate(),
         .numChannels = 2,
         .blockSize = 2
@@ -115,23 +115,23 @@ int main(void) {
     bluemchen.StartAdc();
     initControls();
 
-    density = star_sig_Value_new(&allocator, &audioSettings);
+    density = sig_dsp_Value_new(&allocator, &audioSettings);
     density->parameters.value = 1.0f;
-    duration = star_sig_Value_new(&allocator, &audioSettings);
+    duration = sig_dsp_Value_new(&allocator, &audioSettings);
     duration->parameters.value = 1.0f;
 
-    struct star_sig_ClockFreqDetector_Inputs clockFreqInputs = {
-        .source = star_AudioBlock_newWithValue(&allocator,
+    struct sig_dsp_ClockFreqDetector_Inputs clockFreqInputs = {
+        .source = sig_AudioBlock_newWithValue(&allocator,
             &audioSettings, 0.0f)
     };
-    clockFreq = star_sig_ClockFreqDetector_new(&allocator, &audioSettings,
+    clockFreq = sig_dsp_ClockFreqDetector_new(&allocator, &audioSettings,
         &clockFreqInputs);
 
-    struct star_sig_BinaryOp_Inputs densityClockSumInputs = {
+    struct sig_dsp_BinaryOp_Inputs densityClockSumInputs = {
         .left = clockFreq->signal.output,
         .right = density->signal.output
     };
-    densityClockSum = star_sig_Add_new(&allocator, &audioSettings,
+    densityClockSum = sig_dsp_Add_new(&allocator, &audioSettings,
         &densityClockSumInputs);
 
     struct cc_sig_DustGate_Inputs cvInputs = {
@@ -142,12 +142,12 @@ int main(void) {
     cvDustGate = cc_sig_DustGate_new(&allocator,
         &audioSettings, &cvInputs);
 
-    struct star_sig_BinaryOp_Inputs audioDensityMuliplierInputs = {
+    struct sig_dsp_BinaryOp_Inputs audioDensityMuliplierInputs = {
         .left = densityClockSum->signal.output,
-        .right = star_AudioBlock_newWithValue(&allocator,
+        .right = sig_AudioBlock_newWithValue(&allocator,
             &audioSettings, 200.0f),
     };
-    audioDensityMultiplier = star_sig_Mul_new(&allocator, &audioSettings,
+    audioDensityMultiplier = sig_dsp_Mul_new(&allocator, &audioSettings,
         &audioDensityMuliplierInputs);
 
     struct cc_sig_DustGate_Inputs audioInputs = {
