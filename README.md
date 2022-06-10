@@ -4,6 +4,7 @@ This project is an early-stage effort to rewrite and redesign the core signal pr
 
 ## Goals
 
+* Provide the signal processing infrastructure to support the development of an interpreted and/or transpiled-to-C minimal "signal expression language."
 * *Live repatching without compilation*: provide a highly mutable audio graph, so that instruments can be dynamically reconfigured while they are running (on platforms where this is appropriate).
 * *Vastly portable*: support deployment on the Web (via Web Assembly), desktop and mobile operating systems (macOS, Windows, Linux, iOS), specialized audio OS-based environments (Bela), and microcontroller-based systems (Daisy).
 * *Fully externalized state*: Provide a means for [fully externalizing all state](http://openresearch.ocadu.ca/id/eprint/2059/1/Clark_sdr_2017_preprint.pdf) via a Nexus-like RESTful API, including:
