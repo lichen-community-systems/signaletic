@@ -85,7 +85,7 @@
           "-d",
           "${workspaceRoot}/hosts/daisy/examples/bluemchen/dusting"
         ],
-        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/dusting/build/signaletic-bluemchen-dusting.elf",
+        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/dusting/build/signaletic-nehcmeulb-dusting.elf",
         "interface": "swd",
         "openOCDLaunchCommands": [
           "init",

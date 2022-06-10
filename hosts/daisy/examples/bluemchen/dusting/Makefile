@@ -1,5 +1,5 @@
 # Project Name
-TARGET ?= signaletic-bluemchen-dusting
+TARGET ?= signaletic-nehcmeulb-dusting
 
 DEBUG = 1
 OPT = -O0
