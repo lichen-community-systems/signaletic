@@ -299,16 +299,72 @@ static const struct sig_AudioSettings sig_DEFAULT_AUDIOSETTINGS = {
 size_t sig_secondsToSamples(struct sig_AudioSettings* audioSettings,
     float duration);
 
+
 /**
- * A realtime-capable memory allocator.
+ * A memory heap for an  allocator.
  */
-struct sig_Allocator {
-    size_t heapSize;
-    void* heap;
+struct sig_AllocatorHeap {
+    size_t length;
+    void* memory;
 };
-void sig_Allocator_init(struct sig_Allocator* self);
-void* sig_Allocator_malloc(struct sig_Allocator* self, size_t size);
-void sig_Allocator_free(struct sig_Allocator* self, void* obj);
+
+/**
+ * Type definition for an Allocator init function.
+ */
+typedef void (*sig_Allocator_init)(struct sig_AllocatorHeap* heap);
+
+/**
+ * Type definition for an Allocator malloc function.
+ */
+typedef void* (*sig_Allocator_malloc)(struct sig_AllocatorHeap* heap,
+    size_t size);
+
+/**
+ * Type definition for an Allocator free function.
+ */
+typedef void (*sig_Allocator_free)(struct sig_AllocatorHeap* heap,
+    void* obj);
+
+/**
+ * A memory allocator implementation that provides
+ * function pointers for essential memory operations.
+ */
+struct sig_AllocatorImpl {
+    sig_Allocator_init init;
+    sig_Allocator_malloc malloc;
+    sig_Allocator_free free;
+};
+
+struct sig_Allocator {
+    struct sig_AllocatorImpl* impl;
+    struct sig_AllocatorHeap* heap;
+};
+
+/**
+ * TLSF Allocator init function.
+ */
+void sig_TLSFAllocator_init(struct sig_AllocatorHeap* heap);
+
+/**
+ * TLSF Allocator malloc function.
+ */
+void* sig_TLSFAllocator_malloc(struct sig_AllocatorHeap* heap,
+    size_t size);
+
+/**
+ * TLSF Allocator free function.
+ */
+void sig_TLSFAllocator_free(struct sig_AllocatorHeap* heap, void* obj);
+
+/**
+ * A realtime-capable memory allocator based on
+ * Matt Conte's TLSF library.
+ */
+static struct sig_AllocatorImpl sig_TLSFAllocatorImpl = {
+    .init = sig_TLSFAllocator_init,
+    .malloc = sig_TLSFAllocator_malloc,
+    .free = sig_TLSFAllocator_free
+};
 
 
 /**
@@ -454,10 +510,13 @@ struct sig_dsp_Signal {
     sig_dsp_generateFn generate;
 };
 
-void sig_dsp_Signal_init(void* signal, struct sig_AudioSettings* settings,
-    float_array_ptr output, sig_dsp_generateFn generate);
+void sig_dsp_Signal_init(void* signal,
+    struct sig_AudioSettings* settings,
+    float_array_ptr output,
+    sig_dsp_generateFn generate);
 void sig_dsp_Signal_generate(void* signal);
-void sig_dsp_Signal_destroy(struct sig_Allocator* allocator, void* signal);
+void sig_dsp_Signal_destroy(struct sig_Allocator* allocator,
+    void* signal);
 
 
 struct sig_dsp_Value_Parameters {

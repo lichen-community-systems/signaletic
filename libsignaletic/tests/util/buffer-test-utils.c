@@ -5,11 +5,11 @@
 void testAssertBufferContainsValueOnly(struct sig_Allocator* allocator,
     float expectedValue, float* actual,
     size_t len) {
-    float* expectedArray = (float*) sig_Allocator_malloc(allocator,
-        len * sizeof(float));
+    float* expectedArray = (float*) allocator->impl->malloc(
+        allocator->heap, len * sizeof(float));
     sig_fillWithValue(expectedArray, len, expectedValue);
     TEST_ASSERT_EQUAL_FLOAT_ARRAY(expectedArray, actual, len);
-    sig_Allocator_free(allocator, expectedArray);
+    allocator->impl->free(allocator->heap, expectedArray);
 }
 
 void testAssertBuffersNotEqual(float* first, float* second, size_t len) {
@@ -46,7 +46,7 @@ void testAssertBufferIsSilent(struct sig_Allocator* allocator,
 
 void testAssertBufferNotSilent(struct sig_Allocator* allocator,
     float* buffer, size_t len) {
-    float* silence = sig_Allocator_malloc(allocator,
+    float* silence = allocator->impl->malloc(allocator->heap,
         sizeof(float) * len);
     sig_fillWithSilence(silence, len);
     testAssertBuffersNotEqual(silence, buffer, len);
@@ -161,8 +161,8 @@ struct sig_test_BufferPlayer* sig_test_BufferPlayer_new(
     struct sig_AudioSettings* audioSettings,
     struct sig_Buffer* buffer) {
     float_array_ptr output = sig_AudioBlock_new(allocator, audioSettings);
-    struct sig_test_BufferPlayer* self = sig_Allocator_malloc(allocator,
-        sizeof(struct sig_test_BufferPlayer));
+    struct sig_test_BufferPlayer* self = allocator->impl->malloc(
+        allocator->heap, sizeof(struct sig_test_BufferPlayer));
     sig_test_BufferPlayer_init(self, audioSettings, buffer, output);
 
     return self;
@@ -209,8 +209,8 @@ struct sig_test_BufferRecorder* sig_test_BufferRecorder_new(
     struct sig_test_BufferRecorder_Inputs* inputs,
     struct sig_Buffer* buffer) {
     float_array_ptr output = sig_AudioBlock_new(allocator, audioSettings);
-    struct sig_test_BufferRecorder* self = sig_Allocator_malloc(allocator,
-        sizeof(struct sig_test_BufferRecorder));
+    struct sig_test_BufferRecorder* self = allocator->impl->malloc(
+        allocator->heap, sizeof(struct sig_test_BufferRecorder));
     sig_test_BufferRecorder_init(self, audioSettings, inputs, buffer, output);
 
     return self;

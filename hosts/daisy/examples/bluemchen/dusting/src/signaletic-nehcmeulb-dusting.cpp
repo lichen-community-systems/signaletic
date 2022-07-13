@@ -14,10 +14,17 @@ Parameter durationKnob;
 FixedCapStr<20> displayStr;
 
 #define SIGNAL_HEAP_SIZE 1024 * 384
-char signalHeap[SIGNAL_HEAP_SIZE];
+
+char memory[SIGNAL_HEAP_SIZE];
+
+struct sig_AllocatorHeap heap = {
+    .length = SIGNAL_HEAP_SIZE,
+    .memory = memory
+};
+
 struct sig_Allocator allocator = {
-    .heapSize = SIGNAL_HEAP_SIZE,
-    .heap = (void*) signalHeap
+    .impl = &sig_TLSFAllocatorImpl,
+    .heap = &heap
 };
 
 struct sig_dsp_Value* density;
@@ -103,7 +110,7 @@ void initControls() {
 
 int main(void) {
     bluemchen.Init();
-    sig_Allocator_init(&allocator);
+    allocator.impl->init(allocator.heap);
 
     struct sig_AudioSettings audioSettings = {
         .sampleRate = bluemchen.AudioSampleRate(),

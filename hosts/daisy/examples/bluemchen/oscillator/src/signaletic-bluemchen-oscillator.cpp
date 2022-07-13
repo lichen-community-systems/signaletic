@@ -14,10 +14,15 @@ Parameter cv2;
 FixedCapStr<20> displayStr;
 
 #define HEAP_SIZE 1024 * 256 // 256KB
-char heap[HEAP_SIZE];
+uint8_t memory[HEAP_SIZE];
+struct sig_AllocatorHeap heap = {
+    .length = HEAP_SIZE,
+    .memory = (void*) memory
+};
+
 struct sig_Allocator allocator = {
-    .heapSize = HEAP_SIZE,
-    .heap = (void*) heap
+    .impl = &sig_TLSFAllocatorImpl,
+    .heap = &heap
 };
 
 struct sig_dsp_Value* freqMod;
@@ -92,7 +97,7 @@ void initControls() {
 
 int main(void) {
     bluemchen.Init();
-    sig_Allocator_init(&allocator);
+    allocator.impl->init(allocator.heap);
 
     struct sig_AudioSettings audioSettings = {
         .sampleRate = bluemchen.AudioSampleRate(),

@@ -21,13 +21,19 @@ void printBuffer(float* buffer, size_t blockSize) {
 int main(int argc, char *argv[]) {
     struct sig_AudioSettings settings = sig_DEFAULT_AUDIOSETTINGS;
 
-    char heap[HEAP_SIZE];
+    char memory[HEAP_SIZE];
+
+    struct sig_AllocatorHeap heap = {
+        .length = HEAP_SIZE,
+        .memory = memory
+    };
 
     struct sig_Allocator allocator = {
-        .heapSize = HEAP_SIZE,
-        .heap = heap
+        .impl = &sig_TLSFAllocatorImpl,
+        .heap = &heap
     };
-    sig_Allocator_init(&allocator);
+
+    allocator.impl->init(allocator.heap);
 
     struct sig_dsp_Sine_Inputs inputs = {
         .freq = sig_AudioBlock_newWithValue(&allocator,

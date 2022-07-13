@@ -40,11 +40,11 @@ struct cc_sig_DustGate* cc_sig_DustGate_new(
     cc_sig_DustGate_Inputs* inputs) {
 
     struct cc_sig_DustGate* self =
-        (cc_sig_DustGate*) sig_Allocator_malloc(allocator,
+        (cc_sig_DustGate*) allocator->impl->malloc(allocator->heap,
         sizeof(struct cc_sig_DustGate));
 
     struct sig_dsp_Dust_Inputs* dustInputs = (struct sig_dsp_Dust_Inputs*)
-        sig_Allocator_malloc(allocator,
+        allocator->impl->malloc(allocator->heap,
             sizeof(struct sig_dsp_Dust_Inputs));
     dustInputs->density = inputs->density;
 
@@ -52,8 +52,8 @@ struct cc_sig_DustGate* cc_sig_DustGate_new(
         audioSettings, dustInputs);
 
     struct sig_dsp_BinaryOp_Inputs* reciprocalDensityInputs =
-        (struct sig_dsp_BinaryOp_Inputs*) sig_Allocator_malloc(allocator,
-            sizeof(struct sig_dsp_BinaryOp_Inputs));
+        (struct sig_dsp_BinaryOp_Inputs*) allocator->impl->malloc(
+            allocator->heap, sizeof(struct sig_dsp_BinaryOp_Inputs));
     reciprocalDensityInputs->left =
         sig_AudioBlock_newWithValue(allocator, audioSettings, 1.0f);
     reciprocalDensityInputs->right = inputs->density;
@@ -63,7 +63,7 @@ struct cc_sig_DustGate* cc_sig_DustGate_new(
 
     struct sig_dsp_BinaryOp_Inputs* densityDurationMuliplierInputs =
         (struct sig_dsp_BinaryOp_Inputs*)
-            sig_Allocator_malloc(allocator,
+            allocator->impl->malloc(allocator->heap,
                 sizeof(struct sig_dsp_BinaryOp_Inputs));
     densityDurationMuliplierInputs->left =
         self->reciprocalDensity->signal.output;
@@ -73,7 +73,8 @@ struct cc_sig_DustGate* cc_sig_DustGate_new(
         audioSettings, densityDurationMuliplierInputs);
 
     struct sig_dsp_TimedGate_Inputs* gateInputs =
-        (struct sig_dsp_TimedGate_Inputs*) sig_Allocator_malloc(allocator,
+        (struct sig_dsp_TimedGate_Inputs*) allocator->impl->malloc(
+            allocator->heap,
             sizeof(struct sig_dsp_TimedGate_Inputs));
     gateInputs->trigger =self->dust->signal.output;
     gateInputs->duration =
@@ -89,22 +90,23 @@ struct cc_sig_DustGate* cc_sig_DustGate_new(
 
 void cc_sig_DustGate_destroy(struct sig_Allocator* allocator,
     struct cc_sig_DustGate* self) {
-    sig_Allocator_free(allocator, self->gate->inputs);
+    allocator->impl->free(allocator->heap, self->gate->inputs);
     sig_dsp_TimedGate_destroy(allocator, self->gate);
 
-    sig_Allocator_free(allocator,
+    allocator->impl->free(allocator->heap,
         self->densityDurationMultiplier->inputs);
     sig_dsp_Mul_destroy(allocator,
         self->densityDurationMultiplier);
 
-    sig_Allocator_free(allocator, self->reciprocalDensity->inputs);
+    allocator->impl->free(allocator->heap,
+        self->reciprocalDensity->inputs);
     sig_dsp_Div_destroy(allocator, self->reciprocalDensity);
 
-    sig_Allocator_free(allocator, self->dust->inputs);
+    allocator->impl->free(allocator->heap, self->dust->inputs);
     sig_dsp_Dust_destroy(allocator, self->dust);
 
     // We don't call sig_dsp_Signal_destroy
     // because our output is borrowed from self->gate,
     // and it was already freed in TimeGate's destructor.
-    sig_Allocator_free(allocator, self);
+    allocator->impl->free(allocator->heap, self);
 }

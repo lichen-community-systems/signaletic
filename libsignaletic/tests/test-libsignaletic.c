@@ -9,17 +9,23 @@
 #define HEAP_SIZE 26214400 // 25 MB
 #define BLOCK_SIZE 64
 
-char heap[HEAP_SIZE];
+uint8_t memory[HEAP_SIZE];
+
+struct sig_AllocatorHeap heap = {
+    .length = HEAP_SIZE,
+    .memory = (void*) memory
+};
+
 struct sig_Allocator allocator = {
-    .heapSize = HEAP_SIZE,
-    .heap = (void*) heap
+    .heap = &heap,
+    .impl = &sig_TLSFAllocatorImpl
 };
 
 struct sig_AudioSettings* audioSettings;
 float* silentBlock;
 
 void setUp(void) {
-    sig_Allocator_init(&allocator);
+    sig_TLSFAllocator_init(allocator.heap);
     audioSettings = sig_AudioSettings_new(&allocator);
     silentBlock = sig_AudioBlock_newWithValue(&allocator,
         audioSettings, 0.0f);
@@ -174,16 +180,21 @@ void test_sig_Audio_Block_newWithValue_testForValue(
         settings, value);
     testAssertBufferContainsValueOnly(&allocator, value, actual,
         settings->blockSize);
-    sig_Allocator_free(alloc, actual);
+    alloc->impl->free(alloc->heap, actual);
 }
 
 void test_sig_AudioBlock_newWithValue(void) {
-    char customHeap[262144];
-    struct sig_Allocator customAlloc = {
-        .heap = (void*) customHeap,
-        .heapSize = 262144
+    char customMemory[262144];
+    struct sig_AllocatorHeap customHeap = {
+        .length = 262144,
+        .memory = customMemory
     };
-    sig_Allocator_init(&customAlloc);
+    struct sig_Allocator customAlloc = {
+        .impl = &sig_TLSFAllocatorImpl,
+        .heap = &customHeap
+    };
+
+    customAlloc.impl->init(customAlloc.heap);
 
     struct sig_AudioSettings* customSettings =
         sig_AudioSettings_new(&customAlloc);
@@ -382,8 +393,8 @@ void test_sig_dsp_Mul(void) {
         -440.0f, gain->signal.output, audioSettings->blockSize);
 
     sig_dsp_Mul_destroy(&allocator, gain);
-    sig_Allocator_free(&allocator, inputs.left);
-    sig_Allocator_free(&allocator, inputs.right);
+    allocator.impl->free(allocator.heap, inputs.left);
+    allocator.impl->free(allocator.heap, inputs.right);
 }
 
 // TODO: Move into libsignaletic itself
@@ -392,7 +403,7 @@ struct sig_dsp_Sine_Inputs* createSineInputs(struct sig_Allocator* allocator,
     struct sig_AudioSettings* audioSettings,
     float freq, float phaseOffset, float mul, float add) {
 
-    struct sig_dsp_Sine_Inputs* inputs = (struct sig_dsp_Sine_Inputs*) sig_Allocator_malloc(allocator,
+    struct sig_dsp_Sine_Inputs* inputs = (struct sig_dsp_Sine_Inputs*) allocator->impl->malloc(allocator->heap,
         sizeof(struct sig_dsp_Sine_Inputs));
 
     inputs->freq = sig_AudioBlock_newWithValue(allocator,
@@ -411,11 +422,11 @@ struct sig_dsp_Sine_Inputs* createSineInputs(struct sig_Allocator* allocator,
 // as a (semi?) generic input instantiator.
 void destroySineInputs(struct sig_Allocator* allocator,
     struct sig_dsp_Sine_Inputs* sineInputs) {
-    sig_Allocator_free(allocator, sineInputs->freq);
-    sig_Allocator_free(allocator, sineInputs->phaseOffset);
-    sig_Allocator_free(allocator, sineInputs->mul);
-    sig_Allocator_free(allocator, sineInputs->add);
-    sig_Allocator_free(allocator, sineInputs);
+    allocator->impl->free(allocator->heap, sineInputs->freq);
+    allocator->impl->free(allocator->heap, sineInputs->phaseOffset);
+    allocator->impl->free(allocator->heap, sineInputs->mul);
+    allocator->impl->free(allocator->heap, sineInputs->add);
+    allocator->impl->free(allocator->heap, sineInputs);
 }
 
 void test_sig_dsp_Sine(void) {
@@ -553,7 +564,7 @@ void test_sig_dsp_Dust(void) {
     dust->parameters.bipolar = 1.0f;
     testDust(dust, -1.0f, 1.0f, expectedNumDustPerBlock);
 
-    sig_Allocator_free(&allocator, inputs.density);
+    allocator.impl->free(allocator.heap, inputs.density);
     sig_dsp_Dust_destroy(&allocator, dust);
 }
 

@@ -15,10 +15,15 @@ Parameter skewCV;
 Parameter recordGateCV;
 
 #define SIGNAL_HEAP_SIZE 1024 * 384
-char signalHeap[SIGNAL_HEAP_SIZE];
+char signalMemory[SIGNAL_HEAP_SIZE];
+struct sig_AllocatorHeap heap = {
+    .length = SIGNAL_HEAP_SIZE,
+    .memory = (void*) signalMemory
+};
+
 struct sig_Allocator allocator = {
-    .heapSize = SIGNAL_HEAP_SIZE,
-    .heap = (void*) signalHeap
+    .impl = &sig_TLSFAllocatorImpl,
+    .heap = &heap
 };
 
 #define LOOP_TIME_SECS 60
@@ -159,7 +164,7 @@ void initControls() {
 
 int main(void) {
     bluemchen.Init();
-    sig_Allocator_init(&allocator);
+    allocator.impl->init(allocator.heap);
 
     struct sig_AudioSettings audioSettings = {
         .sampleRate = bluemchen.AudioSampleRate(),
