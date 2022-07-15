@@ -47,9 +47,7 @@ Docker is also used to cross-compile the Signaletic examples for embedded platfo
 
 ### Windows
 1. Install Meson using the [Meson Installer](https://github.com/mesonbuild/meson/releases)
-2. Install Emscripten according to the [Emscripten installation documentation](https://emscripten.org/docs/getting_started/downloads.html)
-3. Install the [Daisy Toolchain for Windows](https://github.com/electro-smith/DaisyWiki/wiki/1c.-Installing-the-Toolchain-on-Windows)
-4. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+2. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 
 ## Building Signaletic
 
@@ -85,11 +83,10 @@ At the root of the Signaletic repository:
 1. Build libsignaletic Web Assembly
 2. Open ```hosts/web/examples/midi-to-freq/index.html``` using VS Code's Live Server plugin or other web server.
 
-##### Daisy Bluemchen Example
-On Windows, use a Git Bash terminal, since Daisy's Makefiles don't seem to provide Windows support.
-
-1. ```docker run --platform=linux/amd64 -v `pwd`:/signaletic signaletic /signaletic/cross-build-all.sh```
-2. Use the [Daisy Web Programmer](https://electro-smith.github.io/Programmer/) to flash the ```build/signaletic-bluemchen-looper.bin``` binary to the Daisy board, or run ```make program``` while connected to an ST-Link Mini debugger.
+##### Daisy Bluemchen Examples
+1. If you haven't already, build the Docker image ```docker build . -t signaletic```
+2. ```docker run --platform=linux/amd64 -v `pwd`:/signaletic signaletic /signaletic/cross-build-all.sh```
+3. Use the [Daisy Web Programmer](https://electro-smith.github.io/Programmer/) to flash the ```build/signaletic-bluemchen-looper.bin``` binary to the Daisy board, or run ```make program``` while connected to an ST-Link Mini debugger.
 
 
 ## Language and Compiler Support
