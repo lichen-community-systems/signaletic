@@ -37,21 +37,17 @@ The design of this project is still in flux, and will more fully emerge as I bec
 2. ```xcode-select --install```
 
 #### libsignaletic Web Assembly
-libsignaletic uses the [Emscripten compiler](https://emscripten.org/) for Web Assembly support. This installation process is no fun, and could use some improvement.
-1. ```brew install emscripten binaryen```
-2. ```export EM_BINARYEN_ROOT=/opt/homebrew/opt/binaryen```
-3. Clone the [emscripten repository](https://github.com/emscripten-core/emscripten).
-4. ```export EMSCRIPTEN_TOOLS_PATH=[path to emscripten repository]/tools```
+libsignaletic uses the [Emscripten compiler](https://emscripten.org/) for Web Assembly support. Docker is used to support cross-platform builds.
+1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 
 #### Daisy Eurorack Examples
-To cross-compile the Signaletic examples for the Daisy STM32 platform using gcc and make, the GCC ARM embedded toolkit and the Daisy Toolchain must be installed.
+Docker is also used to cross-compile the Signaletic examples for embedded platforms such as the Daisy STM32 platform. If you want to build these directly on your host using gcc and make, the GCC ARM embedded toolkit and the Daisy Toolchain must be installed.
 1. ```brew install gcc-arm-embedded```
 2. Follow the [Daisy Toolchain](https://github.com/electro-smith/DaisyWiki/wiki/1.-Setting-Up-Your-Development-Environment#1-install-the-toolchain) installation instructions.
 
 ### Windows
 1. Install Meson using the [Meson Installer](https://github.com/mesonbuild/meson/releases)
-2. Install Emscripten according to the [Emscripten installation documentation](https://emscripten.org/docs/getting_started/downloads.html)
-3. Install the [Daisy Toolchain for Windows](https://github.com/electro-smith/DaisyWiki/wiki/1c.-Installing-the-Toolchain-on-Windows)
+2. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 
 ## Building Signaletic
 
@@ -66,17 +62,14 @@ On Windows, use a VS Command Prompt or set the appropriate environment variables
 
 To remove all previous build artifacts and rebuild, run ```rm -r build/native && meson setup build/native``` or run ```meson setup build/native --wipe```.
 
-#### libsignaletic for Web Assembly (not currently supported on Windows)
-1. ```cd libsignaletic```
-2. ```source ../../emsdk/emsdk_env.sh```
-3. ```source ./setup-emscripten-env.sh```
-4. ```meson setup build/wasm --cross-file wasm-cross-compile.txt```
-5. ```./generate-wasm-bindings.sh```
-6. ```meson compile -C build/wasm```
+#### libsignaletic for Web Assembly
+At the root of the Signaletic repository:
+1. Build the Docker image: ```docker build . -t signaletic```
+2. Run the cross-compilation script in Docker: ```docker run --platform=linux/amd64 -v `pwd`:/signaletic signaletic /signaletic/cross-build-all.sh```
 
 #### Running the Unit Tests
 1. Native: ```meson test -C build/native -v```
-2. Node.js wasm: ```meson test -C build/wasm -v```
+2. Node.js wasm: ```node build/wasm/run_tests.js```
 3. Browser wasm: Open ```libsignaletic/tests/test-libsignaletic.html``` using VS Code's Live Server plugin or other web server.
 
 
@@ -90,13 +83,9 @@ To remove all previous build artifacts and rebuild, run ```rm -r build/native &&
 1. Build libsignaletic Web Assembly
 2. Open ```hosts/web/examples/midi-to-freq/index.html``` using VS Code's Live Server plugin or other web server.
 
-##### Daisy Bluemchen Example
-On Windows, use a Git Bash terminal, since Daisy's Makefiles don't seem to provide Windows support.
-
-1. ```cd hosts/daisy/vendor/libDaisy```
-2. ```make```
-3. ```cd ../../examples/bluemchen/looper```
-2. ```make```
+##### Daisy Bluemchen Examples
+1. If you haven't already, build the Docker image ```docker build . -t signaletic```
+2. ```docker run --platform=linux/amd64 -v `pwd`:/signaletic signaletic /signaletic/cross-build-all.sh```
 3. Use the [Daisy Web Programmer](https://electro-smith.github.io/Programmer/) to flash the ```build/signaletic-bluemchen-looper.bin``` binary to the Daisy board, or run ```make program``` while connected to an ST-Link Mini debugger.
 
 
