@@ -15,11 +15,11 @@ FixedCapStr<20> displayStr;
 
 #define SIGNAL_HEAP_SIZE 1024 * 384
 
-char memory[SIGNAL_HEAP_SIZE];
+char heapMemory[SIGNAL_HEAP_SIZE];
 
 struct sig_AllocatorHeap heap = {
     .length = SIGNAL_HEAP_SIZE,
-    .memory = memory
+    .memory = heapMemory
 };
 
 struct sig_Allocator allocator = {

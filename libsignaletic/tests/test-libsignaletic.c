@@ -9,23 +9,23 @@
 #define HEAP_SIZE 26214400 // 25 MB
 #define BLOCK_SIZE 64
 
-uint8_t memory[HEAP_SIZE];
+uint8_t heapMemory[HEAP_SIZE];
 
 struct sig_AllocatorHeap heap = {
     .length = HEAP_SIZE,
-    .memory = (void*) memory
+    .memory = (void*) heapMemory
 };
 
 struct sig_Allocator allocator = {
-    .heap = &heap,
-    .impl = &sig_TLSFAllocatorImpl
+    .impl = &sig_TLSFAllocatorImpl,
+    .heap = &heap
 };
 
 struct sig_AudioSettings* audioSettings;
 float* silentBlock;
 
 void setUp(void) {
-    sig_TLSFAllocator_init(allocator.heap);
+    allocator.impl->init(allocator.heap);
     audioSettings = sig_AudioSettings_new(&allocator);
     silentBlock = sig_AudioBlock_newWithValue(&allocator,
         audioSettings, 0.0f);
@@ -399,7 +399,8 @@ void test_sig_dsp_Mul(void) {
 
 // TODO: Move into libsignaletic itself
 // as a (semi?) generic input instantiator.
-struct sig_dsp_Sine_Inputs* createSineInputs(struct sig_Allocator* allocator,
+struct sig_dsp_Sine_Inputs* createSineInputs(
+    struct sig_Allocator* allocator,
     struct sig_AudioSettings* audioSettings,
     float freq, float phaseOffset, float mul, float add) {
 
@@ -864,10 +865,10 @@ void test_sig_dsp_TimedGate_bipolar(void) {
 int main(void) {
     UNITY_BEGIN();
 
-    RUN_TEST(test_sig_randf);
     RUN_TEST(test_sig_unipolarToUint12);
     RUN_TEST(test_sig_bipolarToUint12);
     RUN_TEST(test_sig_bipolarToInvUint12);
+    RUN_TEST(test_sig_randf);
     RUN_TEST(test_sig_midiToFreq);
     RUN_TEST(test_sig_fillWithValue);
     RUN_TEST(test_sig_fillWithSilence);

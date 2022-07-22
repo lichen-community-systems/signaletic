@@ -360,11 +360,7 @@ void sig_TLSFAllocator_free(struct sig_AllocatorHeap* heap, void* obj);
  * A realtime-capable memory allocator based on
  * Matt Conte's TLSF library.
  */
-static struct sig_AllocatorImpl sig_TLSFAllocatorImpl = {
-    .init = sig_TLSFAllocator_init,
-    .malloc = sig_TLSFAllocator_malloc,
-    .free = sig_TLSFAllocator_free
-};
+extern struct sig_AllocatorImpl sig_TLSFAllocatorImpl;
 
 
 /**

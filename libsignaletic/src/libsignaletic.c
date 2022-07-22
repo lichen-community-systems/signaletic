@@ -167,6 +167,12 @@ void sig_TLSFAllocator_free(struct sig_AllocatorHeap* heap,
     tlsf_free(heap->memory, obj);
 }
 
+struct sig_AllocatorImpl sig_TLSFAllocatorImpl = {
+    .init = sig_TLSFAllocator_init,
+    .malloc = sig_TLSFAllocator_malloc,
+    .free = sig_TLSFAllocator_free
+};
+
 
 struct sig_AudioSettings* sig_AudioSettings_new(
     struct sig_Allocator* allocator) {

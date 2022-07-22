@@ -3,35 +3,6 @@
 #include <stdlib.h>
 #include <libsignaletic.h>
 
-/**
- * Creates a new Allocator and heap of the specified size,
- * both of which are allocated using the platform's malloc().
- *
- * @param size the size in bytes of the Allocator's heap
- * @return a pointer to the new Allocator
- */
-struct sig_Allocator* sig_Allocator_new(size_t heapSize) {
-    char* heap = (char *) malloc(heapSize);
-    struct sig_Allocator* allocator = (struct sig_Allocator*)
-        malloc(sizeof(struct sig_Allocator));
-    allocator->heapSize = heapSize;
-    allocator->heap = (void *) heap;
-    sig_Allocator_init(allocator);
-
-    return allocator;
-}
-
-/**
- * Destroys an Allocator and its underlying heap
- * using the platform's free().
- *
- * @param allocator the Allocator instance to destroy
- */
-void sig_Allocator_destroy(struct sig_Allocator* allocator) {
-    free(allocator->heap);
-    free(allocator);
-}
-
 class Signals {
 public:
     struct sig_dsp_Value* Value_new(
@@ -49,7 +20,10 @@ public:
     struct sig_dsp_BinaryOp_Inputs* BinaryOp_Inputs_new(
         struct sig_Allocator* allocator,
         float_array_ptr left, float_array_ptr right) {
-        struct sig_dsp_BinaryOp_Inputs* inputs = (struct sig_dsp_BinaryOp_Inputs*) sig_Allocator_malloc(allocator, sizeof(sig_dsp_BinaryOp_Inputs));
+        struct sig_dsp_BinaryOp_Inputs* inputs =
+            (struct sig_dsp_BinaryOp_Inputs*)
+                allocator->impl->malloc(allocator->heap,
+                    sizeof(sig_dsp_BinaryOp_Inputs));
 
         inputs->left = left;
         inputs->right = right;
@@ -59,7 +33,7 @@ public:
 
     void BinaryOp_Inputs_destroy(struct sig_Allocator* allocator,
         struct sig_dsp_BinaryOp_Inputs* self) {
-        sig_Allocator_free(allocator, self);
+        allocator->impl->free(allocator->heap, self);
     }
 
     struct sig_dsp_BinaryOp* Add_new(struct sig_Allocator* allocator,
@@ -118,7 +92,9 @@ public:
         struct sig_Allocator* allocator,
         float_array_ptr freq, float_array_ptr phaseOffset,
         float_array_ptr mul, float_array_ptr add) {
-        struct sig_dsp_Sine_Inputs* inputs = (struct sig_dsp_Sine_Inputs*) sig_Allocator_malloc(allocator, sizeof(sig_dsp_Sine_Inputs));
+        struct sig_dsp_Sine_Inputs* inputs =
+            (struct sig_dsp_Sine_Inputs*) allocator->impl->malloc(
+                allocator->heap, sizeof(sig_dsp_Sine_Inputs));
 
         inputs->freq = freq;
         inputs->phaseOffset = phaseOffset;
@@ -130,7 +106,7 @@ public:
 
     void Sine_Inputs_destroy(struct sig_Allocator* allocator,
         struct sig_dsp_Sine_Inputs* self) {
-        sig_Allocator_free(allocator, self);
+        allocator->impl->free(allocator->heap, self);
     }
 
 
@@ -148,15 +124,17 @@ public:
 
     struct sig_dsp_ClockFreqDetector_Inputs* ClockFreqDetector_Inputs_new(
         struct sig_Allocator* allocator, float_array_ptr source) {
-        struct sig_dsp_ClockFreqDetector_Inputs* inputs = (struct sig_dsp_ClockFreqDetector_Inputs*) sig_Allocator_malloc(allocator, sizeof(sig_dsp_ClockFreqDetector_Inputs));
+        struct sig_dsp_ClockFreqDetector_Inputs* inputs = (struct sig_dsp_ClockFreqDetector_Inputs*) allocator->impl->malloc(
+            allocator->heap, sizeof(sig_dsp_ClockFreqDetector_Inputs));
         inputs->source = source;
 
         return inputs;
     }
 
-    void ClockFreqDetector_Inputs_destroy(struct sig_Allocator* allocator,
+    void ClockFreqDetector_Inputs_destroy(
+        struct sig_Allocator* allocator,
         struct sig_dsp_ClockFreqDetector_Inputs* self) {
-        sig_Allocator_free(allocator, self);
+        allocator->impl->free(allocator->heap, self);
     }
 };
 
@@ -169,7 +147,7 @@ public:
     // TODO: How do we expose DEFAULT_AUDIO_SETTINGS
     // here as a pointer?
 
-    Signals sig;
+    Signals dsp;
 
     Signaletic() {}
 
@@ -231,6 +209,43 @@ public:
         return sig_waveform_triangle(phase);
     }
 
+    /**
+     * Creates a new TLSFAllocator and heap of the specified size,
+     * both of which are allocated using the platform's malloc().
+     *
+     * @param size the size in bytes of the Allocator's heap
+     * @return a pointer to the new Allocator
+     */
+    struct sig_Allocator* TLSFAllocator_new(size_t size) {
+        void* memory = malloc(size);
+        struct sig_AllocatorHeap* heap = (struct sig_AllocatorHeap*)
+            malloc(sizeof(struct sig_AllocatorHeap));
+        heap->length = size;
+        heap->memory = memory;
+
+        struct sig_Allocator* allocator = (struct sig_Allocator*)
+            malloc(sizeof(struct sig_Allocator));
+        allocator->impl = &sig_TLSFAllocatorImpl;
+        allocator->heap = heap;
+
+        allocator->impl->init(allocator->heap);
+
+        return allocator;
+    }
+
+    /**
+     * Destroys an TLSFAllocator and its underlying heap
+     * using the platform's free().
+     *
+     * @param allocator the Allocator instance to destroy
+     */
+    void TLSFAllocator_destroy(struct sig_Allocator* allocator) {
+        free(allocator->heap->memory);
+        free(allocator->heap);
+        // Note that we don't delete the impl because
+        // we didn't create it (it's a global singleton).
+        free(allocator);
+    }
 
     struct sig_AudioSettings* AudioSettings_new(
         struct sig_Allocator* allocator) {
@@ -240,23 +255,6 @@ public:
     void AudioSettings_destroy(struct sig_Allocator* allocator,
         struct sig_AudioSettings* self) {
         return sig_AudioSettings_destroy(allocator, self);
-    }
-
-    struct sig_Allocator* Allocator_new(size_t heapSize) {
-        return sig_Allocator_new(heapSize);
-    }
-
-    void Allocator_init(struct sig_Allocator* allocator) {
-        return sig_Allocator_init(allocator);
-    }
-
-    void* Allocator_malloc(struct sig_Allocator* allocator,
-        size_t size) {
-        return sig_Allocator_malloc(allocator, size);
-    }
-
-    void Allocator_free(struct sig_Allocator* allocator, void* obj) {
-        return sig_Allocator_free(allocator, obj);
     }
 
 

@@ -64,7 +64,7 @@ interface Signaletic {
 
     void Signaletic();
 
-    [Value] attribute Signals sig;
+    [Value] attribute Signals dsp;
 
     float fminf(float a, float b);
     float fmaxf(float a, float b);
@@ -83,10 +83,8 @@ interface Signaletic {
     float waveform_reverseSaw(float phase);
     float waveform_triangle(float phase);
 
-    sig_Allocator Allocator_new(unsigned long heapSize);
-    void Allocator_init(sig_Allocator allocator);
-    any Allocator_malloc(sig_Allocator allocator, unsigned long size);
-    void Allocator_free(sig_Allocator allocator, any obj);
+    sig_Allocator TLSFAllocator_new(unsigned long size);
+    void TLSFAllocator_destroy(sig_Allocator allocator);
 
     sig_AudioSettings AudioSettings_new(sig_Allocator allocator);
     void AudioSettings_destroy(sig_Allocator allocator,
@@ -104,9 +102,20 @@ interface Signaletic {
         sig_AudioSettings audioSettings, float value);
 };
 
+interface sig_AllocatorHeap {
+    attribute unsigned long length;
+    attribute any memory;
+};
+
+interface sig_AllocatorImpl {
+    void init(sig_AllocatorHeap heap);
+    any malloc(sig_AllocatorHeap heap, unsigned long size);
+    void free(sig_AllocatorHeap heap, any obj);
+};
+
 interface sig_Allocator {
-    attribute unsigned long heapSize;
-    attribute any heap;
+    attribute sig_AllocatorImpl impl;
+    attribute sig_AllocatorHeap heap;
 };
 
 interface sig_AudioSettings {

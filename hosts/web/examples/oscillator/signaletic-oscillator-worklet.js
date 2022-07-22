@@ -1,6 +1,6 @@
-let star = new Module.Signaletic();
+let sig = new Module.Signaletic();
 
-star.TYPED_VIEWS = {
+sig.TYPED_VIEWS = {
     "int8": "Int8Array",
     "uint8": "Uint8Array",
     "int16": "Int16Array",
@@ -10,8 +10,8 @@ star.TYPED_VIEWS = {
     "float32": "Float32Array"
 };
 
-star.dereferenceArray = function(ptr, length, type) {
-    let arrayViewType = star.TYPED_VIEWS[type];
+sig.dereferenceArray = function(ptr, length, type) {
+    let arrayViewType = sig.TYPED_VIEWS[type];
     if (arrayViewType === undefined) {
         throw Error("Can't dereference an array of type " + type);
     }
@@ -24,50 +24,50 @@ class SignaleticOscillator extends AudioWorkletProcessor {
     constructor() {
         super();
 
-        this.allocator = star.Allocator_new(1024 * 256);
-        this.audioSettings = star.AudioSettings_new(this.allocator);
+        this.allocator = sig.TLSFAllocator_new(1024 * 256);
+        this.audioSettings = sig.AudioSettings_new(this.allocator);
         this.audioSettings.sampleRate = sampleRate;
         this.audioSettings.blockSize = 128;
         this.audioSettings.numChannels = 2;
 
         /** Modulators **/
-        this.freqMod = star.sig.Value_new(this.allocator,
+        this.freqMod = sig.dsp.Value_new(this.allocator,
             this.audioSettings);
         this.freqMod.parameters.value = 440.0;
-        this.ampMod = star.sig.Value_new(this.allocator,
+        this.ampMod = sig.dsp.Value_new(this.allocator,
             this.audioSettings);
         this.ampMod.parameters.value = 1.0;
 
 
         /** Carrier **/
-        this.carrierInputs = star.sig.Sine_Inputs_new(
+        this.carrierInputs = sig.dsp.Sine_Inputs_new(
             this.allocator,
             this.freqMod.signal.output,
-            star.AudioBlock_newWithValue(this.allocator,
+            sig.AudioBlock_newWithValue(this.allocator,
                 this.audioSettings, 0.0),
             this.ampMod.signal.output,
-            star.AudioBlock_newWithValue(this.allocator,
+            sig.AudioBlock_newWithValue(this.allocator,
                 this.audioSettings, 0.0)
         );
 
-        this.carrier = star.sig.Sine_new(this.allocator,
+        this.carrier = sig.dsp.Sine_new(this.allocator,
             this.audioSettings, this.carrierInputs);
 
         /** Gain **/
-        this.gainValue = star.sig.Value_new(this.allocator,
+        this.gainValue = sig.dsp.Value_new(this.allocator,
             this.audioSettings);
         this.gainValue.parameters.value = 0.85;
 
-        this.gainInputs = star.sig.BinaryOp_Inputs_new(
+        this.gainInputs = sig.dsp.BinaryOp_Inputs_new(
             this.allocator,
             this.carrier.signal.output,
             this.gainValue.signal.output
         );
 
-        this.gain = star.sig.Mul_new(this.allocator,
+        this.gain = sig.dsp.Mul_new(this.allocator,
             this.audioSettings, this.gainInputs);
 
-        this.gainOutput = star.dereferenceArray(
+        this.gainOutput = sig.dereferenceArray(
             this.gain.signal.output,
             this.audioSettings.blockSize,
             "float32");
@@ -113,7 +113,7 @@ class SignaleticOscillator extends AudioWorkletProcessor {
         if (cvInputs.length > 1) {
             // Map to MIDI notes between 0..120
             let freqNote = cvInputs[1][0] * 60.0 + 60.0;
-            this.freqMod.parameters.value = star.midiToFreq(
+            this.freqMod.parameters.value = sig.midiToFreq(
                 freqNote);
         }
 
