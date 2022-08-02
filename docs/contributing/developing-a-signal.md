@@ -55,8 +55,8 @@ struct sig_dsp_${SignalName}* sig_dsp_${SignalName}_new(
     struct sig_AudioSettings* settings,
     struct sig_dsp_${SignalName}_Inputs* inputs) {
     float_array_ptr output = sig_AudioBlock_new(allocator, settings);
-    struct sig_dsp_${SignalName}* self = sig_Allocator_malloc(allocator,
-        sizeof(struct sig_dsp_${SignalName}));
+    struct sig_dsp_${SignalName}* self = allocator->impl->malloc(
+        allocator, sizeof(struct sig_dsp_${SignalName}));
     sig_dsp_${SignalName}_init(self, settings, inputs, output);
 
     return self;

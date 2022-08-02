@@ -164,7 +164,7 @@ void initControls() {
 
 int main(void) {
     bluemchen.Init();
-    allocator.impl->init(allocator.heap);
+    allocator.impl->init(&allocator);
 
     struct sig_AudioSettings audioSettings = {
         .sampleRate = bluemchen.AudioSampleRate(),

@@ -15,7 +15,7 @@
 
 			<!-- knobs -->
 			<webaudio-knob id="blueKnob" colors="#fff;#00f;#fff"></webaudio-knob>
-			<webaudio-knob id="redKnob" colors="#fff;#f00;#fff"></webaudio-knob>
+			<webaudio-knob id="redKnob" colors="#fff;#f00;#fff" value="0"></webaudio-knob>
 
 			<!-- jacks midi out, cv, in, out-->
 			<div class="jack"></div>
@@ -37,25 +37,11 @@
             async function initAudioGraph() {
                 let context = new AudioContext();
 
-                let stream = await navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        channelCount: 2,
-                        echoCancellation: false,
-                        noiseSuppression: false,
-                        autoGainControl: false
-                    },
-                    video: false
-                });
-
-                let source = context.createMediaStreamSource(stream);
-
                 await context.audioWorklet.addModule(
                     "../../../../libsignaletic/build/wasm/wasm-oscillator-example.js");
 
                 const signaleticOsc = new AudioWorkletNode(context,
                     "SignaleticOscillator");
-
-                source.connect(signaleticOsc);
                 signaleticOsc.connect(context.destination);
 
                 function bindKnobChange(knobEl, param) {

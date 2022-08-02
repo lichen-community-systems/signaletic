@@ -154,17 +154,19 @@ float sig_waveform_triangle(float phase) {
 // TODO: Implement enough test coverage for sig_Allocator
 // to support a switch from TLSF to another memory allocator
 // implementation sometime in the future (gh-26).
-void sig_TLSFAllocator_init(struct sig_AllocatorHeap* heap) {
-    tlsf_create_with_pool(heap->memory, heap->length);
+void sig_TLSFAllocator_init(struct sig_Allocator* allocator) {
+    tlsf_create_with_pool(allocator->heap->memory,
+        allocator->heap->length);
 }
 
-void* sig_TLSFAllocator_malloc(struct sig_AllocatorHeap* heap, size_t size) {
-    return tlsf_malloc(heap->memory, size);
+void* sig_TLSFAllocator_malloc(struct sig_Allocator* allocator,
+    size_t size) {
+    return tlsf_malloc(allocator->heap->memory, size);
 }
 
-void sig_TLSFAllocator_free(struct sig_AllocatorHeap* heap,
+void sig_TLSFAllocator_free(struct sig_Allocator* allocator,
     void* obj) {
-    tlsf_free(heap->memory, obj);
+    tlsf_free(allocator->heap->memory, obj);
 }
 
 struct sig_AllocatorImpl sig_TLSFAllocatorImpl = {
@@ -179,7 +181,7 @@ struct sig_AudioSettings* sig_AudioSettings_new(
 
     struct sig_AudioSettings* settings =
         (struct sig_AudioSettings*)allocator->impl->malloc(
-            allocator->heap, sizeof(struct sig_AudioSettings));
+            allocator, sizeof(struct sig_AudioSettings));
 
     settings->sampleRate = sig_DEFAULT_AUDIOSETTINGS.sampleRate;
     settings->numChannels = sig_DEFAULT_AUDIOSETTINGS.numChannels;
@@ -190,7 +192,7 @@ struct sig_AudioSettings* sig_AudioSettings_new(
 
 void sig_AudioSettings_destroy(struct sig_Allocator* allocator,
     struct sig_AudioSettings* self) {
-    allocator->impl->free(allocator->heap, self);
+    allocator->impl->free(allocator, self);
 }
 
 // TODO: Unit tests.
@@ -204,7 +206,7 @@ size_t sig_secondsToSamples(struct sig_AudioSettings* audioSettings,
 
 float_array_ptr sig_samples_new(struct sig_Allocator* allocator,
     size_t length) {
-    return (float_array_ptr) allocator->impl->malloc(allocator->heap,
+    return (float_array_ptr) allocator->impl->malloc(allocator,
         sizeof(float) * length);
 }
 
@@ -230,8 +232,7 @@ float_array_ptr sig_AudioBlock_newWithValue(
 struct sig_Buffer* sig_Buffer_new(struct sig_Allocator* allocator,
     size_t length) {
     struct sig_Buffer* self = (struct sig_Buffer*)
-        allocator->impl->malloc(allocator->heap,
-            sizeof(struct sig_Buffer));
+        allocator->impl->malloc(allocator, sizeof(struct sig_Buffer));
     self->length = length;
     self->samples = sig_samples_new(allocator, length);
 
@@ -268,9 +269,8 @@ void sig_Buffer_fillWithWaveform(struct sig_Buffer* self,
 }
 
 void sig_Buffer_destroy(struct sig_Allocator* allocator, struct sig_Buffer* self) {
-    struct sig_AllocatorHeap* heap = allocator->heap;
-    allocator->impl->free(heap, self->samples);
-    allocator->impl->free(heap, self);
+    allocator->impl->free(allocator, self->samples);
+    allocator->impl->free(allocator, self);
 };
 
 
@@ -278,7 +278,7 @@ struct sig_Buffer* sig_BufferView_new(
     struct sig_Allocator* allocator,
     struct sig_Buffer* buffer, size_t startIdx, size_t length) {
     struct sig_Buffer* self = (struct sig_Buffer*)
-        allocator->impl->malloc(allocator->heap,
+        allocator->impl->malloc(allocator,
             sizeof(struct sig_Buffer));
 
     // TODO: Need to signal an error rather than
@@ -298,7 +298,7 @@ void sig_BufferView_destroy(struct sig_Allocator* allocator,
     struct sig_Buffer* self) {
     // Don't destroy the samples array;
     // it is shared with other Buffers.
-    allocator->impl->free(allocator->heap, self);
+    allocator->impl->free(allocator, self);
 }
 
 
@@ -324,10 +324,9 @@ void sig_dsp_Signal_generate(void* signal) {
 
 void sig_dsp_Signal_destroy(struct sig_Allocator* allocator,
     void* self) {
-    struct sig_AllocatorHeap* heap = allocator->heap;
     struct sig_dsp_Signal* signal = (struct sig_dsp_Signal*) self;
-    allocator->impl->free(heap, signal->output);
-    allocator->impl->free(heap, signal);
+    allocator->impl->free(allocator, signal->output);
+    allocator->impl->free(allocator, signal);
 }
 
 void sig_dsp_Value_init(struct sig_dsp_Value* self,
@@ -348,7 +347,7 @@ struct sig_dsp_Value* sig_dsp_Value_new(struct sig_Allocator* allocator,
     struct sig_AudioSettings* settings) {
     float_array_ptr output = sig_AudioBlock_new(allocator, settings);
     struct sig_dsp_Value* self = (struct sig_dsp_Value*)
-        allocator->impl->malloc(allocator->heap,
+        allocator->impl->malloc(allocator,
             sizeof(struct sig_dsp_Value));
     sig_dsp_Value_init(self, settings, output);
 
@@ -380,8 +379,7 @@ struct sig_dsp_BinaryOp* sig_dsp_Add_new(
     struct sig_dsp_BinaryOp_Inputs* inputs) {
     float_array_ptr output = sig_AudioBlock_new(allocator, settings);
     struct sig_dsp_BinaryOp* self = (struct sig_dsp_BinaryOp*)
-        allocator->impl->malloc(allocator->heap,
-            sizeof(struct sig_dsp_BinaryOp));
+        allocator->impl->malloc(allocator, sizeof(struct sig_dsp_BinaryOp));
     sig_dsp_Add_init(self, settings, inputs, output);
 
     return self;
@@ -426,7 +424,7 @@ struct sig_dsp_BinaryOp* sig_dsp_Mul_new(struct sig_Allocator* allocator,
     struct sig_dsp_BinaryOp_Inputs* inputs) {
     float_array_ptr output = sig_AudioBlock_new(allocator, settings);
     struct sig_dsp_BinaryOp* self = (struct sig_dsp_BinaryOp*)
-        allocator->impl->malloc(allocator->heap,
+        allocator->impl->malloc(allocator,
             sizeof(struct sig_dsp_BinaryOp));
     sig_dsp_Mul_init(self, settings, inputs, output);
 
@@ -456,7 +454,7 @@ struct sig_dsp_BinaryOp* sig_dsp_Div_new(
     struct sig_dsp_BinaryOp_Inputs* inputs) {
     float_array_ptr output = sig_AudioBlock_new(allocator, settings);
     struct sig_dsp_BinaryOp* self = (struct sig_dsp_BinaryOp*)
-        allocator->impl->malloc(allocator->heap,
+        allocator->impl->malloc(allocator,
             sizeof(struct sig_dsp_BinaryOp));
     sig_dsp_Div_init(self, settings, inputs, output);
 
@@ -495,7 +493,7 @@ struct sig_dsp_Invert* sig_dsp_Invert_new(
     struct sig_dsp_Invert_Inputs* inputs) {
     float_array_ptr output = sig_AudioBlock_new(allocator, settings);
     struct sig_dsp_Invert* self = (struct sig_dsp_Invert*)
-        allocator->impl->malloc(allocator->heap,
+        allocator->impl->malloc(allocator,
             sizeof(struct sig_dsp_Invert));
     sig_dsp_Invert_init(self, settings, inputs, output);
 
@@ -533,7 +531,7 @@ struct sig_dsp_Accumulate* sig_dsp_Accumulate_new(
     struct sig_dsp_Accumulate_Inputs* inputs) {
     float_array_ptr output = sig_AudioBlock_new(allocator, settings);
     struct sig_dsp_Accumulate* self = (struct sig_dsp_Accumulate*)
-        allocator->impl->malloc(allocator->heap,
+        allocator->impl->malloc(allocator,
             sizeof(struct sig_dsp_Accumulate));
     sig_dsp_Accumulate_init(self, settings, inputs, output);
 
@@ -591,7 +589,7 @@ struct sig_dsp_GatedTimer* sig_dsp_GatedTimer_new(
     struct sig_dsp_GatedTimer_Inputs* inputs) {
     float_array_ptr output = sig_AudioBlock_new(allocator, settings);
     struct sig_dsp_GatedTimer* self = (struct sig_dsp_GatedTimer*)
-        allocator->impl->malloc(allocator->heap,
+        allocator->impl->malloc(allocator,
             sizeof(struct sig_dsp_GatedTimer));
     sig_dsp_GatedTimer_init(self, settings, inputs, output);
 
@@ -664,7 +662,7 @@ struct sig_dsp_TimedTriggerCounter* sig_dsp_TimedTriggerCounter_new(
     float_array_ptr output = sig_AudioBlock_new(allocator, settings);
     struct sig_dsp_TimedTriggerCounter* self =
         (struct sig_dsp_TimedTriggerCounter*)
-        allocator->impl->malloc(allocator->heap,
+        allocator->impl->malloc(allocator,
             sizeof(struct sig_dsp_TimedTriggerCounter));
     sig_dsp_TimedTriggerCounter_init(self, settings, inputs, output);
 
@@ -751,7 +749,7 @@ struct sig_dsp_ToggleGate* sig_dsp_ToggleGate_new(
     struct sig_dsp_ToggleGate_Inputs* inputs) {
     float_array_ptr output = sig_AudioBlock_new(allocator, settings);
     struct sig_dsp_ToggleGate* self = (struct sig_dsp_ToggleGate*)
-        allocator->impl->malloc(allocator->heap,
+        allocator->impl->malloc(allocator,
             sizeof(struct sig_dsp_ToggleGate));
     sig_dsp_ToggleGate_init(self, settings, inputs, output);
 
@@ -811,7 +809,7 @@ struct sig_dsp_Sine* sig_dsp_Sine_new(struct sig_Allocator* allocator,
     struct sig_dsp_Sine_Inputs* inputs) {
     float_array_ptr output = sig_AudioBlock_new(allocator, settings);
     struct sig_dsp_Sine* self = (struct sig_dsp_Sine*)
-        allocator->impl->malloc(allocator->heap,
+        allocator->impl->malloc(allocator,
             sizeof(struct sig_dsp_Sine));
     sig_dsp_Sine_init(self, settings, inputs, output);
 
@@ -862,7 +860,7 @@ struct sig_dsp_OnePole* sig_dsp_OnePole_new(
 
     float_array_ptr output = sig_AudioBlock_new(allocator, settings);
     struct sig_dsp_OnePole* self = (struct sig_dsp_OnePole*)
-        allocator->impl->malloc(allocator->heap,
+        allocator->impl->malloc(allocator,
             sizeof(struct sig_dsp_OnePole));
     sig_dsp_OnePole_init(self, settings, inputs, output);
 
@@ -906,7 +904,7 @@ struct sig_dsp_Tanh* sig_dsp_Tanh_new(
 
     float_array_ptr output = sig_AudioBlock_new(allocator, settings);
     struct sig_dsp_Tanh* self = (struct sig_dsp_Tanh*)
-        allocator->impl->malloc(allocator->heap,
+        allocator->impl->malloc(allocator,
             sizeof(struct sig_dsp_Tanh));
     sig_dsp_Tanh_init(self, settings, inputs, output);
 
@@ -954,7 +952,7 @@ struct sig_dsp_Looper* sig_dsp_Looper_new(
 
     float_array_ptr output = sig_AudioBlock_new(allocator, settings);
     struct sig_dsp_Looper* self = (struct sig_dsp_Looper*)
-        allocator->impl->malloc(allocator->heap,
+        allocator->impl->malloc(allocator,
             sizeof(struct sig_dsp_Looper));
     sig_dsp_Looper_init(self, settings, inputs, output);
 
@@ -1103,7 +1101,7 @@ struct sig_dsp_Dust* sig_dsp_Dust_new(
 
     float_array_ptr output = sig_AudioBlock_new(allocator, settings);
     struct sig_dsp_Dust* self = (struct sig_dsp_Dust*)
-        allocator->impl->malloc(allocator->heap,
+        allocator->impl->malloc(allocator,
             sizeof(struct sig_dsp_Dust));
     sig_dsp_Dust_init(self, settings, inputs, output);
 
@@ -1166,7 +1164,7 @@ struct sig_dsp_TimedGate* sig_dsp_TimedGate_new(
     struct sig_dsp_TimedGate_Inputs* inputs) {
     float_array_ptr output = sig_AudioBlock_new(allocator, settings);
     struct sig_dsp_TimedGate* self = (struct sig_dsp_TimedGate*)
-        allocator->impl->malloc(allocator->heap,
+        allocator->impl->malloc(allocator,
             sizeof(struct sig_dsp_TimedGate));
     sig_dsp_TimedGate_init(self, settings, inputs, output);
 
@@ -1261,7 +1259,7 @@ struct sig_dsp_ClockFreqDetector* sig_dsp_ClockFreqDetector_new(
     float_array_ptr output = sig_AudioBlock_new(allocator, settings);
     struct sig_dsp_ClockFreqDetector* self =
         (struct sig_dsp_ClockFreqDetector*)
-        allocator->impl->malloc(allocator->heap,
+        allocator->impl->malloc(allocator,
             sizeof(struct sig_dsp_ClockFreqDetector));
     sig_dsp_ClockFreqDetector_init(self, settings, inputs, output);
 

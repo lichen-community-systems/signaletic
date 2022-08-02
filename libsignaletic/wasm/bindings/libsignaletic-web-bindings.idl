@@ -108,9 +108,9 @@ interface sig_AllocatorHeap {
 };
 
 interface sig_AllocatorImpl {
-    void init(sig_AllocatorHeap heap);
-    any malloc(sig_AllocatorHeap heap, unsigned long size);
-    void free(sig_AllocatorHeap heap, any obj);
+    void init(sig_Allocator allocator);
+    any malloc(sig_Allocator allocator, unsigned long size);
+    void free(sig_Allocator allocator, any obj);
 };
 
 interface sig_Allocator {

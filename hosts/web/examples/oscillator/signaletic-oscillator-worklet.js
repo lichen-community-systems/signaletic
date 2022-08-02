@@ -84,9 +84,9 @@ class SignaleticOscillator extends AudioWorkletProcessor {
             },
             {
                 name: 'redKnobParam',
-                defaultValue: 0.0,
-                minValue: 0.0,
+                minValue: 0,
                 maxValue: 1.0,
+                defaultValue: 0,
                 automation: 'k-rate'
             }
         ]
@@ -96,26 +96,9 @@ class SignaleticOscillator extends AudioWorkletProcessor {
         // TODO: Signaletic needs value mapping functions
         // like libDaisy, or control values should always
         // mapped using Signals.
-        this.gainValue.parameters.value =
-            parameters.blueKnobParam[0];
-
-        // Inputs may not be connected,
-        // so we have to check before we read them.
-        // TODO: Read inputs at audio rate.
-        // TODO: Treat the two modulation sources (freq and mul)
-        // as separate inputs, rather than as a single
-        // multichannel input.
-        let cvInputs = inputs[0];
-        if (cvInputs.length > 0) {
-            this.ampMod.parameters.value = cvInputs[0][0];
-        }
-
-        if (cvInputs.length > 1) {
-            // Map to MIDI notes between 0..120
-            let freqNote = cvInputs[1][0] * 60.0 + 60.0;
-            this.freqMod.parameters.value = sig.midiToFreq(
-                freqNote);
-        }
+        this.gainValue.parameters.value = parameters.blueKnobParam[0];
+        this.freqMod.parameters.value =
+            parameters.redKnobParam[0] * 1700 + 60;
 
         for (let output of outputs) {
             // Evaluate the Signaletic graph.

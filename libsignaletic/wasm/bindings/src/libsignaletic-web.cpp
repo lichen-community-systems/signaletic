@@ -22,7 +22,7 @@ public:
         float_array_ptr left, float_array_ptr right) {
         struct sig_dsp_BinaryOp_Inputs* inputs =
             (struct sig_dsp_BinaryOp_Inputs*)
-                allocator->impl->malloc(allocator->heap,
+                allocator->impl->malloc(allocator,
                     sizeof(sig_dsp_BinaryOp_Inputs));
 
         inputs->left = left;
@@ -33,7 +33,7 @@ public:
 
     void BinaryOp_Inputs_destroy(struct sig_Allocator* allocator,
         struct sig_dsp_BinaryOp_Inputs* self) {
-        allocator->impl->free(allocator->heap, self);
+        allocator->impl->free(allocator, self);
     }
 
     struct sig_dsp_BinaryOp* Add_new(struct sig_Allocator* allocator,
@@ -94,7 +94,7 @@ public:
         float_array_ptr mul, float_array_ptr add) {
         struct sig_dsp_Sine_Inputs* inputs =
             (struct sig_dsp_Sine_Inputs*) allocator->impl->malloc(
-                allocator->heap, sizeof(sig_dsp_Sine_Inputs));
+                allocator, sizeof(sig_dsp_Sine_Inputs));
 
         inputs->freq = freq;
         inputs->phaseOffset = phaseOffset;
@@ -106,7 +106,7 @@ public:
 
     void Sine_Inputs_destroy(struct sig_Allocator* allocator,
         struct sig_dsp_Sine_Inputs* self) {
-        allocator->impl->free(allocator->heap, self);
+        allocator->impl->free(allocator, self);
     }
 
 
@@ -125,7 +125,7 @@ public:
     struct sig_dsp_ClockFreqDetector_Inputs* ClockFreqDetector_Inputs_new(
         struct sig_Allocator* allocator, float_array_ptr source) {
         struct sig_dsp_ClockFreqDetector_Inputs* inputs = (struct sig_dsp_ClockFreqDetector_Inputs*) allocator->impl->malloc(
-            allocator->heap, sizeof(sig_dsp_ClockFreqDetector_Inputs));
+            allocator, sizeof(sig_dsp_ClockFreqDetector_Inputs));
         inputs->source = source;
 
         return inputs;
@@ -134,7 +134,7 @@ public:
     void ClockFreqDetector_Inputs_destroy(
         struct sig_Allocator* allocator,
         struct sig_dsp_ClockFreqDetector_Inputs* self) {
-        allocator->impl->free(allocator->heap, self);
+        allocator->impl->free(allocator, self);
     }
 };
 
@@ -228,7 +228,7 @@ public:
         allocator->impl = &sig_TLSFAllocatorImpl;
         allocator->heap = heap;
 
-        allocator->impl->init(allocator->heap);
+        allocator->impl->init(allocator);
 
         return allocator;
     }

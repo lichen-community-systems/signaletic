@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
         .heap = &heap
     };
 
-    allocator.impl->init(allocator.heap);
+    allocator.impl->init(&allocator);
 
     struct sig_dsp_Sine_Inputs inputs = {
         .freq = sig_AudioBlock_newWithValue(&allocator,

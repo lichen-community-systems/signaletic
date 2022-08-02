@@ -308,21 +308,23 @@ struct sig_AllocatorHeap {
     void* memory;
 };
 
+struct sig_Allocator;
+
 /**
  * Type definition for an Allocator init function.
  */
-typedef void (*sig_Allocator_init)(struct sig_AllocatorHeap* heap);
+typedef void (*sig_Allocator_init)(struct sig_Allocator* allocator);
 
 /**
  * Type definition for an Allocator malloc function.
  */
-typedef void* (*sig_Allocator_malloc)(struct sig_AllocatorHeap* heap,
+typedef void* (*sig_Allocator_malloc)(struct sig_Allocator* allocator,
     size_t size);
 
 /**
  * Type definition for an Allocator free function.
  */
-typedef void (*sig_Allocator_free)(struct sig_AllocatorHeap* heap,
+typedef void (*sig_Allocator_free)(struct sig_Allocator* allocator,
     void* obj);
 
 /**
@@ -343,18 +345,19 @@ struct sig_Allocator {
 /**
  * TLSF Allocator init function.
  */
-void sig_TLSFAllocator_init(struct sig_AllocatorHeap* heap);
+void sig_TLSFAllocator_init(struct sig_Allocator* allocator);
 
 /**
  * TLSF Allocator malloc function.
  */
-void* sig_TLSFAllocator_malloc(struct sig_AllocatorHeap* heap,
+void* sig_TLSFAllocator_malloc(struct sig_Allocator* allocator,
     size_t size);
 
 /**
  * TLSF Allocator free function.
  */
-void sig_TLSFAllocator_free(struct sig_AllocatorHeap* heap, void* obj);
+void sig_TLSFAllocator_free(struct sig_Allocator* allocator,
+    void* obj);
 
 /**
  * A realtime-capable memory allocator based on
