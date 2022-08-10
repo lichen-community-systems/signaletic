@@ -268,6 +268,18 @@ void sig_Buffer_fillWithWaveform(struct sig_Buffer* self,
     }
 }
 
+float sig_Buffer_read(struct sig_Buffer* self, float idx) {
+    return self->samples[(size_t) idx % self->length];
+}
+
+float sig_Buffer_readLinear(struct sig_Buffer* self, float idx) {
+    return sig_interpolate_linear(idx, self->samples, self->length);
+}
+
+float sig_Buffer_readCubic(struct sig_Buffer* self, float idx) {
+    return sig_interpolate_cubic(idx, self->samples, self->length);
+}
+
 void sig_Buffer_destroy(struct sig_Allocator* allocator, struct sig_Buffer* self) {
     allocator->impl->free(allocator, self->samples);
     allocator->impl->free(allocator, self);
@@ -959,6 +971,72 @@ struct sig_dsp_Looper* sig_dsp_Looper_new(
     return self;
 }
 
+static inline float sig_dsp_Looper_record(struct sig_dsp_Looper* self,
+    float startPos, float endPos, size_t i) {
+    float* recordBuffer = FLOAT_ARRAY(self->buffer->samples);
+
+    if (self->previousRecord <= 0.0f) {
+        // We've just started recording.
+        if (self->isBufferEmpty) {
+            // This is the first overdub.
+            self->playbackPos = startPos;
+        }
+    }
+
+    size_t playbackIdx = (size_t) self->playbackPos;
+
+    // Reduce the volume of the previously recorded audio by 10%
+    float recordedSample = recordBuffer[playbackIdx] * 0.9;
+
+    // Mix in the audio input.
+    recordedSample += FLOAT_ARRAY(self->inputs->source)[i];
+
+    // Add a little distortion/limiting.
+    recordedSample = tanhf(recordedSample);
+
+    // Replace the audio in the buffer with the new mix.
+    recordBuffer[playbackIdx] = recordedSample;
+
+    return recordedSample;
+}
+
+static inline void sig_dsp_Looper_clearBuffer(struct sig_dsp_Looper* self) {
+    // TODO: Fade out before clearing the buffer (gh-28).
+    sig_Buffer_fillWithSilence(self->buffer);
+    self->isBufferEmpty = true;
+}
+
+static inline float sig_dsp_Looper_play(struct sig_dsp_Looper* self, size_t i) {
+    if (self->previousRecord > 0.0f) {
+        // We just finished recording.
+        self->isBufferEmpty = false;
+    }
+
+    if (FLOAT_ARRAY(self->inputs->clear)[i] > 0.0f &&
+        self->previousClear == 0.0f) {
+        sig_dsp_Looper_clearBuffer(self);
+    }
+
+    // TODO: The sig_interpolate_linear implementation
+    // may wrap around inappropriately to the beginning of
+    // the buffer (not to the startPos) if we're right at
+    // the end of the buffer.
+    return sig_Buffer_readLinear(self->buffer, self->playbackPos) +
+        FLOAT_ARRAY(self->inputs->source)[i];
+}
+
+static inline float sig_dsp_Looper_nextPosition(float currentPos,
+    float startPos, float endPos, float speed) {
+    float nextPlaybackPos = currentPos + speed;
+    if (nextPlaybackPos > endPos) {
+        nextPlaybackPos = startPos + (nextPlaybackPos - endPos);
+    } else if (nextPlaybackPos < startPos) {
+        nextPlaybackPos = endPos - (startPos - nextPlaybackPos);
+    }
+
+    return nextPlaybackPos;
+}
+
 // TODO:
 // * Reduce clicks by crossfading the end and start of the window.
 //      - should it be a true cross fade, requiring a few samples
@@ -972,12 +1050,12 @@ struct sig_dsp_Looper* sig_dsp_Looper_new(
 // * Unit tests
 void sig_dsp_Looper_generate(void* signal) {
     struct sig_dsp_Looper* self = (struct sig_dsp_Looper*) signal;
-    float* samples = FLOAT_ARRAY(self->buffer->samples);
-    float playbackPos = self->playbackPos;
     float bufferLastIdx = (float)(self->buffer->length - 1);
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
         float speed = FLOAT_ARRAY(self->inputs->speed)[i];
+
+        // Clamp the start and end inputs to within 0..1.
         float start = sig_clamp(FLOAT_ARRAY(self->inputs->start)[i],
             0.0, 1.0);
         float end = sig_clamp(FLOAT_ARRAY(self->inputs->end)[i],
@@ -993,23 +1071,11 @@ void sig_dsp_Looper_generate(void* signal) {
         float startPos = roundf(bufferLastIdx * start);
         float endPos = roundf(bufferLastIdx * end);
 
-        // If the loop size is smaller than the speed
-        // we're playing back at, just output silence.
+        float outputSample = 0.0f;
         if ((endPos - startPos) <= fabsf(speed)) {
-            FLOAT_ARRAY(self->signal.output)[i] = 0.0f;
-            continue;
-        }
-
-        if (FLOAT_ARRAY(self->inputs->record)[i] > 0.0f) {
-            // We're recording.
-            if (self->previousRecord <= 0.0f) {
-                // We've just started recording.
-                if (self->isBufferEmpty) {
-                    // This is the first overdub.
-                    playbackPos = startPos;
-                }
-            }
-
+            // The loop size is too small to play at this speed.
+            outputSample = 0.0f;
+        } else if (FLOAT_ARRAY(self->inputs->record)[i] > 0.0f) {
             // Playback has to be at regular speed
             // while recording, so ignore any modulation
             // and only use its direction.
@@ -1018,55 +1084,18 @@ void sig_dsp_Looper_generate(void* signal) {
             // Note: Naively omitting this will work,
             // but introduces lots pitched resampling artifacts.
             speed = speed > 0.0f ? 1.0f : -1.0f;
-
-            // Overdub the current audio input into the loop buffer.
-            size_t playbackIdx = (size_t) playbackPos;
-            float sample = samples[playbackIdx] +
-                FLOAT_ARRAY(self->inputs->source)[i];
-
-            // Add a little distortion/limiting.
-            sample = tanhf(sample);
-            samples[playbackIdx] = sample;
-
-            // No interpolation is needed because we're
-            // playing/recording at regular speed.
-            FLOAT_ARRAY(self->signal.output)[i] = sample;
+            outputSample = sig_dsp_Looper_record(self, startPos, endPos, i);
         } else {
-            // We're playing back.
-            if (self->previousRecord > 0.0f) {
-                // We just finished recording.
-                self->isBufferEmpty = false;
-            }
-
-            if (FLOAT_ARRAY(self->inputs->clear)[i] > 0.0f &&
-                self->previousClear == 0.0f) {
-                // TODO: Fade out before clearing the buffer
-                // (gh-28)
-                sig_Buffer_fillWithSilence(self->buffer);
-                self->isBufferEmpty = true;
-            }
-
-            // TODO: The sig_interpolate_linear implementation
-            // may wrap around inappropriately to the beginning of
-            // the buffer (not to the startPos) if we're right at
-            // the end of the buffer.
-            FLOAT_ARRAY(self->signal.output)[i] = sig_interpolate_linear(
-                playbackPos, samples, self->buffer->length) +
-                FLOAT_ARRAY(self->inputs->source)[i];
+            outputSample = sig_dsp_Looper_play(self, i);
         }
+        FLOAT_ARRAY(self->signal.output)[i] = outputSample;
 
-        playbackPos += speed;
-        if (playbackPos > endPos) {
-            playbackPos = startPos + (playbackPos - endPos);
-        } else if (playbackPos < startPos) {
-            playbackPos = endPos - (startPos - playbackPos);
-        }
+        self->playbackPos = sig_dsp_Looper_nextPosition(self->playbackPos,
+            startPos, endPos, speed);
 
         self->previousRecord = FLOAT_ARRAY(self->inputs->record)[i];
         self->previousClear = FLOAT_ARRAY(self->inputs->clear)[i];
     }
-
-    self->playbackPos = playbackPos;
 }
 
 void sig_dsp_Looper_destroy(struct sig_Allocator* allocator,

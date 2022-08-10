@@ -446,6 +446,33 @@ void sig_Buffer_fillWithWaveform(struct sig_Buffer* self,
     float phase, float freq);
 
 /**
+ * Reads from the buffer, truncating the fractional portion of the index.
+ *
+ * @param self the buffer from which to read
+ * @param idx the index (can be fractional) at which to read a sample
+ * @return the linearly interpolated sample
+ */
+float sig_Buffer_read(struct sig_Buffer* self, float idx);
+
+/**
+ * Reads from the buffer using linear interpolation.
+ *
+ * @param self the buffer from which to read
+ * @param idx the index (can be fractional) at which to read a sample
+ * @return the linearly interpolated sample
+ */
+float sig_Buffer_readLinear(struct sig_Buffer* self, float idx);
+
+/**
+ * Reads from the buffer using cubic interpolation.
+ *
+ * @param self the buffer from which to read
+ * @param idx the index (can be fractional) at which to read a sample
+ * @return the cubic interpolated sample
+ */
+float sig_Buffer_readCubic(struct sig_Buffer* self, float idx);
+
+/**
  * Destroys a Buffer and frees its memory.
  *
  * After calling this function, the pointer to
