@@ -1,7 +1,7 @@
 #include "../../vendor/kxmx_bluemchen/src/kxmx_bluemchen.h"
 #include <tlsf.h>
 #include <libsignaletic.h>
-#include "../../../../include/BufferView.h"
+#include "../../../../include/LooperView.h"
 #include <string>
 
 using namespace kxmx;
