@@ -64,13 +64,13 @@ struct sig_dsp_Looper* rightLooper;
 struct sig_dsp_BinaryOp* leftGain;
 struct sig_dsp_BinaryOp* rightGain;
 
-struct sig_LooperView looperView;
+struct sig_ui_daisy_LooperView looperView;
 
 void UpdateOled() {
     bool foregroundOn = !recordGate->isGateOpen;
     bluemchen.display.Fill(!foregroundOn);
 
-    sig_LooperView_render(&looperView,
+    sig_ui_daisy_LooperView_render(&looperView,
         startSmoother->previousSample,
         endSmoother->previousSample,
         leftLooper->playbackPos,
@@ -316,12 +316,10 @@ int main(void) {
         .clear = encoderLongPress->signal.output
     };
 
-    // TODO: Should Buffers be automatically zeroed
-    // when created?
     sig_fillWithSilence(leftSamples, LOOP_LENGTH);
     leftLooper = sig_dsp_Looper_new(&allocator, &audioSettings,
         &leftLooperInputs);
-    leftLooper->buffer = &leftBuffer;
+    sig_dsp_Looper_setBuffer(leftLooper, &leftBuffer);
 
     struct sig_dsp_Looper_Inputs rightLooperInputs = {
         .source = sig_AudioBlock_newWithValue(&allocator,
@@ -335,7 +333,7 @@ int main(void) {
     sig_fillWithSilence(rightSamples, LOOP_LENGTH);
     rightLooper = sig_dsp_Looper_new(&allocator, &audioSettings,
         &rightLooperInputs);
-    rightLooper->buffer = &rightBuffer;
+    sig_dsp_Looper_setBuffer(rightLooper, &rightBuffer);
 
     struct sig_dsp_BinaryOp_Inputs leftGainInputs = {
         // Bluemchen's output circuit clips as it approaches full gain,
@@ -357,25 +355,25 @@ int main(void) {
 
     bluemchen.StartAudio(AudioCallback);
 
-    struct sig_Rect looperViewRect = {
+    struct sig_ui_Rect looperViewRect = {
         .x = 0,
         .y = 8,
         .width = 64,
         .height = 24
     };
 
-    struct sig_Canvas canvas = {
-        .geometry = sig_Canvas_geometryFromRect(&looperViewRect),
+    struct sig_ui_daisy_Canvas canvas = {
+        .geometry = sig_ui_daisy_Canvas_geometryFromRect(&looperViewRect),
         .display = &(bluemchen.display)
     };
 
-    struct sig_BufferView bufferView = {
+    struct sig_ui_daisy_LoopRenderer loopRenderer = {
         .canvas = &canvas,
-        .buffer = leftLooper->buffer
+        .loop = &leftLooper->loop
     };
 
     looperView.canvas = &canvas;
-    looperView.bufferView = &bufferView;
+    looperView.loopRenderer = &loopRenderer;
     looperView.looper = leftLooper;
     looperView.leftSpeed = 0.0f;
     looperView.rightSpeed = 0.0f;

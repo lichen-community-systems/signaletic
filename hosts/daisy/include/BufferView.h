@@ -8,7 +8,7 @@
 
 #include "daisy_seed.h"
 
-struct sig_CanvasGeometry {
+struct sig_ui_CanvasGeometry {
     int xStart;
     int width;
     int xEnd;
@@ -18,23 +18,25 @@ struct sig_CanvasGeometry {
     int yCentre;
 };
 
-struct sig_Canvas {
-    struct sig_CanvasGeometry geometry;
-    // TODO: How do we handle this in a driver-agnostic way?
-    daisy::OledDisplay<daisy::SSD130xI2c64x32Driver>* display;
-};
-
 // 0,0 is top left.
-struct sig_Rect {
+struct sig_ui_Rect {
     int x;
     int y;
     int width;
     int height;
 };
 
-struct sig_CanvasGeometry sig_Canvas_geometryFromRect(
-    struct sig_Rect* rect) {
-    struct sig_CanvasGeometry geom;
+struct sig_ui_daisy_Canvas {
+    struct sig_ui_CanvasGeometry geometry;
+    // TODO: How do we handle this in a driver-agnostic way?
+    daisy::OledDisplay<daisy::SSD130xI2c64x32Driver>* display;
+};
+
+
+
+struct sig_ui_CanvasGeometry sig_ui_daisy_Canvas_geometryFromRect(
+    struct sig_ui_Rect* rect) {
+    struct sig_ui_CanvasGeometry geom;
 
     geom.xStart = rect->x;
     geom.width = rect->width;
@@ -47,7 +49,7 @@ struct sig_CanvasGeometry sig_Canvas_geometryFromRect(
     return geom;
 }
 
-void sig_Canvas_drawLine(struct sig_Canvas* canvas,
+void sig_ui_daisy_Canvas_drawLine(struct sig_ui_daisy_Canvas* canvas,
     int thickness, int x1, int y1, int x2, int y2, bool on) {
     for (int i = 0; i < thickness; i++) {
         canvas->display->DrawLine(x1 + i, y1, x2 + i, y2, on);
@@ -55,32 +57,40 @@ void sig_Canvas_drawLine(struct sig_Canvas* canvas,
 }
 
 
-struct sig_BufferView {
-    struct sig_Canvas* canvas;
-    struct sig_Buffer* buffer;
+struct sig_ui_daisy_LoopRenderer {
+    struct sig_ui_daisy_Canvas* canvas;
+    struct sig_dsp_Looper_Loop* loop;
 };
 
-void sig_BufferView_drawWaveform(struct sig_BufferView* bufferView,
-    bool foregroundOn) {
-    struct sig_CanvasGeometry geom = bufferView->canvas->geometry;
-
-    float* samples = bufferView->buffer->samples;
-    size_t step = bufferView->buffer->length / geom.width;
+void sig_ui_daisy_LoopRenderer_drawWaveform(
+    struct sig_ui_daisy_LoopRenderer* self, bool foregroundOn) {
+    struct sig_ui_CanvasGeometry geom = self->canvas->geometry;
     size_t yCentre = geom.yCentre;
-
+    int thickness = 1;
     int xStart = geom.xStart;
-    int yStart = geom.yStart;
     int xEnd = geom.width - xStart;
-    int prevX = geom.xStart;
-    int prevY = geom.yStart + geom.yCentre;
+    int yStart = geom.yStart;
+    int prevX = xStart;
+    int prevY = yStart + geom.yCentre;
+
+    if (self->loop->length == 0) {
+        sig_ui_daisy_Canvas_drawLine(self->canvas,
+            thickness, xStart, prevY, xEnd, prevY, foregroundOn);
+        return;
+    }
+
+    float* samples = self->loop->buffer->samples;
+    size_t loopStartIdx = self->loop->startIdx;
+    size_t step = self->loop->length / geom.width;
 
     for (int x = xStart; x < xEnd; x += 2) {
-        float samp = samples[(size_t) x * step];
+        size_t idx = (size_t) (x + loopStartIdx) * step;
+        float samp = self->loop->length == 0 ? 0.0f : samples[idx];
         int scaled = (int) roundf((-samp) * yCentre + yCentre);
         int y = scaled + yStart;
 
-        sig_Canvas_drawLine(bufferView->canvas,
-            1, prevX, prevY, x, y, foregroundOn);
+        sig_ui_daisy_Canvas_drawLine(self->canvas,
+            thickness, prevX, prevY, x, y, foregroundOn);
 
         prevX = x;
         prevY = y;
@@ -89,27 +99,30 @@ void sig_BufferView_drawWaveform(struct sig_BufferView* bufferView,
 
 // TODO: Add customizable height so this function can be used
 // by drawLoopPoints.
-void sig_BufferView_drawLine(struct sig_BufferView* bufferView,
+void sig_ui_daisy_LoopRenderer_drawLine(
+    struct sig_ui_daisy_LoopRenderer* self,
     float relativePosition, int thickness, int foregroundOn) {
-    struct sig_CanvasGeometry geom = bufferView->canvas->geometry;
+    struct sig_ui_CanvasGeometry geom = self->canvas->geometry;
     int x = (int) roundf(relativePosition * (geom.xEnd - thickness));
-    sig_Canvas_drawLine(bufferView->canvas,
+    sig_ui_daisy_Canvas_drawLine(self->canvas,
         thickness, x, geom.yStart, x, geom.yEnd, foregroundOn);
 }
 
-void sig_BufferView_drawPositionLine(
-    struct sig_BufferView* bufferView, float pos, int thickness,
+void sig_ui_daisy_LoopRenderer_drawPositionLine(
+    sig_ui_daisy_LoopRenderer* self, float pos, int thickness,
     bool foregroundOn) {
-    // Although it's a float "pos" is expressed in samples,
+    struct sig_dsp_Looper_Loop* loop = self->loop;
+    // Although it's a float, "pos" is expressed in samples,
     // so needs to be scaled to a relative value between 0 and 1.
-    float scaledPlaybackPos = pos / bufferView->buffer->length;
-    sig_BufferView_drawLine(bufferView, scaledPlaybackPos, thickness,
-        foregroundOn);
+    size_t loopLength = loop->isEmpty ? loop->buffer->length : loop->length;
+    float scaledPlaybackPos = pos / loopLength;
+    sig_ui_daisy_LoopRenderer_drawLine(self,
+        scaledPlaybackPos, thickness, foregroundOn);
 }
 
-struct sig_LooperView {
-    struct sig_Canvas* canvas;
-    struct sig_BufferView* bufferView;
+struct sig_ui_daisy_LooperView {
+    struct sig_ui_daisy_Canvas* canvas;
+    struct sig_ui_daisy_LoopRenderer* loopRenderer;
     daisy::FixedCapStr<10> text;
     struct sig_dsp_Looper* looper;
     float leftSpeed;
@@ -119,10 +132,11 @@ struct sig_LooperView {
 };
 
 // TODO: Render the loop region with reverse contrast
-void sig_LooperView_drawLoopPoints(struct sig_LooperView* looperView,
+void sig_ui_daisy_LooperView_drawLoopPoints(
+    struct sig_ui_daisy_LooperView* self,
     float startPos, float endPos, bool foregroundOn) {
-    int lineThickness = looperView->loopPointLineThickness;
-    struct sig_CanvasGeometry geom = looperView->canvas->geometry;
+    int lineThickness = self->loopPointLineThickness;
+    struct sig_ui_CanvasGeometry geom = self->canvas->geometry;
 
     int lineHeight = geom.yCentre;
     int yStart = geom.yStart + ((geom.height - lineHeight) / 2);
@@ -131,29 +145,30 @@ void sig_LooperView_drawLoopPoints(struct sig_LooperView* looperView,
     int startPointX = roundf(startPos * (geom.xEnd - lineThickness));
     int endPointX = roundf(endPos * (geom.xEnd - lineThickness));
 
-    sig_Canvas_drawLine(looperView->canvas,
+    sig_ui_daisy_Canvas_drawLine(self->canvas,
         lineThickness, startPointX, yStart, startPointX, yEnd, foregroundOn);
-    sig_Canvas_drawLine(looperView->canvas,
+    sig_ui_daisy_Canvas_drawLine(self->canvas,
         lineThickness, endPointX, yStart, endPointX, yEnd,
         foregroundOn);
 }
 
-void sig_LooperView_writeSpeeds(struct sig_LooperView* looperView,
-    int foregroundOn) {
-    looperView->text.Clear();
-    looperView->text.AppendFloat(looperView->leftSpeed, 2);
-    looperView->text.Append("  ");
-    looperView->text.AppendFloat(looperView->rightSpeed, 2);
-    looperView->canvas->display->SetCursor(0, 0);
-    looperView->canvas->display->WriteString(looperView->text.Cstr(),
+void sig_ui_daisy_LooperView_writeSpeeds(
+    struct sig_ui_daisy_LooperView* self, int foregroundOn) {
+    self->text.Clear();
+    self->text.AppendFloat(self->leftSpeed, 2);
+    self->text.Append("  ");
+    self->text.AppendFloat(self->rightSpeed, 2);
+    self->canvas->display->SetCursor(0, 0);
+    self->canvas->display->WriteString(self->text.Cstr(),
         Font_6x8, foregroundOn);
 }
-void sig_LooperView_render(struct sig_LooperView* looperView,
+void sig_ui_daisy_LooperView_render(struct sig_ui_daisy_LooperView* self,
     float start, float length, float playbackPos, int foregroundOn) {
-    sig_LooperView_writeSpeeds(looperView, foregroundOn);
-    sig_LooperView_drawLoopPoints(looperView, start, length,
+    sig_ui_daisy_LooperView_writeSpeeds(self, foregroundOn);
+    sig_ui_daisy_LooperView_drawLoopPoints(self, start, length,
         foregroundOn);
-    sig_BufferView_drawWaveform(looperView->bufferView, foregroundOn);
-    sig_BufferView_drawPositionLine(looperView->bufferView,
-        playbackPos, looperView->positionLineThickness, foregroundOn);
+    sig_ui_daisy_LoopRenderer_drawWaveform(self->loopRenderer,
+        foregroundOn);
+    sig_ui_daisy_LoopRenderer_drawPositionLine(self->loopRenderer,
+        playbackPos, self->positionLineThickness, foregroundOn);
 }

@@ -905,12 +905,20 @@ struct sig_dsp_Looper_Inputs {
     float_array_ptr clear;
 };
 
+struct sig_dsp_Looper_Loop {
+    struct sig_Buffer* buffer;
+    size_t startIdx;
+    size_t length;
+    float recordedDirection;
+    bool isEmpty;
+};
+
 struct sig_dsp_Looper {
     struct sig_dsp_Signal signal;
     struct sig_dsp_Looper_Inputs* inputs;
-    struct sig_Buffer* buffer;
+    struct sig_dsp_Looper_Loop loop;
+    size_t loopLastIdx;
     float playbackPos;
-    bool isBufferEmpty;
     float previousRecord;
     float previousClear;
 };
@@ -923,6 +931,8 @@ struct sig_dsp_Looper* sig_dsp_Looper_new(
     struct sig_Allocator* allocator,
     struct sig_AudioSettings* settings,
     struct sig_dsp_Looper_Inputs* inputs);
+void sig_dsp_Looper_setBuffer(struct sig_dsp_Looper* self,
+    struct sig_Buffer* buffer);
 void sig_dsp_Looper_generate(void* signal);
 void sig_dsp_Looper_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Looper* self);
