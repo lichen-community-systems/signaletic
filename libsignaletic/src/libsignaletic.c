@@ -269,7 +269,7 @@ void sig_Buffer_fillWithWaveform(struct sig_Buffer* self,
 }
 
 float sig_Buffer_read(struct sig_Buffer* self, float idx) {
-    return self->samples[(size_t) idx % self->length];
+    return FLOAT_ARRAY(self->samples)[(size_t) idx % self->length];
 }
 
 float sig_Buffer_readLinear(struct sig_Buffer* self, float idx) {

@@ -94,6 +94,9 @@ interface Signaletic {
         unsigned long length);
     void Buffer_fill(sig_Buffer buffer, float value);
     void Buffer_fillWithSilence(sig_Buffer buffer);
+    float Buffer_read(sig_Buffer buffer, float idx);
+    float Buffer_readLinear(sig_Buffer buffer, float idx);
+    float Buffer_readCubic(sig_Buffer buffer, float idx);
     void Buffer_destroy(sig_Allocator allocator, sig_Buffer buffer);
 
     any AudioBlock_new(sig_Allocator allocator,

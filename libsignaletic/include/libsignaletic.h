@@ -909,7 +909,6 @@ struct sig_dsp_Looper_Loop {
     struct sig_Buffer* buffer;
     size_t startIdx;
     size_t length;
-    float recordedDirection;
     bool isEmpty;
 };
 

@@ -271,6 +271,18 @@ public:
         return sig_Buffer_fillWithSilence(buffer);
     }
 
+    float Buffer_read(struct sig_Buffer* buffer, float idx) {
+        return sig_Buffer_read(buffer, idx);
+    }
+
+    float Buffer_readLinear(struct sig_Buffer* buffer, float idx) {
+        return sig_Buffer_readLinear(buffer, idx);
+    }
+
+    float Buffer_readCubic(struct sig_Buffer* buffer, float idx) {
+        return sig_Buffer_readCubic(buffer, idx);
+    }
+
     void Buffer_destroy(struct sig_Allocator* allocator,
         struct sig_Buffer* buffer) {
         return sig_Buffer_destroy(allocator, buffer);
