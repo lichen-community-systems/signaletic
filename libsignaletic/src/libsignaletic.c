@@ -1023,8 +1023,9 @@ static inline float sig_dsp_Looper_record(struct sig_dsp_Looper* self,
 }
 
 static inline void sig_dsp_Looper_clearBuffer(struct sig_dsp_Looper* self) {
+    // For performance reasons, the buffer is never actually zeroed,
+    // it's just marked as empty.
     // TODO: Fade out before clearing the buffer (gh-28).
-    // sig_Buffer_fillWithSilence(self->buffer);
     self->loop.length = 0;
     self->loop.isEmpty = true;
     self->loopLastIdx = self->loop.buffer->length - 1;
