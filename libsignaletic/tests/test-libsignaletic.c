@@ -399,13 +399,13 @@ void test_sig_dsp_Mul(void) {
 
 // TODO: Move into libsignaletic itself
 // as a (semi?) generic input instantiator.
-struct sig_dsp_Sine_Inputs* createSineInputs(
+struct sig_dsp_Oscillator_Inputs* createSineInputs(
     struct sig_Allocator* allocator,
     struct sig_AudioSettings* audioSettings,
     float freq, float phaseOffset, float mul, float add) {
 
-    struct sig_dsp_Sine_Inputs* inputs = (struct sig_dsp_Sine_Inputs*) allocator->impl->malloc(allocator,
-        sizeof(struct sig_dsp_Sine_Inputs));
+    struct sig_dsp_Oscillator_Inputs* inputs = (struct sig_dsp_Oscillator_Inputs*) allocator->impl->malloc(allocator,
+        sizeof(struct sig_dsp_Oscillator_Inputs));
 
     inputs->freq = sig_AudioBlock_newWithValue(allocator,
         audioSettings, freq);
@@ -422,7 +422,7 @@ struct sig_dsp_Sine_Inputs* createSineInputs(
 // TODO: Move into libsignaletic itself
 // as a (semi?) generic input instantiator.
 void destroySineInputs(struct sig_Allocator* allocator,
-    struct sig_dsp_Sine_Inputs* sineInputs) {
+    struct sig_dsp_Oscillator_Inputs* sineInputs) {
     allocator->impl->free(allocator, sineInputs->freq);
     allocator->impl->free(allocator, sineInputs->phaseOffset);
     allocator->impl->free(allocator, sineInputs->mul);
@@ -441,7 +441,7 @@ void test_sig_dsp_Sine(void) {
         .sampleRate = 44100.0
     };
 
-    struct sig_dsp_Sine_Inputs* inputs = createSineInputs(
+    struct sig_dsp_Oscillator_Inputs* inputs = createSineInputs(
         &allocator, &audioSettings, 440.0f, 0.0f, 1.0f, 0.0f);
     struct sig_dsp_Sine* sine = sig_dsp_Sine_new(&allocator,
         &audioSettings, inputs);
@@ -467,7 +467,7 @@ void test_test_sig_dsp_Sine_isOffset(void) {
         .sampleRate = 44100.0f
     };
 
-    struct sig_dsp_Sine_Inputs* inputs = createSineInputs(
+    struct sig_dsp_Oscillator_Inputs* inputs = createSineInputs(
         &allocator, &audioSettings, 440.0f, 0.0f, 1.0f, 1.0f);
     struct sig_dsp_Sine* sine = sig_dsp_Sine_new(&allocator,
         &audioSettings, inputs);
@@ -483,7 +483,7 @@ void test_test_sig_dsp_Sine_isOffset(void) {
 }
 
 void test_sig_dsp_Sine_accumulatesPhase(void) {
-    struct sig_dsp_Sine_Inputs* inputs = createSineInputs(
+    struct sig_dsp_Oscillator_Inputs* inputs = createSineInputs(
         &allocator, audioSettings, 440.0f, 0.0f, 1.0f, 0.0f);
     struct sig_dsp_Sine* sine = sig_dsp_Sine_new(&allocator,
         audioSettings, inputs);
@@ -512,7 +512,7 @@ void test_sig_dsp_Sine_accumulatesPhase(void) {
 }
 
 void test_sig_dsp_Sine_phaseWrapsAt2PI(void) {
-    struct sig_dsp_Sine_Inputs* inputs = createSineInputs(
+    struct sig_dsp_Oscillator_Inputs* inputs = createSineInputs(
         &allocator, audioSettings, 440.0f, 0.0f, 1.0f, 0.0f);
     struct sig_dsp_Sine* sine = sig_dsp_Sine_new(&allocator,
         audioSettings, inputs);

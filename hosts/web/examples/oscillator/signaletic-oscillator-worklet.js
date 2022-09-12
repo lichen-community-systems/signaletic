@@ -40,7 +40,7 @@ class SignaleticOscillator extends AudioWorkletProcessor {
 
 
         /** Carrier **/
-        this.carrierInputs = sig.dsp.Sine_Inputs_new(
+        this.carrierInputs = sig.dsp.Oscillator_Inputs_new(
             this.allocator,
             this.freqMod.signal.output,
             sig.AudioBlock_newWithValue(this.allocator,

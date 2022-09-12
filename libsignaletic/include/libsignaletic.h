@@ -35,6 +35,7 @@ extern "C" {
 
 static const float sig_PI = 3.14159265358979323846f;
 static const float sig_TWOPI = 6.28318530717958647693f;
+static const float sig_RECIP_TWOPI = 1.0f / 3.14159265358979323846f;
 
 /**
  * Returns the smaller of two floating point arguments.
@@ -105,7 +106,7 @@ uint16_t sig_bipolarToUint12(float sample);
 
 /**
  * Converts a bipolar floating point sample in the range -1.0 to 1.0
- * into to an  unsigned 12-bit integer in the range 4095-0.
+ * into to an unsigned 12-bit integer in the range 4095-0.
  *
  * This function does not clamp the sample.
  *
@@ -828,26 +829,50 @@ void sig_dsp_ToggleGate_destroy(
     struct sig_Allocator* allocator,
     struct sig_dsp_ToggleGate* self);
 
-struct sig_dsp_Sine_Inputs {
+struct sig_dsp_Oscillator_Inputs {
     float_array_ptr freq;
     float_array_ptr phaseOffset;
     float_array_ptr mul;
     float_array_ptr add;
 };
 
-struct sig_dsp_Sine {
+struct sig_dsp_Oscillator {
     struct sig_dsp_Signal signal;
-    struct sig_dsp_Sine_Inputs* inputs;
+    struct sig_dsp_Oscillator_Inputs* inputs;
     float phaseAccumulator;
 };
 
-void sig_dsp_Sine_init(struct sig_dsp_Sine* self,
-    struct sig_AudioSettings* settings, struct sig_dsp_Sine_Inputs* inputs, float_array_ptr output);
-struct sig_dsp_Sine* sig_dsp_Sine_new(struct sig_Allocator* allocator,
+void sig_dsp_Oscillator_init(struct sig_dsp_Oscillator* self,
     struct sig_AudioSettings* settings,
-    struct sig_dsp_Sine_Inputs* inputs);
+    struct sig_dsp_Oscillator_Inputs* inputs, float_array_ptr output);
+
+void sig_dsp_Sine_init(struct sig_dsp_Oscillator* self,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_Oscillator_Inputs* inputs, float_array_ptr output);
+struct sig_dsp_Oscillator* sig_dsp_Sine_new(struct sig_Allocator* allocator,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_Oscillator_Inputs* inputs);
 void sig_dsp_Sine_generate(void* signal);
-void sig_dsp_Sine_destroy(struct sig_Allocator* allocator, struct sig_dsp_Sine* self);
+void sig_dsp_Sine_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Oscillator* self);
+
+
+struct sig_dsp_LFTri {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Oscillator_Inputs* inputs;
+    float phaseAccumulator;
+};
+
+void sig_dsp_LFTri_init(struct sig_dsp_Oscillator* self,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_Oscillator_Inputs* inputs, float_array_ptr output);
+struct sig_dsp_Oscillator* sig_dsp_LFTri_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_Oscillator_Inputs* inputs);
+void sig_dsp_LFTri_generate(void* signal);
+void sig_dsp_LFTri_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Oscillator* self);
 
 
 struct sig_dsp_OnePole_Inputs {

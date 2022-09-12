@@ -27,7 +27,7 @@ struct sig_Allocator allocator = {
 
 struct sig_dsp_Value* freqMod;
 struct sig_dsp_Value* ampMod;
-struct sig_dsp_Sine* carrier;
+struct sig_dsp_Oscillator* carrier;
 struct sig_dsp_Value* gainValue;
 struct sig_dsp_BinaryOp* gain;
 
@@ -116,7 +116,7 @@ int main(void) {
     ampMod->parameters.value = 1.0f;
 
     /** Carrier **/
-    struct sig_dsp_Sine_Inputs carrierInputs = {
+    struct sig_dsp_Oscillator_Inputs carrierInputs = {
         .freq = freqMod->signal.output,
         .phaseOffset = sig_AudioBlock_newWithValue(&allocator,
             &audioSettings, 0.0f),

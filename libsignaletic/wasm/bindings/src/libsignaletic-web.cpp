@@ -72,29 +72,26 @@ public:
         return sig_dsp_Div_destroy(allocator, self);
     }
 
-    struct sig_dsp_Sine* Sine_new(struct sig_Allocator* allocator,
+    struct sig_dsp_Oscillator* Sine_new(struct sig_Allocator* allocator,
         struct sig_AudioSettings* audioSettings,
-        struct sig_dsp_Sine_Inputs* inputs) {
+        struct sig_dsp_Oscillator_Inputs* inputs) {
         return sig_dsp_Sine_new(allocator, audioSettings,
             inputs);
     }
 
     void Sine_destroy(struct sig_Allocator* allocator,
-        struct sig_dsp_Sine* self) {
+        struct sig_dsp_Oscillator* self) {
         return sig_dsp_Sine_destroy(allocator, self);
     }
 
-    // TODO: Should some version of this go directly into
-    // libsignaletic, or is the only purpose of this function to
-    // provide a means for creating sig_dsp_Sine_Input objects
-    // from JavaScript?
-    struct sig_dsp_Sine_Inputs* Sine_Inputs_new(
+    // TODO: Move this into libsignaletic.
+    struct sig_dsp_Oscillator_Inputs* Oscillator_Inputs_new(
         struct sig_Allocator* allocator,
         float_array_ptr freq, float_array_ptr phaseOffset,
         float_array_ptr mul, float_array_ptr add) {
-        struct sig_dsp_Sine_Inputs* inputs =
-            (struct sig_dsp_Sine_Inputs*) allocator->impl->malloc(
-                allocator, sizeof(sig_dsp_Sine_Inputs));
+        struct sig_dsp_Oscillator_Inputs* inputs =
+            (struct sig_dsp_Oscillator_Inputs*) allocator->impl->malloc(
+                allocator, sizeof(sig_dsp_Oscillator_Inputs));
 
         inputs->freq = freq;
         inputs->phaseOffset = phaseOffset;
@@ -105,7 +102,7 @@ public:
     }
 
     void Sine_Inputs_destroy(struct sig_Allocator* allocator,
-        struct sig_dsp_Sine_Inputs* self) {
+        struct sig_dsp_Oscillator_Inputs* self) {
         allocator->impl->free(allocator, self);
     }
 

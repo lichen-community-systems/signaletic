@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
 
     allocator.impl->init(&allocator);
 
-    struct sig_dsp_Sine_Inputs inputs = {
+    struct sig_dsp_Oscillator_Inputs inputs = {
         .freq = sig_AudioBlock_newWithValue(&allocator,
             &settings, 440.0f),
         .phaseOffset = sig_AudioBlock_newWithValue(&allocator,

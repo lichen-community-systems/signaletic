@@ -805,37 +805,45 @@ void sig_dsp_ToggleGate_destroy(
 }
 
 
-void sig_dsp_Sine_init(struct sig_dsp_Sine* self,
+void sig_dsp_Oscillator_init(struct sig_dsp_Oscillator* self,
     struct sig_AudioSettings* settings,
-    struct sig_dsp_Sine_Inputs* inputs,
+    struct sig_dsp_Oscillator_Inputs* inputs,
     float_array_ptr output) {
-    sig_dsp_Signal_init(self, settings, output,
-        *sig_dsp_Sine_generate);
-
     self->inputs = inputs;
     self->phaseAccumulator = 0.0f;
 }
 
-struct sig_dsp_Sine* sig_dsp_Sine_new(struct sig_Allocator* allocator,
+void sig_dsp_Sine_init(struct sig_dsp_Oscillator* self,
     struct sig_AudioSettings* settings,
-    struct sig_dsp_Sine_Inputs* inputs) {
+    struct sig_dsp_Oscillator_Inputs* inputs,
+    float_array_ptr output) {
+    sig_dsp_Signal_init(self, settings, output, *sig_dsp_Sine_generate);
+    sig_dsp_Oscillator_init(self, settings, inputs, output);
+}
+
+struct sig_dsp_Oscillator* sig_dsp_Sine_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_Oscillator_Inputs* inputs) {
     float_array_ptr output = sig_AudioBlock_new(allocator, settings);
-    struct sig_dsp_Sine* self = (struct sig_dsp_Sine*)
+    struct sig_dsp_Oscillator* self = (struct sig_dsp_Oscillator*)
         allocator->impl->malloc(allocator,
-            sizeof(struct sig_dsp_Sine));
+            sizeof(struct sig_dsp_Oscillator));
     sig_dsp_Sine_init(self, settings, inputs, output);
 
     return self;
 }
 
-void sig_dsp_Sine_destroy(struct sig_Allocator* allocator, struct sig_dsp_Sine* self) {
+void sig_dsp_Sine_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Oscillator* self) {
     sig_dsp_Signal_destroy(allocator, (void*) self);
 }
 
 void sig_dsp_Sine_generate(void* signal) {
-    struct sig_dsp_Sine* self = (struct sig_dsp_Sine*) signal;
+    struct sig_dsp_Oscillator* self = (struct sig_dsp_Oscillator*) signal;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        // TODO: Negative offsets will fail here.
         float modulatedPhase = fmodf(self->phaseAccumulator +
             FLOAT_ARRAY(self->inputs->phaseOffset)[i], sig_TWOPI);
 
@@ -851,6 +859,59 @@ void sig_dsp_Sine_generate(void* signal) {
             self->phaseAccumulator -= sig_TWOPI;
         }
     }
+}
+
+// TODO: Address duplication with other Oscillator types.
+void sig_dsp_LFTri_init(struct sig_dsp_Oscillator* self,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_Oscillator_Inputs* inputs, float_array_ptr output) {
+    sig_dsp_Signal_init(self, settings, output, *sig_dsp_LFTri_generate);
+    sig_dsp_Oscillator_init(self, settings, inputs, output);
+};
+
+// TODO: Address duplication with other Oscillator types.
+struct sig_dsp_Oscillator* sig_dsp_LFTri_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* settings,
+    struct sig_dsp_Oscillator_Inputs* inputs) {
+    float_array_ptr output = sig_AudioBlock_new(allocator, settings);
+    struct sig_dsp_Oscillator* self = (struct sig_dsp_Oscillator*)
+        allocator->impl->malloc(allocator,
+            sizeof(struct sig_dsp_Oscillator));
+    sig_dsp_LFTri_init(self, settings, inputs, output);
+
+    return self;
+}
+
+// TODO: Address duplication with other oscillator types.
+void sig_dsp_LFTri_generate(void* signal) {
+    struct sig_dsp_Oscillator* self = (struct sig_dsp_Oscillator*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        // TODO: Negative offsets will fail here.
+        float modulatedPhase = fmodf(self->phaseAccumulator +
+            FLOAT_ARRAY(self->inputs->phaseOffset)[i], sig_TWOPI);
+
+        float val = -1.0f + (2.0f * (modulatedPhase * sig_RECIP_TWOPI));
+        val = 2.0f * (fabsf(val) - 0.5f); // Rectify and scale/offset
+
+        FLOAT_ARRAY(self->signal.output)[i] = val *
+            FLOAT_ARRAY(self->inputs->mul)[i] +
+            FLOAT_ARRAY(self->inputs->add)[i];
+
+        float phaseStep = FLOAT_ARRAY(self->inputs->freq)[i] /
+            self->signal.audioSettings->sampleRate * sig_TWOPI;
+
+        self->phaseAccumulator += phaseStep;
+        if (self->phaseAccumulator > sig_TWOPI) {
+            self->phaseAccumulator -= sig_TWOPI;
+        }
+    }
+}
+
+void sig_dsp_LFTri_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Oscillator* self) {
+    sig_dsp_Signal_destroy(allocator, (void*) self);
 }
 
 

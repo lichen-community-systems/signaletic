@@ -31,18 +31,18 @@ interface Signals {
     void Div_destroy(sig_Allocator allocator, sig_dsp_BinaryOp div);
 
 
-    sig_dsp_Sine Sine_new(sig_Allocator allocator,
+    sig_dsp_Oscillator Sine_new(sig_Allocator allocator,
         sig_AudioSettings audioSettings,
-        sig_dsp_Sine_Inputs inputs);
+        sig_dsp_Oscillator_Inputs inputs);
 
     void Sine_destroy(sig_Allocator allocator,
-        sig_dsp_Sine sine);
+        sig_dsp_Oscillator sine);
 
-    sig_dsp_Sine_Inputs Sine_Inputs_new(sig_Allocator allocator,
+    sig_dsp_Oscillator_Inputs Sine_Inputs_new(sig_Allocator allocator,
         any freq, any phaseOffset, any mul, any add);
 
     void Sine_Inputs_destroy(sig_Allocator allocator,
-        sig_dsp_Sine_Inputs inputs);
+        sig_dsp_Oscillator_Inputs inputs);
 
 
     sig_dsp_ClockFreqDetector ClockFreqDetector_new(sig_Allocator allocator,
@@ -150,13 +150,13 @@ interface sig_dsp_Value_Parameters {
 };
 
 
-interface sig_dsp_Sine {
+interface sig_dsp_Oscillator {
     [Value] attribute sig_dsp_Signal signal;
-    attribute sig_dsp_Sine_Inputs inputs;
+    attribute sig_dsp_Oscillator_Inputs inputs;
     attribute float phaseAccumulator;
 };
 
-interface sig_dsp_Sine_Inputs {
+interface sig_dsp_Oscillator_Inputs {
     attribute any freq;
     attribute any phaseOffset;
     attribute any mul;
