@@ -2,6 +2,51 @@
 
 ## Unreleased
 
+## v5.2.0
+
+### Features
+
+* board: added board support for Noise Engineering legio platform
+* audio: added `output_compensation` value to config struct to allow for post-scaling of uneven audio passthru levels.
+* util: added a multiply operator to the Color class for scaling a color by a single factor.
+* device: Added ICM20948 sensor device driver
+* device: Added DPS310 device driver
+* device: Added MPR121 device driver
+* device: Added APDS9960 device driver
+* device: Added TLV493D device driver.
+* device: Added neotrellis driver
+* device: Added neopixel driver
+
+### Bug fixes
+
+* uart: fixed bug with fifo-dma-receive mode that would result in erratic reads over time. Fixes issues with UART (TRS/DIN) MIDI parsing
+
+## v5.1.0
+
+### Features
+
+* tim: `TimerHandle` now has callbacks each time the Period has elapsed. These can be enabled with `TimerHandle::Config::enable_irq` at Init time.
+* bootloader: Working with the bootloader has been simplified. See [the new guide for updates on usage](https://electro-smith.github.io/libDaisy/md_doc_md__a7__getting__started__daisy__bootloader.html)
+* usb: `USBHost` class has added support for user callbacks on device connection, disconnection, and when the MSC class becomes active.
+* uart: Adds DMA RX and TX modes, similar to how they work on the I2C and SPI.
+* uart: Update function names to be more in line with the new DMA / Blocking scheme. 
+  * The old methods are wrappers for the new ones to preserve backwards compatibility, but **will be removed in a future version**.
+  * Affected functions: `PollReceive`, `PollTx`, `StartRx`, `RxActive`, `FlushRx`, `PopRx`, `Readable`
+
+### Bug Fixes
+
+* util: PersistentStorage class had a bug where calling the `RestoreDefaults` function would cause a crash
+* usb: LL HAL files for USB were updated to prevent timing issues when running with optimization
+* spi: Add IRQ handlers for SPI2-5. These should work with DMA now.
+* midi: bugs related to running status bytes for note off, and single data-byte messages have been resolved
+
+### Other
+
+* build: core/Makefile has had the `-fnortti` flag added to match libDaisy's Makefile
+* bootloader: local version of daisy bootloader has been updated to improve stability
+* spi: Added examples for blocking TX and DMA TX, added a writeup explaining how to use the SPI on the Daisy
+* uart: Adds examples for common modes of communication, both DMA, blocking, FIFO, and mixed.
+
 ## v5.0.0
 
 ### Breaking Changes
