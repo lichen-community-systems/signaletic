@@ -34,8 +34,8 @@ extern "C" {
 #endif
 
 static const float sig_PI = 3.14159265358979323846f;
-static const float sig_TWOPI = 2.0f * sig_PI;
-static const float sig_RECIP_TWOPI = 1.0f / sig_TWOPI;
+static const float sig_TWOPI = 6.283185307179586f;
+static const float sig_RECIP_TWOPI = 0.159154943091895f;
 
 /**
  * Returns the smaller of two floating point arguments.
