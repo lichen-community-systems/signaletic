@@ -19,10 +19,13 @@ struct sig_Allocator alloc = {
     .heap = &heap
 };
 
-struct sig_AudioSettings* audioSettings;
 struct sig_dsp_Value* clockInput;
 struct sig_dsp_ClockFreqDetector* clockFreq;
-struct sig_dsp_LFTri* lfo;
+struct sig_dsp_Oscillator* lfo;
+struct sig_dsp_Value* lfoAmpValue;
+struct sig_dsp_BinaryOp* lfoGain;
+struct sig_dsp_Value* lfoClockScaleValue;
+struct sig_dsp_BinaryOp* lfoClockScale;
 
 void dac7554callback(void *data) {
 
@@ -32,13 +35,27 @@ void AudioCallback(AudioHandle::InputBuffer in,
     AudioHandle::OutputBuffer out, size_t size) {
     patch.ProcessAllControls();
 
-    clockInput->parameters.value = patch.gate_in_1.State() ? 1.0f : 0.0f;
-    clockInput->signal.generate(&clockInput);
-    clockFreq->signal.generate(&clockFreq);
-    lfo->signal.generate(&lfo);
+    // Gates are inverted on the Daisy Patch SM.
+    float gate1Value = patch.gate_in_1.State() ? 1.0f : 0.0f;
+    clockInput->parameters.value = gate1Value;
 
-    patch.WriteCvOut(0, sig_bipolarToInvUint12(lfo->signal.output[0]),
-        true);
+    float cvIn1Value = patch.controls[CV_1].Value();
+    lfoAmpValue->parameters.value = cvIn1Value;
+
+    float cvIn2Value = patch.controls[CV_2].Value() * 9.9 + 0.1;
+    lfoClockScaleValue->parameters.value = cvIn2Value;
+
+    clockInput->signal.generate(clockInput);
+    clockFreq->signal.generate(clockFreq);
+    lfoClockScaleValue->signal.generate(lfoClockScaleValue);
+    lfoClockScale->signal.generate(lfoClockScale);
+    lfo->signal.generate(lfo);
+    lfoAmpValue->signal.generate(lfoAmpValue);
+    lfoGain->signal.generate(lfoGain);
+
+    uint16_t lfoValue = sig_bipolarToInvUint12(lfoGain->signal.output[0]);
+    patch.WriteCvOut(1, lfoValue, true);
+
     /*
         CV 1 - 8 accessed
             patch.controls[CV_1].Value()
@@ -65,7 +82,7 @@ void AudioCallback(AudioHandle::InputBuffer in,
     }
 }
 
-void InitClock() {
+void InitClock(struct sig_AudioSettings* audioSettings) {
     clockInput = sig_dsp_Value_new(&alloc, audioSettings);
 
     struct sig_dsp_ClockFreqDetector_Inputs* clockFreqInputs =
@@ -79,13 +96,25 @@ void InitClock() {
         clockFreqInputs);
 }
 
-void InitLFO() {
+void InitLFO(struct sig_AudioSettings* audioSettings) {
+    lfoClockScaleValue = sig_dsp_Value_new(&alloc, audioSettings);
+
+    struct sig_dsp_BinaryOp_Inputs* lfoClockScaleInputs =
+        (struct sig_dsp_BinaryOp_Inputs*) alloc.impl->malloc(
+        &alloc,
+        sizeof(struct sig_dsp_BinaryOp_Inputs));
+    lfoClockScaleInputs->left = clockFreq->signal.output;
+    lfoClockScaleInputs->right = lfoClockScaleValue->signal.output;
+
+    lfoClockScale = sig_dsp_Mul_new(&alloc, audioSettings,
+        lfoClockScaleInputs);
+
     struct sig_dsp_Oscillator_Inputs* lfoInputs =
         (struct sig_dsp_Oscillator_Inputs*)
             alloc.impl->malloc(
                 &alloc,
                 sizeof(struct sig_dsp_Oscillator_Inputs));
-    lfoInputs->freq = clockFreq->signal.output;
+    lfoInputs->freq = lfoClockScale->signal.output;
     lfoInputs->phaseOffset = sig_AudioBlock_newWithValue(&alloc,
         audioSettings, 0.0f);
     lfoInputs->mul = sig_AudioBlock_newWithValue(&alloc,
@@ -93,19 +122,40 @@ void InitLFO() {
     lfoInputs->add = sig_AudioBlock_newWithValue(&alloc,
         audioSettings, 0.0f);
 
-    lfo = sig_dsp_LFTri_new(&alloc, audioSettings, lfoInputs);
+    lfo = sig_dsp_LFTriangle_new(&alloc, audioSettings, lfoInputs);
+
+    lfoAmpValue = sig_dsp_Value_new(&alloc, audioSettings);
+
+    struct sig_dsp_BinaryOp_Inputs* mulInputs =
+        (struct sig_dsp_BinaryOp_Inputs*) alloc.impl->malloc(
+            &alloc,
+            sizeof(struct sig_dsp_BinaryOp_Inputs));
+    mulInputs->left = lfo->signal.output;
+    mulInputs->right = lfoAmpValue->signal.output;
+
+    lfoGain = sig_dsp_Mul_new(&alloc, audioSettings, mulInputs);
 }
 
-void InitAudioGraph() {
-    audioSettings = sig_AudioSettings_new(&alloc);
-    InitClock();
-    InitLFO();
+void InitAudioGraph(struct sig_AudioSettings* audioSettings) {
+    InitClock(audioSettings);
+    InitLFO(audioSettings);
 }
 
 int main(void) {
+    alloc.impl->init(&alloc);
+
     patch.Init();
 
-    InitAudioGraph();
+    struct sig_AudioSettings audioSettings = {
+        .sampleRate = 48000,
+        .numChannels = 2,
+        .blockSize = 1
+    };
+
+    patch.SetAudioSampleRate(audioSettings.sampleRate);
+    patch.SetAudioBlockSize(audioSettings.blockSize);
+
+    InitAudioGraph(&audioSettings);
 
     patch.StartAudio(AudioCallback);
     patch.InitTimer(dac7554callback, nullptr);

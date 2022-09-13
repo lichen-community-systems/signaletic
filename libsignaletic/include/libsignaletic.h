@@ -34,8 +34,8 @@ extern "C" {
 #endif
 
 static const float sig_PI = 3.14159265358979323846f;
-static const float sig_TWOPI = 6.28318530717958647693f;
-static const float sig_RECIP_TWOPI = 1.0f / 3.14159265358979323846f;
+static const float sig_TWOPI = 2.0f * sig_PI;
+static const float sig_RECIP_TWOPI = 1.0f / sig_TWOPI;
 
 /**
  * Returns the smaller of two floating point arguments.
@@ -857,21 +857,21 @@ void sig_dsp_Sine_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Oscillator* self);
 
 
-struct sig_dsp_LFTri {
+struct sig_dsp_LFTriangle {
     struct sig_dsp_Signal signal;
     struct sig_dsp_Oscillator_Inputs* inputs;
     float phaseAccumulator;
 };
 
-void sig_dsp_LFTri_init(struct sig_dsp_Oscillator* self,
+void sig_dsp_LFTriangle_init(struct sig_dsp_Oscillator* self,
     struct sig_AudioSettings* settings,
     struct sig_dsp_Oscillator_Inputs* inputs, float_array_ptr output);
-struct sig_dsp_Oscillator* sig_dsp_LFTri_new(
+struct sig_dsp_Oscillator* sig_dsp_LFTriangle_new(
     struct sig_Allocator* allocator,
     struct sig_AudioSettings* settings,
     struct sig_dsp_Oscillator_Inputs* inputs);
-void sig_dsp_LFTri_generate(void* signal);
-void sig_dsp_LFTri_destroy(struct sig_Allocator* allocator,
+void sig_dsp_LFTriangle_generate(void* signal);
+void sig_dsp_LFTriangle_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Oscillator* self);
 
 
