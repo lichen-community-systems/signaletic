@@ -443,10 +443,10 @@ void test_sig_dsp_Sine(void) {
 
     struct sig_dsp_Oscillator_Inputs* inputs = createSineInputs(
         &allocator, &audioSettings, 440.0f, 0.0f, 1.0f, 0.0f);
-    struct sig_dsp_Sine* sine = sig_dsp_Sine_new(&allocator,
+    struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
         &audioSettings, inputs);
 
-    sig_dsp_Sine_generate(sine);
+    sine->signal.generate(sine);
     TEST_ASSERT_EQUAL_FLOAT_ARRAY(
         expected,
         sine->signal.output,
@@ -469,10 +469,10 @@ void test_test_sig_dsp_Sine_isOffset(void) {
 
     struct sig_dsp_Oscillator_Inputs* inputs = createSineInputs(
         &allocator, &audioSettings, 440.0f, 0.0f, 1.0f, 1.0f);
-    struct sig_dsp_Sine* sine = sig_dsp_Sine_new(&allocator,
+    struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
         &audioSettings, inputs);
 
-    sig_dsp_Sine_generate(sine);
+    sine->signal.generate(sine);
     TEST_ASSERT_EQUAL_FLOAT_ARRAY(
         expected,
         sine->signal.output,
@@ -485,13 +485,13 @@ void test_test_sig_dsp_Sine_isOffset(void) {
 void test_sig_dsp_Sine_accumulatesPhase(void) {
     struct sig_dsp_Oscillator_Inputs* inputs = createSineInputs(
         &allocator, audioSettings, 440.0f, 0.0f, 1.0f, 0.0f);
-    struct sig_dsp_Sine* sine = sig_dsp_Sine_new(&allocator,
+    struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
         audioSettings, inputs);
 
     // 440 Hz frequency at 48 KHz sample rate.
     float phaseStep = 0.05759586393833160400390625f;
 
-    sig_dsp_Sine_generate(sine);
+    sine->signal.generate(sine);
     TEST_ASSERT_FLOAT_WITHIN_MESSAGE(
         0.000001,
         phaseStep * 48.0,
@@ -499,7 +499,7 @@ void test_sig_dsp_Sine_accumulatesPhase(void) {
         "The phase accumulator should have been incremented for each sample in the block."
     );
 
-    sig_dsp_Sine_generate(sine);
+    sine->signal.generate(sine);
     TEST_ASSERT_FLOAT_WITHIN_MESSAGE(
         0.000001,
         phaseStep * 96.0,
@@ -514,12 +514,12 @@ void test_sig_dsp_Sine_accumulatesPhase(void) {
 void test_sig_dsp_Sine_phaseWrapsAt2PI(void) {
     struct sig_dsp_Oscillator_Inputs* inputs = createSineInputs(
         &allocator, audioSettings, 440.0f, 0.0f, 1.0f, 0.0f);
-    struct sig_dsp_Sine* sine = sig_dsp_Sine_new(&allocator,
+    struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
         audioSettings, inputs);
 
-    sig_dsp_Sine_generate(sine);
-    sig_dsp_Sine_generate(sine);
-    sig_dsp_Sine_generate(sine);
+    sine->signal.generate(sine);
+    sine->signal.generate(sine);
+    sine->signal.generate(sine);
 
     TEST_ASSERT_TRUE_MESSAGE(
         sine->phaseAccumulator <= sig_TWOPI &&

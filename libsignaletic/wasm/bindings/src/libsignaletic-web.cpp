@@ -101,7 +101,7 @@ public:
         return inputs;
     }
 
-    void Sine_Inputs_destroy(struct sig_Allocator* allocator,
+    void Oscillator_Inputs_destroy(struct sig_Allocator* allocator,
         struct sig_dsp_Oscillator_Inputs* self) {
         allocator->impl->free(allocator, self);
     }

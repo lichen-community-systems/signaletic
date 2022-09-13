@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
             &settings, 0.0f)
     };
 
-    struct sig_dsp_Sine* sine = sig_dsp_Sine_new(&allocator,
+    struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
         &settings, &inputs);
 
     puts("Sine wave (three blocks): ");

@@ -38,10 +38,11 @@ interface Signals {
     void Sine_destroy(sig_Allocator allocator,
         sig_dsp_Oscillator sine);
 
-    sig_dsp_Oscillator_Inputs Sine_Inputs_new(sig_Allocator allocator,
-        any freq, any phaseOffset, any mul, any add);
+    sig_dsp_Oscillator_Inputs Oscillator_Inputs_new(
+        sig_Allocator allocator, any freq, any phaseOffset, any mul,
+        any add);
 
-    void Sine_Inputs_destroy(sig_Allocator allocator,
+    void Oscillator_Inputs_destroy(sig_Allocator allocator,
         sig_dsp_Oscillator_Inputs inputs);
 
 
