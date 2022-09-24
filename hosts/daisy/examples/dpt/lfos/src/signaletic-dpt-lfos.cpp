@@ -49,26 +49,6 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
     lfoGain->signal.generate(lfoGain);
     cv1Out->signal.generate(cv1Out);
 
-    /*
-        CV 1 - 8 accessed
-            patch.controls[CV_1].Value()
-
-        Gate ins acccessed
-
-            patch.gate_in_1.State();
-            patch.gate_in_2.State();
-
-        Send data to gate outs
-
-            dsy_gpio_write(&patch.gate_out_1, 1);
-            dsy_gpio_write(&patch.gate_out_2, 2);
-
-        Send data to CV 1 and 2 (0 is both, currently it seems 1 is CV2, 2 is CV1)
-            patch.WriteCvOut(0, 5.0, false);
-            patch.WriteCvOut(0, [0 - 4095], true); // last argument is 'raw', send raw 12-bit data
-
-    */
-
     for (size_t i = 0; i < size; i++) {
         out[0][i] = in[0][i];
         out[1][i] = in[1][i];
