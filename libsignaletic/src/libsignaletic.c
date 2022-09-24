@@ -346,7 +346,7 @@ void sig_dsp_Value_init(struct sig_dsp_Value* self,
     float_array_ptr output) {
 
     struct sig_dsp_Value_Parameters params = {
-        .value = 1.0
+        .value = 1.0f
     };
 
     sig_dsp_Signal_init(self, settings, output,

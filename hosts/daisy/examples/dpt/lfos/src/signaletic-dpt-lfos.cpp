@@ -1,11 +1,9 @@
 #include "daisy.h"
 #include "../../vendor/dpt/lib/daisy_dpt.h"
 #include <libsignaletic.h>
+#include "../../../include/signaletic-daisy-host.h"
 
-using namespace daisy;
-using namespace dpt;
-
-DPT patch;
+daisy::dpt::DPT patch;
 
 #define HEAP_SIZE 1024 * 256 // 256KB
 uint8_t memory[HEAP_SIZE];
@@ -19,31 +17,28 @@ struct sig_Allocator alloc = {
     .heap = &heap
 };
 
-struct sig_dsp_Value* clockInput;
+struct sig_daisy_DPTState dptState = {
+    .dpt = &patch,
+    .dacCVOuts = {4095, 4095, 4095, 4095}
+};
+
+struct sig_daisy_Host host = {
+    .impl = &sig_daisy_DPTHostImpl,
+    .state = (void *) &dptState
+};
+
+struct sig_daisy_GateIn* clockInput;
 struct sig_dsp_ClockFreqDetector* clockFreq;
-struct sig_dsp_Oscillator* lfo;
-struct sig_dsp_Value* lfoAmpValue;
+struct sig_daisy_CVIn* lfoAmpValue;
 struct sig_dsp_BinaryOp* lfoGain;
-struct sig_dsp_Value* lfoClockScaleValue;
+struct sig_daisy_CVIn* lfoClockScaleValue;
 struct sig_dsp_BinaryOp* lfoClockScale;
+struct sig_dsp_Oscillator* lfo;
+struct sig_daisy_CVOut* cv1Out;
 
-void dac7554callback(void *data) {
-
-}
-
-void AudioCallback(AudioHandle::InputBuffer in,
-    AudioHandle::OutputBuffer out, size_t size) {
+void AudioCallback(daisy::AudioHandle::InputBuffer in,
+    daisy::AudioHandle::OutputBuffer out, size_t size) {
     patch.ProcessAllControls();
-
-    // Gates are inverted on the Daisy Patch SM.
-    float gate1Value = patch.gate_in_1.State() ? 1.0f : 0.0f;
-    clockInput->parameters.value = gate1Value;
-
-    float cvIn1Value = patch.controls[CV_1].Value();
-    lfoAmpValue->parameters.value = cvIn1Value;
-
-    float cvIn2Value = patch.controls[CV_2].Value() * 9.9 + 0.1;
-    lfoClockScaleValue->parameters.value = cvIn2Value;
 
     clockInput->signal.generate(clockInput);
     clockFreq->signal.generate(clockFreq);
@@ -52,9 +47,7 @@ void AudioCallback(AudioHandle::InputBuffer in,
     lfo->signal.generate(lfo);
     lfoAmpValue->signal.generate(lfoAmpValue);
     lfoGain->signal.generate(lfoGain);
-
-    uint16_t lfoValue = sig_bipolarToInvUint12(lfoGain->signal.output[0]);
-    patch.WriteCvOut(1, lfoValue, true);
+    cv1Out->signal.generate(cv1Out);
 
     /*
         CV 1 - 8 accessed
@@ -82,9 +75,20 @@ void AudioCallback(AudioHandle::InputBuffer in,
     }
 }
 
-void InitClock(struct sig_AudioSettings* audioSettings) {
-    clockInput = sig_dsp_Value_new(&alloc, audioSettings);
+void InitCVInputs(struct sig_AudioSettings* audioSettings) {
+    clockInput = sig_daisy_GateIn_new(&alloc, audioSettings, &host,
+        sig_daisy_GATEIN_1);
 
+    lfoClockScaleValue = sig_daisy_CVIn_new(&alloc, audioSettings,
+        &host, daisy::dpt::CV_1);
+    lfoClockScaleValue->parameters.scale = 9.9f;
+    lfoClockScaleValue->parameters.offset = 0.1f;
+
+    lfoAmpValue = sig_daisy_CVIn_new(&alloc, audioSettings,
+        &host, daisy::dpt::CV_2);
+}
+
+void InitClock(struct sig_AudioSettings* audioSettings) {
     struct sig_dsp_ClockFreqDetector_Inputs* clockFreqInputs =
         (struct sig_dsp_ClockFreqDetector_Inputs*)
             alloc.impl->malloc(
@@ -97,8 +101,6 @@ void InitClock(struct sig_AudioSettings* audioSettings) {
 }
 
 void InitLFO(struct sig_AudioSettings* audioSettings) {
-    lfoClockScaleValue = sig_dsp_Value_new(&alloc, audioSettings);
-
     struct sig_dsp_BinaryOp_Inputs* lfoClockScaleInputs =
         (struct sig_dsp_BinaryOp_Inputs*) alloc.impl->malloc(
         &alloc,
@@ -124,8 +126,6 @@ void InitLFO(struct sig_AudioSettings* audioSettings) {
 
     lfo = sig_dsp_LFTriangle_new(&alloc, audioSettings, lfoInputs);
 
-    lfoAmpValue = sig_dsp_Value_new(&alloc, audioSettings);
-
     struct sig_dsp_BinaryOp_Inputs* mulInputs =
         (struct sig_dsp_BinaryOp_Inputs*) alloc.impl->malloc(
             &alloc,
@@ -136,9 +136,28 @@ void InitLFO(struct sig_AudioSettings* audioSettings) {
     lfoGain = sig_dsp_Mul_new(&alloc, audioSettings, mulInputs);
 }
 
+void InitCVOutputs(struct sig_AudioSettings* audioSettings) {
+    struct sig_daisy_CVOut_Inputs* cv1OutInputs =
+        (struct sig_daisy_CVOut_Inputs*)
+            alloc.impl->malloc(
+                &alloc, sizeof(struct sig_daisy_CVOut_Inputs));
+    cv1OutInputs->source = lfoGain->signal.output;
+
+    cv1Out = sig_daisy_CVOut_new(&alloc, audioSettings, cv1OutInputs,
+        &host, sig_daisy_DPT_CVOUT_1);
+
+    // TODO: My DPT seems to output -4.67V to 7.96V,
+    // this was tuned by hand with the VCV Rack oscilloscope.
+    cv1Out->parameters.scale = 0.68;
+    cv1Out->parameters.offset = -0.32;
+
+}
+
 void InitAudioGraph(struct sig_AudioSettings* audioSettings) {
+    InitCVInputs(audioSettings);
     InitClock(audioSettings);
     InitLFO(audioSettings);
+    InitCVOutputs(audioSettings);
 }
 
 int main(void) {
@@ -158,7 +177,7 @@ int main(void) {
     InitAudioGraph(&audioSettings);
 
     patch.StartAudio(AudioCallback);
-    patch.InitTimer(dac7554callback, nullptr);
+    patch.InitTimer(&sig_daisy_DPT_dacWriterCallback, &dptState);
 
     while (1) {
 
