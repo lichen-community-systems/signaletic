@@ -4,6 +4,17 @@
                     // stdio.h, stdlib.h, string.h (for errors etc.)
 #include <libsignaletic.h>
 
+void sig_Status_init(struct sig_Status* status) {
+    status->result = SIG_RESULT_NONE;
+}
+
+inline void sig_Status_reportResult(struct sig_Status* status,
+    enum sig_Result result) {
+    if (status != NULL) {
+        status->result = result;
+    }
+}
+
 float sig_fminf(float a, float b) {
     float r;
 #ifdef __arm__
@@ -175,6 +186,120 @@ struct sig_AllocatorImpl sig_TLSFAllocatorImpl = {
     .free = sig_TLSFAllocator_free
 };
 
+// TODO: Unit tests.
+struct sig_List* sig_List_new(struct sig_Allocator* allocator,
+    size_t capacity) {
+    struct sig_List* self = allocator->impl->malloc(allocator,
+        sizeof(struct sig_List));
+    void** items = allocator->impl->malloc(allocator,
+        sizeof(void*) * capacity);
+    sig_List_init(self, items, capacity);
+
+    return self;
+}
+
+// TODO: Unit tests.
+void sig_List_init(struct sig_List* self, void** items, size_t capacity) {
+    self->items = items;
+    self->length = 0;
+    self->capacity = capacity;
+}
+
+// TODO: Unit tests.
+void sig_List_insert(struct sig_List* self,
+    size_t index, void* item, struct sig_Status* status) {
+    // We don't support sparse lists
+    // or any kind of index wrapping.
+    if (index > self->length || index < 0) {
+        sig_Status_reportResult(status, SIG_ERROR_INDEX_OUT_OF_BOUNDS);
+        return;
+    }
+
+    if (index == self->length) {
+        return sig_List_append(self, item, status);
+    }
+
+    if (self->length >= self->capacity) {
+        sig_Status_reportResult(status, SIG_ERROR_EXCEEDS_CAPACITY);
+        return;
+    }
+
+    for (size_t i = self->length - 1; i >= 0; i--) {
+        self->items[i + 1] = self->items[i];
+    }
+
+    self->length++;
+
+    sig_Status_reportResult(status, SIG_RESULT_SUCCESS);
+}
+
+// TODO: Unit tests.
+void sig_List_append(struct sig_List* self, void* item,
+    struct sig_Status* status) {
+    size_t index = self->length;
+
+    if (index >= self->capacity) {
+        sig_Status_reportResult(status, SIG_ERROR_EXCEEDS_CAPACITY);
+        return;
+    }
+
+    self->items[index] = item;
+    self->length++;
+
+    sig_Status_reportResult(status, SIG_RESULT_SUCCESS);
+    return;
+}
+
+// TODO: Unit tests.
+void* sig_List_pop(struct sig_List* self, struct sig_Status* status) {
+    if (self->length < 1) {
+        sig_Status_reportResult(status, SIG_ERROR_INDEX_OUT_OF_BOUNDS);
+        return NULL;
+    }
+
+    size_t index = self->length - 1;
+    void* item = self->items[index];
+
+    self->items[index] = NULL;
+    self->length--;
+
+    sig_Status_reportResult(status, SIG_RESULT_SUCCESS);
+    return item;
+}
+
+// TODO: Unit tests.
+void* sig_List_remove(struct sig_List* self, size_t index,
+    struct sig_Status* status) {
+    if (index >= self->length || index < 1) {
+        sig_Status_reportResult(status, SIG_ERROR_INDEX_OUT_OF_BOUNDS);
+        return NULL;
+    }
+
+    if (index == self->length - 1) {
+        return sig_List_pop(self, status);
+    }
+
+    void* removedItem = self->items[index];
+
+    for (size_t i = index + 1; i < self->length - 1; i++) {
+        void* item = self->items[i];
+        self->items[i - 1] = item;
+    }
+
+    self->items[self->length - 1] = NULL;
+    self->length--;
+
+    sig_Status_reportResult(status, SIG_RESULT_SUCCESS);
+    return removedItem;
+}
+
+// TODO: Unit tests.
+void sig_List_destroy(struct sig_Allocator* allocator,
+    struct sig_List* self) {
+    allocator->impl->free(allocator, self->items);
+    allocator->impl->free(allocator, self);
+}
+
 
 struct sig_AudioSettings* sig_AudioSettings_new(
     struct sig_Allocator* allocator) {
@@ -323,7 +448,7 @@ void sig_dsp_Signal_init(void* signal,
     self->audioSettings = settings;
     self->output = output;
     self->generate = generate;
-};
+}
 
 /**
  * Generic generation function
@@ -340,6 +465,16 @@ void sig_dsp_Signal_destroy(struct sig_Allocator* allocator,
     allocator->impl->free(allocator, signal->output);
     allocator->impl->free(allocator, signal);
 }
+
+
+void sig_dsp_generateSignals(struct sig_List* signalList) {
+    for (size_t i = 0; i < signalList->length; i++) {
+        struct sig_dsp_Signal* signal =
+            (struct sig_dsp_Signal*) signalList->items[i];
+        signal->generate(signal);
+    }
+}
+
 
 void sig_dsp_Value_init(struct sig_dsp_Value* self,
     struct sig_AudioSettings *settings,

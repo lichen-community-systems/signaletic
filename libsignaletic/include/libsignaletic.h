@@ -37,6 +37,22 @@ static const float sig_PI = 3.14159265358979323846f;
 static const float sig_TWOPI = 6.283185307179586f;
 static const float sig_RECIP_TWOPI = 0.159154943091895f;
 
+enum sig_Result {
+    SIG_RESULT_NONE,
+    SIG_RESULT_SUCCESS,
+    SIG_ERROR_INDEX_OUT_OF_BOUNDS,
+    SIG_ERROR_EXCEEDS_CAPACITY
+};
+
+struct sig_Status {
+    enum sig_Result result;
+};
+
+void sig_Status_init(struct sig_Status* status);
+
+void sig_Status_reportResult(struct sig_Status* status,
+    enum sig_Result result);
+
 /**
  * Returns the smaller of two floating point arguments.
  *
@@ -366,6 +382,82 @@ void sig_TLSFAllocator_free(struct sig_Allocator* allocator,
  */
 extern struct sig_AllocatorImpl sig_TLSFAllocatorImpl;
 
+/**
+ * A mutable list, which stores pointers to any type of object ("items").
+ */
+struct sig_List {
+    void** items;
+    size_t capacity;
+    size_t length;
+};
+
+/**
+ * @brief Initializes a new List with the specified storage capacity.
+ *
+ * @param allocator the allocator to use
+ * @param capacity the maximum number of entries that the list can hold
+ * @return struct sig_List* the new List instance
+ */
+struct sig_List* sig_List_new(struct sig_Allocator* allocator,
+    size_t capacity);
+
+/**
+ * @brief Initializes a List.
+ *
+ * @param self the sig_List struct
+ * @param items an array of pointers to use to store list members
+ * @param capacity the maximum number of entries that the list can hold
+ */
+void sig_List_init(struct sig_List* self, void** items, size_t capacity);
+
+/**
+ * @brief Inserts an item into the list at the given position.
+ *
+ * @param self the List instance to insert into
+ * @param index the position at which to insert the item
+ * @param item the item to add
+ * @param errorCode the
+ */
+void sig_List_insert(struct sig_List* self, size_t index, void* item,
+    struct sig_Status* status);
+
+/**
+ * @brief Adds the item to the end of the list.
+ *
+ * @param self the list to append into
+ * @param item the item to append
+ */
+void sig_List_append(struct sig_List* self, void* item,
+    struct sig_Status* status);
+
+/**
+ * @brief Removes the last item from the list, and returns it.
+ *
+ * @param self the list from which to pop the last item
+ * @return void* the item that was removed from the list
+ */
+void* sig_List_pop(struct sig_List* self, struct sig_Status* status);
+
+/**
+ * @brief Removes an item from the given index, and returns it.
+ *
+ * @param self the list from which to remove an item
+ * @param index the index at which to remove the item
+ * @return void* the item that was removed
+ */
+void* sig_List_remove(struct sig_List* self, size_t index,
+    struct sig_Status* status);
+
+/**
+ * @brief Frees a List instance and its underlying item storage
+ * (but not items themselves).
+ *
+ * @param allocator the allocator to use
+ * @param self the List to destroy
+ */
+void sig_List_destroy(struct sig_Allocator* allocator,
+    struct sig_List* self);
+
 
 /**
  * Allocates a new AudioSettings instance with
@@ -519,7 +611,6 @@ float_array_ptr sig_AudioBlock_newWithValue(
     float value);
 
 
-
 // TODO: Should the signal argument at least be defined
 // as a struct sig_dsp_Signal*, rather than void*?
 // Either way, this is cast by the implementation to whatever
@@ -544,6 +635,8 @@ void sig_dsp_Signal_init(void* signal,
 void sig_dsp_Signal_generate(void* signal);
 void sig_dsp_Signal_destroy(struct sig_Allocator* allocator,
     void* signal);
+
+void sig_dsp_generateSignals(struct sig_List* signalList);
 
 
 struct sig_dsp_Value_Parameters {
