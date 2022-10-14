@@ -96,6 +96,14 @@ On the Daisy platform, Signaletic is compiled using Daisy's own toolchain, which
 
 On the Web, Signaletic is compiled using the Emscripten compiler toolchain.
 
+## Respecting Open Source Labour
+
+Signaletic is offered as open source software for you to use and modify  within a culture of reciprocity. It is built by volunteers, who take time out of their personal and family lives to share their work and enthusiasm with a community of peers. Please respect this labour by contributing your own time, resources, and energies in whatever form you can offer. This might be as simple as sharing artwork or projects you've made with Signaletic, by contributing code and documentation, or by respectfully filing bug reports and feature requests.
+
+Many open source contributors have experienced burnout because of unrealistic or asymmetrical expectations by some community members, particularly those who are being paid for their time spent using the project but don't contribute directly to it. While it's important and rewarding for us to help out with your projects, an immediate response to issues, problems, questions, or bugs often isn't feasible.
+
+If you're using Signaletic in a commercial project, in a large grant-funded artwork, or as an essential component in your academic teaching or research, please consider sharing financial support or your own labour with the Signaletic community.
+
 ## Attribution
 
 Signaletic is developed by Colin Clark and is licenced under the [MIT License](LICENSE).
