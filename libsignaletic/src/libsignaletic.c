@@ -5,6 +5,10 @@
 #include <libsignaletic.h>
 
 void sig_Status_init(struct sig_Status* status) {
+    sig_Status_reset(status);
+}
+
+void sig_Status_reset(struct sig_Status* status) {
     status->result = SIG_RESULT_NONE;
 }
 
@@ -320,6 +324,26 @@ void sig_AudioSettings_destroy(struct sig_Allocator* allocator,
     allocator->impl->free(allocator, self);
 }
 
+
+struct sig_SignalContext* sig_SignalContext_new(
+    struct sig_Allocator* allocator, struct sig_AudioSettings* audioSettings) {
+    struct sig_SignalContext* self = allocator->impl->malloc(allocator,
+        sizeof(struct sig_SignalContext));
+
+    struct sig_dsp_ConstantValue* silence = sig_dsp_ConstantValue_new(
+        allocator, audioSettings, 0.0f);
+
+    self->audioSettings = audioSettings;
+    self->silence = silence;
+}
+
+struct sig_SignalContext* sig_SignalContext_destroy(
+    struct sig_Allocator* allocator, struct sig_SignalContext* self) {
+    sig_dsp_ConstantValue_destroy(allocator, self->silence);
+    allocator->impl->free(allocator, self);
+}
+
+
 // TODO: Unit tests.
 size_t sig_secondsToSamples(struct sig_AudioSettings* audioSettings,
     float duration) {
@@ -353,6 +377,7 @@ float_array_ptr sig_AudioBlock_newWithValue(
 
     return block;
 }
+
 
 struct sig_Buffer* sig_Buffer_new(struct sig_Allocator* allocator,
     size_t length) {
@@ -459,6 +484,8 @@ void sig_dsp_Signal_generate(void* signal) {
     sig_fillWithSilence(self->output, self->audioSettings->blockSize);
 }
 
+void sig_dsp_Signal_noOp(void* signal) {};
+
 void sig_dsp_Signal_destroy(struct sig_Allocator* allocator,
     void* self) {
     struct sig_dsp_Signal* signal = (struct sig_dsp_Signal*) self;
@@ -518,6 +545,31 @@ void sig_dsp_Value_generate(void* signal) {
 
     self->lastSample = self->parameters.value;
 }
+
+
+struct sig_dsp_ConstantValue* sig_dsp_ConstantValue_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* settings, float value) {
+    float_array_ptr output = sig_AudioBlock_new(allocator, settings);
+    struct sig_dsp_ConstantValue* self = (struct sig_dsp_ConstantValue*)
+        allocator->impl->malloc(allocator,
+            sizeof(struct sig_dsp_ConstantValue));
+    sig_dsp_ConstantValue_init(self, settings, output, value);
+
+    return self;
+}
+
+void sig_dsp_ConstantValue_init(struct sig_dsp_ConstantValue* self,
+    struct sig_AudioSettings* settings, float_array_ptr output,
+    float value) {
+    sig_dsp_Signal_init(self, settings, output, *sig_dsp_Signal_noOp);
+    sig_fillWithValue(output, settings->blockSize, value);
+};
+
+void sig_dsp_ConstantValue_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_ConstantValue* self) {
+    sig_dsp_Signal_destroy(allocator, (void*) self);
+};
 
 
 struct sig_dsp_BinaryOp* sig_dsp_Add_new(

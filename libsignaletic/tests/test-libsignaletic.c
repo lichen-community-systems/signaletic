@@ -289,6 +289,21 @@ void test_sig_dsp_Value(void) {
     sig_dsp_Value_destroy(&allocator, value);
 }
 
+void test_sig_dsp_ConstantValue(void) {
+    struct sig_dsp_ConstantValue* constVal = sig_dsp_ConstantValue_new(
+        &allocator, audioSettings, 42.0f);
+
+    // Output should contain the value parameter,
+    // even prior to being evaluated.
+    testAssertBufferContainsValueOnly(&allocator, 42.0f,
+        constVal->signal.output, audioSettings->blockSize);
+
+    // The output should not change.
+    constVal->signal.generate(constVal);
+    testAssertBufferContainsValueOnly(&allocator, 42.0f,
+        constVal->signal.output, audioSettings->blockSize);
+}
+
 void test_sig_dsp_TimedTriggerCounter(void) {
     float halfBlockSecs = (audioSettings->blockSize / 2) /
         audioSettings->sampleRate;
@@ -878,6 +893,7 @@ int main(void) {
     RUN_TEST(test_sig_Buffer);
     RUN_TEST(test_sig_BufferView);
     RUN_TEST(test_sig_dsp_Value);
+    RUN_TEST(test_sig_dsp_ConstantValue);
     RUN_TEST(test_sig_dsp_TimedTriggerCounter);
     RUN_TEST(test_sig_dsp_Mul);
     RUN_TEST(test_sig_dsp_Sine);

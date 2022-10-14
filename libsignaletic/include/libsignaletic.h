@@ -50,6 +50,8 @@ struct sig_Status {
 
 void sig_Status_init(struct sig_Status* status);
 
+void sig_Status_reset(struct sig_Status* status);
+
 void sig_Status_reportResult(struct sig_Status* status,
     enum sig_Result result);
 
@@ -477,6 +479,20 @@ struct sig_AudioSettings* sig_AudioSettings_new(struct sig_Allocator* allocator)
 void sig_AudioSettings_destroy(struct sig_Allocator* allocator,
     struct sig_AudioSettings* self);
 
+
+// TODO: What precisely is the role for this object?
+struct sig_SignalContext {
+    struct sig_AudioSettings* audioSettings;
+    struct sig_dsp_ConstantValue* silence;
+};
+
+struct sig_SignalContext* sig_SignalContext_new(
+    struct sig_Allocator* allocator, struct sig_AudioSettings* settings);
+
+struct sig_SignalContext* sig_SignalContext_destroy(
+    struct sig_Allocator* allocator, struct sig_SignalContext* self);
+
+
 /**
  * A Buffer holds an array of samples and its length.
  */
@@ -617,7 +633,6 @@ float_array_ptr sig_AudioBlock_newWithValue(
 // concrete Signal type is appropriate.
 typedef void (*sig_dsp_generateFn)(void* signal);
 
-void sig_dsp_generateSilence(void* signal);
 
 // TODO: Should the base Signal define a (void* ?) pointer
 // to inputs, and provide an empty sig_dsp_Signal_Inputs struct
@@ -657,6 +672,22 @@ void sig_dsp_Value_init(struct sig_dsp_Value* self,
 void sig_dsp_Value_generate(void* signal);
 void sig_dsp_Value_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Value* self);
+
+/**
+ * @brief A signal whose value is constant throughout its lifetime.
+ */
+struct sig_dsp_ConstantValue {
+    struct sig_dsp_Signal signal;
+};
+
+struct sig_dsp_ConstantValue* sig_dsp_ConstantValue_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings, float value);
+void sig_dsp_ConstantValue_init(struct sig_dsp_ConstantValue* self,
+    struct sig_AudioSettings* audioSettings, float_array_ptr output,
+    float value);
+void sig_dsp_ConstantValue_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_ConstantValue* self);
 
 
 struct sig_dsp_BinaryOp_Inputs {
