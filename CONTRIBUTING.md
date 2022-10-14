@@ -31,6 +31,7 @@ In general, pull requests should:
 2. Include tests verifying the changes (see below).
 4. Update or add markdown documentation for API changes.
 5. Provide documentation for new functions.
+6. Contain only your own original creative work, or the work of other authors who are clearly attributed (with links) that is shared under a compatible open source license (please ask if in doubt)
 
 #### Commit Messages
 
