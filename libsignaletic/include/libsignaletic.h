@@ -480,16 +480,16 @@ void sig_AudioSettings_destroy(struct sig_Allocator* allocator,
     struct sig_AudioSettings* self);
 
 
-// TODO: What precisely is the role for this object?
 struct sig_SignalContext {
     struct sig_AudioSettings* audioSettings;
     struct sig_dsp_ConstantValue* silence;
 };
 
 struct sig_SignalContext* sig_SignalContext_new(
-    struct sig_Allocator* allocator, struct sig_AudioSettings* settings);
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings);
 
-struct sig_SignalContext* sig_SignalContext_destroy(
+void sig_SignalContext_destroy(
     struct sig_Allocator* allocator, struct sig_SignalContext* self);
 
 
@@ -694,6 +694,12 @@ struct sig_dsp_BinaryOp_Inputs {
     float_array_ptr left;
     float_array_ptr right;
 };
+
+struct sig_dsp_BinaryOp_Inputs* sig_dsp_BinaryOp_Inputs_new(
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context);
+void sig_dsp_BinaryOp_Inputs_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_BinaryOp_Inputs* self);
 
 struct sig_dsp_BinaryOp {
     struct sig_dsp_Signal signal;
@@ -959,6 +965,12 @@ struct sig_dsp_Oscillator_Inputs {
     float_array_ptr mul;
     float_array_ptr add;
 };
+
+struct sig_dsp_Oscillator_Inputs* sig_dsp_Oscillator_Inputs_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_Oscillator_Inputs_destroy(
+    struct sig_Allocator* allocator, struct sig_dsp_Oscillator_Inputs* self);
+
 
 struct sig_dsp_Oscillator {
     struct sig_dsp_Signal signal;

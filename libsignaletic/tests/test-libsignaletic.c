@@ -21,14 +21,19 @@ struct sig_Allocator allocator = {
     .heap = &heap
 };
 
+struct sig_AudioSettings mono441kAudioSettings = {
+    .blockSize = BLOCK_SIZE,
+    .numChannels = 1,
+    .sampleRate = 44100.0
+};
+
 struct sig_AudioSettings* audioSettings;
-float* silentBlock;
+struct sig_SignalContext* context;
 
 void setUp(void) {
     allocator.impl->init(&allocator);
     audioSettings = sig_AudioSettings_new(&allocator);
-    silentBlock = sig_AudioBlock_newWithValue(&allocator,
-        audioSettings, 0.0f);
+    context = sig_SignalContext_new(&allocator, audioSettings);
 }
 
 void tearDown(void) {}
@@ -353,7 +358,9 @@ void test_sig_dsp_TimedTriggerCounter(void) {
     source[1] = 1.0f;
     source[20] = 1.0f;
     counter->signal.generate(counter);
-    TEST_ASSERT_EQUAL_FLOAT_ARRAY(silentBlock, counter->signal.output,
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(
+        context->silence->signal.output,
+        counter->signal.output,
         audioSettings->blockSize);
 
     // When we're looking for two triggers and we get two triggers,
@@ -373,7 +380,9 @@ void test_sig_dsp_TimedTriggerCounter(void) {
     source[0] = 1.0f;
     source[25] = 1.0f;
     counter->signal.generate(counter);
-    TEST_ASSERT_EQUAL_FLOAT_ARRAY(silentBlock, counter->signal.output,
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(
+        context->silence->signal.output,
+        counter->signal.output,
         audioSettings->blockSize);
 }
 
@@ -412,37 +421,34 @@ void test_sig_dsp_Mul(void) {
     allocator.impl->free(&allocator, inputs.right);
 }
 
-// TODO: Move into libsignaletic itself
-// as a (semi?) generic input instantiator.
 struct sig_dsp_Oscillator_Inputs* createSineInputs(
     struct sig_Allocator* allocator,
-    struct sig_AudioSettings* audioSettings,
+    struct sig_SignalContext* context,
     float freq, float phaseOffset, float mul, float add) {
 
-    struct sig_dsp_Oscillator_Inputs* inputs = (struct sig_dsp_Oscillator_Inputs*) allocator->impl->malloc(allocator,
-        sizeof(struct sig_dsp_Oscillator_Inputs));
+    struct sig_dsp_Oscillator_Inputs* inputs =
+        sig_dsp_Oscillator_Inputs_new(allocator, context);
 
     inputs->freq = sig_AudioBlock_newWithValue(allocator,
-        audioSettings, freq);
+        context->audioSettings, freq);
     inputs->phaseOffset = sig_AudioBlock_newWithValue(allocator,
-        audioSettings, phaseOffset);
+        context->audioSettings, phaseOffset);
     inputs->mul = sig_AudioBlock_newWithValue(allocator,
-        audioSettings, mul);
+        context->audioSettings, mul);
     inputs->add = sig_AudioBlock_newWithValue(allocator,
-        audioSettings, add);
+        context->audioSettings, add);
 
     return inputs;
 }
 
-// TODO: Move into libsignaletic itself
-// as a (semi?) generic input instantiator.
 void destroySineInputs(struct sig_Allocator* allocator,
     struct sig_dsp_Oscillator_Inputs* sineInputs) {
     allocator->impl->free(allocator, sineInputs->freq);
     allocator->impl->free(allocator, sineInputs->phaseOffset);
     allocator->impl->free(allocator, sineInputs->mul);
     allocator->impl->free(allocator, sineInputs->add);
-    allocator->impl->free(allocator, sineInputs);
+
+    sig_dsp_Oscillator_Inputs_destroy(allocator, sineInputs);
 }
 
 void test_sig_dsp_Sine(void) {
@@ -450,16 +456,13 @@ void test_sig_dsp_Sine(void) {
         0.0,0.06264832615852355957031250,0.12505052983760833740234375,0.18696144223213195800781250,0.24813786149024963378906250,0.30833938717842102050781250,0.36732956767082214355468750,0.42487663030624389648437500,0.48075449466705322265625000,0.53474360704421997070312500,0.58663195371627807617187500,0.63621556758880615234375000,0.68329972028732299804687500,0.72769939899444580078125000,0.76924020051956176757812500,0.80775886774063110351562500,0.84310418367385864257812500,0.87513720989227294921875000,0.90373212099075317382812500,0.92877656221389770507812500,0.95017212629318237304687500,0.96783477067947387695312500,0.98169511556625366210937500,0.99169868230819702148437500,0.99780619144439697265625000,0.99999368190765380859375000,0.99825245141983032226562500,0.99258947372436523437500000,0.98302686214447021484375000,0.96960228681564331054687500,0.95236849784851074218750000,0.93139308691024780273437500,0.90675866603851318359375000,0.87856185436248779296875000,0.84691345691680908203125000,0.81193780899047851562500000,0.77377235889434814453125000,0.73256701231002807617187500,0.68848365545272827148437500,0.64169549942016601562500000,0.59238636493682861328125000,0.54074990749359130859375000,0.48698899149894714355468750,0.43131488561630249023437500,0.37394630908966064453125000,0.31510862708091735839843750,0.25503295660018920898437500,0.19395537674427032470703125,0.13211579620838165283203125,0.06975717842578887939453125,0.00712451478466391563415527,-0.05553614348173141479492188,-0.11797861754894256591796875,-0.17995759844779968261718750,-0.24122957885265350341796875,-0.30155384540557861328125000,-0.36069342494010925292968750,-0.41841593384742736816406250,-0.47449466586112976074218750,-0.52870923280715942382812500,-0.58084672689437866210937500,-0.63070219755172729492187500,-0.67807990312576293945312500,-0.72279369831085205078125000
     };
 
-    struct sig_AudioSettings audioSettings = {
-        .blockSize = BLOCK_SIZE,
-        .numChannels = 1,
-        .sampleRate = 44100.0
-    };
+    struct sig_SignalContext* mono441kContext = sig_SignalContext_new(
+        &allocator, &mono441kAudioSettings);
 
     struct sig_dsp_Oscillator_Inputs* inputs = createSineInputs(
-        &allocator, &audioSettings, 440.0f, 0.0f, 1.0f, 0.0f);
+        &allocator, mono441kContext, 440.0f, 0.0f, 1.0f, 0.0f);
     struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
-        &audioSettings, inputs);
+        &mono441kAudioSettings, inputs);
 
     sine->signal.generate(sine);
     TEST_ASSERT_EQUAL_FLOAT_ARRAY(
@@ -476,16 +479,13 @@ void test_test_sig_dsp_Sine_isOffset(void) {
         1.0,1.06264829635620117187500000,1.12505054473876953125000000,1.18696141242980957031250000,1.24813783168792724609375000,1.30833935737609863281250000,1.36732959747314453125000000,1.42487668991088867187500000,1.48075449466705322265625000,1.53474354743957519531250000,1.58663201332092285156250000,1.63621556758880615234375000,1.68329977989196777343750000,1.72769939899444580078125000,1.76924014091491699218750000,1.80775880813598632812500000,1.84310412406921386718750000,1.87513720989227294921875000,1.90373206138610839843750000,1.92877650260925292968750000,1.95017218589782714843750000,1.96783471107482910156250000,1.98169517517089843750000000,1.99169874191284179687500000,1.99780619144439697265625000,1.99999368190765380859375000,1.99825239181518554687500000,1.99258947372436523437500000,1.98302686214447021484375000,1.96960234642028808593750000,1.95236849784851074218750000,1.93139314651489257812500000,1.90675866603851318359375000,1.87856185436248779296875000,1.84691345691680908203125000,1.81193780899047851562500000,1.77377235889434814453125000,1.73256707191467285156250000,1.68848371505737304687500000,1.64169549942016601562500000,1.59238636493682861328125000,1.54074990749359130859375000,1.48698902130126953125000000,1.43131494522094726562500000,1.37394630908966064453125000,1.31510865688323974609375000,1.25503301620483398437500000,1.19395542144775390625000000,1.13211584091186523437500000,1.06975722312927246093750000,1.00712454319000244140625000,0.94446384906768798828125000,0.88202136754989624023437500,0.82004237174987792968750000,0.75877040624618530273437500,0.69844615459442138671875000,0.63930654525756835937500000,0.58158409595489501953125000,0.52550530433654785156250000,0.47129076719284057617187500,0.41915327310562133789062500,0.36929780244827270507812500,0.32192009687423706054687500,0.27720630168914794921875000
     };
 
-    struct sig_AudioSettings audioSettings = {
-        .blockSize = BLOCK_SIZE,
-        .numChannels = 1,
-        .sampleRate = 44100.0f
-    };
+    struct sig_SignalContext* mono441kContext = sig_SignalContext_new(
+        &allocator, &mono441kAudioSettings);
 
     struct sig_dsp_Oscillator_Inputs* inputs = createSineInputs(
-        &allocator, &audioSettings, 440.0f, 0.0f, 1.0f, 1.0f);
+        &allocator, mono441kContext, 440.0f, 0.0f, 1.0f, 1.0f);
     struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
-        &audioSettings, inputs);
+        &mono441kAudioSettings, inputs);
 
     sine->signal.generate(sine);
     TEST_ASSERT_EQUAL_FLOAT_ARRAY(
@@ -499,7 +499,7 @@ void test_test_sig_dsp_Sine_isOffset(void) {
 
 void test_sig_dsp_Sine_accumulatesPhase(void) {
     struct sig_dsp_Oscillator_Inputs* inputs = createSineInputs(
-        &allocator, audioSettings, 440.0f, 0.0f, 1.0f, 0.0f);
+        &allocator, context, 440.0f, 0.0f, 1.0f, 0.0f);
     struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
         audioSettings, inputs);
 
@@ -528,7 +528,7 @@ void test_sig_dsp_Sine_accumulatesPhase(void) {
 
 void test_sig_dsp_Sine_phaseWrapsAt2PI(void) {
     struct sig_dsp_Oscillator_Inputs* inputs = createSineInputs(
-        &allocator, audioSettings, 440.0f, 0.0f, 1.0f, 0.0f);
+        &allocator, context, 440.0f, 0.0f, 1.0f, 0.0f);
     struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
         audioSettings, inputs);
 

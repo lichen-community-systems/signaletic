@@ -335,10 +335,12 @@ struct sig_SignalContext* sig_SignalContext_new(
 
     self->audioSettings = audioSettings;
     self->silence = silence;
+
+    return self;
 }
 
-struct sig_SignalContext* sig_SignalContext_destroy(
-    struct sig_Allocator* allocator, struct sig_SignalContext* self) {
+void sig_SignalContext_destroy(struct sig_Allocator* allocator,
+    struct sig_SignalContext* self) {
     sig_dsp_ConstantValue_destroy(allocator, self->silence);
     allocator->impl->free(allocator, self);
 }
@@ -571,6 +573,22 @@ void sig_dsp_ConstantValue_destroy(struct sig_Allocator* allocator,
     sig_dsp_Signal_destroy(allocator, (void*) self);
 };
 
+
+struct sig_dsp_BinaryOp_Inputs* sig_dsp_BinaryOp_Inputs_new(
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
+    struct sig_dsp_BinaryOp_Inputs* self = allocator->impl->malloc(
+        allocator, sizeof(struct sig_dsp_BinaryOp_Inputs));
+    self->left = context->silence->signal.output;
+    self->right = context->silence->signal.output;
+
+    return self;
+}
+
+void sig_dsp_BinaryOp_Inputs_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_BinaryOp_Inputs* self) {
+    allocator->impl->free(allocator, self);
+}
 
 struct sig_dsp_BinaryOp* sig_dsp_Add_new(
     struct sig_Allocator* allocator,
@@ -991,6 +1009,39 @@ void sig_dsp_ToggleGate_destroy(
     sig_dsp_Signal_destroy(allocator, (void*) self);
 }
 
+
+/**
+ * @brief Instantiates a new Oscillator_Inputs object,
+ * and connects all its inputs to silence.
+ *
+ * @param allocator the allocator to use
+ * @param context the current signal context
+ * @return struct sig_dsp_Oscillator_Inputs* the newly allocated object
+ */
+struct sig_dsp_Oscillator_Inputs* sig_dsp_Oscillator_Inputs_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_Oscillator_Inputs* self = allocator->impl->malloc(
+        allocator, sizeof(struct sig_dsp_Oscillator_Inputs));
+
+    self->freq = context->silence->signal.output;
+    self->phaseOffset = context->silence->signal.output;
+    self->mul = context->silence->signal.output;
+    self->add = context->silence->signal.output;
+
+    return self;
+}
+
+/**
+ * @brief Frees the memory used by an Oscillator_Inputs object.
+ * Note that this will not free the input buffers pointed to by this object.
+ *
+ * @param allocator the allocator with which to destroy this object
+ * @param self a pointer to the Oscillator_Inputs object to destroy
+ */
+void sig_dsp_Oscillator_Inputs_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Oscillator_Inputs* self) {
+    allocator->impl->free(allocator, self);
+}
 
 void sig_dsp_Oscillator_init(struct sig_dsp_Oscillator* self,
     struct sig_AudioSettings* settings,

@@ -5,6 +5,10 @@
 
 class Signals {
 public:
+    void generateSignals(struct sig_List* signalList) {
+        return sig_dsp_generateSignals(signalList);
+    }
+
     struct sig_dsp_Value* Value_new(
         struct sig_Allocator* allocator,
         struct sig_AudioSettings* audioSettings) {
@@ -16,24 +20,15 @@ public:
         return sig_dsp_Value_destroy(allocator, self);
     }
 
-    // TODO: Address duplication with other Input_new functions.
     struct sig_dsp_BinaryOp_Inputs* BinaryOp_Inputs_new(
         struct sig_Allocator* allocator,
-        float_array_ptr left, float_array_ptr right) {
-        struct sig_dsp_BinaryOp_Inputs* inputs =
-            (struct sig_dsp_BinaryOp_Inputs*)
-                allocator->impl->malloc(allocator,
-                    sizeof(sig_dsp_BinaryOp_Inputs));
-
-        inputs->left = left;
-        inputs->right = right;
-
-        return inputs;
+        struct sig_SignalContext* context) {
+        return sig_dsp_BinaryOp_Inputs_new(allocator, context);
     }
 
     void BinaryOp_Inputs_destroy(struct sig_Allocator* allocator,
         struct sig_dsp_BinaryOp_Inputs* self) {
-        allocator->impl->free(allocator, self);
+        return sig_dsp_BinaryOp_Inputs_destroy(allocator, self);
     }
 
     struct sig_dsp_BinaryOp* Add_new(struct sig_Allocator* allocator,
@@ -84,26 +79,25 @@ public:
         return sig_dsp_Sine_destroy(allocator, self);
     }
 
-    // TODO: Move this into libsignaletic.
+    struct sig_dsp_Oscillator* LFTriangle_new(struct sig_Allocator* allocator,
+        struct sig_AudioSettings* audioSettings,
+        struct sig_dsp_Oscillator_Inputs* inputs) {
+        return sig_dsp_LFTriangle_new(allocator, audioSettings, inputs);
+    }
+
+    void LFTriangle_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_Oscillator* self) {
+        return sig_dsp_LFTriangle_destroy(allocator, self);
+    }
+
     struct sig_dsp_Oscillator_Inputs* Oscillator_Inputs_new(
-        struct sig_Allocator* allocator,
-        float_array_ptr freq, float_array_ptr phaseOffset,
-        float_array_ptr mul, float_array_ptr add) {
-        struct sig_dsp_Oscillator_Inputs* inputs =
-            (struct sig_dsp_Oscillator_Inputs*) allocator->impl->malloc(
-                allocator, sizeof(sig_dsp_Oscillator_Inputs));
-
-        inputs->freq = freq;
-        inputs->phaseOffset = phaseOffset;
-        inputs->mul = mul;
-        inputs->add = add;
-
-        return inputs;
+        struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+        return sig_dsp_Oscillator_Inputs_new(allocator, context);
     }
 
     void Oscillator_Inputs_destroy(struct sig_Allocator* allocator,
         struct sig_dsp_Oscillator_Inputs* self) {
-        allocator->impl->free(allocator, self);
+        sig_dsp_Oscillator_Inputs_destroy(allocator, self);
     }
 
 
@@ -147,6 +141,27 @@ public:
     Signals dsp;
 
     Signaletic() {}
+
+    struct sig_Status* Status_new(struct sig_Allocator* allocator) {
+        struct sig_Status* self = (struct sig_Status*) allocator->impl->malloc(
+            allocator, sizeof(struct sig_Status));
+        sig_Status_init(self);
+
+        return self;
+    }
+
+    void Status_init(struct sig_Status* status) {
+        return sig_Status_init(status);
+    }
+
+    void Status_reset(struct sig_Status* status) {
+        return sig_Status_reset(status);
+    }
+
+    void Status_reportResult(struct sig_Status* status,
+        enum sig_Result result) {
+        return sig_Status_reportResult(status, result);
+    }
 
     float fminf(float a, float b) {
         return sig_fminf(a, b);
@@ -244,6 +259,37 @@ public:
         free(allocator);
     }
 
+
+    struct sig_List* List_new(struct sig_Allocator* allocator,
+        size_t capacity) {
+        return sig_List_new(allocator, capacity);
+    }
+
+    void List_insert(struct sig_List* self, size_t index, void* item,
+        struct sig_Status* status) {
+        return sig_List_insert(self, index, item, status);
+    }
+
+    void List_append(struct sig_List* self, void* item,
+        struct sig_Status* status) {
+        return sig_List_append(self, item, status);
+    }
+
+    void* List_pop(struct sig_List* self, struct sig_Status* status) {
+        return sig_List_pop(self, status);
+    }
+
+    void* List_remove(struct sig_List* self, size_t index,
+        struct sig_Status* status) {
+        return sig_List_remove(self, index, status);
+    }
+
+    void List_destroy(struct sig_Allocator* allocator,
+        struct sig_List* self) {
+        return sig_List_destroy(allocator, self);
+    }
+
+
     struct sig_AudioSettings* AudioSettings_new(
         struct sig_Allocator* allocator) {
         return sig_AudioSettings_new(allocator);
@@ -252,6 +298,18 @@ public:
     void AudioSettings_destroy(struct sig_Allocator* allocator,
         struct sig_AudioSettings* self) {
         return sig_AudioSettings_destroy(allocator, self);
+    }
+
+
+    struct sig_SignalContext* SignalContext_new(
+        struct sig_Allocator* allocator,
+        struct sig_AudioSettings* audioSettings) {
+        return sig_SignalContext_new(allocator, audioSettings);
+    }
+
+    void SignalContext_destroy(struct sig_Allocator* allocator,
+        struct sig_SignalContext* self) {
+        sig_SignalContext_destroy(allocator, self);
     }
 
 

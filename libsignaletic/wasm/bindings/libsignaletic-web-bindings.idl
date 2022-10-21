@@ -1,4 +1,6 @@
 interface Signals {
+    void generateSignals(sig_List signalList);
+
     sig_dsp_Value Value_new(sig_Allocator allocator,
         sig_AudioSettings audioSettings);
 
@@ -7,7 +9,7 @@ interface Signals {
 
 
     sig_dsp_BinaryOp_Inputs BinaryOp_Inputs_new(sig_Allocator allocator,
-        any left, any right);
+        sig_SignalContext context);
 
     void BinaryOp_Inputs_destroy(sig_Allocator allocator,
         sig_dsp_BinaryOp_Inputs inputs);
@@ -31,6 +33,12 @@ interface Signals {
     void Div_destroy(sig_Allocator allocator, sig_dsp_BinaryOp div);
 
 
+    sig_dsp_Oscillator_Inputs Oscillator_Inputs_new(
+        sig_Allocator allocator, sig_SignalContext context);
+
+    void Oscillator_Inputs_destroy(sig_Allocator allocator,
+        sig_dsp_Oscillator_Inputs inputs);
+
     sig_dsp_Oscillator Sine_new(sig_Allocator allocator,
         sig_AudioSettings audioSettings,
         sig_dsp_Oscillator_Inputs inputs);
@@ -38,12 +46,12 @@ interface Signals {
     void Sine_destroy(sig_Allocator allocator,
         sig_dsp_Oscillator sine);
 
-    sig_dsp_Oscillator_Inputs Oscillator_Inputs_new(
-        sig_Allocator allocator, any freq, any phaseOffset, any mul,
-        any add);
-
-    void Oscillator_Inputs_destroy(sig_Allocator allocator,
+    sig_dsp_Oscillator LFTriangle_new(sig_Allocator allocator,
+        sig_AudioSettings audioSettings,
         sig_dsp_Oscillator_Inputs inputs);
+
+    void LFTriangle_destroy(sig_Allocator allocator,
+        sig_dsp_Oscillator triangle);
 
 
     sig_dsp_ClockFreqDetector ClockFreqDetector_new(sig_Allocator allocator,
@@ -67,6 +75,11 @@ interface Signaletic {
 
     [Value] attribute Signals dsp;
 
+    sig_Status Status_new(sig_Allocator allocator);
+    void Status_init(sig_Status status);
+    void Status_reset(sig_Status status);
+    void Status_reportResult(sig_Status status, sig_Result result);
+
     float fminf(float a, float b);
     float fmaxf(float a, float b);
     float clamp(float value, float min, float max);
@@ -87,9 +100,23 @@ interface Signaletic {
     sig_Allocator TLSFAllocator_new(unsigned long size);
     void TLSFAllocator_destroy(sig_Allocator allocator);
 
+    sig_List List_new(sig_Allocator allocator,
+        unsigned long capacity);
+    void List_insert(sig_List list, unsigned long index, any item,
+        sig_Status status);
+    void List_append(sig_List list, any item, sig_Status status);
+    any List_pop(sig_List list, sig_Status status);
+    any List_remove(sig_List list, unsigned long index, sig_Status status);
+    void List_destroy(sig_Allocator allocator, sig_List list);
+
     sig_AudioSettings AudioSettings_new(sig_Allocator allocator);
     void AudioSettings_destroy(sig_Allocator allocator,
-        sig_AudioSettings settings);
+        sig_AudioSettings audioSettings);
+
+    sig_SignalContext SignalContext_new(sig_Allocator allocator,
+        sig_AudioSettings audioSettings);
+    void SignalContext_destroy(sig_Allocator allocator,
+        sig_SignalContext signalContext);
 
     sig_Buffer Buffer_new(sig_Allocator allocator,
         unsigned long length);
@@ -104,6 +131,17 @@ interface Signaletic {
         sig_AudioSettings audioSettings);
     any AudioBlock_newWithValue(sig_Allocator allocator,
         sig_AudioSettings audioSettings, float value);
+};
+
+enum sig_Result {
+    "SIG_RESULT_NONE",
+    "SIG_RESULT_SUCCESS",
+    "SIG_ERROR_INDEX_OUT_OF_BOUNDS",
+    "SIG_ERROR_EXCEEDS_CAPACITY"
+};
+
+interface sig_Status {
+    attribute sig_Result result;
 };
 
 interface sig_AllocatorHeap {
@@ -133,12 +171,26 @@ interface sig_Buffer {
     attribute any samples;
 };
 
+interface sig_List {
+    attribute unsigned long capacity;
+    attribute unsigned long length;
+};
+
 interface sig_dsp_Signal {
     attribute sig_AudioSettings audioSettings;
     attribute any output;
     void generate(any signal);
 };
 
+interface sig_dsp_ConstantValue {
+    [Value] attribute sig_dsp_Signal signal;
+};
+
+
+interface sig_SignalContext {
+    attribute sig_AudioSettings audioSettings;
+    attribute sig_dsp_ConstantValue silence;
+};
 
 interface sig_dsp_Value {
     [Value] attribute sig_dsp_Signal signal;
@@ -149,7 +201,6 @@ interface sig_dsp_Value {
 interface sig_dsp_Value_Parameters {
     attribute float value;
 };
-
 
 interface sig_dsp_Oscillator {
     [Value] attribute sig_dsp_Signal signal;

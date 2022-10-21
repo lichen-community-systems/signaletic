@@ -25,10 +25,13 @@ class SignaleticOscillator extends AudioWorkletProcessor {
         super();
 
         this.allocator = sig.TLSFAllocator_new(1024 * 256);
+        this.signalList = sig.List_new(this.allocator, 128);
         this.audioSettings = sig.AudioSettings_new(this.allocator);
         this.audioSettings.sampleRate = sampleRate;
         this.audioSettings.blockSize = 128;
         this.audioSettings.numChannels = 2;
+        this.signalContext = sig.SignalContext_new(this.allocator,
+            this.audioSettings);
 
         /** Modulators **/
         this.freqMod = sig.dsp.Value_new(this.allocator,
@@ -41,14 +44,9 @@ class SignaleticOscillator extends AudioWorkletProcessor {
 
         /** Carrier **/
         this.carrierInputs = sig.dsp.Oscillator_Inputs_new(
-            this.allocator,
-            this.freqMod.signal.output,
-            sig.AudioBlock_newWithValue(this.allocator,
-                this.audioSettings, 0.0),
-            this.ampMod.signal.output,
-            sig.AudioBlock_newWithValue(this.allocator,
-                this.audioSettings, 0.0)
-        );
+            this.allocator, this.signalContext);
+        this.carrierInputs.freq = this.freqMod.signal.output;
+        this.carrierInputs.mul = this.ampMod.signal.output;
 
         this.carrier = sig.dsp.Sine_new(this.allocator,
             this.audioSettings, this.carrierInputs);
@@ -59,10 +57,9 @@ class SignaleticOscillator extends AudioWorkletProcessor {
         this.gainValue.parameters.value = 0.85;
 
         this.gainInputs = sig.dsp.BinaryOp_Inputs_new(
-            this.allocator,
-            this.carrier.signal.output,
-            this.gainValue.signal.output
-        );
+            this.allocator, this.signalContext);
+        this.gainInputs.left = this.carrier.signal.output;
+        this.gainInputs.right = this.gainValue.signal.output;
 
         this.gain = sig.dsp.Mul_new(this.allocator,
             this.audioSettings, this.gainInputs);
@@ -71,6 +68,14 @@ class SignaleticOscillator extends AudioWorkletProcessor {
             this.gain.signal.output,
             this.audioSettings.blockSize,
             "float32");
+
+        // TODO: Error handling.
+        let status = sig.Status_new(this.allocator);
+        sig.List_append(this.signalList, this.ampMod, status);
+        sig.List_append(this.signalList, this.freqMod, status);
+        sig.List_append(this.signalList, this.carrier, status);
+        sig.List_append(this.signalList, this.gainValue, status);
+        sig.List_append(this.signalList, this.gain, status);
     }
 
     static get parameterDescriptors() {
@@ -102,11 +107,7 @@ class SignaleticOscillator extends AudioWorkletProcessor {
 
         for (let output of outputs) {
             // Evaluate the Signaletic graph.
-            this.ampMod.signal.generate(this.ampMod);
-            this.freqMod.signal.generate(this.freqMod);
-            this.carrier.signal.generate(this.carrier);
-            this.gainValue.signal.generate(this.gainValue);
-            this.gain.signal.generate(this.gain);
+            sig.dsp.generateSignals(this.signalList);
 
             for (let channel of output) {
                 for (let i = 0; i < channel.length; i++) {

@@ -88,44 +88,31 @@ void InitClock(struct sig_AudioSettings* audioSettings,
     sig_List_append(&signals, clockFreq, status);
 }
 
-void InitLFO(struct sig_AudioSettings* audioSettings,
-    struct sig_Status* status) {
+void InitLFO(struct sig_SignalContext* context, struct sig_Status* status) {
     struct sig_dsp_BinaryOp_Inputs* lfoClockScaleInputs =
-        (struct sig_dsp_BinaryOp_Inputs*) alloc.impl->malloc(
-        &alloc,
-        sizeof(struct sig_dsp_BinaryOp_Inputs));
+        sig_dsp_BinaryOp_Inputs_new(&alloc, context);
     lfoClockScaleInputs->left = clockFreq->signal.output;
     lfoClockScaleInputs->right = lfoClockScaleValue->signal.output;
 
-    lfoClockScale = sig_dsp_Mul_new(&alloc, audioSettings,
+    lfoClockScale = sig_dsp_Mul_new(&alloc, context->audioSettings,
         lfoClockScaleInputs);
     sig_List_append(&signals, lfoClockScale, status);
 
     struct sig_dsp_Oscillator_Inputs* lfoInputs =
-        (struct sig_dsp_Oscillator_Inputs*)
-            alloc.impl->malloc(
-                &alloc,
-                sizeof(struct sig_dsp_Oscillator_Inputs));
+        sig_dsp_Oscillator_Inputs_new(&alloc, context);
     lfoInputs->freq = lfoClockScale->signal.output;
-    lfoInputs->phaseOffset = sig_AudioBlock_newWithValue(&alloc,
-        audioSettings, 0.0f);
     lfoInputs->mul = sig_AudioBlock_newWithValue(&alloc,
-        audioSettings, 1.0f);
-    lfoInputs->add = sig_AudioBlock_newWithValue(&alloc,
-        audioSettings, 0.0f);
+        context->audioSettings, 1.0f);
 
-    lfo = sig_dsp_LFTriangle_new(&alloc, audioSettings, lfoInputs);
+    lfo = sig_dsp_LFTriangle_new(&alloc, context->audioSettings, lfoInputs);
     sig_List_append(&signals, lfo, status);
 
-
-    struct sig_dsp_BinaryOp_Inputs* mulInputs =
-        (struct sig_dsp_BinaryOp_Inputs*) alloc.impl->malloc(
-            &alloc,
-            sizeof(struct sig_dsp_BinaryOp_Inputs));
+    struct sig_dsp_BinaryOp_Inputs* mulInputs = sig_dsp_BinaryOp_Inputs_new(
+        &alloc, context);
     mulInputs->left = lfo->signal.output;
     mulInputs->right = lfoAmpValue->signal.output;
 
-    lfoGain = sig_dsp_Mul_new(&alloc, audioSettings, mulInputs);
+    lfoGain = sig_dsp_Mul_new(&alloc, context->audioSettings, mulInputs);
     sig_List_append(&signals, lfoGain, status);
 }
 
@@ -147,12 +134,12 @@ void InitCVOutputs(struct sig_AudioSettings* audioSettings,
     cv1Out->parameters.offset = -0.32;
 }
 
-void InitAudioGraph(struct sig_AudioSettings* audioSettings,
+void InitAudioGraph(struct sig_SignalContext* context,
     struct sig_Status* status) {
-    InitCVInputs(audioSettings, status);
-    InitClock(audioSettings, status);
-    InitLFO(audioSettings, status);
-    InitCVOutputs(audioSettings, status);
+    InitCVInputs(context->audioSettings, status);
+    InitClock(context->audioSettings, status);
+    InitLFO(context, status);
+    InitCVOutputs(context->audioSettings, status);
 }
 
 int main(void) {
@@ -166,13 +153,16 @@ int main(void) {
         .blockSize = 1
     };
 
+    struct sig_SignalContext* context = sig_SignalContext_new(
+        &alloc, &audioSettings);
+
     struct sig_Status status;
     sig_Status_init(&status);
 
     patch.SetAudioSampleRate(audioSettings.sampleRate);
     patch.SetAudioBlockSize(audioSettings.blockSize);
 
-    InitAudioGraph(&audioSettings, &status);
+    InitAudioGraph(context, &status);
 
     patch.StartAudio(AudioCallback);
     patch.InitTimer(&sig_daisy_DPT_dacWriterCallback, &dptState);
