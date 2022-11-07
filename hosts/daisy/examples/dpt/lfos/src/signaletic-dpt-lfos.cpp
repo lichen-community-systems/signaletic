@@ -89,31 +89,21 @@ void InitClock(struct sig_AudioSettings* audioSettings,
 }
 
 void InitLFO(struct sig_SignalContext* context, struct sig_Status* status) {
-    struct sig_dsp_BinaryOp_Inputs* lfoClockScaleInputs =
-        sig_dsp_BinaryOp_Inputs_new(&alloc, context);
-    lfoClockScaleInputs->left = clockFreq->signal.output;
-    lfoClockScaleInputs->right = lfoClockScaleValue->signal.output;
-
-    lfoClockScale = sig_dsp_Mul_new(&alloc, context->audioSettings,
-        lfoClockScaleInputs);
+    lfoClockScale = sig_dsp_Mul_new(&alloc, context);
     sig_List_append(&signals, lfoClockScale, status);
+    lfoClockScale->inputs.left = clockFreq->signal.output;
+    lfoClockScale->inputs.right = lfoClockScaleValue->signal.output;
 
-    struct sig_dsp_Oscillator_Inputs* lfoInputs =
-        sig_dsp_Oscillator_Inputs_new(&alloc, context);
-    lfoInputs->freq = lfoClockScale->signal.output;
-    lfoInputs->mul = sig_AudioBlock_newWithValue(&alloc,
+    lfo = sig_dsp_LFTriangle_new(&alloc, context);
+    sig_List_append(&signals, lfo, status);
+    lfo->inputs.freq = lfoClockScale->signal.output;
+    lfo->inputs.mul = sig_AudioBlock_newWithValue(&alloc,
         context->audioSettings, 1.0f);
 
-    lfo = sig_dsp_LFTriangle_new(&alloc, context->audioSettings, lfoInputs);
-    sig_List_append(&signals, lfo, status);
-
-    struct sig_dsp_BinaryOp_Inputs* mulInputs = sig_dsp_BinaryOp_Inputs_new(
-        &alloc, context);
-    mulInputs->left = lfo->signal.output;
-    mulInputs->right = lfoAmpValue->signal.output;
-
-    lfoGain = sig_dsp_Mul_new(&alloc, context->audioSettings, mulInputs);
+    lfoGain = sig_dsp_Mul_new(&alloc, context);
     sig_List_append(&signals, lfoGain, status);
+    lfoGain->inputs.left = lfo->signal.output;
+    lfoGain->inputs.right = lfoAmpValue->signal.output;
 }
 
 void InitCVOutputs(struct sig_AudioSettings* audioSettings,

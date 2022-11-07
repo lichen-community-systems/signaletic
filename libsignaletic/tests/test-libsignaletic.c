@@ -36,7 +36,10 @@ void setUp(void) {
     context = sig_SignalContext_new(&allocator, audioSettings);
 }
 
-void tearDown(void) {}
+void tearDown(void) {
+    sig_AudioSettings_destroy(&allocator, audioSettings);
+    sig_SignalContext_destroy(&allocator, context);
+}
 
 void test_sig_unipolarToUint12(void) {
     TEST_ASSERT_EQUAL_UINT16(2047, sig_unipolarToUint12(0.5f));
@@ -178,14 +181,13 @@ void test_sig_samplesToSeconds() {
 }
 
 void test_sig_Audio_Block_newWithValue_testForValue(
-    struct sig_Allocator* localAlloc,
-    struct sig_AudioSettings* settings,
+    struct sig_Allocator* localAlloc, struct sig_AudioSettings* settings,
     float value) {
     float* actual = sig_AudioBlock_newWithValue(localAlloc,
         settings, value);
     testAssertBufferContainsValueOnly(&allocator, value, actual,
         settings->blockSize);
-    localAlloc->impl->free(localAlloc, actual);
+    sig_AudioBlock_destroy(localAlloc, actual);
 }
 
 void test_sig_AudioBlock_newWithValue(void) {
@@ -212,6 +214,8 @@ void test_sig_AudioBlock_newWithValue(void) {
         customSettings, 1.0);
     test_sig_Audio_Block_newWithValue_testForValue(&localAlloc,
         customSettings, 0.0);
+
+    sig_AudioSettings_destroy(&localAlloc, customSettings);
 }
 
 void test_sig_Buffer(void) {
@@ -387,68 +391,56 @@ void test_sig_dsp_TimedTriggerCounter(void) {
 }
 
 void test_sig_dsp_Mul(void) {
-    struct sig_dsp_BinaryOp_Inputs inputs = {
-        .left = sig_AudioBlock_newWithValue(&allocator,
-            audioSettings, 0.5f),
-        .right = sig_AudioBlock_newWithValue(&allocator,
-            audioSettings, 440.0f)
-    };
-
-    struct sig_dsp_BinaryOp* gain = sig_dsp_Mul_new(&allocator,
-        audioSettings, &inputs);
+    struct sig_dsp_BinaryOp* gain = sig_dsp_Mul_new(&allocator, context);
+    gain->inputs.left = sig_AudioBlock_newWithValue(&allocator, audioSettings,
+        0.5f);
+    gain->inputs.right = sig_AudioBlock_newWithValue(&allocator, audioSettings,
+        440.0f);
 
     gain->signal.generate(gain);
     testAssertBufferContainsValueOnly(&allocator,
         220.0f, gain->signal.output, audioSettings->blockSize);
 
-    sig_fillWithValue(inputs.left, audioSettings->blockSize, 0.0f);
+    sig_fillWithValue(gain->inputs.left, audioSettings->blockSize, 0.0f);
     gain->signal.generate(gain);
     testAssertBufferContainsValueOnly(&allocator,
         0.0f, gain->signal.output, audioSettings->blockSize);
 
-    sig_fillWithValue(inputs.left, audioSettings->blockSize, 2.0f);
+    sig_fillWithValue(gain->inputs.left, audioSettings->blockSize, 2.0f);
     gain->signal.generate(gain);
     testAssertBufferContainsValueOnly(&allocator,
         880.0f, gain->signal.output, audioSettings->blockSize);
 
-    sig_fillWithValue(inputs.left, audioSettings->blockSize, -1.0f);
+    sig_fillWithValue(gain->inputs.left, audioSettings->blockSize, -1.0f);
     gain->signal.generate(gain);
     testAssertBufferContainsValueOnly(&allocator,
         -440.0f, gain->signal.output, audioSettings->blockSize);
 
+    sig_AudioBlock_destroy(&allocator, gain->inputs.left);
+    sig_AudioBlock_destroy(&allocator, gain->inputs.right);
     sig_dsp_Mul_destroy(&allocator, gain);
-    allocator.impl->free(&allocator, inputs.left);
-    allocator.impl->free(&allocator, inputs.right);
 }
 
-struct sig_dsp_Oscillator_Inputs* createSineInputs(
-    struct sig_Allocator* allocator,
-    struct sig_SignalContext* context,
+void createOscInputs(struct sig_Allocator* allocator,
+    struct sig_dsp_Oscillator* osc,
     float freq, float phaseOffset, float mul, float add) {
 
-    struct sig_dsp_Oscillator_Inputs* inputs =
-        sig_dsp_Oscillator_Inputs_new(allocator, context);
-
-    inputs->freq = sig_AudioBlock_newWithValue(allocator,
-        context->audioSettings, freq);
-    inputs->phaseOffset = sig_AudioBlock_newWithValue(allocator,
-        context->audioSettings, phaseOffset);
-    inputs->mul = sig_AudioBlock_newWithValue(allocator,
-        context->audioSettings, mul);
-    inputs->add = sig_AudioBlock_newWithValue(allocator,
-        context->audioSettings, add);
-
-    return inputs;
+    osc->inputs.freq = sig_AudioBlock_newWithValue(allocator,
+        osc->signal.audioSettings, freq);
+    osc->inputs.phaseOffset = sig_AudioBlock_newWithValue(allocator,
+        osc->signal.audioSettings, phaseOffset);
+    osc->inputs.mul = sig_AudioBlock_newWithValue(allocator,
+        osc->signal.audioSettings, mul);
+    osc->inputs.add = sig_AudioBlock_newWithValue(allocator,
+        osc->signal.audioSettings, add);
 }
 
-void destroySineInputs(struct sig_Allocator* allocator,
+void destroyOscInputs(struct sig_Allocator* allocator,
     struct sig_dsp_Oscillator_Inputs* sineInputs) {
     allocator->impl->free(allocator, sineInputs->freq);
     allocator->impl->free(allocator, sineInputs->phaseOffset);
     allocator->impl->free(allocator, sineInputs->mul);
     allocator->impl->free(allocator, sineInputs->add);
-
-    sig_dsp_Oscillator_Inputs_destroy(allocator, sineInputs);
 }
 
 void test_sig_dsp_Sine(void) {
@@ -459,10 +451,9 @@ void test_sig_dsp_Sine(void) {
     struct sig_SignalContext* mono441kContext = sig_SignalContext_new(
         &allocator, &mono441kAudioSettings);
 
-    struct sig_dsp_Oscillator_Inputs* inputs = createSineInputs(
-        &allocator, mono441kContext, 440.0f, 0.0f, 1.0f, 0.0f);
     struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
-        &mono441kAudioSettings, inputs);
+        mono441kContext);
+    createOscInputs(&allocator, sine, 440.0f, 0.0f, 1.0f, 0.0f);
 
     sine->signal.generate(sine);
     TEST_ASSERT_EQUAL_FLOAT_ARRAY(
@@ -470,7 +461,7 @@ void test_sig_dsp_Sine(void) {
         sine->signal.output,
         sine->signal.audioSettings->blockSize);
 
-    destroySineInputs(&allocator, inputs);
+    destroyOscInputs(&allocator, &sine->inputs);
     sig_dsp_Sine_destroy(&allocator, sine);
 }
 
@@ -482,10 +473,9 @@ void test_test_sig_dsp_Sine_isOffset(void) {
     struct sig_SignalContext* mono441kContext = sig_SignalContext_new(
         &allocator, &mono441kAudioSettings);
 
-    struct sig_dsp_Oscillator_Inputs* inputs = createSineInputs(
-        &allocator, mono441kContext, 440.0f, 0.0f, 1.0f, 1.0f);
     struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
-        &mono441kAudioSettings, inputs);
+        mono441kContext);
+    createOscInputs(&allocator, sine, 440.0f, 0.0f, 1.0f, 1.0f);
 
     sine->signal.generate(sine);
     TEST_ASSERT_EQUAL_FLOAT_ARRAY(
@@ -493,15 +483,14 @@ void test_test_sig_dsp_Sine_isOffset(void) {
         sine->signal.output,
         sine->signal.audioSettings->blockSize);
 
-    destroySineInputs(&allocator, inputs);
+    destroyOscInputs(&allocator, &sine->inputs);
     sig_dsp_Sine_destroy(&allocator, sine);
 }
 
 void test_sig_dsp_Sine_accumulatesPhase(void) {
-    struct sig_dsp_Oscillator_Inputs* inputs = createSineInputs(
-        &allocator, context, 440.0f, 0.0f, 1.0f, 0.0f);
     struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
-        audioSettings, inputs);
+        context);
+    createOscInputs(&allocator, sine, 440.0f, 0.0f, 1.0f, 0.0f);
 
     // 440 Hz frequency at 48 KHz sample rate.
     float phaseStep = 0.05759586393833160400390625f;
@@ -522,15 +511,14 @@ void test_sig_dsp_Sine_accumulatesPhase(void) {
         "The phase accumulator should have continued to be incremented when generating a second block."
     );
 
-    destroySineInputs(&allocator, inputs);
+    destroyOscInputs(&allocator, &sine->inputs);
     sig_dsp_Sine_destroy(&allocator, sine);
 }
 
 void test_sig_dsp_Sine_phaseWrapsAt2PI(void) {
-    struct sig_dsp_Oscillator_Inputs* inputs = createSineInputs(
-        &allocator, context, 440.0f, 0.0f, 1.0f, 0.0f);
     struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
-        audioSettings, inputs);
+        context);
+    createOscInputs(&allocator, sine, 440.0f, 0.0f, 1.0f, 0.0f);
 
     sine->signal.generate(sine);
     sine->signal.generate(sine);
@@ -542,7 +530,7 @@ void test_sig_dsp_Sine_phaseWrapsAt2PI(void) {
         "The phase accumulator should wrap around when it is greater than 2*PI."
     );
 
-    destroySineInputs(&allocator, inputs);
+    destroyOscInputs(&allocator, &sine->inputs);
     sig_dsp_Sine_destroy(&allocator, sine);
 }
 

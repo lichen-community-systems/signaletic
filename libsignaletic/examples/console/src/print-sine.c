@@ -19,7 +19,7 @@ void printBuffer(float* buffer, size_t blockSize) {
 }
 
 int main(int argc, char *argv[]) {
-    struct sig_AudioSettings settings = sig_DEFAULT_AUDIOSETTINGS;
+    struct sig_AudioSettings audioSettings = sig_DEFAULT_AUDIOSETTINGS;
 
     char memory[HEAP_SIZE];
 
@@ -35,25 +35,25 @@ int main(int argc, char *argv[]) {
 
     allocator.impl->init(&allocator);
 
-    struct sig_dsp_Oscillator_Inputs inputs = {
-        .freq = sig_AudioBlock_newWithValue(&allocator,
-            &settings, 440.0f),
-        .phaseOffset = sig_AudioBlock_newWithValue(&allocator,
-            &settings, 0.0f),
-        .mul = sig_AudioBlock_newWithValue(&allocator,
-            &settings, 1.0f),
-        .add = sig_AudioBlock_newWithValue(&allocator,
-            &settings, 0.0f)
-    };
+    struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
+        &audioSettings);
 
-    struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
-        &settings, &inputs);
+    struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator, context);
+    sine->inputs.freq = sig_AudioBlock_newWithValue(&allocator,
+        &audioSettings, 440.0f);
+    sine->inputs.mul = sig_AudioBlock_newWithValue(&allocator,
+        &audioSettings, 1.0f);
 
     puts("Sine wave (three blocks): ");
     for (int i = 0; i < 3; i++) {
         sine->signal.generate(sine);
-        printBuffer(sine->signal.output, settings.blockSize);
+        printBuffer(sine->signal.output, audioSettings.blockSize);
     }
+
+    allocator.impl->free(&allocator, sine->inputs.freq);
+    allocator.impl->free(&allocator, sine->inputs.mul);
+    sig_dsp_Sine_destroy(&allocator, sine);
+    sig_SignalContext_destroy(&allocator, context);
 
     return EXIT_SUCCESS;
 }

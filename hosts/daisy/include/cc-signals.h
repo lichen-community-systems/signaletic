@@ -11,7 +11,6 @@ struct cc_sig_DustGate_Parameters {
 
 struct cc_sig_DustGate {
     struct sig_dsp_Signal signal;
-    struct cc_sig_DustGate_Inputs* inputs;
     struct sig_dsp_Dust* dust;
     struct sig_dsp_BinaryOp* reciprocalDensity;
     struct sig_dsp_BinaryOp* densityDurationMultiplier;
@@ -35,8 +34,7 @@ void cc_sig_DustGate_init(struct cc_sig_DustGate* self,
 };
 
 struct cc_sig_DustGate* cc_sig_DustGate_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* audioSettings,
+    struct sig_Allocator* allocator, struct sig_SignalContext* context,
     cc_sig_DustGate_Inputs* inputs) {
 
     struct cc_sig_DustGate* self =
@@ -48,29 +46,18 @@ struct cc_sig_DustGate* cc_sig_DustGate_new(
             sizeof(struct sig_dsp_Dust_Inputs));
     dustInputs->density = inputs->density;
 
-    self->dust = sig_dsp_Dust_new(allocator,
-        audioSettings, dustInputs);
+    self->dust = sig_dsp_Dust_new(allocator, context->audioSettings,
+        dustInputs);
 
-    struct sig_dsp_BinaryOp_Inputs* reciprocalDensityInputs =
-        (struct sig_dsp_BinaryOp_Inputs*) allocator->impl->malloc(
-            allocator, sizeof(struct sig_dsp_BinaryOp_Inputs));
-    reciprocalDensityInputs->left =
-        sig_AudioBlock_newWithValue(allocator, audioSettings, 1.0f);
-    reciprocalDensityInputs->right = inputs->density;
+    self->reciprocalDensity = sig_dsp_Div_new(allocator, context);
+    self->reciprocalDensity->inputs.left =
+        sig_AudioBlock_newWithValue(allocator, context->audioSettings, 1.0f);
+    self->reciprocalDensity->inputs.right = inputs->density;
 
-    self->reciprocalDensity = sig_dsp_Div_new(allocator,
-        audioSettings, reciprocalDensityInputs);
-
-    struct sig_dsp_BinaryOp_Inputs* densityDurationMuliplierInputs =
-        (struct sig_dsp_BinaryOp_Inputs*)
-            allocator->impl->malloc(allocator,
-                sizeof(struct sig_dsp_BinaryOp_Inputs));
-    densityDurationMuliplierInputs->left =
+    self->densityDurationMultiplier = sig_dsp_Mul_new(allocator, context);
+    self->densityDurationMultiplier->inputs.left =
         self->reciprocalDensity->signal.output;
-    densityDurationMuliplierInputs->right = inputs->durationPercentage;
-
-    self->densityDurationMultiplier = sig_dsp_Mul_new(allocator,
-        audioSettings, densityDurationMuliplierInputs);
+    self->densityDurationMultiplier->inputs.right = inputs->durationPercentage;
 
     struct sig_dsp_TimedGate_Inputs* gateInputs =
         (struct sig_dsp_TimedGate_Inputs*) allocator->impl->malloc(
@@ -81,9 +68,9 @@ struct cc_sig_DustGate* cc_sig_DustGate_new(
         self->densityDurationMultiplier->signal.output;
 
     self->gate = sig_dsp_TimedGate_new(allocator,
-        audioSettings, gateInputs);
+        context->audioSettings, gateInputs);
 
-    cc_sig_DustGate_init(self, audioSettings, self->gate->signal.output);
+    cc_sig_DustGate_init(self, context->audioSettings, self->gate->signal.output);
 
     return self;
 }
@@ -93,13 +80,8 @@ void cc_sig_DustGate_destroy(struct sig_Allocator* allocator,
     allocator->impl->free(allocator, self->gate->inputs);
     sig_dsp_TimedGate_destroy(allocator, self->gate);
 
-    allocator->impl->free(allocator,
-        self->densityDurationMultiplier->inputs);
-    sig_dsp_Mul_destroy(allocator,
-        self->densityDurationMultiplier);
-
-    allocator->impl->free(allocator,
-        self->reciprocalDensity->inputs);
+    sig_dsp_Mul_destroy(allocator, self->densityDurationMultiplier);
+    sig_AudioBlock_destroy(allocator, self->reciprocalDensity->inputs.left);
     sig_dsp_Div_destroy(allocator, self->reciprocalDensity);
 
     allocator->impl->free(allocator, self->dust->inputs);

@@ -118,6 +118,9 @@ int main(void) {
         .blockSize = 2
     };
 
+    struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
+        &audioSettings);
+
     bluemchen.SetAudioBlockSize(audioSettings.blockSize);
     bluemchen.StartAdc();
     initControls();
@@ -134,12 +137,9 @@ int main(void) {
     clockFreq = sig_dsp_ClockFreqDetector_new(&allocator, &audioSettings,
         &clockFreqInputs);
 
-    struct sig_dsp_BinaryOp_Inputs densityClockSumInputs = {
-        .left = clockFreq->signal.output,
-        .right = density->signal.output
-    };
-    densityClockSum = sig_dsp_Add_new(&allocator, &audioSettings,
-        &densityClockSumInputs);
+    densityClockSum = sig_dsp_Add_new(&allocator, context);
+    densityClockSum->inputs.left = clockFreq->signal.output;
+    densityClockSum->inputs.right = density->signal.output;
 
     struct cc_sig_DustGate_Inputs cvInputs = {
         density: densityClockSum->signal.output,
@@ -147,15 +147,12 @@ int main(void) {
     };
 
     cvDustGate = cc_sig_DustGate_new(&allocator,
-        &audioSettings, &cvInputs);
+        context, &cvInputs);
 
-    struct sig_dsp_BinaryOp_Inputs audioDensityMuliplierInputs = {
-        .left = densityClockSum->signal.output,
-        .right = sig_AudioBlock_newWithValue(&allocator,
-            &audioSettings, 200.0f),
-    };
-    audioDensityMultiplier = sig_dsp_Mul_new(&allocator, &audioSettings,
-        &audioDensityMuliplierInputs);
+    audioDensityMultiplier = sig_dsp_Mul_new(&allocator, context);
+    audioDensityMultiplier->inputs.left = densityClockSum->signal.output;
+    audioDensityMultiplier->inputs.right = sig_AudioBlock_newWithValue(
+        &allocator, &audioSettings, 200.0f);
 
     struct cc_sig_DustGate_Inputs audioInputs = {
         density: audioDensityMultiplier->signal.output,
@@ -163,7 +160,7 @@ int main(void) {
     };
 
     audioDustGate = cc_sig_DustGate_new(&allocator,
-        &audioSettings, &audioInputs);
+        context, &audioInputs);
     audioDustGate->dust->parameters.bipolar = 1.0f;
     audioDustGate->gate->parameters.bipolar = 1.0f;
 

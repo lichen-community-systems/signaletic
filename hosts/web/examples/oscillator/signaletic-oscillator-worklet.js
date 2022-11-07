@@ -43,26 +43,18 @@ class SignaleticOscillator extends AudioWorkletProcessor {
 
 
         /** Carrier **/
-        this.carrierInputs = sig.dsp.Oscillator_Inputs_new(
-            this.allocator, this.signalContext);
-        this.carrierInputs.freq = this.freqMod.signal.output;
-        this.carrierInputs.mul = this.ampMod.signal.output;
-
         this.carrier = sig.dsp.Sine_new(this.allocator,
             this.audioSettings, this.carrierInputs);
+        this.carrier.inputs.freq = this.freqMod.signal.output;
+        this.carrier.inputs.mul = this.ampMod.signal.output;
 
         /** Gain **/
-        this.gainValue = sig.dsp.Value_new(this.allocator,
-            this.audioSettings);
+        this.gainValue = sig.dsp.Value_new(this.allocator, this.audioSettings);
         this.gainValue.parameters.value = 0.85;
 
-        this.gainInputs = sig.dsp.BinaryOp_Inputs_new(
-            this.allocator, this.signalContext);
-        this.gainInputs.left = this.carrier.signal.output;
-        this.gainInputs.right = this.gainValue.signal.output;
-
-        this.gain = sig.dsp.Mul_new(this.allocator,
-            this.audioSettings, this.gainInputs);
+        this.gain = sig.dsp.Mul_new(this.allocator, this.signalContext);
+        this.gain.inputs.left = this.carrier.signal.output;
+        this.gain.inputs.right = this.gainValue.signal.output;
 
         this.gainOutput = sig.dereferenceArray(
             this.gain.signal.output,

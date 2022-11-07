@@ -172,6 +172,9 @@ int main(void) {
         .blockSize = 48
     };
 
+    struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
+        &audioSettings);
+
     bluemchen.SetAudioBlockSize(audioSettings.blockSize);
     bluemchen.StartAdc();
     initControls();
@@ -225,13 +228,9 @@ int main(void) {
     speedModSmoother = sig_dsp_OnePole_new(&allocator,
         &audioSettings, &speedModSmootherInputs);
 
-    struct sig_dsp_BinaryOp_Inputs speedAdderInputs = {
-        .left = speedControl->signal.output,
-        .right = speedModSmoother->signal.output
-    };
-
-    speedAdder = sig_dsp_Add_new(&allocator, &audioSettings,
-        &speedAdderInputs);
+    speedAdder = sig_dsp_Add_new(&allocator, context);
+    speedAdder->inputs.left = speedControl->signal.output;
+    speedAdder->inputs.right = speedModSmoother->signal.output;
 
     speedSkew = sig_dsp_Value_new(&allocator, &audioSettings);
     speedSkew->parameters.value = 0.0f;
@@ -249,19 +248,13 @@ int main(void) {
     leftSpeedSkewInverter = sig_dsp_Invert_new(&allocator, &audioSettings,
         &leftSpeedSkewInverterInputs);
 
-    struct sig_dsp_BinaryOp_Inputs leftSpeedAdderInputs = {
-        .left = speedAdder->signal.output,
-        .right = leftSpeedSkewInverter->signal.output
-    };
-    leftSpeedAdder = sig_dsp_Add_new(&allocator, &audioSettings,
-        &leftSpeedAdderInputs);
+    leftSpeedAdder = sig_dsp_Add_new(&allocator, context);
+    leftSpeedAdder->inputs.left = speedAdder->signal.output;
+    leftSpeedAdder->inputs.right = leftSpeedSkewInverter->signal.output;
 
-    struct sig_dsp_BinaryOp_Inputs rightSpeedAdderInputs = {
-        .left = speedAdder->signal.output,
-        .right = speedSkewSmoother->signal.output
-    };
-    rightSpeedAdder = sig_dsp_Add_new(&allocator, &audioSettings,
-        &rightSpeedAdderInputs);
+    rightSpeedAdder = sig_dsp_Add_new(&allocator, context);
+    rightSpeedAdder->inputs.left = speedAdder->signal.output;
+    rightSpeedAdder->inputs.right = speedSkewSmoother->signal.output;
 
     encoderButton = sig_dsp_Value_new(&allocator, &audioSettings);
     encoderButton->parameters.value = 0.0f;
@@ -335,23 +328,18 @@ int main(void) {
         &rightLooperInputs);
     sig_dsp_Looper_setBuffer(rightLooper, &rightBuffer);
 
-    struct sig_dsp_BinaryOp_Inputs leftGainInputs = {
-        // Bluemchen's output circuit clips as it approaches full gain,
-        // so 0.85 seems to be around the practical maximum value.
-        // TODO: Replace with constant value Signal (gh-23).
-        .left = leftLooper->signal.output,
-        .right = sig_AudioBlock_newWithValue(&allocator,
-            &audioSettings, 0.85f)
-    };
-    leftGain = sig_dsp_Mul_new(&allocator, &audioSettings,
-        &leftGainInputs);
+    // Bluemchen's output circuit clips as it approaches full gain,
+    // so 0.85 seems to be around the practical maximum value.
+    struct sig_dsp_ConstantValue* gainAmount = sig_dsp_ConstantValue_new(
+        &allocator, &audioSettings, 0.85f);
 
-    struct sig_dsp_BinaryOp_Inputs rightGainInputs = {
-        .left = rightLooper->signal.output,
-        .right = leftGainInputs.left
-    };
-    rightGain = sig_dsp_Mul_new(&allocator, &audioSettings,
-        &rightGainInputs);
+    leftGain = sig_dsp_Mul_new(&allocator, context);
+    leftGain->inputs.left = leftLooper->signal.output;
+    leftGain->inputs.right = gainAmount->signal.output;
+
+    rightGain = sig_dsp_Mul_new(&allocator, context);
+    rightGain->inputs.left = rightLooper->signal.output;
+    rightGain->inputs.right = gainAmount->signal.output;
 
     bluemchen.StartAudio(AudioCallback);
 

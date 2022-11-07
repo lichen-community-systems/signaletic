@@ -362,7 +362,6 @@ float_array_ptr sig_samples_new(struct sig_Allocator* allocator,
 }
 
 // TODO: Does an AudioBlock type need to be introduced?
-// TODO: Do we need a destroy function too?
 float_array_ptr sig_AudioBlock_new(
     struct sig_Allocator* allocator,
     struct sig_AudioSettings* audioSettings) {
@@ -380,6 +379,10 @@ float_array_ptr sig_AudioBlock_newWithValue(
     return block;
 }
 
+void sig_AudioBlock_destroy(struct sig_Allocator* allocator,
+    float_array_ptr self) {
+    allocator->impl->free(allocator, self);
+}
 
 struct sig_Buffer* sig_Buffer_new(struct sig_Allocator* allocator,
     size_t length) {
@@ -573,42 +576,28 @@ void sig_dsp_ConstantValue_destroy(struct sig_Allocator* allocator,
     sig_dsp_Signal_destroy(allocator, (void*) self);
 };
 
-
-struct sig_dsp_BinaryOp_Inputs* sig_dsp_BinaryOp_Inputs_new(
-    struct sig_Allocator* allocator,
+void sig_dsp_BinaryOp_init(struct sig_dsp_BinaryOp* self,
     struct sig_SignalContext* context) {
-    struct sig_dsp_BinaryOp_Inputs* self = allocator->impl->malloc(
-        allocator, sizeof(struct sig_dsp_BinaryOp_Inputs));
-    self->left = context->silence->signal.output;
-    self->right = context->silence->signal.output;
-
-    return self;
-}
-
-void sig_dsp_BinaryOp_Inputs_destroy(struct sig_Allocator* allocator,
-    struct sig_dsp_BinaryOp_Inputs* self) {
-    allocator->impl->free(allocator, self);
+    self->inputs.left = context->silence->signal.output;
+    self->inputs.right = context->silence->signal.output;
 }
 
 struct sig_dsp_BinaryOp* sig_dsp_Add_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_BinaryOp_Inputs* inputs) {
-    float_array_ptr output = sig_AudioBlock_new(allocator, settings);
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    float_array_ptr output = sig_AudioBlock_new(allocator,
+        context->audioSettings);
     struct sig_dsp_BinaryOp* self = (struct sig_dsp_BinaryOp*)
         allocator->impl->malloc(allocator, sizeof(struct sig_dsp_BinaryOp));
-    sig_dsp_Add_init(self, settings, inputs, output);
+    sig_dsp_Add_init(self, context, output);
 
     return self;
 }
 
 void sig_dsp_Add_init(struct sig_dsp_BinaryOp* self,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_BinaryOp_Inputs* inputs,
-    float_array_ptr output) {
-    sig_dsp_Signal_init(self, settings, output,
+    struct sig_SignalContext* context, float_array_ptr output) {
+    sig_dsp_Signal_init(self, context->audioSettings, output,
         *sig_dsp_Add_generate);
-    self->inputs = inputs;
+    sig_dsp_BinaryOp_init(self, context);
 }
 
 // TODO: Unit tests.
@@ -616,8 +605,8 @@ void sig_dsp_Add_generate(void* signal) {
     struct sig_dsp_BinaryOp* self = (struct sig_dsp_BinaryOp*) signal;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float left = FLOAT_ARRAY(self->inputs->left)[i];
-        float right = FLOAT_ARRAY(self->inputs->right)[i];
+        float left = FLOAT_ARRAY(self->inputs.left)[i];
+        float right = FLOAT_ARRAY(self->inputs.right)[i];
         float val = left + right;
 
         FLOAT_ARRAY(self->signal.output)[i] = val;
@@ -630,23 +619,24 @@ void sig_dsp_Add_destroy(struct sig_Allocator* allocator,
 }
 
 
-void sig_dsp_Mul_init(struct sig_dsp_BinaryOp* self,
-    struct sig_AudioSettings* settings, struct sig_dsp_BinaryOp_Inputs* inputs, float_array_ptr output) {
-    sig_dsp_Signal_init(self, settings, output, *sig_dsp_Mul_generate);
-    self->inputs = inputs;
-};
 
 struct sig_dsp_BinaryOp* sig_dsp_Mul_new(struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_BinaryOp_Inputs* inputs) {
-    float_array_ptr output = sig_AudioBlock_new(allocator, settings);
+    struct sig_SignalContext* context) {
+    float_array_ptr output = sig_AudioBlock_new(allocator,
+        context->audioSettings);
     struct sig_dsp_BinaryOp* self = (struct sig_dsp_BinaryOp*)
-        allocator->impl->malloc(allocator,
-            sizeof(struct sig_dsp_BinaryOp));
-    sig_dsp_Mul_init(self, settings, inputs, output);
+        allocator->impl->malloc(allocator, sizeof(struct sig_dsp_BinaryOp));
+    sig_dsp_Mul_init(self, context, output);
 
     return self;
 }
+
+void sig_dsp_Mul_init(struct sig_dsp_BinaryOp* self,
+    struct sig_SignalContext* context, float_array_ptr output) {
+    sig_dsp_Signal_init(self, context->audioSettings, output,
+        *sig_dsp_Mul_generate);
+    sig_dsp_BinaryOp_init(self, context);
+};
 
 void sig_dsp_Mul_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_BinaryOp* self) {
@@ -657,8 +647,8 @@ void sig_dsp_Mul_generate(void* signal) {
     struct sig_dsp_BinaryOp* self = (struct sig_dsp_BinaryOp*) signal;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float left = FLOAT_ARRAY(self->inputs->left)[i];
-        float right = FLOAT_ARRAY(self->inputs->right)[i];
+        float left = FLOAT_ARRAY(self->inputs.left)[i];
+        float right = FLOAT_ARRAY(self->inputs.right)[i];
         float val = left * right;
         FLOAT_ARRAY(self->signal.output)[i] = val;
     }
@@ -666,33 +656,30 @@ void sig_dsp_Mul_generate(void* signal) {
 
 
 struct sig_dsp_BinaryOp* sig_dsp_Div_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_BinaryOp_Inputs* inputs) {
-    float_array_ptr output = sig_AudioBlock_new(allocator, settings);
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    float_array_ptr output = sig_AudioBlock_new(allocator,
+        context->audioSettings);
     struct sig_dsp_BinaryOp* self = (struct sig_dsp_BinaryOp*)
         allocator->impl->malloc(allocator,
             sizeof(struct sig_dsp_BinaryOp));
-    sig_dsp_Div_init(self, settings, inputs, output);
+    sig_dsp_Div_init(self, context, output);
 
     return self;
 }
 
 void sig_dsp_Div_init(struct sig_dsp_BinaryOp* self,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_BinaryOp_Inputs* inputs,
-    float_array_ptr output) {
-    sig_dsp_Signal_init(self, settings, output,
+    struct sig_SignalContext* context, float_array_ptr output) {
+    sig_dsp_Signal_init(self, context->audioSettings, output,
         *sig_dsp_Div_generate);
-    self->inputs = inputs;
+    sig_dsp_BinaryOp_init(self, context);
 }
 
 void sig_dsp_Div_generate(void* signal) {
     struct sig_dsp_BinaryOp* self = (struct sig_dsp_BinaryOp*) signal;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float left = FLOAT_ARRAY(self->inputs->left)[i];
-        float right = FLOAT_ARRAY(self->inputs->right)[i];
+        float left = FLOAT_ARRAY(self->inputs.left)[i];
+        float right = FLOAT_ARRAY(self->inputs.right)[i];
         float val = left / right;
         FLOAT_ARRAY(self->signal.output)[i] = val;
     }
@@ -1010,64 +997,33 @@ void sig_dsp_ToggleGate_destroy(
 }
 
 
-/**
- * @brief Instantiates a new Oscillator_Inputs object,
- * and connects all its inputs to silence.
- *
- * @param allocator the allocator to use
- * @param context the current signal context
- * @return struct sig_dsp_Oscillator_Inputs* the newly allocated object
- */
-struct sig_dsp_Oscillator_Inputs* sig_dsp_Oscillator_Inputs_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
-    struct sig_dsp_Oscillator_Inputs* self = allocator->impl->malloc(
-        allocator, sizeof(struct sig_dsp_Oscillator_Inputs));
-
-    self->freq = context->silence->signal.output;
-    self->phaseOffset = context->silence->signal.output;
-    self->mul = context->silence->signal.output;
-    self->add = context->silence->signal.output;
-
-    return self;
-}
-
-/**
- * @brief Frees the memory used by an Oscillator_Inputs object.
- * Note that this will not free the input buffers pointed to by this object.
- *
- * @param allocator the allocator with which to destroy this object
- * @param self a pointer to the Oscillator_Inputs object to destroy
- */
-void sig_dsp_Oscillator_Inputs_destroy(struct sig_Allocator* allocator,
-    struct sig_dsp_Oscillator_Inputs* self) {
-    allocator->impl->free(allocator, self);
-}
-
 void sig_dsp_Oscillator_init(struct sig_dsp_Oscillator* self,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_Oscillator_Inputs* inputs,
-    float_array_ptr output) {
-    self->inputs = inputs;
+    struct sig_SignalContext* context, float_array_ptr output) {
+    // TODO: Create a macro to help with this.
+    self->inputs.freq = context->silence->signal.output;
+    self->inputs.phaseOffset = context->silence->signal.output;
+    self->inputs.mul = context->silence->signal.output;
+    self->inputs.add = context->silence->signal.output;
+
     self->phaseAccumulator = 0.0f;
 }
 
 void sig_dsp_Sine_init(struct sig_dsp_Oscillator* self,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_Oscillator_Inputs* inputs,
-    float_array_ptr output) {
-    sig_dsp_Signal_init(self, settings, output, *sig_dsp_Sine_generate);
-    sig_dsp_Oscillator_init(self, settings, inputs, output);
+    struct sig_SignalContext* context, float_array_ptr output) {
+    sig_dsp_Signal_init(self, context->audioSettings, output,
+        *sig_dsp_Sine_generate);
+    sig_dsp_Oscillator_init(self, context, output);
 }
 
-struct sig_dsp_Oscillator* sig_dsp_Sine_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_Oscillator_Inputs* inputs) {
-    float_array_ptr output = sig_AudioBlock_new(allocator, settings);
+struct sig_dsp_Oscillator* sig_dsp_Sine_new(struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
+    float_array_ptr output = sig_AudioBlock_new(allocator,
+        context->audioSettings);
+
     struct sig_dsp_Oscillator* self = (struct sig_dsp_Oscillator*)
         allocator->impl->malloc(allocator,
             sizeof(struct sig_dsp_Oscillator));
-    sig_dsp_Sine_init(self, settings, inputs, output);
+    sig_dsp_Sine_init(self, context, output);
 
     return self;
 }
@@ -1083,13 +1039,13 @@ void sig_dsp_Sine_generate(void* signal) {
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
         // TODO: Negative offsets will fail here.
         float modulatedPhase = fmodf(self->phaseAccumulator +
-            FLOAT_ARRAY(self->inputs->phaseOffset)[i], sig_TWOPI);
+            FLOAT_ARRAY(self->inputs.phaseOffset)[i], sig_TWOPI);
 
         FLOAT_ARRAY(self->signal.output)[i] = sinf(modulatedPhase) *
-            FLOAT_ARRAY(self->inputs->mul)[i] +
-            FLOAT_ARRAY(self->inputs->add)[i];
+            FLOAT_ARRAY(self->inputs.mul)[i] +
+            FLOAT_ARRAY(self->inputs.add)[i];
 
-        float phaseStep = FLOAT_ARRAY(self->inputs->freq)[i] /
+        float phaseStep = FLOAT_ARRAY(self->inputs.freq)[i] /
             self->signal.audioSettings->sampleRate * sig_TWOPI;
 
         self->phaseAccumulator += phaseStep;
@@ -1101,22 +1057,22 @@ void sig_dsp_Sine_generate(void* signal) {
 
 // TODO: Address duplication with other Oscillator types.
 void sig_dsp_LFTriangle_init(struct sig_dsp_Oscillator* self,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_Oscillator_Inputs* inputs, float_array_ptr output) {
-    sig_dsp_Signal_init(self, settings, output, *sig_dsp_LFTriangle_generate);
-    sig_dsp_Oscillator_init(self, settings, inputs, output);
+    struct sig_SignalContext* context, float_array_ptr output) {
+    sig_dsp_Signal_init(self, context->audioSettings, output,
+        *sig_dsp_LFTriangle_generate);
+    sig_dsp_Oscillator_init(self, context, output);
 };
 
 // TODO: Address duplication with other Oscillator types.
 struct sig_dsp_Oscillator* sig_dsp_LFTriangle_new(
     struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_Oscillator_Inputs* inputs) {
-    float_array_ptr output = sig_AudioBlock_new(allocator, settings);
+    struct sig_SignalContext* context) {
+    float_array_ptr output = sig_AudioBlock_new(allocator,
+        context->audioSettings);
     struct sig_dsp_Oscillator* self = (struct sig_dsp_Oscillator*)
         allocator->impl->malloc(allocator,
             sizeof(struct sig_dsp_Oscillator));
-    sig_dsp_LFTriangle_init(self, settings, inputs, output);
+    sig_dsp_LFTriangle_init(self, context, output);
 
     return self;
 }
@@ -1128,16 +1084,16 @@ void sig_dsp_LFTriangle_generate(void* signal) {
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
         // TODO: Negative offsets will fail here.
         float modulatedPhase = fmodf(self->phaseAccumulator +
-            FLOAT_ARRAY(self->inputs->phaseOffset)[i], sig_TWOPI);
+            FLOAT_ARRAY(self->inputs.phaseOffset)[i], sig_TWOPI);
 
         float val = -1.0f + (2.0f * (modulatedPhase * sig_RECIP_TWOPI));
         val = 2.0f * (fabsf(val) - 0.5f); // Rectify and scale/offset
 
         FLOAT_ARRAY(self->signal.output)[i] = val *
-            FLOAT_ARRAY(self->inputs->mul)[i] +
-            FLOAT_ARRAY(self->inputs->add)[i];
+            FLOAT_ARRAY(self->inputs.mul)[i] +
+            FLOAT_ARRAY(self->inputs.add)[i];
 
-        float phaseStep = FLOAT_ARRAY(self->inputs->freq)[i] /
+        float phaseStep = FLOAT_ARRAY(self->inputs.freq)[i] /
             self->signal.audioSettings->sampleRate * sig_TWOPI;
 
         self->phaseAccumulator += phaseStep;

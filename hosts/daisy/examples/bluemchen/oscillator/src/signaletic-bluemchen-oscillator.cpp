@@ -105,6 +105,9 @@ int main(void) {
         .blockSize = 1
     };
 
+    struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
+        &audioSettings);
+
     bluemchen.SetAudioBlockSize(audioSettings.blockSize);
     bluemchen.StartAdc();
     initControls();
@@ -115,18 +118,9 @@ int main(void) {
     ampMod = sig_dsp_Value_new(&allocator, &audioSettings);
     ampMod->parameters.value = 1.0f;
 
-    /** Carrier **/
-    struct sig_dsp_Oscillator_Inputs carrierInputs = {
-        .freq = freqMod->signal.output,
-        .phaseOffset = sig_AudioBlock_newWithValue(&allocator,
-            &audioSettings, 0.0f),
-        .mul = ampMod->signal.output,
-        .add = sig_AudioBlock_newWithValue(&allocator,
-            &audioSettings, 0.0f),
-    };
-
-    carrier = sig_dsp_Sine_new(&allocator, &audioSettings,
-        &carrierInputs);
+    carrier = sig_dsp_Sine_new(&allocator, context);
+    carrier->inputs.freq = freqMod->signal.output;
+    carrier->inputs.mul = ampMod->signal.output;
 
     /** Gain **/
     // Bluemchen's output circuit clips as it approaches full gain,
@@ -134,12 +128,9 @@ int main(void) {
     gainValue = sig_dsp_Value_new(&allocator, &audioSettings);
     gainValue->parameters.value = 0.85f;
 
-    struct sig_dsp_BinaryOp_Inputs gainInputs = {
-        .left = carrier->signal.output,
-        .right = gainValue->signal.output
-    };
-    gain = sig_dsp_Mul_new(&allocator, &audioSettings,
-        &gainInputs);
+    gain = sig_dsp_Mul_new(&allocator, context);
+    gain->inputs.left = carrier->signal.output;
+    gain->inputs.right = gainValue->signal.output;
 
     bluemchen.StartAudio(AudioCallback);
 

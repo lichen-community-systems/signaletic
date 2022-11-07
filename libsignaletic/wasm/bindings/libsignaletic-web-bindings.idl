@@ -8,47 +8,30 @@ interface Signals {
         sig_dsp_Value value);
 
 
-    sig_dsp_BinaryOp_Inputs BinaryOp_Inputs_new(sig_Allocator allocator,
-        sig_SignalContext context);
-
-    void BinaryOp_Inputs_destroy(sig_Allocator allocator,
-        sig_dsp_BinaryOp_Inputs inputs);
-
     sig_dsp_BinaryOp Mul_new(sig_Allocator allocator,
-        sig_AudioSettings audioSettings,
-        sig_dsp_BinaryOp_Inputs inputs);
+        sig_SignalContext context);
 
     void Mul_destroy(sig_Allocator allocator, sig_dsp_BinaryOp mul);
 
     sig_dsp_BinaryOp Add_new(sig_Allocator allocator,
-        sig_AudioSettings audioSettings,
-        sig_dsp_BinaryOp_Inputs inputs);
+        sig_SignalContext context);
 
     void Add_destroy(sig_Allocator allocator, sig_dsp_BinaryOp add);
 
     sig_dsp_BinaryOp Div_new(sig_Allocator allocator,
-        sig_AudioSettings audioSettings,
-        sig_dsp_BinaryOp_Inputs inputs);
+        sig_SignalContext context);
 
     void Div_destroy(sig_Allocator allocator, sig_dsp_BinaryOp div);
 
 
-    sig_dsp_Oscillator_Inputs Oscillator_Inputs_new(
-        sig_Allocator allocator, sig_SignalContext context);
-
-    void Oscillator_Inputs_destroy(sig_Allocator allocator,
-        sig_dsp_Oscillator_Inputs inputs);
-
     sig_dsp_Oscillator Sine_new(sig_Allocator allocator,
-        sig_AudioSettings audioSettings,
-        sig_dsp_Oscillator_Inputs inputs);
+        sig_SignalContext context);
 
     void Sine_destroy(sig_Allocator allocator,
         sig_dsp_Oscillator sine);
 
     sig_dsp_Oscillator LFTriangle_new(sig_Allocator allocator,
-        sig_AudioSettings audioSettings,
-        sig_dsp_Oscillator_Inputs inputs);
+        sig_SignalContext context);
 
     void LFTriangle_destroy(sig_Allocator allocator,
         sig_dsp_Oscillator triangle);
@@ -131,6 +114,7 @@ interface Signaletic {
         sig_AudioSettings audioSettings);
     any AudioBlock_newWithValue(sig_Allocator allocator,
         sig_AudioSettings audioSettings, float value);
+    void AudioBlock_destroy(sig_Allocator allocator, any audioBlock);
 };
 
 enum sig_Result {
@@ -202,12 +186,6 @@ interface sig_dsp_Value_Parameters {
     attribute float value;
 };
 
-interface sig_dsp_Oscillator {
-    [Value] attribute sig_dsp_Signal signal;
-    attribute sig_dsp_Oscillator_Inputs inputs;
-    attribute float phaseAccumulator;
-};
-
 interface sig_dsp_Oscillator_Inputs {
     attribute any freq;
     attribute any phaseOffset;
@@ -215,10 +193,16 @@ interface sig_dsp_Oscillator_Inputs {
     attribute any add;
 };
 
+interface sig_dsp_Oscillator {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_Oscillator_Inputs inputs;
+    attribute float phaseAccumulator;
+};
+
 
 interface sig_dsp_BinaryOp {
     [Value] attribute sig_dsp_Signal signal;
-    attribute sig_dsp_BinaryOp_Inputs inputs;
+    [Value] attribute sig_dsp_BinaryOp_Inputs inputs;
 };
 
 interface sig_dsp_BinaryOp_Inputs {
