@@ -268,8 +268,7 @@ void test_sig_BufferView(void) {
 }
 
 void test_sig_dsp_Value(void) {
-    struct sig_dsp_Value* value = sig_dsp_Value_new(&allocator,
-        audioSettings);
+    struct sig_dsp_Value* value = sig_dsp_Value_new(&allocator, context);
     value->parameters.value = 123.45f;
 
     // Output should contain the value parameter.
@@ -300,7 +299,7 @@ void test_sig_dsp_Value(void) {
 
 void test_sig_dsp_ConstantValue(void) {
     struct sig_dsp_ConstantValue* constVal = sig_dsp_ConstantValue_new(
-        &allocator, audioSettings, 42.0f);
+        &allocator, context, 42.0f);
 
     // Output should contain the value parameter,
     // even prior to being evaluated.
@@ -322,16 +321,12 @@ void test_sig_dsp_TimedTriggerCounter(void) {
         audioSettings, 0.0f);
     source[0] = 1.0;
 
-    struct sig_dsp_TimedTriggerCounter_Inputs inputs = {
-        .source = source,
-        .duration = sig_AudioBlock_newWithValue(&allocator,
-            audioSettings, halfBlockSecs),
-        .count = sig_AudioBlock_newWithValue(&allocator,
-            audioSettings, 1.0f)
-    };
-
-    struct sig_dsp_TimedTriggerCounter* counter = sig_dsp_TimedTriggerCounter_new(&allocator, audioSettings,
-        &inputs);
+    struct sig_dsp_TimedTriggerCounter* counter = sig_dsp_TimedTriggerCounter_new(&allocator, context);
+    counter->inputs.source = source;
+    counter->inputs.duration = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, halfBlockSecs);
+    counter->inputs.count = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, 1.0f);
 
     // The output should contain a single trigger half block size.
     // (i.e. 24 samples after we received the
@@ -369,7 +364,7 @@ void test_sig_dsp_TimedTriggerCounter(void) {
 
     // When we're looking for two triggers and we get two triggers,
     // one trigger should be fired.
-    sig_fillWithValue(counter->inputs->count, audioSettings->blockSize,
+    sig_fillWithValue(counter->inputs.count, audioSettings->blockSize,
         2.0f);
     counter->signal.generate(counter);
     sig_fillWithSilence(expected, audioSettings->blockSize);
@@ -553,13 +548,9 @@ void test_sig_dsp_Dust(void) {
     float density = (audioSettings->sampleRate /
         audioSettings->blockSize) * expectedNumDustPerBlock;
 
-    struct sig_dsp_Dust_Inputs inputs = {
-        .density = sig_AudioBlock_newWithValue(&allocator,
-            audioSettings, density)
-    };
-
-    struct sig_dsp_Dust* dust = sig_dsp_Dust_new(&allocator,
-        audioSettings, &inputs);
+    struct sig_dsp_Dust* dust = sig_dsp_Dust_new(&allocator, context);
+    dust->inputs.density = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, density);
 
     // Unipolar output.
     testDust(dust, 0.0f, 1.0f, expectedNumDustPerBlock);
@@ -568,7 +559,7 @@ void test_sig_dsp_Dust(void) {
     dust->parameters.bipolar = 1.0f;
     testDust(dust, -1.0f, 1.0f, expectedNumDustPerBlock);
 
-    allocator.impl->free(&allocator, inputs.density);
+    allocator.impl->free(&allocator, dust->inputs.density);
     sig_dsp_Dust_destroy(&allocator, dust);
 }
 
@@ -582,7 +573,7 @@ struct sig_test_BufferPlayer* WaveformPlayer_new(
     sig_Buffer_fillWithWaveform(waveformBuffer, waveform,
         sampleRate, 0.0f, freq);
 
-    return sig_test_BufferPlayer_new(&allocator, audioSettings,
+    return sig_test_BufferPlayer_new(&allocator, context,
         waveformBuffer);
 }
 
@@ -593,12 +584,9 @@ void WaveformPlayer_destroy(struct sig_test_BufferPlayer* player) {
 
 void testClockDetector(struct sig_test_BufferPlayer* clockPlayer,
     float duration, float expectedFreq) {
-    struct sig_dsp_ClockFreqDetector_Inputs inputs = {
-        .source = clockPlayer->signal.output
-    };
-
     struct sig_dsp_ClockFreqDetector* det = sig_dsp_ClockFreqDetector_new(
-        &allocator, audioSettings, &inputs);
+        &allocator, context);
+    det->inputs.source = clockPlayer->signal.output;
 
     struct sig_dsp_Signal* signals[2] = {&clockPlayer->signal, &det->signal};
     evaluateSignals(audioSettings, signals, 2, duration);
@@ -652,7 +640,7 @@ void test_sig_dsp_ClockFreqDetector_slowDown() {
         audioSettings->sampleRate, 0.0f, slowSpeed);
 
     struct sig_test_BufferPlayer* clockPlayer = sig_test_BufferPlayer_new(
-        &allocator, audioSettings, waveformBuffer);
+        &allocator, context, waveformBuffer);
 
     testClockDetector(clockPlayer, bufferDuration, slowSpeed);
 
@@ -683,7 +671,7 @@ void test_sig_dsp_ClockFreqDetector_stop() {
     sig_Buffer_fillWithSilence(silentSection);
 
     struct sig_test_BufferPlayer* clockPlayer = sig_test_BufferPlayer_new(
-        &allocator, audioSettings, waveformBuffer);
+        &allocator, context, waveformBuffer);
 
     testClockDetector(clockPlayer, bufferDuration, 0.0f);
 
@@ -696,23 +684,18 @@ void test_sig_dsp_ClockFreqDetector_stop() {
 void runTimedGate(struct sig_test_BufferPlayer* triggerPlayer,
     struct sig_Buffer* recBuffer, float recDuration, float gateDuration,
     float resetOnTrigger, float bipolar) {
-    struct sig_dsp_TimedGate_Inputs gateInputs = {
-        .duration = sig_AudioBlock_newWithValue(&allocator,
-            audioSettings, gateDuration),
-        .trigger = triggerPlayer->signal.output
-    };
+    struct sig_dsp_TimedGate* timedGate = sig_dsp_TimedGate_new(&allocator,
+        context);
+    timedGate->inputs.duration = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, gateDuration);
+    timedGate->inputs.trigger = triggerPlayer->signal.output;
 
-    struct sig_dsp_TimedGate* timedGate = sig_dsp_TimedGate_new(
-        &allocator, audioSettings, &gateInputs);
     timedGate->parameters.resetOnTrigger = resetOnTrigger;
     timedGate->parameters.bipolar = bipolar;
 
-    struct sig_test_BufferRecorder_Inputs recInputs = {
-        .source = timedGate->signal.output
-    };
-
     struct sig_test_BufferRecorder* recorder = sig_test_BufferRecorder_new(
-        &allocator, audioSettings, &recInputs, recBuffer);
+        &allocator, context, recBuffer);
+    recorder->inputs.source = timedGate->signal.output;
 
     struct sig_dsp_Signal* signals[3] = {
         &triggerPlayer->signal, &timedGate->signal, &recorder->signal};
@@ -735,7 +718,7 @@ void test_sig_dsp_TimedGate_unipolar(void) {
     sig_Buffer_fillWithSilence(triggerBuffer);
     FLOAT_ARRAY(triggerBuffer->samples)[10] = 1.0f;
     struct sig_test_BufferPlayer* triggerPlayer = sig_test_BufferPlayer_new(
-        &allocator, audioSettings, triggerBuffer);
+        &allocator, context, triggerBuffer);
 
     struct sig_Buffer* recBuffer = sig_Buffer_new(&allocator,
         recDurationSamples);
@@ -779,7 +762,7 @@ void test_sig_dsp_TimedGate_resetOnTrigger(void) {
     FLOAT_ARRAY(triggerBuffer->samples)[triggerIndices[1]] = 1.0f;
 
     struct sig_test_BufferPlayer* triggerPlayer = sig_test_BufferPlayer_new(
-        &allocator, audioSettings, triggerBuffer);
+        &allocator, context, triggerBuffer);
 
     struct sig_Buffer* recBuffer = sig_Buffer_new(&allocator,
         recDurationSamples);
@@ -832,7 +815,7 @@ void test_sig_dsp_TimedGate_bipolar(void) {
     FLOAT_ARRAY(triggerBuffer->samples)[gateDurationSamples * 2] = 0.75f;
 
     struct sig_test_BufferPlayer* triggerPlayer = sig_test_BufferPlayer_new(
-        &allocator, audioSettings, triggerBuffer);
+        &allocator, context, triggerBuffer);
 
     struct sig_Buffer* recBuffer = sig_Buffer_new(&allocator,
         recDurationSamples);

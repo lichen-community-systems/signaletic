@@ -69,16 +69,12 @@ struct sig_daisy_GateIn {
     int control;
 };
 
-struct sig_daisy_GateIn* sig_daisy_GateIn_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_daisy_Host* host,
+struct sig_daisy_GateIn* sig_daisy_GateIn_new(struct sig_Allocator* allocator,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host,
     int control);
 void sig_daisy_GateIn_init(struct sig_daisy_GateIn* self,
-    struct sig_AudioSettings* settings,
-    float_array_ptr output,
-    struct sig_daisy_Host* host,
-    int control);
+    struct sig_SignalContext* context, float_array_ptr output,
+    struct sig_daisy_Host* host, int control);
 void sig_daisy_GateIn_generate(void* signal);
 void sig_daisy_GateIn_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_GateIn* self);
@@ -97,16 +93,12 @@ struct sig_daisy_CVIn {
     int control;
 };
 
-struct sig_daisy_CVIn* sig_daisy_CVIn_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_daisy_Host* host,
+struct sig_daisy_CVIn* sig_daisy_CVIn_new(struct sig_Allocator* allocator,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host,
     int control);
 void sig_daisy_CVIn_init(struct sig_daisy_CVIn* self,
-    struct sig_AudioSettings* settings,
-    float_array_ptr output,
-    struct sig_daisy_Host* host,
-    int control);
+    struct sig_SignalContext* context, float_array_ptr output,
+    struct sig_daisy_Host* host, int control);
 void sig_daisy_CVIn_generate(void* signal);
 void sig_daisy_CVIn_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_CVIn* self);
@@ -119,20 +111,18 @@ struct sig_daisy_CVOut_Inputs {
 struct sig_daisy_CVOut {
     struct sig_dsp_Signal signal;
     struct sig_daisy_CV_Parameters parameters;
-    struct sig_daisy_CVOut_Inputs* inputs;
+    struct sig_daisy_CVOut_Inputs inputs;
     struct sig_daisy_Host* host;
     int control;
 };
 
 struct sig_daisy_CVOut* sig_daisy_CVOut_new(
     struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_daisy_CVOut_Inputs* inputs,
+    struct sig_SignalContext* context,
     struct sig_daisy_Host* host,
     int control);
 void sig_daisy_CVOut_init(struct sig_daisy_CVOut* self,
-    struct sig_AudioSettings* settings,
-    struct sig_daisy_CVOut_Inputs* inputs,
+    struct sig_SignalContext* context,
     float_array_ptr output,
     struct sig_daisy_Host* host,
     int control);

@@ -11,8 +11,8 @@ public:
 
     struct sig_dsp_Value* Value_new(
         struct sig_Allocator* allocator,
-        struct sig_AudioSettings* audioSettings) {
-        return sig_dsp_Value_new(allocator, audioSettings);
+        struct sig_SignalContext* context) {
+        return sig_dsp_Value_new(allocator, context);
     }
 
     void Value_destroy(struct sig_Allocator* allocator,
@@ -73,29 +73,13 @@ public:
 
     struct sig_dsp_ClockFreqDetector* ClockFreqDetector_new(
         struct sig_Allocator* allocator,
-        struct sig_AudioSettings* audioSettings,
-        struct sig_dsp_ClockFreqDetector_Inputs* inputs) {
-        return sig_dsp_ClockFreqDetector_new(allocator, audioSettings, inputs);
+        struct sig_SignalContext* context) {
+        return sig_dsp_ClockFreqDetector_new(allocator, context);
     }
 
     void ClockFreqDetector_destroy(struct sig_Allocator* allocator,
         struct sig_dsp_ClockFreqDetector* self) {
         return sig_dsp_ClockFreqDetector_destroy(allocator, self);
-    }
-
-    struct sig_dsp_ClockFreqDetector_Inputs* ClockFreqDetector_Inputs_new(
-        struct sig_Allocator* allocator, float_array_ptr source) {
-        struct sig_dsp_ClockFreqDetector_Inputs* inputs = (struct sig_dsp_ClockFreqDetector_Inputs*) allocator->impl->malloc(
-            allocator, sizeof(sig_dsp_ClockFreqDetector_Inputs));
-        inputs->source = source;
-
-        return inputs;
-    }
-
-    void ClockFreqDetector_Inputs_destroy(
-        struct sig_Allocator* allocator,
-        struct sig_dsp_ClockFreqDetector_Inputs* self) {
-        allocator->impl->free(allocator, self);
     }
 };
 

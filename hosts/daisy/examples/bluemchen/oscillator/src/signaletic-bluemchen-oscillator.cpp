@@ -113,9 +113,9 @@ int main(void) {
     initControls();
 
     /** Modulators **/
-    freqMod = sig_dsp_Value_new(&allocator, &audioSettings);
+    freqMod = sig_dsp_Value_new(&allocator, context);
     freqMod->parameters.value = 440.0f;
-    ampMod = sig_dsp_Value_new(&allocator, &audioSettings);
+    ampMod = sig_dsp_Value_new(&allocator, context);
     ampMod->parameters.value = 1.0f;
 
     carrier = sig_dsp_Sine_new(&allocator, context);
@@ -125,7 +125,7 @@ int main(void) {
     /** Gain **/
     // Bluemchen's output circuit clips as it approaches full gain,
     // so 0.85 seems to be around the practical maximum value.
-    gainValue = sig_dsp_Value_new(&allocator, &audioSettings);
+    gainValue = sig_dsp_Value_new(&allocator, context);
     gainValue->parameters.value = 0.85f;
 
     gain = sig_dsp_Mul_new(&allocator, context);

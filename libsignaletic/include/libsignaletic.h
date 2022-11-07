@@ -361,6 +361,9 @@ struct sig_Allocator {
     struct sig_AllocatorHeap* heap;
 };
 
+#define sig_MALLOC(allocator, T) (T*) allocator->impl->malloc(allocator, \
+    sizeof(T));
+
 /**
  * TLSF Allocator init function.
  */
@@ -480,6 +483,7 @@ void sig_AudioSettings_destroy(struct sig_Allocator* allocator,
     struct sig_AudioSettings* self);
 
 
+// TODO: Move to the DSP namespace.
 struct sig_SignalContext {
     struct sig_AudioSettings* audioSettings;
     struct sig_dsp_ConstantValue* silence;
@@ -636,19 +640,14 @@ void sig_AudioBlock_destroy(struct sig_Allocator* allocator,
 typedef void (*sig_dsp_generateFn)(void* signal);
 
 
-// TODO: Should the base Signal define a (void* ?) pointer
-// to inputs, and provide an empty sig_dsp_Signal_Inputs struct
-// as the default implementation?
 struct sig_dsp_Signal {
     struct sig_AudioSettings* audioSettings;
     float_array_ptr output;
     sig_dsp_generateFn generate;
 };
 
-void sig_dsp_Signal_init(void* signal,
-    struct sig_AudioSettings* settings,
-    float_array_ptr output,
-    sig_dsp_generateFn generate);
+void sig_dsp_Signal_init(void* signal, struct sig_SignalContext* context,
+    float_array_ptr output, sig_dsp_generateFn generate);
 void sig_dsp_Signal_generate(void* signal);
 void sig_dsp_Signal_destroy(struct sig_Allocator* allocator,
     void* signal);
@@ -660,17 +659,21 @@ struct sig_dsp_Value_Parameters {
     float value;
 };
 
+/**
+ * @brief A signal that outputs the value specified by its 'value' parameter.
+ * This is intended to be used for values that may change periodically as a
+ * result of user input.
+ */
 struct sig_dsp_Value {
     struct sig_dsp_Signal signal;
     struct sig_dsp_Value_Parameters parameters;
     float lastSample;
 };
 
-struct sig_dsp_Value* sig_dsp_Value_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings);
+struct sig_dsp_Value* sig_dsp_Value_new(struct sig_Allocator* allocator,
+    struct sig_SignalContext* context);
 void sig_dsp_Value_init(struct sig_dsp_Value* self,
-    struct sig_AudioSettings* settings, float_array_ptr output);
+    struct sig_SignalContext* context, float_array_ptr output);
 void sig_dsp_Value_generate(void* signal);
 void sig_dsp_Value_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Value* self);
@@ -683,11 +686,10 @@ struct sig_dsp_ConstantValue {
 };
 
 struct sig_dsp_ConstantValue* sig_dsp_ConstantValue_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* audioSettings, float value);
-void sig_dsp_ConstantValue_init(struct sig_dsp_ConstantValue* self,
-    struct sig_AudioSettings* audioSettings, float_array_ptr output,
+    struct sig_Allocator* allocator, struct sig_SignalContext* context,
     float value);
+void sig_dsp_ConstantValue_init(struct sig_dsp_ConstantValue* self,
+    struct sig_SignalContext* context, float_array_ptr output, float value);
 void sig_dsp_ConstantValue_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_ConstantValue* self);
 
@@ -702,8 +704,11 @@ struct sig_dsp_BinaryOp {
     struct sig_dsp_BinaryOp_Inputs inputs;
 };
 
+struct sig_dsp_BinaryOp* sig_dsp_BinaryOp_new(struct sig_Allocator* allocator,
+    struct sig_SignalContext* context, sig_dsp_generateFn generate);
 void sig_dsp_BinaryOp_init(struct sig_dsp_BinaryOp* self,
-    struct sig_SignalContext* context);
+    struct sig_SignalContext* context, float_array_ptr output,
+    sig_dsp_generateFn generate);
 
 struct sig_dsp_BinaryOp* sig_dsp_Add_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context);
@@ -736,17 +741,13 @@ struct sig_dsp_Invert_Inputs {
 
 struct sig_dsp_Invert {
     struct sig_dsp_Signal signal;
-    struct sig_dsp_Invert_Inputs* inputs;
+    struct sig_dsp_Invert_Inputs inputs;
 };
 
 struct sig_dsp_Invert* sig_dsp_Invert_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_Invert_Inputs* inputs);
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
 void sig_dsp_Invert_init(struct sig_dsp_Invert* self,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_Invert_Inputs* inputs,
-    float_array_ptr output);
+    struct sig_SignalContext* context, float_array_ptr output);
 void sig_dsp_Invert_generate(void* signal);
 void sig_dsp_Invert_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Invert* self);
@@ -778,25 +779,22 @@ struct sig_dsp_Accumulate_Parameters {
  *
  * Note: while Signaletic doesn't have a formal
  * concept of a control rate, this Signal
- * currently only read the first sample from each block
- * of its source input, and so effectively runs at kr.
+ * currently only reads the first sample from each block
+ * of its source input.
  */
 struct sig_dsp_Accumulate {
     struct sig_dsp_Signal signal;
-    struct sig_dsp_Accumulate_Inputs* inputs;
+    struct sig_dsp_Accumulate_Inputs inputs;
     struct sig_dsp_Accumulate_Parameters parameters;
     float accumulator;
     float previousReset;
 };
 
 struct sig_dsp_Accumulate* sig_dsp_Accumulate_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_Accumulate_Inputs* inputs);
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
 void sig_dsp_Accumulate_init(
     struct sig_dsp_Accumulate* self,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_Accumulate_Inputs* inputs,
+    struct sig_SignalContext* context,
     float_array_ptr output);
 void sig_dsp_Accumulate_generate(void* signal);
 void sig_dsp_Accumulate_destroy(struct sig_Allocator* allocator,
@@ -833,20 +831,16 @@ struct sig_dsp_GatedTimer_Inputs {
  */
 struct sig_dsp_GatedTimer {
     struct sig_dsp_Signal signal;
-    struct sig_dsp_GatedTimer_Inputs* inputs;
+    struct sig_dsp_GatedTimer_Inputs inputs;
     unsigned long timer;
     bool hasFired;
     float prevGate;
 };
 
 struct sig_dsp_GatedTimer* sig_dsp_GatedTimer_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_GatedTimer_Inputs* inputs);
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
 void sig_dsp_GatedTimer_init(struct sig_dsp_GatedTimer* self,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_GatedTimer_Inputs* inputs,
-    float_array_ptr output);
+    struct sig_SignalContext* context, float_array_ptr output);
 void sig_dsp_GatedTimer_generate(void* signal);
 void sig_dsp_GatedTimer_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_GatedTimer* self);
@@ -883,7 +877,7 @@ struct sig_dsp_TimedTriggerCounter_Inputs {
  */
 struct sig_dsp_TimedTriggerCounter {
     struct sig_dsp_Signal signal;
-    struct sig_dsp_TimedTriggerCounter_Inputs* inputs;
+    struct sig_dsp_TimedTriggerCounter_Inputs inputs;
     int numTriggers;
     long timer;
     bool isTimerActive;
@@ -891,14 +885,10 @@ struct sig_dsp_TimedTriggerCounter {
 };
 
 struct sig_dsp_TimedTriggerCounter* sig_dsp_TimedTriggerCounter_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_TimedTriggerCounter_Inputs* inputs);
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
 void sig_dsp_TimedTriggerCounter_init(
     struct sig_dsp_TimedTriggerCounter* self,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_TimedTriggerCounter_Inputs* inputs,
-    float_array_ptr output);
+    struct sig_SignalContext* context, float_array_ptr output);
 void sig_dsp_TimedTriggerCounter_generate(void* signal);
 void sig_dsp_TimedTriggerCounter_destroy(
     struct sig_Allocator* allocator,
@@ -927,20 +917,15 @@ struct sig_dsp_ToggleGate_Inputs {
  */
 struct sig_dsp_ToggleGate {
     struct sig_dsp_Signal signal;
-    struct sig_dsp_ToggleGate_Inputs* inputs;
+    struct sig_dsp_ToggleGate_Inputs inputs;
     bool isGateOpen;
     float prevTrig;
 };
 
 struct sig_dsp_ToggleGate* sig_dsp_ToggleGate_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_ToggleGate_Inputs* inputs);
-void sig_dsp_ToggleGate_init(
-    struct sig_dsp_ToggleGate* self,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_ToggleGate_Inputs* inputs,
-    float_array_ptr output);
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_ToggleGate_init(struct sig_dsp_ToggleGate* self,
+    struct sig_SignalContext* context, float_array_ptr output);
 void sig_dsp_ToggleGate_generate(void* signal);
 void sig_dsp_ToggleGate_destroy(
     struct sig_Allocator* allocator,
@@ -959,8 +944,13 @@ struct sig_dsp_Oscillator {
     float phaseAccumulator;
 };
 
+struct sig_dsp_Oscillator* sig_dsp_Oscillator_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context,
+    sig_dsp_generateFn generate);
+
 void sig_dsp_Oscillator_init(struct sig_dsp_Oscillator* self,
-    struct sig_SignalContext* context, float_array_ptr output);
+    struct sig_SignalContext* context, float_array_ptr output,
+    sig_dsp_generateFn generate);
 
 void sig_dsp_Sine_init(struct sig_dsp_Oscillator* self,
     struct sig_SignalContext* context, float_array_ptr output);
@@ -993,18 +983,14 @@ struct sig_dsp_OnePole_Inputs {
 
 struct sig_dsp_OnePole {
     struct sig_dsp_Signal signal;
-    struct sig_dsp_OnePole_Inputs* inputs;
+    struct sig_dsp_OnePole_Inputs inputs;
     float previousSample;
 };
 
 void sig_dsp_OnePole_init(struct sig_dsp_OnePole* self,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_OnePole_Inputs* inputs,
-    float_array_ptr output);
+    struct sig_SignalContext* context, float_array_ptr output);
 struct sig_dsp_OnePole* sig_dsp_OnePole_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_OnePole_Inputs* inputs);
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
 void sig_dsp_OnePole_generate(void* signal);
 void sig_dsp_OnePole_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_OnePole* self);
@@ -1016,17 +1002,13 @@ struct sig_dsp_Tanh_Inputs {
 
 struct sig_dsp_Tanh {
     struct sig_dsp_Signal signal;
-    struct sig_dsp_Tanh_Inputs* inputs;
+    struct sig_dsp_Tanh_Inputs inputs;
 };
 
 void sig_dsp_Tanh_init(struct sig_dsp_Tanh* self,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_Tanh_Inputs* inputs,
-    float_array_ptr output);
+    struct sig_SignalContext* context, float_array_ptr output);
 struct sig_dsp_Tanh* sig_dsp_Tanh_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_Tanh_Inputs* inputs);
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
 void sig_dsp_Tanh_generate(void* signal);
 void sig_dsp_Tanh_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Tanh* self);
@@ -1050,7 +1032,7 @@ struct sig_dsp_Looper_Loop {
 
 struct sig_dsp_Looper {
     struct sig_dsp_Signal signal;
-    struct sig_dsp_Looper_Inputs* inputs;
+    struct sig_dsp_Looper_Inputs inputs;
     struct sig_dsp_Looper_Loop loop;
     size_t loopLastIdx;
     float playbackPos;
@@ -1059,13 +1041,9 @@ struct sig_dsp_Looper {
 };
 
 void sig_dsp_Looper_init(struct sig_dsp_Looper* self,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_Looper_Inputs* inputs,
-    float_array_ptr output);
+    struct sig_SignalContext* context, float_array_ptr output);
 struct sig_dsp_Looper* sig_dsp_Looper_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_Looper_Inputs* inputs);
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
 void sig_dsp_Looper_setBuffer(struct sig_dsp_Looper* self,
     struct sig_Buffer* buffer);
 void sig_dsp_Looper_generate(void* signal);
@@ -1095,7 +1073,7 @@ struct sig_dsp_Dust_Inputs {
  */
 struct sig_dsp_Dust {
     struct sig_dsp_Signal signal;
-    struct sig_dsp_Dust_Inputs* inputs;
+    struct sig_dsp_Dust_Inputs inputs;
     struct sig_dsp_Dust_Parameters parameters;
 
     // TODO: Should this be part of AudioSettings?
@@ -1107,13 +1085,9 @@ struct sig_dsp_Dust {
 };
 
 void sig_dsp_Dust_init(struct sig_dsp_Dust* self,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_Dust_Inputs* inputs,
-    float_array_ptr output);
+    struct sig_SignalContext* context, float_array_ptr output);
 struct sig_dsp_Dust* sig_dsp_Dust_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_Dust_Inputs* inputs);
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
 void sig_dsp_Dust_generate(void* signal);
 void sig_dsp_Dust_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Dust* self);
@@ -1152,7 +1126,7 @@ struct sig_dsp_TimedGate_Inputs {
  */
 struct sig_dsp_TimedGate {
     struct sig_dsp_Signal signal;
-    struct sig_dsp_TimedGate_Inputs* inputs;
+    struct sig_dsp_TimedGate_Inputs inputs;
     struct sig_dsp_TimedGate_Parameters parameters;
 
     float previousTrigger;
@@ -1163,13 +1137,9 @@ struct sig_dsp_TimedGate {
 };
 
 void sig_dsp_TimedGate_init(struct sig_dsp_TimedGate* self,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_TimedGate_Inputs* inputs,
-    float_array_ptr output);
+    struct sig_SignalContext* context, float_array_ptr output);
 struct sig_dsp_TimedGate* sig_dsp_TimedGate_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_TimedGate_Inputs* inputs);
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
 void sig_dsp_TimedGate_generate(void* signal);
 void sig_dsp_TimedGate_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_TimedGate* self);
@@ -1195,7 +1165,7 @@ struct sig_dsp_ClockFreqDetector_Parameters {
  */
 struct sig_dsp_ClockFreqDetector {
     struct sig_dsp_Signal signal;
-    struct sig_dsp_ClockFreqDetector_Inputs* inputs;
+    struct sig_dsp_ClockFreqDetector_Inputs inputs;
     struct sig_dsp_ClockFreqDetector_Parameters parameters;
 
     float previousTrigger;
@@ -1207,13 +1177,9 @@ struct sig_dsp_ClockFreqDetector {
 
 void sig_dsp_ClockFreqDetector_init(
     struct sig_dsp_ClockFreqDetector* self,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_ClockFreqDetector_Inputs* inputs,
-    float_array_ptr output);
+    struct sig_SignalContext* context, float_array_ptr output);
 struct sig_dsp_ClockFreqDetector* sig_dsp_ClockFreqDetector_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_ClockFreqDetector_Inputs* inputs);
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
 void sig_dsp_ClockFreqDetector_generate(void* signal);
 void sig_dsp_ClockFreqDetector_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_ClockFreqDetector* self);

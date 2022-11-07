@@ -147,23 +147,22 @@ void sig_test_BufferPlayer_generate(void* signal) {
 }
 
 void sig_test_BufferPlayer_init(struct sig_test_BufferPlayer* self,
-    struct sig_AudioSettings* audioSettings,
-    struct sig_Buffer* buffer,
+    struct sig_SignalContext* context, struct sig_Buffer* buffer,
     float_array_ptr output) {
-    sig_dsp_Signal_init(self, audioSettings, output,
-        sig_test_BufferPlayer_generate);
+    sig_dsp_Signal_init(self, context, output,
+        *sig_test_BufferPlayer_generate);
     self->buffer = buffer;
     self->currentSample = 0;
 }
 
 struct sig_test_BufferPlayer* sig_test_BufferPlayer_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* audioSettings,
+    struct sig_Allocator* allocator, struct sig_SignalContext* context,
     struct sig_Buffer* buffer) {
-    float_array_ptr output = sig_AudioBlock_new(allocator, audioSettings);
-    struct sig_test_BufferPlayer* self = allocator->impl->malloc(
-        allocator, sizeof(struct sig_test_BufferPlayer));
-    sig_test_BufferPlayer_init(self, audioSettings, buffer, output);
+    float_array_ptr output = sig_AudioBlock_new(allocator,
+        context->audioSettings);
+    struct sig_test_BufferPlayer* self = sig_MALLOC(allocator,
+        struct sig_test_BufferPlayer);
+    sig_test_BufferPlayer_init(self, context, buffer, output);
 
     return self;
 }
@@ -184,7 +183,7 @@ void sig_test_BufferRecorder_generate(void* signal) {
         assert(self->currentSample < self->buffer->length);
 
         FLOAT_ARRAY(self->buffer->samples)[self->currentSample] =
-            FLOAT_ARRAY(self->inputs->source)[i];
+            FLOAT_ARRAY(self->inputs.source)[i];
 
         self->currentSample++;
     }
@@ -192,26 +191,27 @@ void sig_test_BufferRecorder_generate(void* signal) {
 
 void sig_test_BufferRecorder_init(
     struct sig_test_BufferRecorder* self,
-    struct sig_AudioSettings* audioSettings,
-    struct sig_test_BufferRecorder_Inputs* inputs,
+    struct sig_SignalContext* context,
     struct sig_Buffer* buffer,
     float_array_ptr output) {
-    sig_dsp_Signal_init(self, audioSettings, output,
+    sig_dsp_Signal_init(self, context, output,
         sig_test_BufferRecorder_generate);
-    self->inputs = inputs;
+
     self->buffer = buffer;
     self->currentSample = 0;
+
+    self->inputs.source = context->silence->signal.output;
 }
 
 struct sig_test_BufferRecorder* sig_test_BufferRecorder_new(
     struct sig_Allocator* allocator,
-    struct sig_AudioSettings* audioSettings,
-    struct sig_test_BufferRecorder_Inputs* inputs,
+    struct sig_SignalContext* context,
     struct sig_Buffer* buffer) {
-    float_array_ptr output = sig_AudioBlock_new(allocator, audioSettings);
-    struct sig_test_BufferRecorder* self = allocator->impl->malloc(
-        allocator, sizeof(struct sig_test_BufferRecorder));
-    sig_test_BufferRecorder_init(self, audioSettings, inputs, buffer, output);
+    float_array_ptr output = sig_AudioBlock_new(allocator,
+        context->audioSettings);
+    struct sig_test_BufferRecorder* self = sig_MALLOC(allocator,
+        struct sig_test_BufferRecorder);
+    sig_test_BufferRecorder_init(self, context, buffer, output);
 
     return self;
 }

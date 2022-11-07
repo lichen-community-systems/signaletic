@@ -87,7 +87,7 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
     UpdateControls();
 
     // TODO: Need to implement a Host-provided Input signal.
-    clockFreq->inputs->source = (float_array_ptr) in[0];
+    clockFreq->inputs.source = (float_array_ptr) in[0];
 
     EvaluateSignalGraph();
 
@@ -125,17 +125,17 @@ int main(void) {
     bluemchen.StartAdc();
     initControls();
 
-    density = sig_dsp_Value_new(&allocator, &audioSettings);
+    density = sig_dsp_Value_new(&allocator, context);
     density->parameters.value = 1.0f;
-    duration = sig_dsp_Value_new(&allocator, &audioSettings);
+    duration = sig_dsp_Value_new(&allocator, context);
     duration->parameters.value = 1.0f;
 
-    struct sig_dsp_ClockFreqDetector_Inputs clockFreqInputs = {
-        .source = sig_AudioBlock_newWithValue(&allocator,
-            &audioSettings, 0.0f)
-    };
-    clockFreq = sig_dsp_ClockFreqDetector_new(&allocator, &audioSettings,
-        &clockFreqInputs);
+    clockFreq = sig_dsp_ClockFreqDetector_new(&allocator, context);
+    // TODO: Creat an AudioInput signal for Daisy. In the meantime,
+    // this creates an empty buffer that will be written into directly
+    // in the audio callback.
+    clockFreq->inputs.source = sig_AudioBlock_newWithValue(&allocator,
+        &audioSettings, 0.0f);
 
     densityClockSum = sig_dsp_Add_new(&allocator, context);
     densityClockSum->inputs.left = clockFreq->signal.output;
@@ -146,8 +146,7 @@ int main(void) {
         durationPercentage: duration->signal.output
     };
 
-    cvDustGate = cc_sig_DustGate_new(&allocator,
-        context, &cvInputs);
+    cvDustGate = cc_sig_DustGate_new(&allocator, context, cvInputs);
 
     audioDensityMultiplier = sig_dsp_Mul_new(&allocator, context);
     audioDensityMultiplier->inputs.left = densityClockSum->signal.output;
@@ -160,7 +159,7 @@ int main(void) {
     };
 
     audioDustGate = cc_sig_DustGate_new(&allocator,
-        context, &audioInputs);
+        context, audioInputs);
     audioDustGate->dust->parameters.bipolar = 1.0f;
     audioDustGate->gate->parameters.bipolar = 1.0f;
 

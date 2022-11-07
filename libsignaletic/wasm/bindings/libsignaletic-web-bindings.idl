@@ -2,7 +2,7 @@ interface Signals {
     void generateSignals(sig_List signalList);
 
     sig_dsp_Value Value_new(sig_Allocator allocator,
-        sig_AudioSettings audioSettings);
+        sig_SignalContext context);
 
     void Value_destroy(sig_Allocator allocator,
         sig_dsp_Value value);
@@ -38,16 +38,10 @@ interface Signals {
 
 
     sig_dsp_ClockFreqDetector ClockFreqDetector_new(sig_Allocator allocator,
-        sig_AudioSettings audioSettings,
-        sig_dsp_ClockFreqDetector_Inputs inputs);
+        sig_SignalContext context);
 
     void ClockFreqDetector_destroy(sig_Allocator allocator,
         sig_dsp_ClockFreqDetector detector);
-
-    sig_dsp_ClockFreqDetector_Inputs ClockFreqDetector_Inputs_new(sig_Allocator allocator, any source);
-
-    void ClockFreqDetector_Inputs_destroy(sig_Allocator allocator,
-        sig_dsp_ClockFreqDetector_Inputs inputs);
 };
 
 interface Signaletic {
@@ -213,7 +207,7 @@ interface sig_dsp_BinaryOp_Inputs {
 
 interface sig_dsp_ClockFreqDetector {
     [Value] attribute sig_dsp_Signal signal;
-    attribute sig_dsp_ClockFreqDetector_Inputs inputs;
+    [Value] attribute sig_dsp_ClockFreqDetector_Inputs inputs;
 };
 
 interface sig_dsp_ClockFreqDetector_Inputs {

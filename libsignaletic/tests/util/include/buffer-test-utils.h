@@ -49,13 +49,11 @@ struct sig_test_BufferPlayer {
 void sig_test_BufferPlayer_generate(void* signal);
 
 void sig_test_BufferPlayer_init(struct sig_test_BufferPlayer* self,
-    struct sig_AudioSettings* audioSettings,
-    struct sig_Buffer* buffer,
+    struct sig_SignalContext* context, struct sig_Buffer* buffer,
     float_array_ptr output);
 
 struct sig_test_BufferPlayer* sig_test_BufferPlayer_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* audioSettings,
+    struct sig_Allocator* allocator, struct sig_SignalContext* context,
     struct sig_Buffer* buffer);
 
 void sig_test_BufferPlayer_destroy(struct sig_Allocator* allocator,
@@ -77,7 +75,7 @@ struct sig_test_BufferRecorder_Inputs {
  */
 struct sig_test_BufferRecorder {
     struct sig_dsp_Signal signal;
-    struct sig_test_BufferRecorder_Inputs* inputs;
+    struct sig_test_BufferRecorder_Inputs inputs;
     struct sig_Buffer* buffer;
     size_t currentSample;
 };
@@ -86,15 +84,13 @@ void sig_test_BufferRecorder_generate(void* signal);
 
 void sig_test_BufferRecorder_init(
     struct sig_test_BufferRecorder* self,
-    struct sig_AudioSettings* audioSettings,
-    struct sig_test_BufferRecorder_Inputs* inputs,
+    struct sig_SignalContext* context,
     struct sig_Buffer* buffer,
     float_array_ptr output);
 
 struct sig_test_BufferRecorder* sig_test_BufferRecorder_new(
     struct sig_Allocator* allocator,
-    struct sig_AudioSettings* audioSettings,
-    struct sig_test_BufferRecorder_Inputs* inputs,
+    struct sig_SignalContext* context,
     struct sig_Buffer* buffer);
 
 void sig_test_BufferRecorder_destroy(struct sig_Allocator* allocator,
