@@ -67,7 +67,7 @@ To remove all previous build artifacts and rebuild, run ```rm -r build/native &&
 #### libsignaletic for Web Assembly
 At the root of the Signaletic repository:
 1. Build the Docker image: ```docker build . -t signaletic```
-2. Run the cross-compilation script in Docker: ```docker run --platform=linux/amd64 -v `pwd`:/signaletic signaletic /signaletic/cross-build-all.sh```
+2. Run the cross-compilation script in Docker: ```docker run --platform=linux/amd64 -v `pwd`:/signaletic signaletic /signaletic/cross-build-wasm.sh```
 
 #### Running the Unit Tests
 1. Native: ```meson test -C build/native -v```
@@ -87,7 +87,7 @@ At the root of the Signaletic repository:
 
 ##### Daisy Bluemchen Examples
 1. If you haven't already, build the Docker image ```docker build . -t signaletic```
-2. ```docker run --platform=linux/amd64 -v `pwd`:/signaletic signaletic /signaletic/cross-build-all.sh```
+2. ```docker run --platform=linux/amd64 -v `pwd`:/signaletic signaletic /signaletic/cross-build-arm.sh```
 3. Use the [Daisy Web Programmer](https://electro-smith.github.io/Programmer/) to flash the ```build/signaletic-bluemchen-looper.bin``` binary to the Daisy board, or run ```make program``` while connected to an ST-Link Mini debugger.
 
 

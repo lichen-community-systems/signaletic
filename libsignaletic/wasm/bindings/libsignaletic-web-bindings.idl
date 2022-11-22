@@ -156,12 +156,16 @@ interface sig_List {
 
 interface sig_dsp_Signal {
     attribute sig_AudioSettings audioSettings;
-    attribute any output;
     void generate(any signal);
+};
+
+interface sig_dsp_Signal_SingleMonoOutput {
+    attribute any main;
 };
 
 interface sig_dsp_ConstantValue {
     [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
 };
 
 
@@ -170,15 +174,18 @@ interface sig_SignalContext {
     attribute sig_dsp_ConstantValue silence;
 };
 
+
 interface sig_dsp_Value {
     [Value] attribute sig_dsp_Signal signal;
     [Value] attribute sig_dsp_Value_Parameters parameters;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
     attribute float lastSample;
 };
 
 interface sig_dsp_Value_Parameters {
     attribute float value;
 };
+
 
 interface sig_dsp_Oscillator_Inputs {
     attribute any freq;
@@ -187,29 +194,38 @@ interface sig_dsp_Oscillator_Inputs {
     attribute any add;
 };
 
+interface sig_dsp_Oscillator_Outputs {
+    attribute any main;
+    attribute any eoc;
+};
+
 interface sig_dsp_Oscillator {
     [Value] attribute sig_dsp_Signal signal;
     [Value] attribute sig_dsp_Oscillator_Inputs inputs;
+    [Value] attribute sig_dsp_Oscillator_Outputs outputs;
     attribute float phaseAccumulator;
 };
 
-
-interface sig_dsp_BinaryOp {
-    [Value] attribute sig_dsp_Signal signal;
-    [Value] attribute sig_dsp_BinaryOp_Inputs inputs;
-};
 
 interface sig_dsp_BinaryOp_Inputs {
     attribute any left;
     attribute any right;
 };
 
-
-interface sig_dsp_ClockFreqDetector {
+interface sig_dsp_BinaryOp {
     [Value] attribute sig_dsp_Signal signal;
-    [Value] attribute sig_dsp_ClockFreqDetector_Inputs inputs;
+    [Value] attribute sig_dsp_BinaryOp_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
 };
+
 
 interface sig_dsp_ClockFreqDetector_Inputs {
     attribute any source;
 };
+
+interface sig_dsp_ClockFreqDetector {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_ClockFreqDetector_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+};
+

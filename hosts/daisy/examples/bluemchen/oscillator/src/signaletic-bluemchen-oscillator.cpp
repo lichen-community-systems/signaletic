@@ -8,6 +8,7 @@ using namespace daisy;
 
 Bluemchen bluemchen;
 Parameter knob1;
+Parameter knob2;
 Parameter cv1;
 Parameter cv2;
 
@@ -56,6 +57,7 @@ void UpdateOled() {
 
 void UpdateControls() {
     knob1.Process();
+    knob2.Process();
     cv1.Process();
     cv2.Process();
 }
@@ -69,7 +71,13 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
     // Host-provided Signal (gh-22).
     gainValue->parameters.value = knob1.Value();
     ampMod->parameters.value = cv1.Value();
-    freqMod->parameters.value = sig_midiToFreq(cv2.Value());
+
+    // TODO: Make a MidiFrequency Signal
+    // and then replace this with in-graph math.
+    // TODO: Treating the knob as an attenuator doesn't really
+    // have the effect we want. Instead, the CV and knob values
+    // should be added.
+    freqMod->parameters.value = sig_midiToFreq(cv2.Value()) * knob2.Value();
 
     // Evaluate the signal graph.
     ampMod->signal.generate(ampMod);
@@ -80,8 +88,8 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
 
     // Copy mono buffer to stereo output.
     for (size_t i = 0; i < size; i++) {
-        out[0][i] = gain->signal.output[i];
-        out[1][i] = gain->signal.output[i];
+        out[0][i] = gain->outputs.main[i];
+        out[1][i] = gain->outputs.main[i];
     }
 }
 
@@ -90,9 +98,13 @@ void initControls() {
         0.0f, 0.85f, Parameter::LINEAR);
     cv1.Init(bluemchen.controls[bluemchen.CTRL_3],
         -1.0f, 1.0f, Parameter::LINEAR);
-    // Scale CV frequency input to MIDI note numbers.
+
+    knob2.Init(bluemchen.controls[bluemchen.CTRL_2],
+        0.0f, 1.0f, Parameter::LINEAR);
+    // Scale CV input to MIDI note numbers.
+    // TODO: But then is this tracking 1V/Oct?
     cv2.Init(bluemchen.controls[bluemchen.CTRL_4],
-        0, 120.0f, Parameter::LINEAR);
+        0.0f, 120.0f, Parameter::LINEAR);
 }
 
 int main(void) {
@@ -119,8 +131,8 @@ int main(void) {
     ampMod->parameters.value = 1.0f;
 
     carrier = sig_dsp_Sine_new(&allocator, context);
-    carrier->inputs.freq = freqMod->signal.output;
-    carrier->inputs.mul = ampMod->signal.output;
+    carrier->inputs.freq = freqMod->outputs.main;
+    carrier->inputs.mul = ampMod->outputs.main;
 
     /** Gain **/
     // Bluemchen's output circuit clips as it approaches full gain,
@@ -129,8 +141,8 @@ int main(void) {
     gainValue->parameters.value = 0.85f;
 
     gain = sig_dsp_Mul_new(&allocator, context);
-    gain->inputs.left = carrier->signal.output;
-    gain->inputs.right = gainValue->signal.output;
+    gain->inputs.left = carrier->outputs.main;
+    gain->inputs.right = gainValue->outputs.main;
 
     bluemchen.StartAudio(AudioCallback);
 

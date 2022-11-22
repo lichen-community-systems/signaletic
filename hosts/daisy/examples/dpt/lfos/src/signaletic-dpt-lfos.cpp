@@ -76,33 +76,33 @@ void InitCVInputs(struct sig_SignalContext* context,
 
 void InitClock(struct sig_SignalContext* context, struct sig_Status* status) {
     clockFreq = sig_dsp_ClockFreqDetector_new(&alloc, context);
-    clockFreq->inputs.source = clockInput->signal.output;
+    clockFreq->inputs.source = clockInput->outputs.main;
     sig_List_append(&signals, clockFreq, status);
 }
 
 void InitLFO(struct sig_SignalContext* context, struct sig_Status* status) {
     lfoClockScale = sig_dsp_Mul_new(&alloc, context);
     sig_List_append(&signals, lfoClockScale, status);
-    lfoClockScale->inputs.left = clockFreq->signal.output;
-    lfoClockScale->inputs.right = lfoClockScaleValue->signal.output;
+    lfoClockScale->inputs.left = clockFreq->outputs.main;
+    lfoClockScale->inputs.right = lfoClockScaleValue->outputs.main;
 
     lfo = sig_dsp_LFTriangle_new(&alloc, context);
     sig_List_append(&signals, lfo, status);
-    lfo->inputs.freq = lfoClockScale->signal.output;
+    lfo->inputs.freq = lfoClockScale->outputs.main;
     lfo->inputs.mul = sig_AudioBlock_newWithValue(&alloc,
         context->audioSettings, 1.0f);
 
     lfoGain = sig_dsp_Mul_new(&alloc, context);
     sig_List_append(&signals, lfoGain, status);
-    lfoGain->inputs.left = lfo->signal.output;
-    lfoGain->inputs.right = lfoAmpValue->signal.output;
+    lfoGain->inputs.left = lfo->outputs.main;
+    lfoGain->inputs.right = lfoAmpValue->outputs.main;
 }
 
 void InitCVOutputs(struct sig_SignalContext* context,
     struct sig_Status* status) {
     cv1Out = sig_daisy_CVOut_new(&alloc, context, &host,
         sig_daisy_DPT_CVOUT_1);
-    cv1Out->inputs.source = lfoGain->signal.output;
+    cv1Out->inputs.source = lfoGain->outputs.main;
     sig_List_append(&signals, cv1Out, status);
 
     // TODO: My DPT seems to output -4.67V to 7.96V,

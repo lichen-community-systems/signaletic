@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
     puts("Sine wave (three blocks): ");
     for (int i = 0; i < 3; i++) {
         sine->signal.generate(sine);
-        printBuffer(sine->signal.output, audioSettings.blockSize);
+        printBuffer(sine->outputs.main, audioSettings.blockSize);
     }
 
     allocator.impl->free(&allocator, sine->inputs.freq);

@@ -11,6 +11,7 @@ struct cc_sig_DustGate_Parameters {
 
 struct cc_sig_DustGate {
     struct sig_dsp_Signal signal;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
     struct sig_dsp_Dust* dust;
     struct sig_dsp_BinaryOp* reciprocalDensity;
     struct sig_dsp_BinaryOp* densityDurationMultiplier;
@@ -28,8 +29,8 @@ void cc_sig_DustGate_generate(void* signal) {
 }
 
 void cc_sig_DustGate_init(struct cc_sig_DustGate* self,
-    struct sig_SignalContext* context, float_array_ptr output) {
-    sig_dsp_Signal_init(self, context, output, *cc_sig_DustGate_generate);
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *cc_sig_DustGate_generate);
 };
 
 // TODO: There's an asymmetry here with the constructor signature,
@@ -53,16 +54,17 @@ struct cc_sig_DustGate* cc_sig_DustGate_new(struct sig_Allocator* allocator,
 
     self->densityDurationMultiplier = sig_dsp_Mul_new(allocator, context);
     self->densityDurationMultiplier->inputs.left =
-        self->reciprocalDensity->signal.output;
+        self->reciprocalDensity->outputs.main;
     self->densityDurationMultiplier->inputs.right =
         inputs.durationPercentage;
 
     self->gate = sig_dsp_TimedGate_new(allocator, context);
-    self->gate->inputs.trigger = self->dust->signal.output;
+    self->gate->inputs.trigger = self->dust->outputs.main;
     self->gate->inputs.duration =
-        self->densityDurationMultiplier->signal.output;
+        self->densityDurationMultiplier->outputs.main;
 
-    cc_sig_DustGate_init(self, context, self->gate->signal.output);
+    cc_sig_DustGate_init(self, context);
+    self->outputs.main = self->gate->outputs.main;
 
     return self;
 }

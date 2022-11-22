@@ -1,9 +1,7 @@
 #!/bin/sh
 
 # Build Web Assembly version of Signaletic
-cd libsignaletic
-./build-libsignaletic-wasm.sh
+./cross-build-wasm.sh
 
 # Cross-compile non-native host examples
-cd ../hosts/daisy
-./build-all-daisy.sh
+./cross-build-arm.sh

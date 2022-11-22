@@ -77,12 +77,15 @@ size_t countNonZeroSamples(float* buffer, size_t len) {
     return numNonZero;
 }
 
+// TODO: Need to provide some generalized means of accessing a
+// signal's output. Having to pass the output as an argument here
+// is a workaround until that is resolved.
 int16_t countNonZeroSamplesGenerated(struct sig_dsp_Signal* signal,
-    int numRuns) {
+    float_array_ptr output, int numRuns) {
     int16_t numNonZero = 0;
     for (int i = 0; i < numRuns; i++) {
         signal->generate(signal);
-        numNonZero += countNonZeroSamples(signal->output,
+        numNonZero += countNonZeroSamples(output,
             signal->audioSettings->blockSize);
     }
 
@@ -99,15 +102,15 @@ void testAssertBufferContainsNumZeroSamples(float* buffer,
 }
 
 void testAssertGeneratedSignalContainsApproxNumNonZeroSamples(
-    struct sig_dsp_Signal* signal, int16_t expectedNumNonZero,
-    double errorFactor, int numRuns) {
+    struct sig_dsp_Signal* signal, float_array_ptr output,
+    int16_t expectedNumNonZero, double errorFactor, int numRuns) {
     double expectedNumNonZeroD = (double) expectedNumNonZero;
     double errorNumSamps = expectedNumNonZeroD * errorFactor;
     double high = expectedNumNonZeroD + errorNumSamps;
     double low = expectedNumNonZeroD - errorNumSamps;
 
     double avgNumNonZero = (double)
-        countNonZeroSamplesGenerated(signal, numRuns) /
+        countNonZeroSamplesGenerated(signal, output, numRuns) /
         (double) numRuns;
     double actualRoundedAvgNumNonZero = round(avgNumNonZero);
     TEST_ASSERT_TRUE_MESSAGE(actualRoundedAvgNumNonZero >= low &&
@@ -140,17 +143,15 @@ void sig_test_BufferPlayer_generate(void* signal) {
             self->currentSample = 0;
         }
 
-        FLOAT_ARRAY(self->signal.output)[i] =
+        FLOAT_ARRAY(self->outputs.main)[i] =
             FLOAT_ARRAY(self->buffer->samples)[self->currentSample];
         self->currentSample++;
     }
 }
 
 void sig_test_BufferPlayer_init(struct sig_test_BufferPlayer* self,
-    struct sig_SignalContext* context, struct sig_Buffer* buffer,
-    float_array_ptr output) {
-    sig_dsp_Signal_init(self, context, output,
-        *sig_test_BufferPlayer_generate);
+    struct sig_SignalContext* context, struct sig_Buffer* buffer) {
+    sig_dsp_Signal_init(self, context, *sig_test_BufferPlayer_generate);
     self->buffer = buffer;
     self->currentSample = 0;
 }
@@ -158,11 +159,11 @@ void sig_test_BufferPlayer_init(struct sig_test_BufferPlayer* self,
 struct sig_test_BufferPlayer* sig_test_BufferPlayer_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context,
     struct sig_Buffer* buffer) {
-    float_array_ptr output = sig_AudioBlock_new(allocator,
-        context->audioSettings);
     struct sig_test_BufferPlayer* self = sig_MALLOC(allocator,
         struct sig_test_BufferPlayer);
-    sig_test_BufferPlayer_init(self, context, buffer, output);
+    sig_test_BufferPlayer_init(self, context, buffer);
+    self->outputs.main = sig_AudioBlock_new(allocator,
+        context->audioSettings);
 
     return self;
 }
@@ -192,26 +193,24 @@ void sig_test_BufferRecorder_generate(void* signal) {
 void sig_test_BufferRecorder_init(
     struct sig_test_BufferRecorder* self,
     struct sig_SignalContext* context,
-    struct sig_Buffer* buffer,
-    float_array_ptr output) {
-    sig_dsp_Signal_init(self, context, output,
-        sig_test_BufferRecorder_generate);
+    struct sig_Buffer* buffer) {
+    sig_dsp_Signal_init(self, context, *sig_test_BufferRecorder_generate);
 
     self->buffer = buffer;
     self->currentSample = 0;
 
-    self->inputs.source = context->silence->signal.output;
+    sig_CONNECT_TO_SILENCE(self, source, context);
 }
 
 struct sig_test_BufferRecorder* sig_test_BufferRecorder_new(
     struct sig_Allocator* allocator,
     struct sig_SignalContext* context,
     struct sig_Buffer* buffer) {
-    float_array_ptr output = sig_AudioBlock_new(allocator,
-        context->audioSettings);
     struct sig_test_BufferRecorder* self = sig_MALLOC(allocator,
         struct sig_test_BufferRecorder);
-    sig_test_BufferRecorder_init(self, context, buffer, output);
+    sig_test_BufferRecorder_init(self, context, buffer);
+    self->outputs.main = sig_AudioBlock_new(allocator,
+        context->audioSettings);
 
     return self;
 }

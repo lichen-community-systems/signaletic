@@ -140,16 +140,16 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
 
     // Copy mono buffer to stereo output.
     for (size_t i = 0; i < size; i++) {
-        out[0][i] = leftGain->signal.output[i];
-        out[1][i] = rightGain->signal.output[i];
+        out[0][i] = leftGain->outputs.main[i];
+        out[1][i] = rightGain->outputs.main[i];
     }
 
     // Note: this is required until we have something that
     // offers some way to get the current value from a Signal.
     // See https://github.com/continuing-creativity/signaletic/issues/19
     size_t lastSamp = leftSpeedAdder->signal.audioSettings->blockSize - 1;
-    looperView.leftSpeed = leftSpeedAdder->signal.output[lastSamp];
-    looperView.rightSpeed = rightSpeedAdder->signal.output[lastSamp];
+    looperView.leftSpeed = leftSpeedAdder->outputs.main[lastSamp];
+    looperView.rightSpeed = rightSpeedAdder->outputs.main[lastSamp];
 }
 
 void initControls() {
@@ -186,67 +186,67 @@ int main(void) {
     start->parameters.value = 0.0f;
 
     startSmoother = sig_dsp_OnePole_new(&allocator, context);
-    startSmoother->inputs.source = start->signal.output,
-    startSmoother->inputs.coefficient = smoothCoefficient->signal.output;
+    startSmoother->inputs.source = start->outputs.main,
+    startSmoother->inputs.coefficient = smoothCoefficient->outputs.main;
 
     end = sig_dsp_Value_new(&allocator, context);
     end->parameters.value = 1.0f;
 
     endSmoother = sig_dsp_OnePole_new(&allocator, context);
-    endSmoother->inputs.source = end->signal.output;
-    endSmoother->inputs.coefficient = smoothCoefficient->signal.output;
+    endSmoother->inputs.source = end->outputs.main;
+    endSmoother->inputs.coefficient = smoothCoefficient->outputs.main;
 
     speedIncrement = sig_dsp_Value_new(&allocator, context);
     speedIncrement->parameters.value = 1.0f;
 
     speedControl = sig_dsp_Accumulate_new(&allocator, context);
     speedControl->parameters.accumulatorStart = 1.0f;
-    speedControl->inputs.source = speedIncrement->signal.output;
+    speedControl->inputs.source = speedIncrement->outputs.main;
 
     speedMod = sig_dsp_Value_new(&allocator, context);
     speedMod->parameters.value = 0.0f;
 
     speedModSmoother = sig_dsp_OnePole_new(&allocator, context);
-    speedModSmoother->inputs.source = speedMod->signal.output;
-    speedModSmoother->inputs.coefficient = smoothCoefficient->signal.output;
+    speedModSmoother->inputs.source = speedMod->outputs.main;
+    speedModSmoother->inputs.coefficient = smoothCoefficient->outputs.main;
 
     speedAdder = sig_dsp_Add_new(&allocator, context);
-    speedAdder->inputs.left = speedControl->signal.output;
-    speedAdder->inputs.right = speedModSmoother->signal.output;
+    speedAdder->inputs.left = speedControl->outputs.main;
+    speedAdder->inputs.right = speedModSmoother->outputs.main;
 
     speedSkew = sig_dsp_Value_new(&allocator, context);
     speedSkew->parameters.value = 0.0f;
 
     speedSkewSmoother = sig_dsp_OnePole_new(&allocator, context);
-    speedSkewSmoother->inputs.source = speedSkew->signal.output;
-    speedSkewSmoother->inputs.coefficient = smoothCoefficient->signal.output;
+    speedSkewSmoother->inputs.source = speedSkew->outputs.main;
+    speedSkewSmoother->inputs.coefficient = smoothCoefficient->outputs.main;
 
     leftSpeedSkewInverter = sig_dsp_Invert_new(&allocator, context);
-    leftSpeedSkewInverter->inputs.source = speedSkewSmoother->signal.output;
+    leftSpeedSkewInverter->inputs.source = speedSkewSmoother->outputs.main;
 
     leftSpeedAdder = sig_dsp_Add_new(&allocator, context);
-    leftSpeedAdder->inputs.left = speedAdder->signal.output;
-    leftSpeedAdder->inputs.right = leftSpeedSkewInverter->signal.output;
+    leftSpeedAdder->inputs.left = speedAdder->outputs.main;
+    leftSpeedAdder->inputs.right = leftSpeedSkewInverter->outputs.main;
 
     rightSpeedAdder = sig_dsp_Add_new(&allocator, context);
-    rightSpeedAdder->inputs.left = speedAdder->signal.output;
-    rightSpeedAdder->inputs.right = speedSkewSmoother->signal.output;
+    rightSpeedAdder->inputs.left = speedAdder->outputs.main;
+    rightSpeedAdder->inputs.right = speedSkewSmoother->outputs.main;
 
     encoderButton = sig_dsp_Value_new(&allocator, context);
     encoderButton->parameters.value = 0.0f;
 
     encoderTap = sig_dsp_TimedTriggerCounter_new(&allocator, context);
-    encoderTap->inputs.source = encoderButton->signal.output;
+    encoderTap->inputs.source = encoderButton->outputs.main;
     encoderTap->inputs.duration = sig_AudioBlock_newWithValue(&allocator,
         &audioSettings, 0.5f);
     encoderTap->inputs.count = sig_AudioBlock_newWithValue(&allocator,
         &audioSettings, 1.0f);
 
     recordGate = sig_dsp_ToggleGate_new(&allocator, context);
-    recordGate->inputs.trigger = encoderTap->signal.output;
+    recordGate->inputs.trigger = encoderTap->outputs.main;
 
     encoderLongPress = sig_dsp_GatedTimer_new(&allocator, context);
-    encoderLongPress->inputs.gate = encoderButton->signal.output;
+    encoderLongPress->inputs.gate = encoderButton->outputs.main;
     encoderLongPress->inputs.duration = sig_AudioBlock_newWithValue(
         &allocator, &audioSettings, LONG_ENCODER_PRESS);
 
@@ -257,11 +257,11 @@ int main(void) {
         // is copied into manually in the audio callback.
         .source = sig_AudioBlock_newWithValue(&allocator,
             &audioSettings, 0.0f),
-        .start = startSmoother->signal.output,
-        .end = endSmoother->signal.output,
-        .speed = leftSpeedAdder->signal.output,
-        .record = recordGate->signal.output,
-        .clear = encoderLongPress->signal.output
+        .start = startSmoother->outputs.main,
+        .end = endSmoother->outputs.main,
+        .speed = leftSpeedAdder->outputs.main,
+        .record = recordGate->outputs.main,
+        .clear = encoderLongPress->outputs.main
     };
 
     sig_fillWithSilence(leftSamples, LOOP_LENGTH);
@@ -274,7 +274,7 @@ int main(void) {
             &audioSettings, 0.0f),
         .start = leftLooperInputs.start,
         .end = leftLooperInputs.end,
-        .speed = rightSpeedAdder->signal.output,
+        .speed = rightSpeedAdder->outputs.main,
         .record = leftLooperInputs.record,
         .clear = leftLooperInputs.clear
     };
@@ -289,12 +289,12 @@ int main(void) {
         &allocator, context, 0.85f);
 
     leftGain = sig_dsp_Mul_new(&allocator, context);
-    leftGain->inputs.left = leftLooper->signal.output;
-    leftGain->inputs.right = gainAmount->signal.output;
+    leftGain->inputs.left = leftLooper->outputs.main;
+    leftGain->inputs.right = gainAmount->outputs.main;
 
     rightGain = sig_dsp_Mul_new(&allocator, context);
-    rightGain->inputs.left = rightLooper->signal.output;
-    rightGain->inputs.right = gainAmount->signal.output;
+    rightGain->inputs.left = rightLooper->outputs.main;
+    rightGain->inputs.right = gainAmount->outputs.main;
 
     bluemchen.StartAudio(AudioCallback);
 
