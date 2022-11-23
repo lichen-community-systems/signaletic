@@ -15,17 +15,36 @@ It's likely in the future that instance state will be moved into more formal con
 struct sig_dsp_${SignalName} {
     struct sig_dsp_Signal signal;
 
-    struct sig_dsp_${SignalName}_Inputs* inputs;
+    struct sig_dsp_${SignalName}_Inputs inputs;
 
     struct sig_dsp_${SignalName}_Parameters parameters;
+
+    struct sig_dsp_Signal_{OutputType} outputs;
 
     float ${stateName};
 };
 ```
 
+### Signal Outputs
+
+In Signaletic, signals can have multiple outputs. For example, oscillators have both a "main" output that contains the oscillator's waveform, as well as an "eoc" output that fires a trigger whenever the oscillator reaches the end of its cycle.
+
+By default, Signaletic defines a series of core output types, which encompass common output topologies. Currently these include:
+ * ```sig_dsp_Signal_SingleMonoOutput```, which provides one mono output called ```main```
+ * ```sig_dsp_Oscillator_Outputs```, containing a mono ```main``` and a mono ```eoc`` output
+
+Additional output types for other cases, including multichannel outputs, will be added. Custom outputs are defined as follows:
+
+```c
+struct sig_dsp_${SignalName}_Output {
+    float_array_ptr ${outputName};
+    float_array_ptr ${otherOutputName};
+};
+```
+
 ### Signal Inputs Definition
 
-If your signal will read inputs from other signals, you must define them in an Inputs object. For the moment, all inputs are simply defined as ```float_array_ptr``` types, and are typically pointers directly to the output arrays of other signals.
+If your signal will read inputs from other signals, you must define them in an Inputs object. For the moment, all inputs are defined as pointers to the output arrays of other signals (using the ```float_array_ptr``` type).
 
 In the future, inputs will become more complex, since it will be possible to define groups of signals that run at different block sizes yet interconnect them, which will require some additional metadata about how to read an input. Connection objects will also be created to provide a first class representation for a connection between two or more Signals.
 
@@ -52,12 +71,17 @@ A signal's constructor is responsible for allocating memory for the signal's str
 ```c
 struct sig_dsp_${SignalName}* sig_dsp_${SignalName}_new(
     struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_dsp_${SignalName}_Inputs* inputs) {
-    float_array_ptr output = sig_AudioBlock_new(allocator, settings);
-    struct sig_dsp_${SignalName}* self = allocator->impl->malloc(
-        allocator, sizeof(struct sig_dsp_${SignalName}));
-    sig_dsp_${SignalName}_init(self, settings, inputs, output);
+    struct sig_dsp_SignalContext* context) {
+    // Allocate memory for the Signal.
+    struct sig_dsp_${SignalName}* self = sig_MALLOC(allocator,
+        struct sig_dsp_${SignalName});
+
+    // Initialize the Signal.
+    sig_dsp_${SignalName}_init(self, context);
+
+    // Allocate output blocks.
+    self->outputs.main = sig_AudioBlock_new(allocator,
+        context->audioSettings);
 
     return self;
 }
@@ -69,20 +93,23 @@ The initializer is responsible for assigning values to a signal's struct, settin
 
 ```c
 void sig_dsp_${SignalName}_init(struct sig_dsp_${SignalName}* self,
-    struct sig_AudioSettings *settings,
-    struct sig_dsp_${SignalName}_Inputs* inputs,
-    float_array_ptr output) {
+    struct sig_dsp_SignalContext* context) {
+    // Call the base Signal initializer.
+    sig_dsp_Signal_init(self, context, *sig_dsp_${SignalName}_generate);
 
-    sig_dsp_Signal_init(self, settings, output,
-        *sig_dsp_Value_generate);
-
+    // Initialize default parameter values.
     struct sig_dsp_${SignalName}_Parameters params = {
         .${parameterName} = ${parameterDefaultValue}
     };
-
     self->parameters = params;
 
+    // Initialize the default values for local state.
     self->${stateName} = ${stateDefaultValue}
+
+    // Connect all inputs to silence.
+    sig_CONNECT_TO_SILENCE(self, ${inputName}, context);
+    sig_CONNECT_TO_SILENCE(self, ${otherInputName}, context);
+
 }
 ```
 
@@ -94,14 +121,19 @@ Any time you access inputs or outputs (or any other ```float_array_ptr``` array)
 
 ````c
 void sig_dsp_${SignalName}_generate(void* signal) {
+    // Cast a generic Signal pointer to the appropriate type.
     struct sig_dsp_${SignalName}* self = (struct sig_dsp_${SignalName}*) signal;
 
+    // Generate each sample for a block of output.
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        // Access inputs.
         float ${inputName} = FLOAT_ARRAY(self->inputs->${inputName})[i];
 
-        float val = ${inputName};
+        // Calculate output.
+        float val = ...;
 
-        FLOAT_ARRAY(self->signal.output)[i] = val;
+        // Assign the output to the appropriate sample in the block.
+        FLOAT_ARRAY(self->outputs.main)[i] = val;
     }
 }
 ````
@@ -113,6 +145,9 @@ The destructor is responsible for freeing all memory allocated by the signal's c
 ````c
 void sig_dsp_${SignalName}_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_${SignalName}* self) {
+    // Destroy any memory that was allocated in the Signal's constructor.
+
+    // Call the base Signal destructor.
     sig_dsp_Signal_destroy(allocator, self);
 }
 ````
