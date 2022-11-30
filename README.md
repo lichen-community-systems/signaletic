@@ -71,7 +71,7 @@ At the root of the Signaletic repository:
 
 #### Running the Unit Tests
 1. Native: ```meson test -C build/native -v```
-2. Node.js wasm: ```node build/wasm/run_tests.js```
+2. Node.js wasm: ```node libsignaletic/build/wasm/run_tests.js```
 3. Browser wasm: Open ```libsignaletic/tests/test-libsignaletic.html``` using VS Code's Live Server plugin or other web server.
 
 
