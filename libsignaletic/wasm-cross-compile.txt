@@ -8,8 +8,8 @@ exe_wrapper = 'node'
 needs_exe_wrapper = true
 
 [built-in options]
-c_link_args = ['-s', 'LINKABLE=1', '-s', 'EXPORTED_RUNTIME_METHODS=ccall', '-s', 'SINGLE_FILE=1', '-s', 'TOTAL_MEMORY=64MB']
-cpp_link_args = ['-s', 'LINKABLE=1', '-s', 'EXPORTED_RUNTIME_METHODS=ccall', '-s', 'SINGLE_FILE=1', '-s', 'TOTAL_MEMORY=64MB']
+c_link_args = ['-s', 'LINKABLE=1', '-s', 'EXPORTED_RUNTIME_METHODS=ccall', '-s', 'SINGLE_FILE=1', '-s', 'TOTAL_MEMORY=32MB']
+cpp_link_args = ['-s', 'LINKABLE=1', '-s', 'EXPORTED_RUNTIME_METHODS=ccall', '-s', 'SINGLE_FILE=1', '-s', 'TOTAL_MEMORY=32MB']
 
 [host_machine]
 system = 'emscripten'

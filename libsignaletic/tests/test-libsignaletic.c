@@ -253,12 +253,13 @@ void test_sig_samplesToSeconds() {
 }
 
 void test_sig_Audio_Block_newWithValue_testForValue(
-    struct sig_Allocator* localAlloc, struct sig_AudioSettings* settings,
+    struct sig_Allocator* localAlloc,
+    struct sig_AudioSettings* customSettings,
     float value) {
     float* actual = sig_AudioBlock_newWithValue(localAlloc,
-        settings, value);
+        customSettings, value);
     testAssertBufferContainsValueOnly(&allocator, value, actual,
-        settings->blockSize);
+        customSettings->blockSize);
     sig_AudioBlock_destroy(localAlloc, actual);
 }
 

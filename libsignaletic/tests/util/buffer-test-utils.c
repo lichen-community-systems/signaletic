@@ -3,8 +3,7 @@
 #include <assert.h>
 
 void testAssertBufferContainsValueOnly(struct sig_Allocator* allocator,
-    float expectedValue, float* actual,
-    size_t len) {
+    float expectedValue, float* actual, size_t len) {
     float* expectedArray = (float*) allocator->impl->malloc(
         allocator, len * sizeof(float));
     sig_fillWithValue(expectedArray, len, expectedValue);

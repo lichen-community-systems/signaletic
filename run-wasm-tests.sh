@@ -3,4 +3,4 @@
 cd libsignaletic
 
 # Run wasm tests
-meson test -C build/wasm -v
+node libsignaletic/build/wasm/run_tests.js
