@@ -934,9 +934,9 @@ int main(void) {
     RUN_TEST(test_sig_sig_freqToLinear);
     RUN_TEST(test_sig_fillWithValue);
     RUN_TEST(test_sig_fillWithSilence);
-    // RUN_TEST(test_sig_AudioSettings_new);
+    RUN_TEST(test_sig_AudioSettings_new);
     RUN_TEST(test_sig_samplesToSeconds);
-    RUN_TEST(test_sig_AudioBlock_newWithValue);
+    // RUN_TEST(test_sig_AudioBlock_newWithValue);
     RUN_TEST(test_sig_Buffer);
     RUN_TEST(test_sig_BufferView);
     RUN_TEST(test_sig_dsp_Value);
