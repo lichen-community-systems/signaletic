@@ -36,6 +36,8 @@ extern "C" {
 static const float sig_PI = 3.14159265358979323846f;
 static const float sig_TWOPI = 6.283185307179586f;
 static const float sig_RECIP_TWOPI = 0.159154943091895f;
+static const float sig_FREQ_C4 = 261.6256;
+static const float sig_LOG2 = 0.6931471805599453;
 
 enum sig_Result {
     SIG_RESULT_NONE,
@@ -141,6 +143,35 @@ uint16_t sig_bipolarToInvUint12(float sample);
  * @return the frequency in Hz of the note number
  */
 float sig_midiToFreq(float midiNum);
+
+/**
+ * Converts frequencies in hertz to MIDI note numbers.
+ * This algorithm assumes A4 = 440 Hz = MIDI note #69.
+ *
+ * @param frequency the frequency in hertz to convert
+ * @return the MIDI note number corresponding to the frequency
+ */
+float sig_freqToMidi(float frequency);
+
+/**
+ * @brief Converts a floating point value that represents pitch in
+ * a linear scale such as Eurorack-style volts/octave into a frequency in Hz.
+ *
+ * @param value the value to convert
+ * @param middleFreq the frequency at the midpoint (e.g. 261.6256 for middle C4 at 0.0f)
+ * @return float the frequency in hz
+ */
+float sig_linearToFreq(float value, float middleFreq);
+
+/**
+ * @brief Converts a frequency in Hz in to a linear volts per octave-style
+ * floating point value.
+ *
+ * @param value the frequency to convert
+ * @param middleFreq the frequency at the midpoint (e.g. 261.6256 for middle C4 at 0.0f)
+ * @return float the linear value
+ */
+float sig_freqToLinear(float freq, float middleFreq);
 
 /**
  * Type definition for array fill functions.

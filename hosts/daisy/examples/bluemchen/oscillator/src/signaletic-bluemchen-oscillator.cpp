@@ -6,12 +6,6 @@
 using namespace kxmx;
 using namespace daisy;
 
-Bluemchen bluemchen;
-Parameter knob1;
-Parameter knob2;
-Parameter cv1;
-Parameter cv2;
-
 FixedCapStr<20> displayStr;
 
 #define HEAP_SIZE 1024 * 256 // 256KB
@@ -26,10 +20,15 @@ struct sig_Allocator allocator = {
     .heap = &heap
 };
 
+Bluemchen bluemchen;
+Parameter freqCoarseKnob;
+Parameter freqFineKnob;
+Parameter vOctCV;
+
 struct sig_dsp_Value* freqMod;
-struct sig_dsp_Value* ampMod;
-struct sig_dsp_Oscillator* carrier;
-struct sig_dsp_Value* gainValue;
+struct sig_dsp_ConstantValue* ampMod;
+struct sig_dsp_Oscillator* osc;
+struct sig_dsp_ConstantValue* gainLevel;
 struct sig_dsp_BinaryOp* gain;
 
 void UpdateOled() {
@@ -41,25 +40,18 @@ void UpdateOled() {
     bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     displayStr.Clear();
-    displayStr.Append("A: ");
-    displayStr.AppendFloat(cv1.Value(), 3);
+    displayStr.AppendFloat(freqMod->parameters.value, 1);
+    displayStr.Append(" Hz");
     bluemchen.display.SetCursor(0, 8);
-    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
-
-    displayStr.Clear();
-    displayStr.Append("F: ");
-    displayStr.AppendFloat(cv2.Value(), 3);
-    bluemchen.display.SetCursor(0, 16);
     bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     bluemchen.display.Update();
 }
 
 void UpdateControls() {
-    knob1.Process();
-    knob2.Process();
-    cv1.Process();
-    cv2.Process();
+    freqCoarseKnob.Process();
+    freqFineKnob.Process();
+    vOctCV.Process();
 }
 
 void AudioCallback(daisy::AudioHandle::InputBuffer in,
@@ -67,23 +59,19 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
     UpdateControls();
 
     // Bind control values to Signals.
-    // TODO: This should be handled by a
-    // Host-provided Signal (gh-22).
-    gainValue->parameters.value = knob1.Value();
-    ampMod->parameters.value = cv1.Value();
+    // TODO: This should be handled by a Host-provided Signal (gh-22).
+    // TODO: Replace this with in-graph math.
+    // TODO: Add LPF smoothing for the rather glitchy knobs.
+    float vOct = freqCoarseKnob.Value() + vOctCV.Value() +
+        freqFineKnob.Value();
 
-    // TODO: Make a MidiFrequency Signal
-    // and then replace this with in-graph math.
-    // TODO: Treating the knob as an attenuator doesn't really
-    // have the effect we want. Instead, the CV and knob values
-    // should be added.
-    freqMod->parameters.value = sig_midiToFreq(cv2.Value()) * knob2.Value();
+    // TODO: Make a v/Oct Signal
+    freqMod->parameters.value = sig_linearToFreq(vOct, sig_FREQ_C4);
 
     // Evaluate the signal graph.
     ampMod->signal.generate(ampMod);
     freqMod->signal.generate(freqMod);
-    carrier->signal.generate(carrier);
-    gainValue->signal.generate(gainValue);
+    osc->signal.generate(osc);
     gain->signal.generate(gain);
 
     // Copy mono buffer to stereo output.
@@ -94,17 +82,14 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
 }
 
 void initControls() {
-    knob1.Init(bluemchen.controls[bluemchen.CTRL_1],
-        0.0f, 0.85f, Parameter::LINEAR);
-    cv1.Init(bluemchen.controls[bluemchen.CTRL_3],
-        -1.0f, 1.0f, Parameter::LINEAR);
-
-    knob2.Init(bluemchen.controls[bluemchen.CTRL_2],
-        0.0f, 1.0f, Parameter::LINEAR);
-    // Scale CV input to MIDI note numbers.
-    // TODO: But then is this tracking 1V/Oct?
-    cv2.Init(bluemchen.controls[bluemchen.CTRL_4],
-        0.0f, 120.0f, Parameter::LINEAR);
+    // FIXME: More than +5 octaves causes wild results when sweeping
+    // the coarse frequency knob. Why?
+    freqCoarseKnob.Init(bluemchen.controls[bluemchen.CTRL_1],
+        -5.0f, 5.0f, Parameter::LINEAR);
+    freqFineKnob.Init(bluemchen.controls[bluemchen.CTRL_2],
+        -0.5f, 0.5f, Parameter::LINEAR);
+    vOctCV.Init(bluemchen.controls[bluemchen.CTRL_4],
+        -5.0f, 5.0f, Parameter::LINEAR);
 }
 
 int main(void) {
@@ -124,25 +109,22 @@ int main(void) {
     bluemchen.StartAdc();
     initControls();
 
-    /** Modulators **/
+    /** Modulation **/
     freqMod = sig_dsp_Value_new(&allocator, context);
-    freqMod->parameters.value = 440.0f;
-    ampMod = sig_dsp_Value_new(&allocator, context);
-    ampMod->parameters.value = 1.0f;
+    freqMod->parameters.value = sig_FREQ_C4;
+    ampMod = sig_dsp_ConstantValue_new(&allocator, context, 1.0f);
 
-    carrier = sig_dsp_Sine_new(&allocator, context);
-    carrier->inputs.freq = freqMod->outputs.main;
-    carrier->inputs.mul = ampMod->outputs.main;
+    osc = sig_dsp_Sine_new(&allocator, context);
+    osc->inputs.freq = freqMod->outputs.main;
+    osc->inputs.mul = ampMod->outputs.main;
 
     /** Gain **/
     // Bluemchen's output circuit clips as it approaches full gain,
     // so 0.85 seems to be around the practical maximum value.
-    gainValue = sig_dsp_Value_new(&allocator, context);
-    gainValue->parameters.value = 0.85f;
-
+    gainLevel = sig_dsp_ConstantValue_new(&allocator, context, 0.85f);
     gain = sig_dsp_Mul_new(&allocator, context);
-    gain->inputs.left = carrier->outputs.main;
-    gain->inputs.right = gainValue->outputs.main;
+    gain->inputs.left = osc->outputs.main;
+    gain->inputs.right = gainLevel->outputs.main;
 
     bluemchen.StartAudio(AudioCallback);
 

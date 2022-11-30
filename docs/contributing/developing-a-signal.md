@@ -71,7 +71,7 @@ A signal's constructor is responsible for allocating memory for the signal's str
 ```c
 struct sig_dsp_${SignalName}* sig_dsp_${SignalName}_new(
     struct sig_Allocator* allocator,
-    struct sig_dsp_SignalContext* context) {
+    struct sig_SignalContext* context) {
     // Allocate memory for the Signal.
     struct sig_dsp_${SignalName}* self = sig_MALLOC(allocator,
         struct sig_dsp_${SignalName});
@@ -93,7 +93,7 @@ The initializer is responsible for assigning values to a signal's struct, settin
 
 ```c
 void sig_dsp_${SignalName}_init(struct sig_dsp_${SignalName}* self,
-    struct sig_dsp_SignalContext* context) {
+    struct sig_SignalContext* context) {
     // Call the base Signal initializer.
     sig_dsp_Signal_init(self, context, *sig_dsp_${SignalName}_generate);
 

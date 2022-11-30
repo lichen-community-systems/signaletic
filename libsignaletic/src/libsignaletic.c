@@ -73,6 +73,18 @@ float sig_midiToFreq(float midiNum) {
     return powf(2, (midiNum - 69.0f) / 12.0f) * 440.0f;
 }
 
+float sig_freqToMidi(float frequency) {
+    return(12.0f * logf(frequency / 440.0f) / sig_LOG2) + 69.0f;
+}
+
+float sig_linearToFreq(float vOct, float middleFreq) {
+    return middleFreq * powf(2, vOct);
+}
+
+float sig_freqToLinear(float freq, float middleFreq) {
+    return (logf(freq / middleFreq) / sig_LOG2);
+}
+
 float sig_randomFill(size_t i, float_array_ptr array) {
     return sig_randf();
 }

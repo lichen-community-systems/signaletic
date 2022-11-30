@@ -103,12 +103,12 @@ void test_sig_midiToFreq(void) {
 
     // 60 Middle C 261.63
     actual = sig_midiToFreq(60.0f);
-    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005, 261.63f, actual,
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005, sig_FREQ_C4, actual,
         "MIDI C3 should be 261.63 Hz");
 
     // MIDI 0
     actual = sig_midiToFreq(0.0f);
-    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005, 8.18f, actual,
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005, 8.176f, actual,
         "MIDI 0 should be 8.18 Hz");
 
     // Quarter tone
@@ -118,8 +118,80 @@ void test_sig_midiToFreq(void) {
 
     // Negative MIDI note numbers should return viable frequencies.
     actual = sig_midiToFreq(-60.0f);
-    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005, 0.255, actual,
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005, 0.2555, actual,
         "A negative MIDI number should return a negative frequency.");
+}
+
+void test_sig_freqToMidi(void) {
+    // 69 A 440
+    float actual = sig_freqToMidi(440.0f);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(FLOAT_EPSILON, 69.0f, actual,
+        "MIDI A4 should be 440 Hz");
+
+    // 60 Middle C 261.63
+    actual = sig_freqToMidi(sig_FREQ_C4);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005f, 60.0f, actual,
+        "MIDI C3 should be 261.63 Hz");
+
+    // MIDI 0
+    actual = sig_freqToMidi(8.176f);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005f, 0.0f, actual,
+        "MIDI 0 should be 8.18 Hz");
+
+    // Quarter tone
+    actual = sig_freqToMidi(269.29f);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005f, 60.5f, actual,
+        "A quarter tone above C3 should be 269.29 Hz");
+
+    // Negative MIDI note numbers should return viable frequencies.
+    actual = sig_freqToMidi(0.2555f);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005f, -60.0f, actual,
+        "A negative MIDI number should return a negative frequency.");
+}
+
+void test_sig_sig_linearToFreq(void) {
+    // 0.0f - 0V - Middle C4 - 261.626
+    float actual = sig_linearToFreq(0.0f, sig_FREQ_C4);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(sig_FREQ_C4, actual,
+        "0.0f should be middle C 261.626 Hz");
+
+    // 0.75f - 0.75V - A4 440
+    actual = sig_linearToFreq(0.75f, sig_FREQ_C4);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.001f, 440.0f, actual,
+        "3/4 of a volt should be 440 Hz");
+
+    // 2.5V - F#6 - 1479.98
+    actual = sig_linearToFreq(2.5f, sig_FREQ_C4);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005, 1479.98f, actual,
+        "2.5V should be F#5 739.99 Hz");
+
+    // -1.25 - A2 - 110 Hz
+    actual = sig_linearToFreq(-1.25f, sig_FREQ_C4);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005, 110.0f, actual,
+        "-1.25V should be A2 110 Hz");
+
+}
+
+void test_sig_sig_freqToLinear(void) {
+    // 0.0f - 0V - Middle C4 - 261.626 - 20Vpp
+    float actual = sig_freqToLinear(sig_FREQ_C4, sig_FREQ_C4);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(0.0f, actual,
+        "0.0f should be middle C 261.626 Hz");
+
+    // 0.75f - 0.75V - A4 440 - 1Vpp
+    actual = sig_freqToLinear(440.0f, sig_FREQ_C4);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.001f, 0.75f, actual,
+        "3/4 of a volt should be 440 Hz");
+
+    // 2.5V - F#6 - 1479.98 - 10Vpp
+    actual = sig_freqToLinear(1479.98f, sig_FREQ_C4);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005, 2.5f, actual,
+        "2.5V should be F#5 739.99 Hz");
+
+    // -1.25 - A2 - 110 Hz
+    actual = sig_freqToLinear(110.0f, sig_FREQ_C4);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005, -1.25f, actual,
+        "-1.25V should be A2 110 Hz");
 }
 
 void test_sig_fillWithValue(void) {
@@ -856,6 +928,9 @@ int main(void) {
     RUN_TEST(test_sig_bipolarToInvUint12);
     RUN_TEST(test_sig_randf);
     RUN_TEST(test_sig_midiToFreq);
+    RUN_TEST(test_sig_freqToMidi);
+    RUN_TEST(test_sig_sig_linearToFreq);
+    RUN_TEST(test_sig_sig_freqToLinear);
     RUN_TEST(test_sig_fillWithValue);
     RUN_TEST(test_sig_fillWithSilence);
     RUN_TEST(test_sig_AudioSettings_new);
