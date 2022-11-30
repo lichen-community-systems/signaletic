@@ -47,8 +47,6 @@ struct sig_daisy_CVOut* cv1Out;
 
 void AudioCallback(daisy::AudioHandle::InputBuffer in,
     daisy::AudioHandle::OutputBuffer out, size_t size) {
-    patch.ProcessAllControls();
-
     sig_dsp_generateSignals(&signals);
 
     for (size_t i = 0; i < size; i++) {

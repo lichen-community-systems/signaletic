@@ -41,29 +41,27 @@ void UpdateOled() {
 
     displayStr.Clear();
     displayStr.AppendFloat(freqMod->parameters.value, 1);
-    displayStr.Append(" Hz");
     bluemchen.display.SetCursor(0, 8);
+    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+
+    displayStr.Clear();
+    displayStr.Append(" Hz");
+    bluemchen.display.SetCursor(46, 8);
     bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     bluemchen.display.Update();
 }
 
-void UpdateControls() {
-    freqCoarseKnob.Process();
-    freqFineKnob.Process();
-    vOctCV.Process();
-}
 
 void AudioCallback(daisy::AudioHandle::InputBuffer in,
     daisy::AudioHandle::OutputBuffer out, size_t size) {
-    UpdateControls();
 
     // Bind control values to Signals.
     // TODO: This should be handled by a Host-provided Signal (gh-22).
     // TODO: Replace this with in-graph math.
     // TODO: Add LPF smoothing for the rather glitchy knobs.
-    float vOct = freqCoarseKnob.Value() + vOctCV.Value() +
-        freqFineKnob.Value();
+    float vOct = freqCoarseKnob.Process() + vOctCV.Process() +
+        freqFineKnob.Process();
 
     // TODO: Make a v/Oct Signal
     freqMod->parameters.value = sig_linearToFreq(vOct, sig_FREQ_C4);

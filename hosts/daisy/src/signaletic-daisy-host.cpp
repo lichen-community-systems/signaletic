@@ -2,6 +2,8 @@
 
 // TODO: Move vendored DPT (and Blumchen) out from examples
 // into the daisy directory.
+// TODO: Refactor this file into the generic Daisy-related parts
+// with separate host files for Bluemchen and DPT.
 #include "../examples/dpt/vendor/dpt/lib/daisy_dpt.h"
 
 void sig_daisy_DPT_dacWriterCallback(void* hostState) {
@@ -23,7 +25,8 @@ float sig_daisy_DPTHostImpl_getControlValue(struct sig_daisy_Host* host,
     int control) {
     struct sig_daisy_DPTState* dptState =
         static_cast<struct sig_daisy_DPTState*>(host->state);
-    return dptState->dpt->controls[control].Value();
+
+    return dptState->dpt->controls[control].Process();
 }
 
 void sig_daisy_DPTHostImpl_setControlValue(struct sig_daisy_Host* host,
@@ -87,9 +90,9 @@ void sig_daisy_GateIn_init(struct sig_daisy_GateIn* self,
 void sig_daisy_GateIn_generate(void* signal) {
     struct sig_daisy_GateIn* self = (struct sig_daisy_GateIn*) signal;
     struct sig_daisy_Host* host = self->host;
-    float sample = host->impl->getGateValue(self->host, self->control);
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float sample = host->impl->getGateValue(self->host, self->control);
         FLOAT_ARRAY(self->outputs.main)[i] = sample;
     }
 }
@@ -132,10 +135,10 @@ void sig_daisy_CVIn_generate(void* signal) {
     struct sig_daisy_Host* host = self->host;
     float scale = self->parameters.scale;
     float offset = self->parameters.offset;
-    float rawCV = host->impl->getControlValue(self->host, self->control);
-    float sample = rawCV * scale + offset;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float rawCV = host->impl->getControlValue(self->host, self->control);
+        float sample = rawCV * scale + offset;
         FLOAT_ARRAY(self->outputs.main)[i] = sample;
     }
 }
@@ -178,17 +181,15 @@ void sig_daisy_CVOut_generate(void* signal) {
     float scale = self->parameters.scale;
     float offset = self->parameters.offset;
 
-    // Read the input at control rate, so only the first sample.
-    float source = FLOAT_ARRAY(self->inputs.source)[0];
-    float sample = source * scale + offset;
-
     // Pass through the value to the output buffer,
     // so even sink signals can be chained.
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float source = FLOAT_ARRAY(self->inputs.source)[i];
+        float sample = source * scale + offset;
         FLOAT_ARRAY(self->outputs.main)[i] = sample;
+        host->impl->setControlValue(self->host, self->control, sample);
     }
 
-    host->impl->setControlValue(self->host, self->control, sample);
 }
 
 void sig_daisy_CVIn_destroy(struct sig_Allocator* allocator,
