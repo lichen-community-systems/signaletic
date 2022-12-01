@@ -4,16 +4,16 @@
 
 #define HEAP_SIZE 1024 * 128
 
-char memory[HEAP_SIZE];
+char allocatorMemory[HEAP_SIZE];
 
-struct sig_AllocatorHeap heap = {
+struct sig_AllocatorHeap allocatorHeap = {
     .length = HEAP_SIZE,
-    .memory = memory
+    .memory = allocatorMemory
 };
 
 struct sig_Allocator allocator = {
     .impl = &sig_TLSFAllocatorImpl,
-    .heap = &heap
+    .heap = &allocatorHeap
 };
 
 void printSample(float sample) {
