@@ -264,9 +264,9 @@ void test_sig_Audio_Block_newWithValue_testForValue(
 }
 
 void test_sig_AudioBlock_newWithValue(void) {
-    char customMemory[262144];
+    char customMemory[32768];
     struct sig_AllocatorHeap customHeap = {
-        .length = 262144,
+        .length = 32768,
         .memory = customMemory
     };
     struct sig_Allocator localAlloc = {

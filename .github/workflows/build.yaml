@@ -64,7 +64,6 @@ jobs:
 
       - name: Run unit tests in Node.js
         run: |
-          node --v8-options | grep -B0 -A1 stack-size
           ./run-wasm-tests.sh
 
       - name: run console example in Node.js
