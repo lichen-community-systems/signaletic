@@ -85,7 +85,7 @@ At the root of the Signaletic repository:
 1. Build libsignaletic Web Assembly
 2. Open ```hosts/web/examples/midi-to-freq/index.html``` using VS Code's Live Server plugin or other web server.
 
-##### Daisy Bluemchen Examples
+##### Daisy Examples
 1. If you haven't already, build the Docker image ```docker build . -t signaletic```
 2. ```docker run --platform=linux/amd64 -v `pwd`:/signaletic signaletic /signaletic/cross-build-arm.sh```
 3. Use the [Daisy Web Programmer](https://electro-smith.github.io/Programmer/) to flash the ```build/signaletic-bluemchen-looper.bin``` binary to the Daisy board, or run ```make program``` while connected to an ST-Link Mini debugger.
