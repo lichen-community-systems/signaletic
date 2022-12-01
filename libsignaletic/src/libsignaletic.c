@@ -573,6 +573,7 @@ void sig_dsp_ConstantValue_init(struct sig_dsp_ConstantValue* self,
 
 void sig_dsp_ConstantValue_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_ConstantValue* self) {
+    sig_AudioBlock_destroy(allocator, self->outputs.main);
     sig_dsp_Signal_destroy(allocator, (void*) self);
 };
 
@@ -980,6 +981,13 @@ struct sig_dsp_Oscillator* sig_dsp_Oscillator_new(
     return self;
 }
 
+void sig_dsp_Oscillator_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Oscillator* self) {
+    sig_AudioBlock_destroy(allocator, self->outputs.main);
+    sig_AudioBlock_destroy(allocator, self->outputs.eoc);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
+}
+
 void sig_dsp_Oscillator_init(struct sig_dsp_Oscillator* self,
     struct sig_SignalContext* context, sig_dsp_generateFn generate) {
     sig_dsp_Signal_init(self, context, generate);
@@ -1019,7 +1027,7 @@ struct sig_dsp_Oscillator* sig_dsp_Sine_new(struct sig_Allocator* allocator,
 
 void sig_dsp_Sine_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Oscillator* self) {
-    sig_dsp_Signal_destroy(allocator, (void*) self);
+    sig_dsp_Oscillator_destroy(allocator, self);
 }
 
 void sig_dsp_Sine_generate(void* signal) {
