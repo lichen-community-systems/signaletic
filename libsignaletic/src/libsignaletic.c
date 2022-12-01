@@ -512,6 +512,20 @@ void sig_dsp_generateSignals(struct sig_List* signalList) {
 }
 
 
+void sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_dsp_Signal_SingleMonoOutput* outputs) {
+    outputs->main = sig_AudioBlock_new(allocator, audioSettings);
+}
+
+void sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_dsp_Signal_SingleMonoOutput* outputs) {
+    sig_AudioBlock_destroy(allocator, outputs->main);
+}
+
+
 void sig_dsp_Value_init(struct sig_dsp_Value* self,
     struct sig_SignalContext* context) {
 
@@ -528,12 +542,15 @@ struct sig_dsp_Value* sig_dsp_Value_new(struct sig_Allocator* allocator,
     struct sig_SignalContext* context) {
     struct sig_dsp_Value* self = sig_MALLOC(allocator, struct sig_dsp_Value);
     sig_dsp_Value_init(self, context);
-    self->outputs.main = sig_AudioBlock_new(allocator, context->audioSettings);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
 
     return self;
 }
 
 void sig_dsp_Value_destroy(struct sig_Allocator* allocator, struct sig_dsp_Value* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
 }
 
@@ -557,8 +574,8 @@ struct sig_dsp_ConstantValue* sig_dsp_ConstantValue_new(
     float value) {
     struct sig_dsp_ConstantValue* self = sig_MALLOC(allocator,
         struct sig_dsp_ConstantValue);
-    self->outputs.main = sig_AudioBlock_new(allocator,
-        context->audioSettings);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
     sig_dsp_ConstantValue_init(self, context, value);
 
     return self;
@@ -573,7 +590,8 @@ void sig_dsp_ConstantValue_init(struct sig_dsp_ConstantValue* self,
 
 void sig_dsp_ConstantValue_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_ConstantValue* self) {
-    sig_AudioBlock_destroy(allocator, self->outputs.main);
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
 };
 
@@ -583,8 +601,8 @@ struct sig_dsp_BinaryOp* sig_dsp_BinaryOp_new(struct sig_Allocator* allocator,
     struct sig_dsp_BinaryOp* self = sig_MALLOC(allocator,
         struct sig_dsp_BinaryOp);
     sig_dsp_BinaryOp_init(self, context, generate);
-    self->outputs.main = sig_AudioBlock_new(allocator,
-        context->audioSettings);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
 
     return self;
 }
@@ -594,6 +612,13 @@ void sig_dsp_BinaryOp_init(struct sig_dsp_BinaryOp* self,
     sig_dsp_Signal_init(self, context, generate);
     self->inputs.left = context->silence->outputs.main;
     self->inputs.right = context->silence->outputs.main;
+}
+
+void sig_dsp_BinaryOp_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_BinaryOp* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
 }
 
 struct sig_dsp_BinaryOp* sig_dsp_Add_new(
@@ -621,7 +646,7 @@ void sig_dsp_Add_generate(void* signal) {
 
 void sig_dsp_Add_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_BinaryOp* self) {
-    sig_dsp_Signal_destroy(allocator, self);
+    sig_dsp_BinaryOp_destroy(allocator, self);
 }
 
 
@@ -638,7 +663,7 @@ void sig_dsp_Mul_init(struct sig_dsp_BinaryOp* self,
 
 void sig_dsp_Mul_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_BinaryOp* self) {
-    sig_dsp_Signal_destroy(allocator, (void*) self);
+    sig_dsp_BinaryOp_destroy(allocator, self);
 };
 
 void sig_dsp_Mul_generate(void* signal) {
@@ -676,7 +701,7 @@ void sig_dsp_Div_generate(void* signal) {
 
 void sig_dsp_Div_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_BinaryOp* self) {
-    sig_dsp_Signal_destroy(allocator, self);
+    sig_dsp_BinaryOp_destroy(allocator, self);
 }
 
 
@@ -684,8 +709,8 @@ struct sig_dsp_Invert* sig_dsp_Invert_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context) {
     struct sig_dsp_Invert* self = sig_MALLOC(allocator, struct sig_dsp_Invert);
     sig_dsp_Invert_init(self, context);
-    self->outputs.main = sig_AudioBlock_new(allocator,
-        context->audioSettings);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
 
     return self;
 }
@@ -708,6 +733,8 @@ void sig_dsp_Invert_generate(void* signal) {
 
 void sig_dsp_Invert_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Invert* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
 }
 
@@ -717,8 +744,8 @@ struct sig_dsp_Accumulate* sig_dsp_Accumulate_new(
     struct sig_dsp_Accumulate* self = sig_MALLOC(allocator,
         struct sig_dsp_Accumulate);
     sig_dsp_Accumulate_init(self, context);
-    self->outputs.main = sig_AudioBlock_new(allocator,
-        context->audioSettings);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
     return self;
 }
 
@@ -761,6 +788,8 @@ void sig_dsp_Accumulate_generate(void* signal) {
 
 void sig_dsp_Accumulate_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Accumulate* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
 }
 
@@ -770,8 +799,8 @@ struct sig_dsp_GatedTimer* sig_dsp_GatedTimer_new(
     struct sig_dsp_GatedTimer* self = sig_MALLOC(allocator,
         struct sig_dsp_GatedTimer);
     sig_dsp_GatedTimer_init(self, context);
-    self->outputs.main = sig_AudioBlock_new(allocator,
-        context->audioSettings);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
     return self;
 }
 
@@ -832,6 +861,8 @@ void sig_dsp_GatedTimer_generate(void* signal) {
 
 void sig_dsp_GatedTimer_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_GatedTimer* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
 }
 
@@ -841,8 +872,8 @@ struct sig_dsp_TimedTriggerCounter* sig_dsp_TimedTriggerCounter_new(
     struct sig_dsp_TimedTriggerCounter* self = sig_MALLOC(allocator,
         struct sig_dsp_TimedTriggerCounter);
     sig_dsp_TimedTriggerCounter_init(self, context);
-    self->outputs.main = sig_AudioBlock_new(allocator,
-        context->audioSettings);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
 
     return self;
 }
@@ -917,6 +948,8 @@ void sig_dsp_TimedTriggerCounter_generate(void* signal) {
 void sig_dsp_TimedTriggerCounter_destroy(
     struct sig_Allocator* allocator,
     struct sig_dsp_TimedTriggerCounter* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
 }
 
@@ -927,8 +960,8 @@ struct sig_dsp_ToggleGate* sig_dsp_ToggleGate_new(
     struct sig_dsp_ToggleGate* self = sig_MALLOC(allocator,
         struct sig_dsp_ToggleGate);
     sig_dsp_ToggleGate_init(self, context);
-    self->outputs.main = sig_AudioBlock_new(allocator,
-        context->audioSettings);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
 
     return self;
 }
@@ -964,7 +997,24 @@ void sig_dsp_ToggleGate_generate(void* signal) {
 void sig_dsp_ToggleGate_destroy(
     struct sig_Allocator* allocator,
     struct sig_dsp_ToggleGate* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
+}
+
+void sig_dsp_Oscillator_Outputs_newAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_dsp_Oscillator_Outputs* outputs) {
+    outputs->main = sig_AudioBlock_new(allocator, audioSettings);
+    outputs->eoc = sig_AudioBlock_new(allocator, audioSettings);
+}
+
+void sig_dsp_Oscillator_Outputs_destroyAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_dsp_Oscillator_Outputs* outputs) {
+    sig_AudioBlock_destroy(allocator, outputs->main);
+    sig_AudioBlock_destroy(allocator, outputs->eoc);
 }
 
 struct sig_dsp_Oscillator* sig_dsp_Oscillator_new(
@@ -973,18 +1023,15 @@ struct sig_dsp_Oscillator* sig_dsp_Oscillator_new(
     struct sig_dsp_Oscillator* self = sig_MALLOC(allocator,
         struct sig_dsp_Oscillator);
     sig_dsp_Oscillator_init(self, context, generate);
-    self->outputs.main = sig_AudioBlock_new(allocator,
-        context->audioSettings);
-    self->outputs.eoc = sig_AudioBlock_new(allocator,
-        context->audioSettings);
+    sig_dsp_Oscillator_Outputs_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
 
     return self;
 }
 
 void sig_dsp_Oscillator_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Oscillator* self) {
-    sig_AudioBlock_destroy(allocator, self->outputs.main);
-    sig_AudioBlock_destroy(allocator, self->outputs.eoc);
+    sig_dsp_Oscillator_Outputs_destroyAudioBlocks(allocator, &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
 }
 
@@ -1080,7 +1127,7 @@ void sig_dsp_LFTriangle_generate(void* signal) {
 
 void sig_dsp_LFTriangle_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Oscillator* self) {
-    sig_dsp_Signal_destroy(allocator, (void*) self);
+    sig_dsp_Oscillator_destroy(allocator, self);
 }
 
 
@@ -1098,8 +1145,8 @@ struct sig_dsp_OnePole* sig_dsp_OnePole_new(struct sig_Allocator* allocator,
     struct sig_dsp_OnePole* self = sig_MALLOC(allocator,
         struct sig_dsp_OnePole);
     sig_dsp_OnePole_init(self, context);
-    self->outputs.main = sig_AudioBlock_new(allocator,
-        context->audioSettings);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
 
     return self;
 }
@@ -1120,7 +1167,9 @@ void sig_dsp_OnePole_generate(void* signal) {
 
 void sig_dsp_OnePole_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_OnePole* self) {
-        sig_dsp_Signal_destroy(allocator, (void*) self);
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
 }
 
 
@@ -1135,8 +1184,8 @@ struct sig_dsp_Tanh* sig_dsp_Tanh_new(struct sig_Allocator* allocator,
     struct sig_SignalContext* context) {
     struct sig_dsp_Tanh* self = sig_MALLOC(allocator, struct sig_dsp_Tanh);
     sig_dsp_Tanh_init(self, context);
-    self->outputs.main = sig_AudioBlock_new(allocator,
-        context->audioSettings);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
 
     return self;
 }
@@ -1154,6 +1203,8 @@ void sig_dsp_Tanh_generate(void* signal) {
 
 void sig_dsp_Tanh_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Tanh* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
 }
 
@@ -1187,8 +1238,8 @@ struct sig_dsp_Looper* sig_dsp_Looper_new(struct sig_Allocator* allocator,
     struct sig_dsp_Looper* self = sig_MALLOC(allocator,
         struct sig_dsp_Looper);
     sig_dsp_Looper_init(self, context);
-    self->outputs.main = sig_AudioBlock_new(allocator,
-        context->audioSettings);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
 
     return self;
 }
@@ -1354,6 +1405,8 @@ void sig_dsp_Looper_generate(void* signal) {
 
 void sig_dsp_Looper_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Looper* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
 }
 
@@ -1379,8 +1432,8 @@ struct sig_dsp_Dust* sig_dsp_Dust_new(struct sig_Allocator* allocator,
 
     struct sig_dsp_Dust* self = sig_MALLOC(allocator, struct sig_dsp_Dust);
     sig_dsp_Dust_init(self, context);
-    self->outputs.main = sig_AudioBlock_new(allocator,
-        context->audioSettings);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
 
     return self;
 }
@@ -1410,6 +1463,8 @@ void sig_dsp_Dust_generate(void* signal) {
 
 void sig_dsp_Dust_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Dust* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
 }
 
@@ -1439,8 +1494,8 @@ struct sig_dsp_TimedGate* sig_dsp_TimedGate_new(
     struct sig_dsp_TimedGate* self = sig_MALLOC(allocator,
         struct sig_dsp_TimedGate);
     sig_dsp_TimedGate_init(self, context);
-    self->outputs.main = sig_AudioBlock_new(allocator,
-        context->audioSettings);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
 
     return self;
 }
@@ -1500,6 +1555,8 @@ void sig_dsp_TimedGate_generate(void* signal) {
 
 void sig_dsp_TimedGate_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_TimedGate* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
 }
 
@@ -1527,8 +1584,8 @@ struct sig_dsp_ClockFreqDetector* sig_dsp_ClockFreqDetector_new(
     struct sig_dsp_ClockFreqDetector* self = sig_MALLOC(allocator,
         struct sig_dsp_ClockFreqDetector);
     sig_dsp_ClockFreqDetector_init(self, context);
-    self->outputs.main = sig_AudioBlock_new(allocator,
-        context->audioSettings);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
 
     return self;
 }
@@ -1599,5 +1656,7 @@ void sig_dsp_ClockFreqDetector_generate(void* signal) {
 
 void sig_dsp_ClockFreqDetector_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_ClockFreqDetector* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
 }

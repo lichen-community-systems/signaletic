@@ -698,6 +698,13 @@ struct sig_dsp_Signal_SingleMonoOutput {
     float_array_ptr main;
 };
 
+void sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_dsp_Signal_SingleMonoOutput* outputs);
+void sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_dsp_Signal_SingleMonoOutput* outputs);
 
 struct sig_dsp_Value_Parameters {
     float value;
@@ -992,6 +999,14 @@ struct sig_dsp_Oscillator_Outputs {
     float_array_ptr eoc;
 };
 
+void sig_dsp_Oscillator_Outputs_newAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_dsp_Oscillator_Outputs* outputs);
+void sig_dsp_Oscillator_Outputs_destroyAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_dsp_Oscillator_Outputs* outputs);
+
 struct sig_dsp_Oscillator {
     struct sig_dsp_Signal signal;
     struct sig_dsp_Oscillator_Inputs inputs;
@@ -1008,6 +1023,7 @@ void sig_dsp_Oscillator_accumulatePhase(struct sig_dsp_Oscillator* self,
     size_t i);
 void sig_dsp_Oscillator_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Oscillator* self);
+
 
 void sig_dsp_Sine_init(struct sig_dsp_Oscillator* self,
     struct sig_SignalContext* context);
