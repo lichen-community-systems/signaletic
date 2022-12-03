@@ -1,6 +1,6 @@
 #include <libsignaletic.h>
-#include "../examples/dpt/vendor/dpt/lib/daisy_dpt.h"
-#include "../examples/bluemchen/vendor/kxmx_bluemchen/src/kxmx_bluemchen.h"
+#include "../vendor/dpt/lib/daisy_dpt.h"
+#include "../vendor/kxmx_bluemchen/src/kxmx_bluemchen.h"
 
 enum {
     sig_daisy_GATEIN_1 = 0,

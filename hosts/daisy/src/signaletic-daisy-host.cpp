@@ -4,7 +4,7 @@
 // into the daisy directory.
 // TODO: Refactor this file into the generic Daisy-related parts
 // with separate host files for Bluemchen and DPT.
-#include "../examples/dpt/vendor/dpt/lib/daisy_dpt.h"
+#include "../vendor/dpt/lib/daisy_dpt.h"
 
 void sig_daisy_DPT_dacWriterCallback(void* hostState) {
     struct sig_daisy_DPTState* dptState =

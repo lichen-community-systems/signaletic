@@ -1,7 +1,7 @@
-#include "../../vendor/kxmx_bluemchen/src/kxmx_bluemchen.h"
+#include "../../../../vendor/kxmx_bluemchen/src/kxmx_bluemchen.h"
 #include <tlsf.h>
 #include <libsignaletic.h>
-#include "../../../../include/cc-signals.h"
+#include "../../../../include/dust-gate.h"
 #include <string>
 
 using namespace kxmx;
