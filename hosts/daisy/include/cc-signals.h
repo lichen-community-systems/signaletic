@@ -35,10 +35,11 @@ void cc_sig_DustGate_init(struct cc_sig_DustGate* self,
 
 // TODO: There's an asymmetry here with the constructor signature,
 // compared to other signals. The issue is that we need to be able to assign
-// our top-level inputs as inputs to sub-signals. This will need to designed
-// explicitly so that users can compose Signals together, including defining
-// connections between them. It will likely require additional lifecycle hooks
-// for a Signal.
+// our top-level inputs as inputs to sub-signals.
+// We need a design that will allow users can compose Signals together,
+// including defining connections between them, without requiring custom
+// constructor signatures. This likely require additional lifecycle hooks
+// for a Signal, such as for binding default signal connections.
 struct cc_sig_DustGate* cc_sig_DustGate_new(struct sig_Allocator* allocator,
     struct sig_SignalContext* context, struct cc_sig_DustGate_Inputs inputs) {
     struct cc_sig_DustGate* self = sig_MALLOC(allocator,

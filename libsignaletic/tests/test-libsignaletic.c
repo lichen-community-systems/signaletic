@@ -264,10 +264,10 @@ void test_sig_Audio_Block_newWithValue_testForValue(
 }
 
 void test_sig_AudioBlock_newWithValue(void) {
-    // Note: This "heap" is actually here on the stack,
+    // Note: This "heap" is actually stored here on the stack,
     // so it needs to stay small, or else has to be moved
-    // onto the actual heap. It's here now so that this test
-    // can be a little more self-contained.
+    // onto the program's heap. It's here now so that this test
+    // is more self-contained.
     char customMemory[32768];
     struct sig_AllocatorHeap customHeap = {
         .length = 32768,

@@ -63,9 +63,6 @@ float sig_daisy_DPTHostImpl_getGateValue(
     struct sig_daisy_Host* host, int control);
 
 
-// TODO: Is a different output structure more appropriate here,
-// such as multiple outputs for each gate, or one output with
-// multiple channels?
 struct sig_daisy_GateIn {
     struct sig_dsp_Signal signal;
     struct sig_daisy_Host* host;
@@ -73,6 +70,8 @@ struct sig_daisy_GateIn {
     int control;
 };
 
+// FIXME: The control value should be specified as a parameter,
+// rather than a special constructor argument.
 struct sig_daisy_GateIn* sig_daisy_GateIn_new(struct sig_Allocator* allocator,
     struct sig_SignalContext* context, struct sig_daisy_Host* host,
     int control);
@@ -90,7 +89,6 @@ struct sig_daisy_CV_Parameters {
 };
 
 // FIXME: Control should at least be a parameter, if not an input.
-// TODO: Is a different output structure more appropriate here?
 struct sig_daisy_CVIn {
     struct sig_dsp_Signal signal;
     struct sig_daisy_CV_Parameters parameters;

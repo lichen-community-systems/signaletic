@@ -36,8 +36,8 @@ extern "C" {
 static const float sig_PI = 3.14159265358979323846f;
 static const float sig_TWOPI = 6.283185307179586f;
 static const float sig_RECIP_TWOPI = 0.159154943091895f;
-static const float sig_FREQ_C4 = 261.6256;
 static const float sig_LOG2 = 0.6931471805599453;
+static const float sig_FREQ_C4 = 261.6256;
 
 enum sig_Result {
     SIG_RESULT_NONE,
@@ -711,7 +711,7 @@ struct sig_dsp_Value_Parameters {
 };
 
 /**
- * @brief A signal that outputs the value specified by its 'value' parameter.
+ * @brief A signal that outputs a value.
  * This is intended to be used for values that may change periodically as a
  * result of user input.
  */

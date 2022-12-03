@@ -73,8 +73,8 @@ struct sig_daisy_GateIn* sig_daisy_GateIn_new(struct sig_Allocator* allocator,
     struct sig_daisy_GateIn* self = sig_MALLOC(allocator,
         struct sig_daisy_GateIn);
     sig_daisy_GateIn_init(self, context, host, control);
-    self->outputs.main = sig_AudioBlock_new(allocator,
-        context->audioSettings);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
 
     return self;
 }
@@ -99,6 +99,8 @@ void sig_daisy_GateIn_generate(void* signal) {
 
 void sig_daisy_GateIn_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_GateIn* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
 }
 
@@ -109,8 +111,8 @@ struct sig_daisy_CVIn* sig_daisy_CVIn_new(struct sig_Allocator* allocator,
     struct sig_daisy_CVIn* self = sig_MALLOC(allocator,
         struct sig_daisy_CVIn);
     sig_daisy_CVIn_init(self, context, host, control);
-    self->outputs.main = sig_AudioBlock_new(allocator,
-        context->audioSettings);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
 
     return self;
 }
@@ -145,6 +147,8 @@ void sig_daisy_CVIn_generate(void* signal) {
 
 void sig_daisy_CVIn_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_CVIn* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
 }
 
@@ -155,8 +159,9 @@ struct sig_daisy_CVOut* sig_daisy_CVOut_new(struct sig_Allocator* allocator,
     struct sig_daisy_CVOut* self = sig_MALLOC(allocator,
         struct sig_daisy_CVOut);
     sig_daisy_CVOut_init(self, context, host, control);
-    self->outputs.main = sig_AudioBlock_new(allocator,
-        context->audioSettings);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
     return self;
 }
 
@@ -194,5 +199,7 @@ void sig_daisy_CVOut_generate(void* signal) {
 
 void sig_daisy_CVIn_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_CVOut* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
 }

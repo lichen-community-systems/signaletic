@@ -19,7 +19,7 @@ struct sig_dsp_${SignalName} {
 
     struct sig_dsp_${SignalName}_Parameters parameters;
 
-    struct sig_dsp_Signal_{OutputType} outputs;
+    struct sig_dsp_${OutputType} outputs;
 
     float ${stateName};
 };
@@ -29,14 +29,14 @@ struct sig_dsp_${SignalName} {
 
 In Signaletic, signals can have multiple outputs. For example, oscillators have both a "main" output that contains the oscillator's waveform, as well as an "eoc" output that fires a trigger whenever the oscillator reaches the end of its cycle.
 
-By default, Signaletic defines a series of core output types, which encompass common output topologies. Currently these include:
+By default, Signaletic defines a series of core output types, which cover common output topologies. Currently these include:
  * ```sig_dsp_Signal_SingleMonoOutput```, which provides one mono output called ```main```
  * ```sig_dsp_Oscillator_Outputs```, containing a mono ```main``` and a mono ```eoc`` output
 
 Additional output types for other cases, including multichannel outputs, will be added. Custom outputs are defined as follows:
 
 ```c
-struct sig_dsp_${SignalName}_Output {
+struct sig_dsp_${SignalName}_Outputs {
     float_array_ptr ${outputName};
     float_array_ptr ${otherOutputName};
 };
@@ -80,8 +80,8 @@ struct sig_dsp_${SignalName}* sig_dsp_${SignalName}_new(
     sig_dsp_${SignalName}_init(self, context);
 
     // Allocate output blocks.
-    self->outputs.main = sig_AudioBlock_new(allocator,
-        context->audioSettings);
+    sig_dsp_${OutputType}_newAudioBlocks(allocator, context->audioSettings,
+        &self->outputs);
 
     return self;
 }
@@ -145,6 +145,9 @@ The destructor is responsible for freeing all memory allocated by the signal's c
 ````c
 void sig_dsp_${SignalName}_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_${SignalName}* self) {
+    // Destroy output audio blocks.
+    sig_dsp_${OutputType}_destroyAudioBlocks(allocator, &self->outputs);
+
     // Destroy any memory that was allocated in the Signal's constructor.
 
     // Call the base Signal destructor.

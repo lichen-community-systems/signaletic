@@ -491,11 +491,7 @@ void sig_dsp_Signal_init(void* signal, struct sig_SignalContext* context,
 
 void sig_dsp_Signal_noOp(void* signal) {};
 
-// FIXME: We are leaking output block memory for all standard output
-// types here, since they are usually allocated in each Signal's
-// constructor but not destroyed here.
-// TODO: Implement constructors and destructors for the buffers contained
-// in the standard output types.
+// TODO: Should self be defined as a struct_dsp_Signal* in the signature?
 void sig_dsp_Signal_destroy(struct sig_Allocator* allocator,
     void* self) {
     struct sig_dsp_Signal* signal = (struct sig_dsp_Signal*) self;
