@@ -9,7 +9,7 @@ C_SOURCES += ../../../../../libsignaletic/vendor/tlsf/tlsf.c ../../../../../libs
 C_INCLUDES += -I../../../../../libsignaletic/vendor/tlsf -I../../../../../libsignaletic/include
 
 CPP_INCLUDES += -I../../src/include
-CPP_SOURCES = ../vendor/kxmx_bluemchen/src/kxmx_bluemchen.cpp src/${TARGET}.cpp
+CPP_SOURCES = ../../../vendor/kxmx_bluemchen/src/kxmx_bluemchen.cpp src/${TARGET}.cpp
 
 USE_FATFS = 1
 

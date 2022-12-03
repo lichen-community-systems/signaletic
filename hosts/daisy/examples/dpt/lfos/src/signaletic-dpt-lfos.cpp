@@ -1,7 +1,7 @@
 #include "daisy.h"
 #include <libsignaletic.h>
 #include "../../../../vendor/dpt/lib/daisy_dpt.h"
-#include "../../../../include/signaletic-daisy-host.h"
+#include "../../../../include/daisy-dpt-host.h"
 
 daisy::dpt::DPT patch;
 
