@@ -66,18 +66,17 @@ float sig_daisy_DPTHostImpl_getGateValue(
 struct sig_daisy_GateIn {
     struct sig_dsp_Signal signal;
     struct sig_daisy_Host* host;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
     int control;
 };
 
-struct sig_daisy_GateIn* sig_daisy_GateIn_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_daisy_Host* host,
+// FIXME: The control value should be specified as a parameter,
+// rather than a special constructor argument.
+struct sig_daisy_GateIn* sig_daisy_GateIn_new(struct sig_Allocator* allocator,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host,
     int control);
 void sig_daisy_GateIn_init(struct sig_daisy_GateIn* self,
-    struct sig_AudioSettings* settings,
-    float_array_ptr output,
-    struct sig_daisy_Host* host,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host,
     int control);
 void sig_daisy_GateIn_generate(void* signal);
 void sig_daisy_GateIn_destroy(struct sig_Allocator* allocator,
@@ -93,19 +92,16 @@ struct sig_daisy_CV_Parameters {
 struct sig_daisy_CVIn {
     struct sig_dsp_Signal signal;
     struct sig_daisy_CV_Parameters parameters;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
     struct sig_daisy_Host* host;
     int control;
 };
 
-struct sig_daisy_CVIn* sig_daisy_CVIn_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_daisy_Host* host,
+struct sig_daisy_CVIn* sig_daisy_CVIn_new(struct sig_Allocator* allocator,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host,
     int control);
 void sig_daisy_CVIn_init(struct sig_daisy_CVIn* self,
-    struct sig_AudioSettings* settings,
-    float_array_ptr output,
-    struct sig_daisy_Host* host,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host,
     int control);
 void sig_daisy_CVIn_generate(void* signal);
 void sig_daisy_CVIn_destroy(struct sig_Allocator* allocator,
@@ -116,25 +112,25 @@ struct sig_daisy_CVOut_Inputs {
     float_array_ptr source;
 };
 
+// TODO: Should we have a "no output" outputs type,
+// or continue with the idea of passing through the input
+// for chaining?
 struct sig_daisy_CVOut {
     struct sig_dsp_Signal signal;
     struct sig_daisy_CV_Parameters parameters;
-    struct sig_daisy_CVOut_Inputs* inputs;
+    struct sig_daisy_CVOut_Inputs inputs;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
     struct sig_daisy_Host* host;
     int control;
 };
 
 struct sig_daisy_CVOut* sig_daisy_CVOut_new(
     struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_daisy_CVOut_Inputs* inputs,
+    struct sig_SignalContext* context,
     struct sig_daisy_Host* host,
     int control);
 void sig_daisy_CVOut_init(struct sig_daisy_CVOut* self,
-    struct sig_AudioSettings* settings,
-    struct sig_daisy_CVOut_Inputs* inputs,
-    float_array_ptr output,
-    struct sig_daisy_Host* host,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host,
     int control);
 void sig_daisy_CVOut_generate(void* signal);
 void sig_daisy_CVOut_destroy(struct sig_Allocator* allocator,

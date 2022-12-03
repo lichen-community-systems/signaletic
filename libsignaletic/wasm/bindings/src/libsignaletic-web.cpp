@@ -11,8 +11,8 @@ public:
 
     struct sig_dsp_Value* Value_new(
         struct sig_Allocator* allocator,
-        struct sig_AudioSettings* audioSettings) {
-        return sig_dsp_Value_new(allocator, audioSettings);
+        struct sig_SignalContext* context) {
+        return sig_dsp_Value_new(allocator, context);
     }
 
     void Value_destroy(struct sig_Allocator* allocator,
@@ -20,22 +20,9 @@ public:
         return sig_dsp_Value_destroy(allocator, self);
     }
 
-    struct sig_dsp_BinaryOp_Inputs* BinaryOp_Inputs_new(
-        struct sig_Allocator* allocator,
-        struct sig_SignalContext* context) {
-        return sig_dsp_BinaryOp_Inputs_new(allocator, context);
-    }
-
-    void BinaryOp_Inputs_destroy(struct sig_Allocator* allocator,
-        struct sig_dsp_BinaryOp_Inputs* self) {
-        return sig_dsp_BinaryOp_Inputs_destroy(allocator, self);
-    }
-
     struct sig_dsp_BinaryOp* Add_new(struct sig_Allocator* allocator,
-        struct sig_AudioSettings* audioSettings,
-        struct sig_dsp_BinaryOp_Inputs* inputs) {
-        return sig_dsp_Add_new(allocator, audioSettings,
-            inputs);
+        struct sig_SignalContext* context) {
+        return sig_dsp_Add_new(allocator, context);
     }
 
     void Add_destroy(struct sig_Allocator* allocator,
@@ -44,10 +31,8 @@ public:
     }
 
     struct sig_dsp_BinaryOp* Mul_new(struct sig_Allocator* allocator,
-        struct sig_AudioSettings* audioSettings,
-        struct sig_dsp_BinaryOp_Inputs* inputs) {
-        return sig_dsp_Mul_new(allocator, audioSettings,
-            inputs);
+        struct sig_SignalContext* context) {
+        return sig_dsp_Mul_new(allocator, context);
     }
 
     void Mul_destroy(struct sig_Allocator* allocator,
@@ -56,10 +41,8 @@ public:
     }
 
     struct sig_dsp_BinaryOp* Div_new(struct sig_Allocator* allocator,
-        struct sig_AudioSettings* audioSettings,
-        struct sig_dsp_BinaryOp_Inputs* inputs) {
-        return sig_dsp_Div_new(allocator, audioSettings,
-            inputs);
+        struct sig_SignalContext* context) {
+        return sig_dsp_Div_new(allocator, context);
     }
 
     void Div_destroy(struct sig_Allocator* allocator,
@@ -68,10 +51,8 @@ public:
     }
 
     struct sig_dsp_Oscillator* Sine_new(struct sig_Allocator* allocator,
-        struct sig_AudioSettings* audioSettings,
-        struct sig_dsp_Oscillator_Inputs* inputs) {
-        return sig_dsp_Sine_new(allocator, audioSettings,
-            inputs);
+        struct sig_SignalContext* context) {
+        return sig_dsp_Sine_new(allocator, context);
     }
 
     void Sine_destroy(struct sig_Allocator* allocator,
@@ -80,9 +61,8 @@ public:
     }
 
     struct sig_dsp_Oscillator* LFTriangle_new(struct sig_Allocator* allocator,
-        struct sig_AudioSettings* audioSettings,
-        struct sig_dsp_Oscillator_Inputs* inputs) {
-        return sig_dsp_LFTriangle_new(allocator, audioSettings, inputs);
+        struct sig_SignalContext* context) {
+        return sig_dsp_LFTriangle_new(allocator, context);
     }
 
     void LFTriangle_destroy(struct sig_Allocator* allocator,
@@ -90,42 +70,16 @@ public:
         return sig_dsp_LFTriangle_destroy(allocator, self);
     }
 
-    struct sig_dsp_Oscillator_Inputs* Oscillator_Inputs_new(
-        struct sig_Allocator* allocator, struct sig_SignalContext* context) {
-        return sig_dsp_Oscillator_Inputs_new(allocator, context);
-    }
-
-    void Oscillator_Inputs_destroy(struct sig_Allocator* allocator,
-        struct sig_dsp_Oscillator_Inputs* self) {
-        sig_dsp_Oscillator_Inputs_destroy(allocator, self);
-    }
-
 
     struct sig_dsp_ClockFreqDetector* ClockFreqDetector_new(
         struct sig_Allocator* allocator,
-        struct sig_AudioSettings* audioSettings,
-        struct sig_dsp_ClockFreqDetector_Inputs* inputs) {
-        return sig_dsp_ClockFreqDetector_new(allocator, audioSettings, inputs);
+        struct sig_SignalContext* context) {
+        return sig_dsp_ClockFreqDetector_new(allocator, context);
     }
 
     void ClockFreqDetector_destroy(struct sig_Allocator* allocator,
         struct sig_dsp_ClockFreqDetector* self) {
         return sig_dsp_ClockFreqDetector_destroy(allocator, self);
-    }
-
-    struct sig_dsp_ClockFreqDetector_Inputs* ClockFreqDetector_Inputs_new(
-        struct sig_Allocator* allocator, float_array_ptr source) {
-        struct sig_dsp_ClockFreqDetector_Inputs* inputs = (struct sig_dsp_ClockFreqDetector_Inputs*) allocator->impl->malloc(
-            allocator, sizeof(sig_dsp_ClockFreqDetector_Inputs));
-        inputs->source = source;
-
-        return inputs;
-    }
-
-    void ClockFreqDetector_Inputs_destroy(
-        struct sig_Allocator* allocator,
-        struct sig_dsp_ClockFreqDetector_Inputs* self) {
-        allocator->impl->free(allocator, self);
     }
 };
 
@@ -355,6 +309,11 @@ public:
         float value) {
             return sig_AudioBlock_newWithValue(allocator,
                 audioSettings, value);
+    }
+
+    void AudioBlock_destroy(struct sig_Allocator* allocator,
+        float_array_ptr self) {
+        return sig_AudioBlock_destroy(allocator, self);
     }
 
     ~Signaletic() {}

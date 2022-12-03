@@ -34,38 +34,27 @@ class SignaleticOscillator extends AudioWorkletProcessor {
             this.audioSettings);
 
         /** Modulators **/
-        this.freqMod = sig.dsp.Value_new(this.allocator,
-            this.audioSettings);
+        this.freqMod = sig.dsp.Value_new(this.allocator, this.signalContext);
         this.freqMod.parameters.value = 440.0;
-        this.ampMod = sig.dsp.Value_new(this.allocator,
-            this.audioSettings);
+        this.ampMod = sig.dsp.Value_new(this.allocator, this.signalContext);
         this.ampMod.parameters.value = 1.0;
 
-
         /** Carrier **/
-        this.carrierInputs = sig.dsp.Oscillator_Inputs_new(
-            this.allocator, this.signalContext);
-        this.carrierInputs.freq = this.freqMod.signal.output;
-        this.carrierInputs.mul = this.ampMod.signal.output;
-
-        this.carrier = sig.dsp.Sine_new(this.allocator,
-            this.audioSettings, this.carrierInputs);
+        this.carrier = sig.dsp.Sine_new(this.allocator, this.signalContext);
+        this.carrier.inputs.freq = this.freqMod.outputs.main;
+        this.carrier.inputs.mul = this.ampMod.outputs.main;
 
         /** Gain **/
         this.gainValue = sig.dsp.Value_new(this.allocator,
-            this.audioSettings);
+            this.signalContext);
         this.gainValue.parameters.value = 0.85;
 
-        this.gainInputs = sig.dsp.BinaryOp_Inputs_new(
-            this.allocator, this.signalContext);
-        this.gainInputs.left = this.carrier.signal.output;
-        this.gainInputs.right = this.gainValue.signal.output;
-
-        this.gain = sig.dsp.Mul_new(this.allocator,
-            this.audioSettings, this.gainInputs);
+        this.gain = sig.dsp.Mul_new(this.allocator, this.signalContext);
+        this.gain.inputs.left = this.carrier.outputs.main;
+        this.gain.inputs.right = this.gainValue.outputs.main;
 
         this.gainOutput = sig.dereferenceArray(
-            this.gain.signal.output,
+            this.gain.outputs.main,
             this.audioSettings.blockSize,
             "float32");
 

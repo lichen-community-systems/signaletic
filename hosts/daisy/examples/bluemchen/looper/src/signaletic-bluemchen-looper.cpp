@@ -41,6 +41,7 @@ struct sig_Buffer rightBuffer = {
     .samples = rightSamples
 };
 
+struct sig_dsp_ConstantValue* smoothCoefficient;
 struct sig_dsp_Value* start;
 struct sig_dsp_OnePole* startSmoother;
 struct sig_dsp_Value* end;
@@ -124,8 +125,8 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
     // TODO: Need a host-provided Signal to do this.
     // https://github.com/continuing-creativity/signaletic/issues/22
     for (size_t i = 0; i < size; i++) {
-        leftLooper->inputs->source[i] = in[0][i];
-        rightLooper->inputs->source[i] = in[1][i];
+        leftLooper->inputs.source[i] = in[0][i];
+        rightLooper->inputs.source[i] = in[1][i];
     }
 
     leftSpeedSkewInverter->signal.generate(leftSpeedSkewInverter);
@@ -139,16 +140,16 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
 
     // Copy mono buffer to stereo output.
     for (size_t i = 0; i < size; i++) {
-        out[0][i] = leftGain->signal.output[i];
-        out[1][i] = rightGain->signal.output[i];
+        out[0][i] = leftGain->outputs.main[i];
+        out[1][i] = rightGain->outputs.main[i];
     }
 
     // Note: this is required until we have something that
     // offers some way to get the current value from a Signal.
     // See https://github.com/continuing-creativity/signaletic/issues/19
     size_t lastSamp = leftSpeedAdder->signal.audioSettings->blockSize - 1;
-    looperView.leftSpeed = leftSpeedAdder->signal.output[lastSamp];
-    looperView.rightSpeed = rightSpeedAdder->signal.output[lastSamp];
+    looperView.leftSpeed = leftSpeedAdder->outputs.main[lastSamp];
+    looperView.rightSpeed = rightSpeedAdder->outputs.main[lastSamp];
 }
 
 void initControls() {
@@ -172,135 +173,82 @@ int main(void) {
         .blockSize = 48
     };
 
+    struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
+        &audioSettings);
+
     bluemchen.SetAudioBlockSize(audioSettings.blockSize);
     bluemchen.StartAdc();
     initControls();
 
-    // TODO: Introduce a constant Signal type
-    // https://github.com/continuing-creativity/signaletic/issues/23
-    float* smoothCoefficient = sig_AudioBlock_newWithValue(
-        &allocator, &audioSettings, 0.01f);
+    smoothCoefficient = sig_dsp_ConstantValue_new(&allocator, context, 0.01f);
 
-    start = sig_dsp_Value_new(&allocator, &audioSettings);
+    start = sig_dsp_Value_new(&allocator, context);
     start->parameters.value = 0.0f;
-    struct sig_dsp_OnePole_Inputs startSmootherInputs = {
-        .source = start->signal.output,
-        .coefficient = smoothCoefficient
-    };
-    startSmoother = sig_dsp_OnePole_new(&allocator,
-        &audioSettings, &startSmootherInputs);
 
+    startSmoother = sig_dsp_OnePole_new(&allocator, context);
+    startSmoother->inputs.source = start->outputs.main,
+    startSmoother->inputs.coefficient = smoothCoefficient->outputs.main;
 
-    end = sig_dsp_Value_new(&allocator, &audioSettings);
+    end = sig_dsp_Value_new(&allocator, context);
     end->parameters.value = 1.0f;
-    struct sig_dsp_OnePole_Inputs endSmootherInputs = {
-        .source = end->signal.output,
-        .coefficient = smoothCoefficient
-    };
-    endSmoother = sig_dsp_OnePole_new(&allocator,
-        &audioSettings, &endSmootherInputs);
 
+    endSmoother = sig_dsp_OnePole_new(&allocator, context);
+    endSmoother->inputs.source = end->outputs.main;
+    endSmoother->inputs.coefficient = smoothCoefficient->outputs.main;
 
-    speedIncrement = sig_dsp_Value_new(&allocator, &audioSettings);
+    speedIncrement = sig_dsp_Value_new(&allocator, context);
     speedIncrement->parameters.value = 1.0f;
 
-    struct sig_dsp_Accumulate_Inputs speedControlInputs = {
-        .source = speedIncrement->signal.output,
-        .reset = sig_AudioBlock_newWithValue(&allocator,
-            &audioSettings, 0.0f)
-    };
-
-    speedControl = sig_dsp_Accumulate_new(&allocator, &audioSettings,
-        &speedControlInputs);
+    speedControl = sig_dsp_Accumulate_new(&allocator, context);
     speedControl->parameters.accumulatorStart = 1.0f;
+    speedControl->inputs.source = speedIncrement->outputs.main;
 
-    speedMod = sig_dsp_Value_new(&allocator, &audioSettings);
+    speedMod = sig_dsp_Value_new(&allocator, context);
     speedMod->parameters.value = 0.0f;
 
-    struct sig_dsp_OnePole_Inputs speedModSmootherInputs = {
-        .source = speedMod->signal.output,
-        .coefficient = smoothCoefficient
-    };
+    speedModSmoother = sig_dsp_OnePole_new(&allocator, context);
+    speedModSmoother->inputs.source = speedMod->outputs.main;
+    speedModSmoother->inputs.coefficient = smoothCoefficient->outputs.main;
 
-    speedModSmoother = sig_dsp_OnePole_new(&allocator,
-        &audioSettings, &speedModSmootherInputs);
+    speedAdder = sig_dsp_Add_new(&allocator, context);
+    speedAdder->inputs.left = speedControl->outputs.main;
+    speedAdder->inputs.right = speedModSmoother->outputs.main;
 
-    struct sig_dsp_BinaryOp_Inputs speedAdderInputs = {
-        .left = speedControl->signal.output,
-        .right = speedModSmoother->signal.output
-    };
-
-    speedAdder = sig_dsp_Add_new(&allocator, &audioSettings,
-        &speedAdderInputs);
-
-    speedSkew = sig_dsp_Value_new(&allocator, &audioSettings);
+    speedSkew = sig_dsp_Value_new(&allocator, context);
     speedSkew->parameters.value = 0.0f;
 
-    struct sig_dsp_OnePole_Inputs speedSkewSmootherInputs = {
-        .source = speedSkew->signal.output,
-        .coefficient = smoothCoefficient
-    };
-    speedSkewSmoother = sig_dsp_OnePole_new(&allocator, &audioSettings,
-        &speedSkewSmootherInputs);
+    speedSkewSmoother = sig_dsp_OnePole_new(&allocator, context);
+    speedSkewSmoother->inputs.source = speedSkew->outputs.main;
+    speedSkewSmoother->inputs.coefficient = smoothCoefficient->outputs.main;
 
-    struct sig_dsp_Invert_Inputs leftSpeedSkewInverterInputs = {
-        .source = speedSkewSmoother->signal.output
-    };
-    leftSpeedSkewInverter = sig_dsp_Invert_new(&allocator, &audioSettings,
-        &leftSpeedSkewInverterInputs);
+    leftSpeedSkewInverter = sig_dsp_Invert_new(&allocator, context);
+    leftSpeedSkewInverter->inputs.source = speedSkewSmoother->outputs.main;
 
-    struct sig_dsp_BinaryOp_Inputs leftSpeedAdderInputs = {
-        .left = speedAdder->signal.output,
-        .right = leftSpeedSkewInverter->signal.output
-    };
-    leftSpeedAdder = sig_dsp_Add_new(&allocator, &audioSettings,
-        &leftSpeedAdderInputs);
+    leftSpeedAdder = sig_dsp_Add_new(&allocator, context);
+    leftSpeedAdder->inputs.left = speedAdder->outputs.main;
+    leftSpeedAdder->inputs.right = leftSpeedSkewInverter->outputs.main;
 
-    struct sig_dsp_BinaryOp_Inputs rightSpeedAdderInputs = {
-        .left = speedAdder->signal.output,
-        .right = speedSkewSmoother->signal.output
-    };
-    rightSpeedAdder = sig_dsp_Add_new(&allocator, &audioSettings,
-        &rightSpeedAdderInputs);
+    rightSpeedAdder = sig_dsp_Add_new(&allocator, context);
+    rightSpeedAdder->inputs.left = speedAdder->outputs.main;
+    rightSpeedAdder->inputs.right = speedSkewSmoother->outputs.main;
 
-    encoderButton = sig_dsp_Value_new(&allocator, &audioSettings);
+    encoderButton = sig_dsp_Value_new(&allocator, context);
     encoderButton->parameters.value = 0.0f;
 
-    struct sig_dsp_TimedTriggerCounter_Inputs encoderClickInputs = {
-        .source = encoderButton->signal.output,
+    encoderTap = sig_dsp_TimedTriggerCounter_new(&allocator, context);
+    encoderTap->inputs.source = encoderButton->outputs.main;
+    encoderTap->inputs.duration = sig_AudioBlock_newWithValue(&allocator,
+        &audioSettings, 0.5f);
+    encoderTap->inputs.count = sig_AudioBlock_newWithValue(&allocator,
+        &audioSettings, 1.0f);
 
-        // TODO: Replace with constant value signal (gh-23).
-        .duration = sig_AudioBlock_newWithValue(&allocator,
-            &audioSettings, 0.5f),
+    recordGate = sig_dsp_ToggleGate_new(&allocator, context);
+    recordGate->inputs.trigger = encoderTap->outputs.main;
 
-        // TODO: Replace with constant value signal (gh-23).
-        .count = sig_AudioBlock_newWithValue(&allocator,
-            &audioSettings, 1.0f)
-    };
-    encoderTap = sig_dsp_TimedTriggerCounter_new(&allocator,
-        &audioSettings, &encoderClickInputs);
-
-
-    struct sig_dsp_ToggleGate_Inputs recordGateInputs = {
-        .trigger = encoderTap->signal.output
-    };
-    recordGate = sig_dsp_ToggleGate_new(&allocator, &audioSettings,
-        &recordGateInputs);
-
-    struct sig_dsp_GatedTimer_Inputs encoderPressTimerInputs = {
-        .gate = encoderButton->signal.output,
-
-        // TODO: Replace with constant value signal (gh-23).
-        .duration = sig_AudioBlock_newWithValue(
-            &allocator, &audioSettings, LONG_ENCODER_PRESS),
-
-        // TODO: Replace with constant value signal (gh-23).
-        .loop = sig_AudioBlock_newWithValue(&allocator,
-            &audioSettings, 0.0f)
-    };
-    encoderLongPress = sig_dsp_GatedTimer_new(&allocator,
-        &audioSettings, &encoderPressTimerInputs);
-
+    encoderLongPress = sig_dsp_GatedTimer_new(&allocator, context);
+    encoderLongPress->inputs.gate = encoderButton->outputs.main;
+    encoderLongPress->inputs.duration = sig_AudioBlock_newWithValue(
+        &allocator, &audioSettings, LONG_ENCODER_PRESS);
 
     struct sig_dsp_Looper_Inputs leftLooperInputs = {
         // TODO: Need a Daisy Host-provided Signal
@@ -309,16 +257,16 @@ int main(void) {
         // is copied into manually in the audio callback.
         .source = sig_AudioBlock_newWithValue(&allocator,
             &audioSettings, 0.0f),
-        .start = startSmoother->signal.output,
-        .end = endSmoother->signal.output,
-        .speed = leftSpeedAdder->signal.output,
-        .record = recordGate->signal.output,
-        .clear = encoderLongPress->signal.output
+        .start = startSmoother->outputs.main,
+        .end = endSmoother->outputs.main,
+        .speed = leftSpeedAdder->outputs.main,
+        .record = recordGate->outputs.main,
+        .clear = encoderLongPress->outputs.main
     };
 
     sig_fillWithSilence(leftSamples, LOOP_LENGTH);
-    leftLooper = sig_dsp_Looper_new(&allocator, &audioSettings,
-        &leftLooperInputs);
+    leftLooper = sig_dsp_Looper_new(&allocator, context);
+    leftLooper->inputs = leftLooperInputs;
     sig_dsp_Looper_setBuffer(leftLooper, &leftBuffer);
 
     struct sig_dsp_Looper_Inputs rightLooperInputs = {
@@ -326,32 +274,27 @@ int main(void) {
             &audioSettings, 0.0f),
         .start = leftLooperInputs.start,
         .end = leftLooperInputs.end,
-        .speed = rightSpeedAdder->signal.output,
+        .speed = rightSpeedAdder->outputs.main,
         .record = leftLooperInputs.record,
         .clear = leftLooperInputs.clear
     };
     sig_fillWithSilence(rightSamples, LOOP_LENGTH);
-    rightLooper = sig_dsp_Looper_new(&allocator, &audioSettings,
-        &rightLooperInputs);
+    rightLooper = sig_dsp_Looper_new(&allocator, context);
+    rightLooper->inputs = rightLooperInputs;
     sig_dsp_Looper_setBuffer(rightLooper, &rightBuffer);
 
-    struct sig_dsp_BinaryOp_Inputs leftGainInputs = {
-        // Bluemchen's output circuit clips as it approaches full gain,
-        // so 0.85 seems to be around the practical maximum value.
-        // TODO: Replace with constant value Signal (gh-23).
-        .left = leftLooper->signal.output,
-        .right = sig_AudioBlock_newWithValue(&allocator,
-            &audioSettings, 0.85f)
-    };
-    leftGain = sig_dsp_Mul_new(&allocator, &audioSettings,
-        &leftGainInputs);
+    // Bluemchen's output circuit clips as it approaches full gain,
+    // so 0.85 seems to be around the practical maximum value.
+    struct sig_dsp_ConstantValue* gainAmount = sig_dsp_ConstantValue_new(
+        &allocator, context, 0.85f);
 
-    struct sig_dsp_BinaryOp_Inputs rightGainInputs = {
-        .left = rightLooper->signal.output,
-        .right = leftGainInputs.left
-    };
-    rightGain = sig_dsp_Mul_new(&allocator, &audioSettings,
-        &rightGainInputs);
+    leftGain = sig_dsp_Mul_new(&allocator, context);
+    leftGain->inputs.left = leftLooper->outputs.main;
+    leftGain->inputs.right = gainAmount->outputs.main;
+
+    rightGain = sig_dsp_Mul_new(&allocator, context);
+    rightGain->inputs.left = rightLooper->outputs.main;
+    rightGain->inputs.right = gainAmount->outputs.main;
 
     bluemchen.StartAudio(AudioCallback);
 

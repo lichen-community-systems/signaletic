@@ -45,19 +45,20 @@ void UpdateOled() {
 
     displayStr.Clear();
     displayStr.Append("Den: ");
-    displayStr.AppendFloat(density->signal.output[0], 3);
+    displayStr.AppendFloat(density->outputs.main[0], 3);
     bluemchen.display.SetCursor(0, 8);
     bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     displayStr.Clear();
     displayStr.Append("Dur: ");
-    displayStr.AppendFloat(cvDustGate->densityDurationMultiplier->signal.output[0], 3);
+    displayStr.AppendFloat(
+        cvDustGate->densityDurationMultiplier->outputs.main[0], 3);
     bluemchen.display.SetCursor(0, 16);
     bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     displayStr.Clear();
     displayStr.Append("Clk: ");
-    displayStr.AppendFloat(clockFreq->signal.output[0], 3);
+    displayStr.AppendFloat(clockFreq->outputs.main[0], 3);
     bluemchen.display.SetCursor(0, 24);
     bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
@@ -87,17 +88,21 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
     UpdateControls();
 
     // TODO: Need to implement a Host-provided Input signal.
-    clockFreq->inputs->source = (float_array_ptr) in[0];
+    clockFreq->inputs.source = (float_array_ptr) in[0];
+
+    // TODO: Add a CV input for controlling density,
+    // which is centred on 0.0 and allows for negative values
+    // so that an incoming clock can be slowed down.
 
     EvaluateSignalGraph();
 
     bluemchen.seed.dac.WriteValue(daisy::DacHandle::Channel::BOTH,
-        sig_unipolarToUint12(cvDustGate->gate->signal.output[0]));
+        sig_unipolarToUint12(cvDustGate->outputs.main[0]));
 
     // Copy mono buffer to stereo output.
     for (size_t i = 0; i < size; i++) {
-        out[0][i] = audioDustGate->gate->signal.output[i];
-        out[1][i] = audioDustGate->dust->signal.output[i];
+        out[0][i] = audioDustGate->outputs.main[i];
+        out[1][i] = audioDustGate->outputs.main[i];
     }
 }
 
@@ -118,52 +123,48 @@ int main(void) {
         .blockSize = 2
     };
 
+    struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
+        &audioSettings);
+
     bluemchen.SetAudioBlockSize(audioSettings.blockSize);
     bluemchen.StartAdc();
     initControls();
 
-    density = sig_dsp_Value_new(&allocator, &audioSettings);
+    density = sig_dsp_Value_new(&allocator, context);
     density->parameters.value = 1.0f;
-    duration = sig_dsp_Value_new(&allocator, &audioSettings);
+    duration = sig_dsp_Value_new(&allocator, context);
     duration->parameters.value = 1.0f;
 
-    struct sig_dsp_ClockFreqDetector_Inputs clockFreqInputs = {
-        .source = sig_AudioBlock_newWithValue(&allocator,
-            &audioSettings, 0.0f)
-    };
-    clockFreq = sig_dsp_ClockFreqDetector_new(&allocator, &audioSettings,
-        &clockFreqInputs);
+    clockFreq = sig_dsp_ClockFreqDetector_new(&allocator, context);
+    // TODO: Creat an AudioInput signal for Daisy. In the meantime,
+    // this creates an empty buffer that will be written into directly
+    // in the audio callback.
+    clockFreq->inputs.source = sig_AudioBlock_newWithValue(&allocator,
+        &audioSettings, 0.0f);
 
-    struct sig_dsp_BinaryOp_Inputs densityClockSumInputs = {
-        .left = clockFreq->signal.output,
-        .right = density->signal.output
-    };
-    densityClockSum = sig_dsp_Add_new(&allocator, &audioSettings,
-        &densityClockSumInputs);
+    densityClockSum = sig_dsp_Add_new(&allocator, context);
+    densityClockSum->inputs.left = clockFreq->outputs.main;
+    densityClockSum->inputs.right = density->outputs.main;
 
     struct cc_sig_DustGate_Inputs cvInputs = {
-        density: densityClockSum->signal.output,
-        durationPercentage: duration->signal.output
+        density: densityClockSum->outputs.main,
+        durationPercentage: duration->outputs.main
     };
 
-    cvDustGate = cc_sig_DustGate_new(&allocator,
-        &audioSettings, &cvInputs);
+    cvDustGate = cc_sig_DustGate_new(&allocator, context, cvInputs);
 
-    struct sig_dsp_BinaryOp_Inputs audioDensityMuliplierInputs = {
-        .left = densityClockSum->signal.output,
-        .right = sig_AudioBlock_newWithValue(&allocator,
-            &audioSettings, 200.0f),
-    };
-    audioDensityMultiplier = sig_dsp_Mul_new(&allocator, &audioSettings,
-        &audioDensityMuliplierInputs);
+    audioDensityMultiplier = sig_dsp_Mul_new(&allocator, context);
+    audioDensityMultiplier->inputs.left = densityClockSum->outputs.main;
+    audioDensityMultiplier->inputs.right = sig_AudioBlock_newWithValue(
+        &allocator, &audioSettings, 200.0f);
 
     struct cc_sig_DustGate_Inputs audioInputs = {
-        density: audioDensityMultiplier->signal.output,
-        durationPercentage: duration->signal.output
+        density: audioDensityMultiplier->outputs.main,
+        durationPercentage: duration->outputs.main
     };
 
     audioDustGate = cc_sig_DustGate_new(&allocator,
-        &audioSettings, &audioInputs);
+        context, audioInputs);
     audioDustGate->dust->parameters.bipolar = 1.0f;
     audioDustGate->gate->parameters.bipolar = 1.0f;
 

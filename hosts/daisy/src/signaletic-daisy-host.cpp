@@ -2,6 +2,8 @@
 
 // TODO: Move vendored DPT (and Blumchen) out from examples
 // into the daisy directory.
+// TODO: Refactor this file into the generic Daisy-related parts
+// with separate host files for Bluemchen and DPT.
 #include "../examples/dpt/vendor/dpt/lib/daisy_dpt.h"
 
 void sig_daisy_DPT_dacWriterCallback(void* hostState) {
@@ -23,7 +25,8 @@ float sig_daisy_DPTHostImpl_getControlValue(struct sig_daisy_Host* host,
     int control) {
     struct sig_daisy_DPTState* dptState =
         static_cast<struct sig_daisy_DPTState*>(host->state);
-    return dptState->dpt->controls[control].Value();
+
+    return dptState->dpt->controls[control].Process();
 }
 
 void sig_daisy_DPTHostImpl_setControlValue(struct sig_daisy_Host* host,
@@ -64,27 +67,22 @@ float sig_daisy_DPTHostImpl_getGateValue(struct sig_daisy_Host* host,
     return sample;
 }
 
-struct sig_daisy_GateIn* sig_daisy_GateIn_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_daisy_Host* host,
+struct sig_daisy_GateIn* sig_daisy_GateIn_new(struct sig_Allocator* allocator,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host,
     int control) {
-    float_array_ptr output = sig_AudioBlock_new(allocator, settings);
-    struct sig_daisy_GateIn* self = (struct sig_daisy_GateIn*)
-        allocator->impl->malloc(allocator,
-            sizeof(struct sig_daisy_GateIn));
-    sig_daisy_GateIn_init(self, settings, output, host, control);
+    struct sig_daisy_GateIn* self = sig_MALLOC(allocator,
+        struct sig_daisy_GateIn);
+    sig_daisy_GateIn_init(self, context, host, control);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
 
     return self;
 }
 
 void sig_daisy_GateIn_init(struct sig_daisy_GateIn* self,
-    struct sig_AudioSettings* settings,
-    float_array_ptr output,
-    struct sig_daisy_Host* host,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host,
     int control) {
-    sig_dsp_Signal_init(self, settings, output, *sig_daisy_GateIn_generate);
-
+    sig_dsp_Signal_init(self, context, *sig_daisy_GateIn_generate);
     self->host = host;
     self->control = control;
 }
@@ -92,43 +90,42 @@ void sig_daisy_GateIn_init(struct sig_daisy_GateIn* self,
 void sig_daisy_GateIn_generate(void* signal) {
     struct sig_daisy_GateIn* self = (struct sig_daisy_GateIn*) signal;
     struct sig_daisy_Host* host = self->host;
-    float sample = host->impl->getGateValue(self->host, self->control);
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        FLOAT_ARRAY(self->signal.output)[i] = sample;
+        float sample = host->impl->getGateValue(self->host, self->control);
+        FLOAT_ARRAY(self->outputs.main)[i] = sample;
     }
 }
 
 void sig_daisy_GateIn_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_GateIn* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
 }
 
 
-struct sig_daisy_CVIn* sig_daisy_CVIn_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_daisy_Host* host,
+struct sig_daisy_CVIn* sig_daisy_CVIn_new(struct sig_Allocator* allocator,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host,
     int control) {
-    float_array_ptr output = sig_AudioBlock_new(allocator, settings);
-    struct sig_daisy_CVIn* self = (struct sig_daisy_CVIn*)
-        allocator->impl->malloc(allocator, sizeof(struct sig_daisy_CVIn));
-    sig_daisy_CVIn_init(self, settings, output, host, control);
+    struct sig_daisy_CVIn* self = sig_MALLOC(allocator,
+        struct sig_daisy_CVIn);
+    sig_daisy_CVIn_init(self, context, host, control);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
 
     return self;
 }
 
 void sig_daisy_CVIn_init(struct sig_daisy_CVIn* self,
-    struct sig_AudioSettings* settings,
-    float_array_ptr output,
-    struct sig_daisy_Host* host,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host,
     int control) {
     struct sig_daisy_CV_Parameters params = {
         .scale = 1.0f,
         .offset = 0.0f
     };
 
-    sig_dsp_Signal_init(self, settings, output, *sig_daisy_CVIn_generate);
+    sig_dsp_Signal_init(self, context, *sig_daisy_CVIn_generate);
 
     self->parameters = params;
     self->host = host;
@@ -140,48 +137,47 @@ void sig_daisy_CVIn_generate(void* signal) {
     struct sig_daisy_Host* host = self->host;
     float scale = self->parameters.scale;
     float offset = self->parameters.offset;
-    float rawCV = host->impl->getControlValue(self->host, self->control);
-    float sample = rawCV * scale + offset;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        FLOAT_ARRAY(self->signal.output)[i] = sample;
+        float rawCV = host->impl->getControlValue(self->host, self->control);
+        float sample = rawCV * scale + offset;
+        FLOAT_ARRAY(self->outputs.main)[i] = sample;
     }
 }
 
 void sig_daisy_CVIn_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_CVIn* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
 }
 
 
-struct sig_daisy_CVOut* sig_daisy_CVOut_new(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* settings,
-    struct sig_daisy_CVOut_Inputs* inputs,
-    struct sig_daisy_Host* host,
+struct sig_daisy_CVOut* sig_daisy_CVOut_new(struct sig_Allocator* allocator,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host,
     int control) {
-    float_array_ptr output = sig_AudioBlock_new(allocator, settings);
-    struct sig_daisy_CVOut* self = (struct sig_daisy_CVOut*)
-        allocator->impl->malloc(allocator, sizeof(struct sig_daisy_CVOut));
-    sig_daisy_CVOut_init(self, settings, inputs, output, host, control);
+    struct sig_daisy_CVOut* self = sig_MALLOC(allocator,
+        struct sig_daisy_CVOut);
+    sig_daisy_CVOut_init(self, context, host, control);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
 
     return self;
 }
 
 void sig_daisy_CVOut_init(struct sig_daisy_CVOut* self,
-    struct sig_AudioSettings* settings,
-    struct sig_daisy_CVOut_Inputs* inputs,
-    float_array_ptr output,
-    struct sig_daisy_Host* host,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host,
     int control) {
-    sig_dsp_Signal_init(self, settings, output, *sig_daisy_CVOut_generate);
-    self->inputs = inputs;
+    sig_dsp_Signal_init(self, context, *sig_daisy_CVOut_generate);
+
     self->parameters = {
         .scale = 1.0f,
         .offset = 0.0f
     };
     self->host = host;
     self->control = control;
+
+    sig_CONNECT_TO_SILENCE(self, source, context);
 }
 
 void sig_daisy_CVOut_generate(void* signal) {
@@ -190,20 +186,20 @@ void sig_daisy_CVOut_generate(void* signal) {
     float scale = self->parameters.scale;
     float offset = self->parameters.offset;
 
-    // Read the input at control rate, so only the first sample.
-    float source = FLOAT_ARRAY(self->inputs->source)[0];
-    float sample = source * scale + offset;
-
     // Pass through the value to the output buffer,
     // so even sink signals can be chained.
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        FLOAT_ARRAY(self->signal.output)[i] = sample;
+        float source = FLOAT_ARRAY(self->inputs.source)[i];
+        float sample = source * scale + offset;
+        FLOAT_ARRAY(self->outputs.main)[i] = sample;
+        host->impl->setControlValue(self->host, self->control, sample);
     }
 
-    host->impl->setControlValue(self->host, self->control, sample);
 }
 
 void sig_daisy_CVIn_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_CVOut* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
 }

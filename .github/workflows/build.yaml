@@ -60,13 +60,11 @@ jobs:
 
       - name: Web Assembly build
         run: |
-          cd libsignaletic
-          ./build-libsignaletic-wasm.sh
+          ./cross-build-wasm.sh
 
       - name: Run unit tests in Node.js
         run: |
-          cd libsignaletic
-          meson test -C build/wasm -v
+          ./run-wasm-tests.sh
 
       - name: run console example in Node.js
         run: node ./libsignaletic/build/wasm/libsignaletic-console-example.js
@@ -87,5 +85,4 @@ jobs:
 
       - name: Build Daisy Host and Examples
         run: |
-          cd hosts/daisy
-          ./build-all-daisy.sh
+          ./cross-build-arm.sh

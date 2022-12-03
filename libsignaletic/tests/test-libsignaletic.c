@@ -36,7 +36,10 @@ void setUp(void) {
     context = sig_SignalContext_new(&allocator, audioSettings);
 }
 
-void tearDown(void) {}
+void tearDown(void) {
+    sig_AudioSettings_destroy(&allocator, audioSettings);
+    sig_SignalContext_destroy(&allocator, context);
+}
 
 void test_sig_unipolarToUint12(void) {
     TEST_ASSERT_EQUAL_UINT16(2047, sig_unipolarToUint12(0.5f));
@@ -100,12 +103,12 @@ void test_sig_midiToFreq(void) {
 
     // 60 Middle C 261.63
     actual = sig_midiToFreq(60.0f);
-    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005, 261.63f, actual,
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005, sig_FREQ_C4, actual,
         "MIDI C3 should be 261.63 Hz");
 
     // MIDI 0
     actual = sig_midiToFreq(0.0f);
-    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005, 8.18f, actual,
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005, 8.176f, actual,
         "MIDI 0 should be 8.18 Hz");
 
     // Quarter tone
@@ -115,8 +118,80 @@ void test_sig_midiToFreq(void) {
 
     // Negative MIDI note numbers should return viable frequencies.
     actual = sig_midiToFreq(-60.0f);
-    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005, 0.255, actual,
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005, 0.2555, actual,
         "A negative MIDI number should return a negative frequency.");
+}
+
+void test_sig_freqToMidi(void) {
+    // 69 A 440
+    float actual = sig_freqToMidi(440.0f);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(FLOAT_EPSILON, 69.0f, actual,
+        "MIDI A4 should be 440 Hz");
+
+    // 60 Middle C 261.63
+    actual = sig_freqToMidi(sig_FREQ_C4);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005f, 60.0f, actual,
+        "MIDI C3 should be 261.63 Hz");
+
+    // MIDI 0
+    actual = sig_freqToMidi(8.176f);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005f, 0.0f, actual,
+        "MIDI 0 should be 8.18 Hz");
+
+    // Quarter tone
+    actual = sig_freqToMidi(269.29f);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005f, 60.5f, actual,
+        "A quarter tone above C3 should be 269.29 Hz");
+
+    // Negative MIDI note numbers should return viable frequencies.
+    actual = sig_freqToMidi(0.2555f);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005f, -60.0f, actual,
+        "A negative MIDI number should return a negative frequency.");
+}
+
+void test_sig_sig_linearToFreq(void) {
+    // 0.0f - 0V - Middle C4 - 261.626
+    float actual = sig_linearToFreq(0.0f, sig_FREQ_C4);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(sig_FREQ_C4, actual,
+        "0.0f should be middle C 261.626 Hz");
+
+    // 0.75f - 0.75V - A4 440
+    actual = sig_linearToFreq(0.75f, sig_FREQ_C4);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.001f, 440.0f, actual,
+        "3/4 of a volt should be 440 Hz");
+
+    // 2.5V - F#6 - 1479.98
+    actual = sig_linearToFreq(2.5f, sig_FREQ_C4);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005, 1479.98f, actual,
+        "2.5V should be F#5 739.99 Hz");
+
+    // -1.25 - A2 - 110 Hz
+    actual = sig_linearToFreq(-1.25f, sig_FREQ_C4);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005, 110.0f, actual,
+        "-1.25V should be A2 110 Hz");
+
+}
+
+void test_sig_sig_freqToLinear(void) {
+    // 0.0f - 0V - Middle C4 - 261.626 - 20Vpp
+    float actual = sig_freqToLinear(sig_FREQ_C4, sig_FREQ_C4);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(0.0f, actual,
+        "0.0f should be middle C 261.626 Hz");
+
+    // 0.75f - 0.75V - A4 440 - 1Vpp
+    actual = sig_freqToLinear(440.0f, sig_FREQ_C4);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.001f, 0.75f, actual,
+        "3/4 of a volt should be 440 Hz");
+
+    // 2.5V - F#6 - 1479.98 - 10Vpp
+    actual = sig_freqToLinear(1479.98f, sig_FREQ_C4);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005, 2.5f, actual,
+        "2.5V should be F#5 739.99 Hz");
+
+    // -1.25 - A2 - 110 Hz
+    actual = sig_freqToLinear(110.0f, sig_FREQ_C4);
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.005, -1.25f, actual,
+        "-1.25V should be A2 110 Hz");
 }
 
 void test_sig_fillWithValue(void) {
@@ -179,19 +254,23 @@ void test_sig_samplesToSeconds() {
 
 void test_sig_Audio_Block_newWithValue_testForValue(
     struct sig_Allocator* localAlloc,
-    struct sig_AudioSettings* settings,
+    struct sig_AudioSettings* customSettings,
     float value) {
     float* actual = sig_AudioBlock_newWithValue(localAlloc,
-        settings, value);
+        customSettings, value);
     testAssertBufferContainsValueOnly(&allocator, value, actual,
-        settings->blockSize);
-    localAlloc->impl->free(localAlloc, actual);
+        customSettings->blockSize);
+    sig_AudioBlock_destroy(localAlloc, actual);
 }
 
 void test_sig_AudioBlock_newWithValue(void) {
-    char customMemory[262144];
+    // Note: This "heap" is actually stored here on the stack,
+    // so it needs to stay small, or else has to be moved
+    // onto the program's heap. It's here now so that this test
+    // is more self-contained.
+    char customMemory[32768];
     struct sig_AllocatorHeap customHeap = {
-        .length = 262144,
+        .length = 32768,
         .memory = customMemory
     };
     struct sig_Allocator localAlloc = {
@@ -212,6 +291,8 @@ void test_sig_AudioBlock_newWithValue(void) {
         customSettings, 1.0);
     test_sig_Audio_Block_newWithValue_testForValue(&localAlloc,
         customSettings, 0.0);
+
+    sig_AudioSettings_destroy(&localAlloc, customSettings);
 }
 
 void test_sig_Buffer(void) {
@@ -264,20 +345,19 @@ void test_sig_BufferView(void) {
 }
 
 void test_sig_dsp_Value(void) {
-    struct sig_dsp_Value* value = sig_dsp_Value_new(&allocator,
-        audioSettings);
+    struct sig_dsp_Value* value = sig_dsp_Value_new(&allocator, context);
     value->parameters.value = 123.45f;
 
     // Output should contain the value parameter.
     value->signal.generate(value);
     testAssertBufferContainsValueOnly(&allocator,
-        123.45f, value->signal.output, audioSettings->blockSize);
+        123.45f, value->outputs.main, audioSettings->blockSize);
 
     // Output should contain the updated value parameter.
     value->parameters.value = 1.111f;
     value->signal.generate(value);
     testAssertBufferContainsValueOnly(&allocator,
-        1.111f, value->signal.output, audioSettings->blockSize);
+        1.111f, value->outputs.main, audioSettings->blockSize);
 
     // The lastSample member should have been updated.
     TEST_ASSERT_FLOAT_WITHIN_MESSAGE(FLOAT_EPSILON,
@@ -289,24 +369,23 @@ void test_sig_dsp_Value(void) {
     value->signal.generate(value);
     value->signal.generate(value);
     testAssertBufferContainsValueOnly(&allocator,
-        1.111f, value->signal.output, audioSettings->blockSize);
+        1.111f, value->outputs.main, audioSettings->blockSize);
 
     sig_dsp_Value_destroy(&allocator, value);
 }
 
 void test_sig_dsp_ConstantValue(void) {
     struct sig_dsp_ConstantValue* constVal = sig_dsp_ConstantValue_new(
-        &allocator, audioSettings, 42.0f);
+        &allocator, context, 42.0f);
 
-    // Output should contain the value parameter,
-    // even prior to being evaluated.
+    // Output should contain the value, even prior to being evaluated.
     testAssertBufferContainsValueOnly(&allocator, 42.0f,
-        constVal->signal.output, audioSettings->blockSize);
+        constVal->outputs.main, audioSettings->blockSize);
 
     // The output should not change.
     constVal->signal.generate(constVal);
     testAssertBufferContainsValueOnly(&allocator, 42.0f,
-        constVal->signal.output, audioSettings->blockSize);
+        constVal->outputs.main, audioSettings->blockSize);
 }
 
 void test_sig_dsp_TimedTriggerCounter(void) {
@@ -318,16 +397,12 @@ void test_sig_dsp_TimedTriggerCounter(void) {
         audioSettings, 0.0f);
     source[0] = 1.0;
 
-    struct sig_dsp_TimedTriggerCounter_Inputs inputs = {
-        .source = source,
-        .duration = sig_AudioBlock_newWithValue(&allocator,
-            audioSettings, halfBlockSecs),
-        .count = sig_AudioBlock_newWithValue(&allocator,
-            audioSettings, 1.0f)
-    };
-
-    struct sig_dsp_TimedTriggerCounter* counter = sig_dsp_TimedTriggerCounter_new(&allocator, audioSettings,
-        &inputs);
+    struct sig_dsp_TimedTriggerCounter* counter = sig_dsp_TimedTriggerCounter_new(&allocator, context);
+    counter->inputs.source = source;
+    counter->inputs.duration = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, halfBlockSecs);
+    counter->inputs.count = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, 1.0f);
 
     // The output should contain a single trigger half block size.
     // (i.e. 24 samples after we received the
@@ -336,7 +411,7 @@ void test_sig_dsp_TimedTriggerCounter(void) {
     float* expected = sig_AudioBlock_newWithValue(&allocator,
         audioSettings, 0.0f);
     expected[23] = 1.0f;
-    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expected, counter->signal.output,
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expected, counter->outputs.main,
         audioSettings->blockSize);
 
     // The first trigger can happen later after the
@@ -348,7 +423,7 @@ void test_sig_dsp_TimedTriggerCounter(void) {
     counter->signal.generate(counter);
     sig_fillWithSilence(expected, audioSettings->blockSize);
     expected[47] = 1.0f;
-    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expected, counter->signal.output,
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expected, counter->outputs.main,
         audioSettings->blockSize);
 
     // When the input contains two triggers in the
@@ -359,18 +434,18 @@ void test_sig_dsp_TimedTriggerCounter(void) {
     source[20] = 1.0f;
     counter->signal.generate(counter);
     TEST_ASSERT_EQUAL_FLOAT_ARRAY(
-        context->silence->signal.output,
-        counter->signal.output,
+        context->silence->outputs.main,
+        counter->outputs.main,
         audioSettings->blockSize);
 
     // When we're looking for two triggers and we get two triggers,
     // one trigger should be fired.
-    sig_fillWithValue(counter->inputs->count, audioSettings->blockSize,
+    sig_fillWithValue(counter->inputs.count, audioSettings->blockSize,
         2.0f);
     counter->signal.generate(counter);
     sig_fillWithSilence(expected, audioSettings->blockSize);
     expected[24] = 1.0f;
-    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expected, counter->signal.output,
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expected, counter->outputs.main,
         audioSettings->blockSize);
 
     // When we're looking for two triggers and
@@ -381,74 +456,62 @@ void test_sig_dsp_TimedTriggerCounter(void) {
     source[25] = 1.0f;
     counter->signal.generate(counter);
     TEST_ASSERT_EQUAL_FLOAT_ARRAY(
-        context->silence->signal.output,
-        counter->signal.output,
+        context->silence->outputs.main,
+        counter->outputs.main,
         audioSettings->blockSize);
 }
 
 void test_sig_dsp_Mul(void) {
-    struct sig_dsp_BinaryOp_Inputs inputs = {
-        .left = sig_AudioBlock_newWithValue(&allocator,
-            audioSettings, 0.5f),
-        .right = sig_AudioBlock_newWithValue(&allocator,
-            audioSettings, 440.0f)
-    };
-
-    struct sig_dsp_BinaryOp* gain = sig_dsp_Mul_new(&allocator,
-        audioSettings, &inputs);
+    struct sig_dsp_BinaryOp* gain = sig_dsp_Mul_new(&allocator, context);
+    gain->inputs.left = sig_AudioBlock_newWithValue(&allocator, audioSettings,
+        0.5f);
+    gain->inputs.right = sig_AudioBlock_newWithValue(&allocator, audioSettings,
+        440.0f);
 
     gain->signal.generate(gain);
     testAssertBufferContainsValueOnly(&allocator,
-        220.0f, gain->signal.output, audioSettings->blockSize);
+        220.0f, gain->outputs.main, audioSettings->blockSize);
 
-    sig_fillWithValue(inputs.left, audioSettings->blockSize, 0.0f);
+    sig_fillWithValue(gain->inputs.left, audioSettings->blockSize, 0.0f);
     gain->signal.generate(gain);
     testAssertBufferContainsValueOnly(&allocator,
-        0.0f, gain->signal.output, audioSettings->blockSize);
+        0.0f, gain->outputs.main, audioSettings->blockSize);
 
-    sig_fillWithValue(inputs.left, audioSettings->blockSize, 2.0f);
+    sig_fillWithValue(gain->inputs.left, audioSettings->blockSize, 2.0f);
     gain->signal.generate(gain);
     testAssertBufferContainsValueOnly(&allocator,
-        880.0f, gain->signal.output, audioSettings->blockSize);
+        880.0f, gain->outputs.main, audioSettings->blockSize);
 
-    sig_fillWithValue(inputs.left, audioSettings->blockSize, -1.0f);
+    sig_fillWithValue(gain->inputs.left, audioSettings->blockSize, -1.0f);
     gain->signal.generate(gain);
     testAssertBufferContainsValueOnly(&allocator,
-        -440.0f, gain->signal.output, audioSettings->blockSize);
+        -440.0f, gain->outputs.main, audioSettings->blockSize);
 
+    sig_AudioBlock_destroy(&allocator, gain->inputs.left);
+    sig_AudioBlock_destroy(&allocator, gain->inputs.right);
     sig_dsp_Mul_destroy(&allocator, gain);
-    allocator.impl->free(&allocator, inputs.left);
-    allocator.impl->free(&allocator, inputs.right);
 }
 
-struct sig_dsp_Oscillator_Inputs* createSineInputs(
-    struct sig_Allocator* allocator,
-    struct sig_SignalContext* context,
+void createOscInputs(struct sig_Allocator* allocator,
+    struct sig_dsp_Oscillator* osc,
     float freq, float phaseOffset, float mul, float add) {
 
-    struct sig_dsp_Oscillator_Inputs* inputs =
-        sig_dsp_Oscillator_Inputs_new(allocator, context);
-
-    inputs->freq = sig_AudioBlock_newWithValue(allocator,
-        context->audioSettings, freq);
-    inputs->phaseOffset = sig_AudioBlock_newWithValue(allocator,
-        context->audioSettings, phaseOffset);
-    inputs->mul = sig_AudioBlock_newWithValue(allocator,
-        context->audioSettings, mul);
-    inputs->add = sig_AudioBlock_newWithValue(allocator,
-        context->audioSettings, add);
-
-    return inputs;
+    osc->inputs.freq = sig_AudioBlock_newWithValue(allocator,
+        osc->signal.audioSettings, freq);
+    osc->inputs.phaseOffset = sig_AudioBlock_newWithValue(allocator,
+        osc->signal.audioSettings, phaseOffset);
+    osc->inputs.mul = sig_AudioBlock_newWithValue(allocator,
+        osc->signal.audioSettings, mul);
+    osc->inputs.add = sig_AudioBlock_newWithValue(allocator,
+        osc->signal.audioSettings, add);
 }
 
-void destroySineInputs(struct sig_Allocator* allocator,
+void destroyOscInputs(struct sig_Allocator* allocator,
     struct sig_dsp_Oscillator_Inputs* sineInputs) {
     allocator->impl->free(allocator, sineInputs->freq);
     allocator->impl->free(allocator, sineInputs->phaseOffset);
     allocator->impl->free(allocator, sineInputs->mul);
     allocator->impl->free(allocator, sineInputs->add);
-
-    sig_dsp_Oscillator_Inputs_destroy(allocator, sineInputs);
 }
 
 void test_sig_dsp_Sine(void) {
@@ -459,18 +522,17 @@ void test_sig_dsp_Sine(void) {
     struct sig_SignalContext* mono441kContext = sig_SignalContext_new(
         &allocator, &mono441kAudioSettings);
 
-    struct sig_dsp_Oscillator_Inputs* inputs = createSineInputs(
-        &allocator, mono441kContext, 440.0f, 0.0f, 1.0f, 0.0f);
     struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
-        &mono441kAudioSettings, inputs);
+        mono441kContext);
+    createOscInputs(&allocator, sine, 440.0f, 0.0f, 1.0f, 0.0f);
 
     sine->signal.generate(sine);
     TEST_ASSERT_EQUAL_FLOAT_ARRAY(
         expected,
-        sine->signal.output,
+        sine->outputs.main,
         sine->signal.audioSettings->blockSize);
 
-    destroySineInputs(&allocator, inputs);
+    destroyOscInputs(&allocator, &sine->inputs);
     sig_dsp_Sine_destroy(&allocator, sine);
 }
 
@@ -482,26 +544,24 @@ void test_test_sig_dsp_Sine_isOffset(void) {
     struct sig_SignalContext* mono441kContext = sig_SignalContext_new(
         &allocator, &mono441kAudioSettings);
 
-    struct sig_dsp_Oscillator_Inputs* inputs = createSineInputs(
-        &allocator, mono441kContext, 440.0f, 0.0f, 1.0f, 1.0f);
     struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
-        &mono441kAudioSettings, inputs);
+        mono441kContext);
+    createOscInputs(&allocator, sine, 440.0f, 0.0f, 1.0f, 1.0f);
 
     sine->signal.generate(sine);
     TEST_ASSERT_EQUAL_FLOAT_ARRAY(
         expected,
-        sine->signal.output,
+        sine->outputs.main,
         sine->signal.audioSettings->blockSize);
 
-    destroySineInputs(&allocator, inputs);
+    destroyOscInputs(&allocator, &sine->inputs);
     sig_dsp_Sine_destroy(&allocator, sine);
 }
 
 void test_sig_dsp_Sine_accumulatesPhase(void) {
-    struct sig_dsp_Oscillator_Inputs* inputs = createSineInputs(
-        &allocator, context, 440.0f, 0.0f, 1.0f, 0.0f);
     struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
-        audioSettings, inputs);
+        context);
+    createOscInputs(&allocator, sine, 440.0f, 0.0f, 1.0f, 0.0f);
 
     // 440 Hz frequency at 48 KHz sample rate.
     float phaseStep = 0.05759586393833160400390625f;
@@ -522,15 +582,14 @@ void test_sig_dsp_Sine_accumulatesPhase(void) {
         "The phase accumulator should have continued to be incremented when generating a second block."
     );
 
-    destroySineInputs(&allocator, inputs);
+    destroyOscInputs(&allocator, &sine->inputs);
     sig_dsp_Sine_destroy(&allocator, sine);
 }
 
 void test_sig_dsp_Sine_phaseWrapsAt2PI(void) {
-    struct sig_dsp_Oscillator_Inputs* inputs = createSineInputs(
-        &allocator, context, 440.0f, 0.0f, 1.0f, 0.0f);
     struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
-        audioSettings, inputs);
+        context);
+    createOscInputs(&allocator, sine, 440.0f, 0.0f, 1.0f, 0.0f);
 
     sine->signal.generate(sine);
     sine->signal.generate(sine);
@@ -542,7 +601,7 @@ void test_sig_dsp_Sine_phaseWrapsAt2PI(void) {
         "The phase accumulator should wrap around when it is greater than 2*PI."
     );
 
-    destroySineInputs(&allocator, inputs);
+    destroyOscInputs(&allocator, &sine->inputs);
     sig_dsp_Sine_destroy(&allocator, sine);
 }
 
@@ -550,14 +609,15 @@ void testDust(struct sig_dsp_Dust* dust,
     float min, float max, int16_t expectedNumDustPerBlock) {
     dust->signal.generate(dust);
 
-    testAssertBufferNotSilent(&allocator, dust->signal.output,
+    testAssertBufferNotSilent(&allocator, dust->outputs.main,
         audioSettings->blockSize);
-    testAssertBufferValuesInRange(dust->signal.output,
+    testAssertBufferValuesInRange(dust->outputs.main,
         audioSettings->blockSize, min, max);
     // Signal should generate a number of non-zero samples
-    // within 5% of the expected number (since it's random).
+    // within 0.5% of the expected number (since it's random).
     testAssertGeneratedSignalContainsApproxNumNonZeroSamples(
-        &dust->signal, expectedNumDustPerBlock, 0.005, 1500);
+        &dust->signal, dust->outputs.main, expectedNumDustPerBlock,
+        0.005, 1500);
 }
 
 void test_sig_dsp_Dust(void) {
@@ -565,13 +625,9 @@ void test_sig_dsp_Dust(void) {
     float density = (audioSettings->sampleRate /
         audioSettings->blockSize) * expectedNumDustPerBlock;
 
-    struct sig_dsp_Dust_Inputs inputs = {
-        .density = sig_AudioBlock_newWithValue(&allocator,
-            audioSettings, density)
-    };
-
-    struct sig_dsp_Dust* dust = sig_dsp_Dust_new(&allocator,
-        audioSettings, &inputs);
+    struct sig_dsp_Dust* dust = sig_dsp_Dust_new(&allocator, context);
+    dust->inputs.density = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, density);
 
     // Unipolar output.
     testDust(dust, 0.0f, 1.0f, expectedNumDustPerBlock);
@@ -580,7 +636,7 @@ void test_sig_dsp_Dust(void) {
     dust->parameters.bipolar = 1.0f;
     testDust(dust, -1.0f, 1.0f, expectedNumDustPerBlock);
 
-    allocator.impl->free(&allocator, inputs.density);
+    allocator.impl->free(&allocator, dust->inputs.density);
     sig_dsp_Dust_destroy(&allocator, dust);
 }
 
@@ -594,7 +650,7 @@ struct sig_test_BufferPlayer* WaveformPlayer_new(
     sig_Buffer_fillWithWaveform(waveformBuffer, waveform,
         sampleRate, 0.0f, freq);
 
-    return sig_test_BufferPlayer_new(&allocator, audioSettings,
+    return sig_test_BufferPlayer_new(&allocator, context,
         waveformBuffer);
 }
 
@@ -605,19 +661,16 @@ void WaveformPlayer_destroy(struct sig_test_BufferPlayer* player) {
 
 void testClockDetector(struct sig_test_BufferPlayer* clockPlayer,
     float duration, float expectedFreq) {
-    struct sig_dsp_ClockFreqDetector_Inputs inputs = {
-        .source = clockPlayer->signal.output
-    };
-
     struct sig_dsp_ClockFreqDetector* det = sig_dsp_ClockFreqDetector_new(
-        &allocator, audioSettings, &inputs);
+        &allocator, context);
+    det->inputs.source = clockPlayer->outputs.main;
 
     struct sig_dsp_Signal* signals[2] = {&clockPlayer->signal, &det->signal};
     evaluateSignals(audioSettings, signals, 2, duration);
 
     TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.0002,
         expectedFreq,
-        FLOAT_ARRAY(det->signal.output)[0],
+        FLOAT_ARRAY(det->outputs.main)[0],
         "The clock's frequency should have been detected correctly.");
 
     sig_dsp_ClockFreqDetector_destroy(&allocator, det);
@@ -664,7 +717,7 @@ void test_sig_dsp_ClockFreqDetector_slowDown() {
         audioSettings->sampleRate, 0.0f, slowSpeed);
 
     struct sig_test_BufferPlayer* clockPlayer = sig_test_BufferPlayer_new(
-        &allocator, audioSettings, waveformBuffer);
+        &allocator, context, waveformBuffer);
 
     testClockDetector(clockPlayer, bufferDuration, slowSpeed);
 
@@ -695,7 +748,7 @@ void test_sig_dsp_ClockFreqDetector_stop() {
     sig_Buffer_fillWithSilence(silentSection);
 
     struct sig_test_BufferPlayer* clockPlayer = sig_test_BufferPlayer_new(
-        &allocator, audioSettings, waveformBuffer);
+        &allocator, context, waveformBuffer);
 
     testClockDetector(clockPlayer, bufferDuration, 0.0f);
 
@@ -708,23 +761,18 @@ void test_sig_dsp_ClockFreqDetector_stop() {
 void runTimedGate(struct sig_test_BufferPlayer* triggerPlayer,
     struct sig_Buffer* recBuffer, float recDuration, float gateDuration,
     float resetOnTrigger, float bipolar) {
-    struct sig_dsp_TimedGate_Inputs gateInputs = {
-        .duration = sig_AudioBlock_newWithValue(&allocator,
-            audioSettings, gateDuration),
-        .trigger = triggerPlayer->signal.output
-    };
+    struct sig_dsp_TimedGate* timedGate = sig_dsp_TimedGate_new(&allocator,
+        context);
+    timedGate->inputs.duration = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, gateDuration);
+    timedGate->inputs.trigger = triggerPlayer->outputs.main;
 
-    struct sig_dsp_TimedGate* timedGate = sig_dsp_TimedGate_new(
-        &allocator, audioSettings, &gateInputs);
     timedGate->parameters.resetOnTrigger = resetOnTrigger;
     timedGate->parameters.bipolar = bipolar;
 
-    struct sig_test_BufferRecorder_Inputs recInputs = {
-        .source = timedGate->signal.output
-    };
-
     struct sig_test_BufferRecorder* recorder = sig_test_BufferRecorder_new(
-        &allocator, audioSettings, &recInputs, recBuffer);
+        &allocator, context, recBuffer);
+    recorder->inputs.source = timedGate->outputs.main;
 
     struct sig_dsp_Signal* signals[3] = {
         &triggerPlayer->signal, &timedGate->signal, &recorder->signal};
@@ -747,7 +795,7 @@ void test_sig_dsp_TimedGate_unipolar(void) {
     sig_Buffer_fillWithSilence(triggerBuffer);
     FLOAT_ARRAY(triggerBuffer->samples)[10] = 1.0f;
     struct sig_test_BufferPlayer* triggerPlayer = sig_test_BufferPlayer_new(
-        &allocator, audioSettings, triggerBuffer);
+        &allocator, context, triggerBuffer);
 
     struct sig_Buffer* recBuffer = sig_Buffer_new(&allocator,
         recDurationSamples);
@@ -791,7 +839,7 @@ void test_sig_dsp_TimedGate_resetOnTrigger(void) {
     FLOAT_ARRAY(triggerBuffer->samples)[triggerIndices[1]] = 1.0f;
 
     struct sig_test_BufferPlayer* triggerPlayer = sig_test_BufferPlayer_new(
-        &allocator, audioSettings, triggerBuffer);
+        &allocator, context, triggerBuffer);
 
     struct sig_Buffer* recBuffer = sig_Buffer_new(&allocator,
         recDurationSamples);
@@ -844,7 +892,7 @@ void test_sig_dsp_TimedGate_bipolar(void) {
     FLOAT_ARRAY(triggerBuffer->samples)[gateDurationSamples * 2] = 0.75f;
 
     struct sig_test_BufferPlayer* triggerPlayer = sig_test_BufferPlayer_new(
-        &allocator, audioSettings, triggerBuffer);
+        &allocator, context, triggerBuffer);
 
     struct sig_Buffer* recBuffer = sig_Buffer_new(&allocator,
         recDurationSamples);
@@ -885,6 +933,9 @@ int main(void) {
     RUN_TEST(test_sig_bipolarToInvUint12);
     RUN_TEST(test_sig_randf);
     RUN_TEST(test_sig_midiToFreq);
+    RUN_TEST(test_sig_freqToMidi);
+    RUN_TEST(test_sig_sig_linearToFreq);
+    RUN_TEST(test_sig_sig_freqToLinear);
     RUN_TEST(test_sig_fillWithValue);
     RUN_TEST(test_sig_fillWithSilence);
     RUN_TEST(test_sig_AudioSettings_new);

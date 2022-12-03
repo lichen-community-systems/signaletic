@@ -47,8 +47,6 @@ struct sig_daisy_CVOut* cv1Out;
 
 void AudioCallback(daisy::AudioHandle::InputBuffer in,
     daisy::AudioHandle::OutputBuffer out, size_t size) {
-    patch.ProcessAllControls();
-
     sig_dsp_generateSignals(&signals);
 
     for (size_t i = 0; i < size; i++) {
@@ -57,75 +55,52 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
     }
 }
 
-void InitCVInputs(struct sig_AudioSettings* audioSettings,
+void InitCVInputs(struct sig_SignalContext* context,
     struct sig_Status* status) {
-    clockInput = sig_daisy_GateIn_new(&alloc, audioSettings, &host,
+    clockInput = sig_daisy_GateIn_new(&alloc, context, &host,
         sig_daisy_GATEIN_1);
     sig_List_append(&signals, clockInput, status);
 
-    lfoClockScaleValue = sig_daisy_CVIn_new(&alloc, audioSettings,
+    lfoClockScaleValue = sig_daisy_CVIn_new(&alloc, context,
         &host, daisy::dpt::CV_1);
     lfoClockScaleValue->parameters.scale = 9.9f;
     lfoClockScaleValue->parameters.offset = 0.1f;
     sig_List_append(&signals, lfoClockScaleValue, status);
 
-    lfoAmpValue = sig_daisy_CVIn_new(&alloc, audioSettings,
+    lfoAmpValue = sig_daisy_CVIn_new(&alloc, context,
         &host, daisy::dpt::CV_2);
     sig_List_append(&signals, lfoAmpValue, status);
 }
 
-void InitClock(struct sig_AudioSettings* audioSettings,
-    struct sig_Status* status) {
-    struct sig_dsp_ClockFreqDetector_Inputs* clockFreqInputs =
-        (struct sig_dsp_ClockFreqDetector_Inputs*)
-            alloc.impl->malloc(
-                &alloc,
-                sizeof(struct sig_dsp_ClockFreqDetector_Inputs));
-    clockFreqInputs->source = clockInput->signal.output;
-
-    clockFreq = sig_dsp_ClockFreqDetector_new(&alloc, audioSettings,
-        clockFreqInputs);
+void InitClock(struct sig_SignalContext* context, struct sig_Status* status) {
+    clockFreq = sig_dsp_ClockFreqDetector_new(&alloc, context);
+    clockFreq->inputs.source = clockInput->outputs.main;
     sig_List_append(&signals, clockFreq, status);
 }
 
 void InitLFO(struct sig_SignalContext* context, struct sig_Status* status) {
-    struct sig_dsp_BinaryOp_Inputs* lfoClockScaleInputs =
-        sig_dsp_BinaryOp_Inputs_new(&alloc, context);
-    lfoClockScaleInputs->left = clockFreq->signal.output;
-    lfoClockScaleInputs->right = lfoClockScaleValue->signal.output;
-
-    lfoClockScale = sig_dsp_Mul_new(&alloc, context->audioSettings,
-        lfoClockScaleInputs);
+    lfoClockScale = sig_dsp_Mul_new(&alloc, context);
     sig_List_append(&signals, lfoClockScale, status);
+    lfoClockScale->inputs.left = clockFreq->outputs.main;
+    lfoClockScale->inputs.right = lfoClockScaleValue->outputs.main;
 
-    struct sig_dsp_Oscillator_Inputs* lfoInputs =
-        sig_dsp_Oscillator_Inputs_new(&alloc, context);
-    lfoInputs->freq = lfoClockScale->signal.output;
-    lfoInputs->mul = sig_AudioBlock_newWithValue(&alloc,
+    lfo = sig_dsp_LFTriangle_new(&alloc, context);
+    sig_List_append(&signals, lfo, status);
+    lfo->inputs.freq = lfoClockScale->outputs.main;
+    lfo->inputs.mul = sig_AudioBlock_newWithValue(&alloc,
         context->audioSettings, 1.0f);
 
-    lfo = sig_dsp_LFTriangle_new(&alloc, context->audioSettings, lfoInputs);
-    sig_List_append(&signals, lfo, status);
-
-    struct sig_dsp_BinaryOp_Inputs* mulInputs = sig_dsp_BinaryOp_Inputs_new(
-        &alloc, context);
-    mulInputs->left = lfo->signal.output;
-    mulInputs->right = lfoAmpValue->signal.output;
-
-    lfoGain = sig_dsp_Mul_new(&alloc, context->audioSettings, mulInputs);
+    lfoGain = sig_dsp_Mul_new(&alloc, context);
     sig_List_append(&signals, lfoGain, status);
+    lfoGain->inputs.left = lfo->outputs.main;
+    lfoGain->inputs.right = lfoAmpValue->outputs.main;
 }
 
-void InitCVOutputs(struct sig_AudioSettings* audioSettings,
+void InitCVOutputs(struct sig_SignalContext* context,
     struct sig_Status* status) {
-    struct sig_daisy_CVOut_Inputs* cv1OutInputs =
-        (struct sig_daisy_CVOut_Inputs*)
-            alloc.impl->malloc(
-                &alloc, sizeof(struct sig_daisy_CVOut_Inputs));
-    cv1OutInputs->source = lfoGain->signal.output;
-
-    cv1Out = sig_daisy_CVOut_new(&alloc, audioSettings, cv1OutInputs,
-        &host, sig_daisy_DPT_CVOUT_1);
+    cv1Out = sig_daisy_CVOut_new(&alloc, context, &host,
+        sig_daisy_DPT_CVOUT_1);
+    cv1Out->inputs.source = lfoGain->outputs.main;
     sig_List_append(&signals, cv1Out, status);
 
     // TODO: My DPT seems to output -4.67V to 7.96V,
@@ -136,10 +111,10 @@ void InitCVOutputs(struct sig_AudioSettings* audioSettings,
 
 void InitAudioGraph(struct sig_SignalContext* context,
     struct sig_Status* status) {
-    InitCVInputs(context->audioSettings, status);
-    InitClock(context->audioSettings, status);
+    InitCVInputs(context, status);
+    InitClock(context, status);
     InitLFO(context, status);
-    InitCVOutputs(context->audioSettings, status);
+    InitCVOutputs(context, status);
 }
 
 int main(void) {
