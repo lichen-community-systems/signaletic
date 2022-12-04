@@ -1,5 +1,11 @@
 #include "../include/signaletic-daisy-host.h"
 
+float sig_daisy_processControlValue(struct sig_daisy_Host* host,
+    int control) {
+    return control > -1 && control < host->impl->numAnalogControls ?
+        host->analogControls[control].Process() : 0.0f;
+}
+
 struct sig_daisy_GateIn* sig_daisy_GateIn_new(struct sig_Allocator* allocator,
     struct sig_SignalContext* context, struct sig_daisy_Host* host,
     int control) {

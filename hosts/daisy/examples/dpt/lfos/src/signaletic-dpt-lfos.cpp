@@ -3,8 +3,6 @@
 #include "../../../../vendor/dpt/lib/daisy_dpt.h"
 #include "../../../../include/daisy-dpt-host.h"
 
-daisy::dpt::DPT patch;
-
 #define HEAP_SIZE 1024 * 256 // 256KB
 #define MAX_NUM_SIGNALS 128
 
@@ -19,15 +17,9 @@ struct sig_Allocator alloc = {
     .heap = &heap
 };
 
-struct sig_daisy_DPTState dptState = {
-    .dpt = &patch,
-    .dacCVOuts = {4095, 4095, 4095, 4095}
-};
-
-struct sig_daisy_Host host = {
-    .impl = &sig_daisy_DPTHostImpl,
-    .state = (void *) &dptState
-};
+daisy::dpt::DPT patch;
+struct sig_daisy_DPTState dptState;
+struct sig_daisy_Host host;
 
 struct sig_dsp_Signal* listStorage[MAX_NUM_SIGNALS];
 struct sig_List signals = {
@@ -62,13 +54,13 @@ void InitCVInputs(struct sig_SignalContext* context,
     sig_List_append(&signals, clockInput, status);
 
     lfoClockScaleValue = sig_daisy_CVIn_new(&alloc, context,
-        &host, daisy::dpt::CV_1);
+        &host, sig_daisy_DPT_CVIN_1);
     lfoClockScaleValue->parameters.scale = 9.9f;
     lfoClockScaleValue->parameters.offset = 0.1f;
     sig_List_append(&signals, lfoClockScaleValue, status);
 
     lfoAmpValue = sig_daisy_CVIn_new(&alloc, context,
-        &host, daisy::dpt::CV_2);
+        &host, sig_daisy_DPT_CVIN_2);
     sig_List_append(&signals, lfoAmpValue, status);
 }
 
@@ -121,6 +113,9 @@ int main(void) {
     alloc.impl->init(&alloc);
 
     patch.Init();
+
+    sig_daisy_DPTState_init(&dptState, &patch);
+    sig_daisy_DPTHost_init(&host, &dptState);
 
     struct sig_AudioSettings audioSettings = {
         .sampleRate = 48000,

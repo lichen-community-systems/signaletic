@@ -1,4 +1,5 @@
 #include <libsignaletic.h>
+#include "daisy.h"
 
 enum {
     sig_daisy_GATEIN_1 = 0,
@@ -8,7 +9,8 @@ enum {
 
 struct sig_daisy_Host {
     struct sig_daisy_Host_Impl* impl;
-    void* state;
+    daisy::AnalogControl* analogControls;
+    void* boardState;
 };
 
 typedef float (*sig_daisy_Host_getControlValue)(
@@ -21,12 +23,11 @@ typedef float (*sig_daisy_Host_getGateValue)(
     struct sig_daisy_Host* host, int control);
 
 struct sig_daisy_Host_Impl {
+    int numAnalogControls;
     sig_daisy_Host_getControlValue getControlValue;
     sig_daisy_Host_setControlValue setControlValue;
     sig_daisy_Host_getGateValue getGateValue;
 };
-
-extern struct sig_daisy_Host_Impl sig_daisy_SeedHostImpl;
 
 struct sig_daisy_GateIn {
     struct sig_dsp_Signal signal;
@@ -34,6 +35,17 @@ struct sig_daisy_GateIn {
     struct sig_dsp_Signal_SingleMonoOutput outputs;
     int control;
 };
+
+/**
+ * @brief Processes and returns the value for the specified Analog Control.
+ * This implementation should work with most Daisy boards, assuming they
+ * provide public access to an array of daisy::AnalogControls (which most do).
+ *
+ * @param host
+ * @param control
+ * @return float
+ */
+float sig_daisy_processControlValue(struct sig_daisy_Host* host, int control);
 
 // FIXME: The control value should be specified as a parameter,
 // rather than a special constructor argument.

@@ -9,24 +9,10 @@ void sig_daisy_DPT_dacWriterCallback(void* hostState) {
     dac->WriteDac7554();
 }
 
-struct sig_daisy_Host_Impl sig_daisy_DPTHostImpl = {
-    .getControlValue = sig_daisy_DPTHostImpl_getControlValue,
-    .setControlValue = sig_daisy_DPTHostImpl_setControlValue,
-    .getGateValue = sig_daisy_DPTHostImpl_getGateValue
-};
-
-float sig_daisy_DPTHostImpl_getControlValue(struct sig_daisy_Host* host,
-    int control) {
-    struct sig_daisy_DPTState* dptState =
-        static_cast<struct sig_daisy_DPTState*>(host->state);
-
-    return dptState->dpt->controls[control].Process();
-}
-
 void sig_daisy_DPTHostImpl_setControlValue(struct sig_daisy_Host* host,
     int control, float value) {
     struct sig_daisy_DPTState* dptState =
-        static_cast<struct sig_daisy_DPTState*>(host->state);
+        static_cast<struct sig_daisy_DPTState*>(host->boardState);
 
     if (control > 5 || control < 0) {
         return;
@@ -49,7 +35,11 @@ void sig_daisy_DPTHostImpl_setControlValue(struct sig_daisy_Host* host,
 float sig_daisy_DPTHostImpl_getGateValue(struct sig_daisy_Host* host,
     int control) {
     struct sig_daisy_DPTState* dptState =
-        static_cast<struct sig_daisy_DPTState*>(host->state);
+        static_cast<struct sig_daisy_DPTState*>(host->boardState);
+
+    if (control < 0 || control > 1) {
+        return 0.0f;
+    }
 
     daisy::GateIn* gate = control == sig_daisy_GATEIN_2 ?
         &dptState->dpt->gate_in_2 : &dptState->dpt->gate_in_1;
@@ -59,4 +49,45 @@ float sig_daisy_DPTHostImpl_getGateValue(struct sig_daisy_Host* host,
     float sample = gate->State() ? 0.0f : 1.0f;
 
     return sample;
+}
+
+
+struct sig_daisy_Host_Impl sig_daisy_DPTHostImpl = {
+    .numAnalogControls = sig_daisy_DPT_NUM_ANALOG_CONTROLS,
+    .getControlValue = sig_daisy_processControlValue,
+    .setControlValue = sig_daisy_DPTHostImpl_setControlValue,
+    .getGateValue = sig_daisy_DPTHostImpl_getGateValue
+};
+
+struct sig_daisy_Host* sig_daisy_DPTHost_new(struct sig_Allocator* allocator,
+    daisy::dpt::DPT* board) {
+    struct sig_daisy_Host* self = sig_MALLOC(allocator, struct sig_daisy_Host);
+    struct sig_daisy_DPTState* boardState = sig_MALLOC(allocator,
+        struct sig_daisy_DPTState);
+    sig_daisy_DPTState_init(boardState, board);
+    sig_daisy_DPTHost_init(self, boardState);
+
+    return self;
+}
+
+void sig_daisy_DPTState_init(struct sig_daisy_DPTState* self,
+    daisy::dpt::DPT* board) {
+    self->dpt = board;
+    self->dacCVOuts[0] = 4095;
+    self->dacCVOuts[1] = 4095;
+    self->dacCVOuts[2] = 4095;
+    self->dacCVOuts[3] = 4095;
+}
+
+void sig_daisy_DPTHost_init(struct sig_daisy_Host* self,
+    struct sig_daisy_DPTState* boardState) {
+    self->impl = &sig_daisy_DPTHostImpl;
+    self->analogControls = &(boardState->dpt->controls[0]);
+    self->boardState = (void*) boardState;
+}
+
+void sig_daisy_DPTHost_destroy(struct sig_Allocator* allocator,
+    struct sig_daisy_Host* self) {
+    allocator->impl->free(allocator, self->boardState);
+    allocator->impl->free(allocator, self);
 }
