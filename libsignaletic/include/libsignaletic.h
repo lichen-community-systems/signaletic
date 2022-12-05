@@ -5,8 +5,8 @@
     in embedded environments and Web Assembly.
 */
 
-#ifndef LIBSIG_H
-#define LIBSIG_H
+#ifndef LIBSIGNALETIC_H
+#define LIBSIGNALETIC_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -1256,9 +1256,31 @@ void sig_dsp_ClockFreqDetector_generate(void* signal);
 void sig_dsp_ClockFreqDetector_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_ClockFreqDetector* self);
 
+struct sig_dsp_LinearToFreq_Inputs {
+    float_array_ptr source;
+};
+
+struct sig_dsp_LinearToFreq_Parameters {
+    float middleFreq;
+};
+
+struct sig_dsp_LinearToFreq {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_LinearToFreq_Inputs inputs;
+    struct sig_dsp_LinearToFreq_Parameters parameters;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
+struct sig_dsp_LinearToFreq* sig_dsp_LinearToFreq_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_LinearToFreq_init(struct sig_dsp_LinearToFreq* self,
+    struct sig_SignalContext* context);
+void sig_dsp_LinearToFreq_generate(void* signal);
+void sig_dsp_LinearToFreq_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_LinearToFreq* self);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif
+#endif /* LIBSIGNALETIC_H */

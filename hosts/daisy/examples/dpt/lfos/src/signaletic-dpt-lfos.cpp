@@ -49,18 +49,18 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
 
 void InitCVInputs(struct sig_SignalContext* context,
     struct sig_Status* status) {
-    clockInput = sig_daisy_GateIn_new(&alloc, context, &host,
-        sig_daisy_GATEIN_1);
+    clockInput = sig_daisy_GateIn_new(&alloc, context, &host);
+    clockInput->parameters.control = sig_daisy_GATEIN_1;
     sig_List_append(&signals, clockInput, status);
 
-    lfoClockScaleValue = sig_daisy_CVIn_new(&alloc, context,
-        &host, sig_daisy_DPT_CVIN_1);
+    lfoClockScaleValue = sig_daisy_CVIn_new(&alloc, context, &host);
+    lfoClockScaleValue->parameters.control = sig_daisy_DPT_CVIN_1;
     lfoClockScaleValue->parameters.scale = 9.9f;
     lfoClockScaleValue->parameters.offset = 0.1f;
     sig_List_append(&signals, lfoClockScaleValue, status);
 
-    lfoAmpValue = sig_daisy_CVIn_new(&alloc, context,
-        &host, sig_daisy_DPT_CVIN_2);
+    lfoAmpValue = sig_daisy_CVIn_new(&alloc, context, &host);
+    lfoAmpValue->parameters.control = sig_daisy_DPT_CVIN_2;
     sig_List_append(&signals, lfoAmpValue, status);
 }
 
@@ -90,8 +90,8 @@ void InitLFO(struct sig_SignalContext* context, struct sig_Status* status) {
 
 void InitCVOutputs(struct sig_SignalContext* context,
     struct sig_Status* status) {
-    cv1Out = sig_daisy_CVOut_new(&alloc, context, &host,
-        sig_daisy_DPT_CVOUT_1);
+    cv1Out = sig_daisy_CVOut_new(&alloc, context, &host);
+    cv1Out->parameters.control = sig_daisy_DPT_CVOUT_1;
     cv1Out->inputs.source = lfoGain->outputs.main;
     sig_List_append(&signals, cv1Out, status);
 

@@ -29,57 +29,53 @@ struct sig_daisy_Host_Impl {
     sig_daisy_Host_getGateValue getGateValue;
 };
 
-struct sig_daisy_GateIn {
-    struct sig_dsp_Signal signal;
-    struct sig_daisy_Host* host;
-    struct sig_dsp_Signal_SingleMonoOutput outputs;
-    int control;
-};
-
 /**
  * @brief Processes and returns the value for the specified Analog Control.
  * This implementation should work with most Daisy boards, assuming they
  * provide public access to an array of daisy::AnalogControls (which most do).
  *
- * @param host
- * @param control
- * @return float
+ * @param host the host instance
+ * @param control the control number to process
+ * @return float the value of the control
  */
-float sig_daisy_processControlValue(struct sig_daisy_Host* host, int control);
+float sig_daisy_processControlValue(struct sig_daisy_Host* host,
+    int control);
 
-// FIXME: The control value should be specified as a parameter,
-// rather than a special constructor argument.
-struct sig_daisy_GateIn* sig_daisy_GateIn_new(struct sig_Allocator* allocator,
-    struct sig_SignalContext* context, struct sig_daisy_Host* host,
-    int control);
+struct sig_daisy_CV_Parameters {
+    float scale;
+    float offset;
+    int control;
+};
+
+struct sig_daisy_GateIn {
+    struct sig_dsp_Signal signal;
+    struct sig_daisy_CV_Parameters parameters;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+    struct sig_daisy_Host* host;
+};
+
+struct sig_daisy_GateIn* sig_daisy_GateIn_new(
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context,
+    struct sig_daisy_Host* host);
 void sig_daisy_GateIn_init(struct sig_daisy_GateIn* self,
-    struct sig_SignalContext* context, struct sig_daisy_Host* host,
-    int control);
+    struct sig_SignalContext* context, struct sig_daisy_Host* host);
 void sig_daisy_GateIn_generate(void* signal);
 void sig_daisy_GateIn_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_GateIn* self);
 
 
-struct sig_daisy_CV_Parameters {
-    float scale;
-    float offset;
-};
-
-// FIXME: Control should at least be a parameter, if not an input.
 struct sig_daisy_CVIn {
     struct sig_dsp_Signal signal;
     struct sig_daisy_CV_Parameters parameters;
     struct sig_dsp_Signal_SingleMonoOutput outputs;
     struct sig_daisy_Host* host;
-    int control;
 };
 
 struct sig_daisy_CVIn* sig_daisy_CVIn_new(struct sig_Allocator* allocator,
-    struct sig_SignalContext* context, struct sig_daisy_Host* host,
-    int control);
+    struct sig_SignalContext* context, struct sig_daisy_Host* host);
 void sig_daisy_CVIn_init(struct sig_daisy_CVIn* self,
-    struct sig_SignalContext* context, struct sig_daisy_Host* host,
-    int control);
+    struct sig_SignalContext* context, struct sig_daisy_Host* host);
 void sig_daisy_CVIn_generate(void* signal);
 void sig_daisy_CVIn_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_CVIn* self);
@@ -98,17 +94,14 @@ struct sig_daisy_CVOut {
     struct sig_daisy_CVOut_Inputs inputs;
     struct sig_dsp_Signal_SingleMonoOutput outputs;
     struct sig_daisy_Host* host;
-    int control;
 };
 
 struct sig_daisy_CVOut* sig_daisy_CVOut_new(
     struct sig_Allocator* allocator,
     struct sig_SignalContext* context,
-    struct sig_daisy_Host* host,
-    int control);
+    struct sig_daisy_Host* host);
 void sig_daisy_CVOut_init(struct sig_daisy_CVOut* self,
-    struct sig_SignalContext* context, struct sig_daisy_Host* host,
-    int control);
+    struct sig_SignalContext* context, struct sig_daisy_Host* host);
 void sig_daisy_CVOut_generate(void* signal);
 void sig_daisy_CVOut_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_CVOut* self);

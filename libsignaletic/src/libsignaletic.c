@@ -1656,3 +1656,40 @@ void sig_dsp_ClockFreqDetector_destroy(struct sig_Allocator* allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
 }
+
+struct sig_dsp_LinearToFreq* sig_dsp_LinearToFreq_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_LinearToFreq* self = sig_MALLOC(allocator,
+        struct sig_dsp_LinearToFreq);
+    sig_dsp_LinearToFreq_init(self, context);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_dsp_LinearToFreq_init(struct sig_dsp_LinearToFreq* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_LinearToFreq_generate);
+    self->parameters.middleFreq = sig_FREQ_C4;
+    sig_CONNECT_TO_SILENCE(self, source, context);
+}
+
+void sig_dsp_LinearToFreq_generate(void* signal) {
+    struct sig_dsp_LinearToFreq* self = (struct sig_dsp_LinearToFreq*) signal;
+    float_array_ptr source = self->inputs.source;
+    float_array_ptr output = self->outputs.main;
+    float middleFreq = self->parameters.middleFreq;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float inputSample = FLOAT_ARRAY(source)[i];
+        FLOAT_ARRAY(output)[i] = sig_linearToFreq(inputSample, middleFreq);
+    }
+}
+
+void sig_dsp_LinearToFreq_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_LinearToFreq* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, self);
+}

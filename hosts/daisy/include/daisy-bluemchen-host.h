@@ -9,7 +9,7 @@ enum {
     sig_daisy_Bluemchen_CVIN_LAST = kxmx::Bluemchen::Ctrl::CTRL_LAST
 };
 
-int sig_daisy_Bluemchen_NUM_ANALOG_CONTROLS = kxmx::Bluemchen::Ctrl::CTRL_LAST;
+const int sig_daisy_Bluemchen_NUM_ANALOG_CONTROLS = kxmx::Bluemchen::Ctrl::CTRL_LAST;
 
 enum {
     sig_daisy_Nechmeulb_CVIN_KNOB1 = kxmx::Bluemchen::Ctrl::CTRL_1,
@@ -18,9 +18,9 @@ enum {
 };
 
 enum {
-    sig_daisy_Nechmeulb_CVOUT_1 = daisy::DacHandle::Channel::ONE,
-    sig_daisy_Nechmeulb_CVOUT_2 = daisy::DacHandle::Channel::TWO,
-    sig_daisy_Nechmeulb_CVOUT_BOTH = daisy::DacHandle::Channel::BOTH,
+    sig_daisy_Nechmeulb_CVOUT_1 = 0,
+    sig_daisy_Nechmeulb_CVOUT_2,
+    sig_daisy_Nechmeulb_CVOUT_BOTH,
     sig_daisy_Nechmeulb_CVOUT_LAST
 };
 
