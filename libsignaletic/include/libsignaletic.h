@@ -692,7 +692,6 @@ void sig_dsp_Signal_destroy(struct sig_Allocator* allocator,
 #define sig_CONNECT_TO_SILENCE(signal, inputName, context)\
     signal->inputs.inputName = context->silence->outputs.main;
 
-void sig_dsp_generateSignals(struct sig_List* signalList);
 
 struct sig_dsp_Signal_SingleMonoOutput {
     float_array_ptr main;
@@ -705,6 +704,36 @@ void sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(
 void sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(
     struct sig_Allocator* allocator,
     struct sig_dsp_Signal_SingleMonoOutput* outputs);
+
+
+void sig_dsp_evaluateSignals(struct sig_List* signalList);
+
+struct sig_dsp_SignalEvaluator;
+
+typedef void (*sig_dsp_SignalEvaluator_evaluate)(
+    struct sig_dsp_SignalEvaluator* self);
+
+struct sig_dsp_SignalEvaluator {
+    sig_dsp_SignalEvaluator_evaluate evaluate;
+};
+
+struct sig_dsp_SignalListEvaluator {
+    sig_dsp_SignalEvaluator_evaluate evaluate;
+    struct sig_List* signalList;
+};
+
+struct sig_dsp_SignalListEvaluator* sig_dsp_SignalListEvaluator_new(
+    struct sig_Allocator* allocator, struct sig_List* signalList);
+
+void sig_dsp_SignalListEvaluator_init(
+    struct sig_dsp_SignalListEvaluator* self, struct sig_List* signalList);
+
+void sig_dsp_SignalListEvaluator_evaluate(
+    struct sig_dsp_SignalEvaluator* self);
+
+void sig_dsp_SignalListEvaluator_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_SignalListEvaluator* self);
+
 
 struct sig_dsp_Value_Parameters {
     float value;
@@ -730,6 +759,8 @@ void sig_dsp_Value_generate(void* signal);
 void sig_dsp_Value_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Value* self);
 
+// TODO: Could this be replaced with a sig_dsp_Value that is
+// only generated once, at instantiation time?
 /**
  * @brief A signal whose value is constant throughout its lifetime.
  */

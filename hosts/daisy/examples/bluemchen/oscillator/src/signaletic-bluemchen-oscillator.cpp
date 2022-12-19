@@ -22,6 +22,10 @@ struct sig_Allocator allocator = {
     .heap = &heap
 };
 
+struct sig_dsp_Signal* listStorage[MAX_NUM_SIGNALS];
+struct sig_List signals;
+struct sig_dsp_SignalListEvaluator* evaluator;
+
 Bluemchen bluemchen;
 struct sig_daisy_Host* host;
 
@@ -38,13 +42,9 @@ struct sig_dsp_ConstantValue* ampMod;
 struct sig_dsp_Oscillator* osc;
 struct sig_dsp_ConstantValue* gainLevel;
 struct sig_dsp_BinaryOp* gain;
+struct sig_daisy_AudioOut* leftOut;
+struct sig_daisy_AudioOut* rightOut;
 
-struct sig_dsp_Signal* listStorage[MAX_NUM_SIGNALS];
-struct sig_List signals = {
-    .items = (void**) &listStorage,
-    .capacity = MAX_NUM_SIGNALS,
-    .length = 0
-};
 
 void UpdateOled() {
     bluemchen.display.Fill(false);
@@ -67,88 +67,57 @@ void UpdateOled() {
     bluemchen.display.Update();
 }
 
-void AudioCallback(daisy::AudioHandle::InputBuffer in,
-    daisy::AudioHandle::OutputBuffer out, size_t size) {
-    // Evaluate the signal graph.
-    sig_dsp_generateSignals(&signals);
-
-    // Copy mono buffer to stereo output.
-    for (size_t i = 0; i < size; i++) {
-        out[0][i] = out[1][i] = gain->outputs.main[i];
-    }
-}
-
-
-int main(void) {
-    allocator.impl->init(&allocator);
-    struct sig_Status status;
-    sig_Status_init(&status);
-
-    bluemchen.Init();
-    host = sig_daisy_BluemchenHost_new(&allocator, &bluemchen);
-
-    struct sig_AudioSettings audioSettings = {
-        .sampleRate = bluemchen.AudioSampleRate(),
-        .numChannels = 1,
-        .blockSize = 1
-    };
-
-    struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
-        &audioSettings);
-
-    bluemchen.SetAudioBlockSize(audioSettings.blockSize);
-    bluemchen.StartAdc();
+void buildSignalGraph(struct sig_SignalContext* context,
+     struct sig_Status* status) {
+    smoothCoefficient = sig_dsp_ConstantValue_new(&allocator, context, 0.01);
 
     /** Frequency controls **/
     // Bluemchen AnalogControls are all unipolar,
     // so they need to be scaled to bipolar values.
-
-    smoothCoefficient = sig_dsp_ConstantValue_new(&allocator, context, 0.01);
-
     coarseFreqKnob = sig_daisy_CVIn_new(&allocator, context, host);
-    sig_List_append(&signals, coarseFreqKnob, &status);
+    sig_List_append(&signals, coarseFreqKnob, status);
     coarseFreqKnob->parameters.control = bluemchen.CTRL_1;
     coarseFreqKnob->parameters.scale = 10.0f;
     coarseFreqKnob->parameters.offset = -5.0f;
 
     coarseLPF = sig_dsp_OnePole_new(&allocator, context);
-    sig_List_append(&signals, coarseLPF, &status);
+    sig_List_append(&signals, coarseLPF, status);
     coarseLPF->inputs.coefficient = smoothCoefficient->outputs.main;
     coarseLPF->inputs.source = coarseFreqKnob->outputs.main;
 
     fineFreqKnob = sig_daisy_CVIn_new(&allocator, context, host);
-    sig_List_append(&signals, fineFreqKnob, &status);
+    sig_List_append(&signals, fineFreqKnob, status);
     fineFreqKnob->parameters.control = bluemchen.CTRL_2;
     fineFreqKnob->parameters.offset = -0.5f;
 
     fineLPF = sig_dsp_OnePole_new(&allocator, context);
-    sig_List_append(&signals, fineLPF, &status);
+    sig_List_append(&signals, fineLPF, status);
     fineLPF->inputs.coefficient = smoothCoefficient->outputs.main;
     fineLPF->inputs.source = fineFreqKnob->outputs.main;
 
     vOctCVIn = sig_daisy_CVIn_new(&allocator, context, host);
-    sig_List_append(&signals, vOctCVIn, &status);
+    sig_List_append(&signals, vOctCVIn, status);
     vOctCVIn->parameters.control = bluemchen.CTRL_4;
     vOctCVIn->parameters.scale = 10.0f;
     vOctCVIn->parameters.offset = -5.0f;
 
     coarsePlusVOct = sig_dsp_Add_new(&allocator, context);
-    sig_List_append(&signals, coarsePlusVOct, &status);
+    sig_List_append(&signals, coarsePlusVOct, status);
     coarsePlusVOct->inputs.left = coarseLPF->outputs.main;
     coarsePlusVOct->inputs.right = vOctCVIn->outputs.main;
 
     coarseVOctPlusFine = sig_dsp_Add_new(&allocator, context);
-    sig_List_append(&signals, coarseVOctPlusFine, &status);
+    sig_List_append(&signals, coarseVOctPlusFine, status);
     coarseVOctPlusFine->inputs.left = coarsePlusVOct->outputs.main;
     coarseVOctPlusFine->inputs.right = fineLPF->outputs.main;
 
     frequency = sig_dsp_LinearToFreq_new(&allocator, context);
-    sig_List_append(&signals, frequency, &status);
+    sig_List_append(&signals, frequency, status);
     frequency->inputs.source = coarseVOctPlusFine->outputs.main;
 
     ampMod = sig_dsp_ConstantValue_new(&allocator, context, 1.0f);
     osc = sig_dsp_Sine_new(&allocator, context);
-    sig_List_append(&signals, osc, &status);
+    sig_List_append(&signals, osc, status);
     osc->inputs.freq = frequency->outputs.main;
     osc->inputs.mul = ampMod->outputs.main;
 
@@ -156,13 +125,47 @@ int main(void) {
     // Bluemchen's output circuit clips as it approaches full gain,
     // so 0.85 seems to be around the practical maximum value.
     gainLevel = sig_dsp_ConstantValue_new(&allocator, context, 0.85f);
+
     gain = sig_dsp_Mul_new(&allocator, context);
-    sig_List_append(&signals, gain, &status);
+    sig_List_append(&signals, gain, status);
     gain->inputs.left = osc->outputs.main;
     gain->inputs.right = gainLevel->outputs.main;
-    sig_List_append(&signals, gain, &status);
+    sig_List_append(&signals, gain, status);
 
-    bluemchen.StartAudio(AudioCallback);
+    leftOut = sig_daisy_AudioOut_new(&allocator, context, host);
+    leftOut->parameters.channel = 0;
+    leftOut->inputs.source = gain->outputs.main;
+    sig_List_append(&signals, leftOut, status);
+
+    rightOut = sig_daisy_AudioOut_new(&allocator, context, host);
+    rightOut->parameters.channel = 1;
+    rightOut->inputs.source = gain->outputs.main;
+    sig_List_append(&signals, rightOut, status);
+}
+
+int main(void) {
+    allocator.impl->init(&allocator);
+    struct sig_Status status;
+    sig_Status_init(&status);
+
+    sig_List_init(&signals, (void**) &listStorage, MAX_NUM_SIGNALS);
+
+    evaluator = sig_dsp_SignalListEvaluator_new(&allocator, &signals);
+    host = sig_daisy_BluemchenHost_new(&allocator, &bluemchen,
+        (struct sig_dsp_SignalEvaluator*) evaluator);
+    sig_daisy_Host_registerGlobalHost(host);
+
+    struct sig_AudioSettings audioSettings = {
+        .sampleRate = bluemchen.AudioSampleRate(),
+        .numChannels = 2,
+        .blockSize = 1
+    };
+    bluemchen.SetAudioBlockSize(audioSettings.blockSize);
+    struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
+        &audioSettings);
+
+    buildSignalGraph(context, &status);
+    host->impl->start(host);
 
     while (1) {
         UpdateOled();

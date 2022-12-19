@@ -26,6 +26,10 @@ enum {
 
 extern struct sig_daisy_Host_Impl sig_daisy_BluemchenHostImpl;
 
+void sig_daisy_BluemchenHostImpl_start(struct sig_daisy_Host* host);
+
+void sig_daisy_BluemchenHostImpl_stop(struct sig_daisy_Host* host);
+
 void sig_daisy_BluemchenHostImpl_setControlValue(
     struct sig_daisy_Host* host, int control, float value);
 
@@ -47,10 +51,12 @@ void sig_daisy_BluemchenState_init(struct sig_daisy_BluemchenState* self,
     kxmx::Bluemchen* board);
 
 struct sig_daisy_Host* sig_daisy_BluemchenHost_new(
-    struct sig_Allocator* allocator, kxmx::Bluemchen* board);
+    struct sig_Allocator* allocator, kxmx::Bluemchen* board,
+    struct sig_dsp_SignalEvaluator* evaluator);
 
 void sig_daisy_BluemchenHost_init(struct sig_daisy_Host* self,
-    struct sig_daisy_BluemchenState* boardState);
+    struct sig_daisy_BluemchenState* boardState,
+    struct sig_dsp_SignalEvaluator* evaluator);
 
 void sig_daisy_BluemchenHost_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_Host* self);

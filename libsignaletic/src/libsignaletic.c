@@ -499,15 +499,6 @@ void sig_dsp_Signal_destroy(struct sig_Allocator* allocator,
 }
 
 
-void sig_dsp_generateSignals(struct sig_List* signalList) {
-    for (size_t i = 0; i < signalList->length; i++) {
-        struct sig_dsp_Signal* signal =
-            (struct sig_dsp_Signal*) signalList->items[i];
-        signal->generate(signal);
-    }
-}
-
-
 void sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(
     struct sig_Allocator* allocator,
     struct sig_AudioSettings* audioSettings,
@@ -522,16 +513,40 @@ void sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(
 }
 
 
-void sig_dsp_Value_init(struct sig_dsp_Value* self,
-    struct sig_SignalContext* context) {
+inline void sig_dsp_evaluateSignals(struct sig_List* signalList) {
+    for (size_t i = 0; i < signalList->length; i++) {
+        struct sig_dsp_Signal* signal =
+            (struct sig_dsp_Signal*) signalList->items[i];
+        signal->generate(signal);
+    }
+}
 
-    struct sig_dsp_Value_Parameters params = {
-        .value = 1.0f
-    };
+struct sig_dsp_SignalListEvaluator* sig_dsp_SignalListEvaluator_new(
+    struct sig_Allocator* allocator, struct sig_List* signalList) {
+    struct sig_dsp_SignalListEvaluator* self = sig_MALLOC(allocator,
+        struct sig_dsp_SignalListEvaluator);
+    sig_dsp_SignalListEvaluator_init(self, signalList);
 
-    sig_dsp_Signal_init(self, context, *sig_dsp_Value_generate);
+    return self;
+}
 
-    self->parameters = params;
+void sig_dsp_SignalListEvaluator_init(
+    struct sig_dsp_SignalListEvaluator* self, struct sig_List* signalList) {
+    self->evaluate = sig_dsp_SignalListEvaluator_evaluate;
+    self->signalList = signalList;
+}
+
+void sig_dsp_SignalListEvaluator_evaluate(
+    struct sig_dsp_SignalEvaluator* evaluator) {
+    struct sig_dsp_SignalListEvaluator* salf =
+        (struct sig_dsp_SignalListEvaluator*) evaluator;
+
+    sig_dsp_evaluateSignals(salf->signalList);
+}
+
+void sig_dsp_SignalListEvaluator_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_SignalListEvaluator* self) {
+    allocator->impl->free(allocator, self);
 }
 
 struct sig_dsp_Value* sig_dsp_Value_new(struct sig_Allocator* allocator,
@@ -542,6 +557,18 @@ struct sig_dsp_Value* sig_dsp_Value_new(struct sig_Allocator* allocator,
         context->audioSettings, &self->outputs);
 
     return self;
+}
+
+void sig_dsp_Value_init(struct sig_dsp_Value* self,
+    struct sig_SignalContext* context) {
+
+    struct sig_dsp_Value_Parameters params = {
+        .value = 1.0f
+    };
+
+    sig_dsp_Signal_init(self, context, *sig_dsp_Value_generate);
+
+    self->parameters = params;
 }
 
 void sig_dsp_Value_destroy(struct sig_Allocator* allocator, struct sig_dsp_Value* self) {
