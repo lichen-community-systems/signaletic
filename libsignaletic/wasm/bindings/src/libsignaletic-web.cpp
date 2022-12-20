@@ -5,8 +5,8 @@
 
 class Signals {
 public:
-    void generateSignals(struct sig_List* signalList) {
-        return sig_dsp_generateSignals(signalList);
+    void evaluateSignals(struct sig_List* signalList) {
+        return sig_dsp_evaluateSignals(signalList);
     }
 
     struct sig_dsp_Value* Value_new(

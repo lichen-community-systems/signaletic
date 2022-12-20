@@ -1,5 +1,5 @@
 interface Signals {
-    void generateSignals(sig_List signalList);
+    void evaluateSignals(sig_List signalList);
 
     sig_dsp_Value Value_new(sig_Allocator allocator,
         sig_SignalContext context);

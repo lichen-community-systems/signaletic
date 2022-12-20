@@ -96,7 +96,7 @@ class SignaleticOscillator extends AudioWorkletProcessor {
 
         for (let output of outputs) {
             // Evaluate the Signaletic graph.
-            sig.dsp.generateSignals(this.signalList);
+            sig.dsp.evaluateSignals(this.signalList);
 
             for (let channel of output) {
                 for (let i = 0; i < channel.length; i++) {

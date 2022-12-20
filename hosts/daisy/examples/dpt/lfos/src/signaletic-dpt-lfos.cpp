@@ -39,7 +39,7 @@ struct sig_daisy_CVOut* cv1Out;
 
 void AudioCallback(daisy::AudioHandle::InputBuffer in,
     daisy::AudioHandle::OutputBuffer out, size_t size) {
-    sig_dsp_generateSignals(&signals);
+    sig_dsp_evaluateSignals(&signals);
 
     for (size_t i = 0; i < size; i++) {
         out[0][i] = in[0][i];
