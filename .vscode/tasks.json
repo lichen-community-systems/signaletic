@@ -109,6 +109,20 @@
             "type": "shell"
         },
         {
+            "label": "Debug Build Patch.Init() Examples",
+            "dependsOn": [
+                "Build libdaisy"
+            ],
+            "command": "make clean;DEBUG=1 make",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/patch_init"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
             "label": "Build Bluemchen Examples",
             "dependsOn": [
                 "Build libdaisy"

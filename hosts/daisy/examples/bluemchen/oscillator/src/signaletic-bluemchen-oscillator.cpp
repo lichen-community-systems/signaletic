@@ -31,7 +31,7 @@ struct sig_daisy_Host* host;
 
 struct sig_dsp_ConstantValue* smoothCoefficient;
 struct sig_daisy_CVIn* coarseFreqKnob;
-struct sig_dsp_OnePole* coarseLPF;
+struct sig_dsp_OnePole* coarseFrequencyLPF;
 struct sig_daisy_CVIn* fineFreqKnob;
 struct sig_dsp_OnePole* fineLPF;
 struct sig_daisy_CVIn* vOctCVIn;
@@ -80,10 +80,10 @@ void buildSignalGraph(struct sig_SignalContext* context,
     coarseFreqKnob->parameters.scale = 10.0f;
     coarseFreqKnob->parameters.offset = -5.0f;
 
-    coarseLPF = sig_dsp_OnePole_new(&allocator, context);
-    sig_List_append(&signals, coarseLPF, status);
-    coarseLPF->inputs.coefficient = smoothCoefficient->outputs.main;
-    coarseLPF->inputs.source = coarseFreqKnob->outputs.main;
+    coarseFrequencyLPF = sig_dsp_OnePole_new(&allocator, context);
+    sig_List_append(&signals, coarseFrequencyLPF, status);
+    coarseFrequencyLPF->inputs.coefficient = smoothCoefficient->outputs.main;
+    coarseFrequencyLPF->inputs.source = coarseFreqKnob->outputs.main;
 
     fineFreqKnob = sig_daisy_CVIn_new(&allocator, context, host);
     sig_List_append(&signals, fineFreqKnob, status);
@@ -103,7 +103,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
 
     coarsePlusVOct = sig_dsp_Add_new(&allocator, context);
     sig_List_append(&signals, coarsePlusVOct, status);
-    coarsePlusVOct->inputs.left = coarseLPF->outputs.main;
+    coarsePlusVOct->inputs.left = coarseFrequencyLPF->outputs.main;
     coarsePlusVOct->inputs.right = vOctCVIn->outputs.main;
 
     coarseVOctPlusFine = sig_dsp_Add_new(&allocator, context);

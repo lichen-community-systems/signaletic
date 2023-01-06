@@ -345,8 +345,11 @@ struct sig_SignalContext* sig_SignalContext_new(
     self->audioSettings = audioSettings;
     struct sig_dsp_ConstantValue* silence = sig_dsp_ConstantValue_new(
         allocator, self, 0.0f);
-
     self->silence = silence;
+
+    struct sig_dsp_ConstantValue* unity = sig_dsp_ConstantValue_new(
+        allocator, self, 1.0f);
+    self->unity = unity;
 
     return self;
 }
@@ -354,6 +357,7 @@ struct sig_SignalContext* sig_SignalContext_new(
 void sig_SignalContext_destroy(struct sig_Allocator* allocator,
     struct sig_SignalContext* self) {
     sig_dsp_ConstantValue_destroy(allocator, self->silence);
+    sig_dsp_ConstantValue_destroy(allocator, self->unity);
     allocator->impl->free(allocator, self);
 }
 
@@ -538,10 +542,10 @@ void sig_dsp_SignalListEvaluator_init(
 
 void sig_dsp_SignalListEvaluator_evaluate(
     struct sig_dsp_SignalEvaluator* evaluator) {
-    struct sig_dsp_SignalListEvaluator* salf =
+    struct sig_dsp_SignalListEvaluator* self =
         (struct sig_dsp_SignalListEvaluator*) evaluator;
 
-    sig_dsp_evaluateSignals(salf->signalList);
+    sig_dsp_evaluateSignals(self->signalList);
 }
 
 void sig_dsp_SignalListEvaluator_destroy(struct sig_Allocator* allocator,
@@ -1064,7 +1068,7 @@ void sig_dsp_Oscillator_init(struct sig_dsp_Oscillator* self,
 
     sig_CONNECT_TO_SILENCE(self, freq, context);
     sig_CONNECT_TO_SILENCE(self, phaseOffset, context);
-    sig_CONNECT_TO_SILENCE(self, mul, context);
+    sig_CONNECT_TO_UNITY(self, mul, context);
     sig_CONNECT_TO_SILENCE(self, add, context);
 
     self->phaseAccumulator = 0.0f;
@@ -1250,8 +1254,8 @@ void sig_dsp_Looper_init(struct sig_dsp_Looper* self,
 
     sig_CONNECT_TO_SILENCE(self, source, context);
     sig_CONNECT_TO_SILENCE(self, start, context);
-    sig_CONNECT_TO_SILENCE(self, end, context);
-    sig_CONNECT_TO_SILENCE(self, speed, context);
+    sig_CONNECT_TO_UNITY(self, end, context);
+    sig_CONNECT_TO_UNITY(self, speed, context);
     sig_CONNECT_TO_SILENCE(self, record, context);
     sig_CONNECT_TO_SILENCE(self, clear, context);
 }

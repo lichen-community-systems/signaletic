@@ -1,6 +1,5 @@
 #include "daisy.h"
 #include <libsignaletic.h>
-#include "../../../../vendor/dpt/lib/daisy_dpt.h"
 #include "../../../../include/daisy-dpt-host.h"
 
 #define HEAP_SIZE 1024 * 256 // 256KB
@@ -17,9 +16,8 @@ struct sig_Allocator alloc = {
     .heap = &heap
 };
 
-daisy::dpt::DPT patch;
-struct sig_daisy_DPTState dptState;
-struct sig_daisy_Host host;
+daisy::dpt::DPT dpt;
+struct sig_daisy_Host* dptHost;
 
 struct sig_dsp_Signal* listStorage[MAX_NUM_SIGNALS];
 struct sig_List signals = {
@@ -28,6 +26,7 @@ struct sig_List signals = {
     .length = 0
 };
 
+struct sig_dsp_SignalListEvaluator* evaluator;
 struct sig_daisy_GateIn* clockInput;
 struct sig_dsp_ClockFreqDetector* clockFreq;
 struct sig_daisy_CVIn* lfoAmpValue;
@@ -36,31 +35,22 @@ struct sig_daisy_CVIn* lfoClockScaleValue;
 struct sig_dsp_BinaryOp* lfoClockScale;
 struct sig_dsp_Oscillator* lfo;
 struct sig_daisy_CVOut* cv1Out;
-
-void AudioCallback(daisy::AudioHandle::InputBuffer in,
-    daisy::AudioHandle::OutputBuffer out, size_t size) {
-    sig_dsp_evaluateSignals(&signals);
-
-    for (size_t i = 0; i < size; i++) {
-        out[0][i] = in[0][i];
-        out[1][i] = in[1][i];
-    }
-}
+struct sig_daisy_GateOut* gate1Out;
 
 void InitCVInputs(struct sig_SignalContext* context,
     struct sig_Status* status) {
-    clockInput = sig_daisy_GateIn_new(&alloc, context, &host);
-    clockInput->parameters.control = sig_daisy_GATEIN_1;
+    clockInput = sig_daisy_GateIn_new(&alloc, context, dptHost);
+    clockInput->parameters.control = sig_daisy_DPT_GATE_IN_1;
     sig_List_append(&signals, clockInput, status);
 
-    lfoClockScaleValue = sig_daisy_CVIn_new(&alloc, context, &host);
-    lfoClockScaleValue->parameters.control = sig_daisy_DPT_CVIN_1;
+    lfoClockScaleValue = sig_daisy_CVIn_new(&alloc, context, dptHost);
+    lfoClockScaleValue->parameters.control = sig_daisy_DPT_CV_IN_1;
     lfoClockScaleValue->parameters.scale = 9.9f;
     lfoClockScaleValue->parameters.offset = 0.1f;
     sig_List_append(&signals, lfoClockScaleValue, status);
 
-    lfoAmpValue = sig_daisy_CVIn_new(&alloc, context, &host);
-    lfoAmpValue->parameters.control = sig_daisy_DPT_CVIN_2;
+    lfoAmpValue = sig_daisy_CVIn_new(&alloc, context, dptHost);
+    lfoAmpValue->parameters.control = sig_daisy_DPT_CV_IN_2;
     sig_List_append(&signals, lfoAmpValue, status);
 }
 
@@ -72,26 +62,26 @@ void InitClock(struct sig_SignalContext* context, struct sig_Status* status) {
 
 void InitLFO(struct sig_SignalContext* context, struct sig_Status* status) {
     lfoClockScale = sig_dsp_Mul_new(&alloc, context);
-    sig_List_append(&signals, lfoClockScale, status);
     lfoClockScale->inputs.left = clockFreq->outputs.main;
     lfoClockScale->inputs.right = lfoClockScaleValue->outputs.main;
+    sig_List_append(&signals, lfoClockScale, status);
 
     lfo = sig_dsp_LFTriangle_new(&alloc, context);
-    sig_List_append(&signals, lfo, status);
     lfo->inputs.freq = lfoClockScale->outputs.main;
     lfo->inputs.mul = sig_AudioBlock_newWithValue(&alloc,
         context->audioSettings, 1.0f);
+    sig_List_append(&signals, lfo, status);
 
     lfoGain = sig_dsp_Mul_new(&alloc, context);
-    sig_List_append(&signals, lfoGain, status);
     lfoGain->inputs.left = lfo->outputs.main;
     lfoGain->inputs.right = lfoAmpValue->outputs.main;
+    sig_List_append(&signals, lfoGain, status);
 }
 
 void InitCVOutputs(struct sig_SignalContext* context,
     struct sig_Status* status) {
-    cv1Out = sig_daisy_CVOut_new(&alloc, context, &host);
-    cv1Out->parameters.control = sig_daisy_DPT_CVOUT_1;
+    cv1Out = sig_daisy_CVOut_new(&alloc, context, dptHost);
+    cv1Out->parameters.control = sig_daisy_DPT_CV_OUT_1;
     cv1Out->inputs.source = lfoGain->outputs.main;
     sig_List_append(&signals, cv1Out, status);
 
@@ -99,9 +89,14 @@ void InitCVOutputs(struct sig_SignalContext* context,
     // this was tuned by hand with the VCV Rack oscilloscope.
     cv1Out->parameters.scale = 0.68;
     cv1Out->parameters.offset = -0.32;
+
+    gate1Out = sig_daisy_GateOut_new(&alloc, context, dptHost);
+    gate1Out->parameters.control = sig_daisy_DPT_GATE_OUT_1;
+    gate1Out->inputs.source = clockInput->outputs.main;
+    sig_List_append(&signals, gate1Out, status);
 }
 
-void InitAudioGraph(struct sig_SignalContext* context,
+void buildSignalGraph(struct sig_SignalContext* context,
     struct sig_Status* status) {
     InitCVInputs(context, status);
     InitClock(context, status);
@@ -110,32 +105,30 @@ void InitAudioGraph(struct sig_SignalContext* context,
 }
 
 int main(void) {
+    struct sig_Status status;
+    sig_Status_init(&status);
     alloc.impl->init(&alloc);
+    sig_List_init(&signals, (void**) &listStorage, MAX_NUM_SIGNALS);
+    evaluator = sig_dsp_SignalListEvaluator_new(&alloc, &signals);
 
-    patch.Init();
+    dptHost = sig_daisy_DPTHost_new(&alloc, &dpt,
+        (struct sig_dsp_SignalEvaluator*) evaluator);
+    sig_daisy_Host_registerGlobalHost(dptHost);
 
-    sig_daisy_DPTState_init(&dptState, &patch);
-    sig_daisy_DPTHost_init(&host, &dptState);
-
+    // TODO: Hosts should take audioSettings as an argument,
+    // and set up libdaisy according to it.
     struct sig_AudioSettings audioSettings = {
         .sampleRate = 48000,
         .numChannels = 2,
         .blockSize = 1
     };
+    dpt.SetAudioSampleRate(audioSettings.sampleRate);
+    dpt.SetAudioBlockSize(audioSettings.blockSize);
 
     struct sig_SignalContext* context = sig_SignalContext_new(
         &alloc, &audioSettings);
-
-    struct sig_Status status;
-    sig_Status_init(&status);
-
-    patch.SetAudioSampleRate(audioSettings.sampleRate);
-    patch.SetAudioBlockSize(audioSettings.blockSize);
-
-    InitAudioGraph(context, &status);
-
-    patch.StartAudio(AudioCallback);
-    patch.InitTimer(&sig_daisy_DPT_dacWriterCallback, &dptState);
+    buildSignalGraph(context, &status);
+    dptHost->impl->start(dptHost);
 
     while (1) {
 

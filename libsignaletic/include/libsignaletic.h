@@ -518,6 +518,7 @@ void sig_AudioSettings_destroy(struct sig_Allocator* allocator,
 struct sig_SignalContext {
     struct sig_AudioSettings* audioSettings;
     struct sig_dsp_ConstantValue* silence;
+    struct sig_dsp_ConstantValue* unity;
 };
 
 struct sig_SignalContext* sig_SignalContext_new(
@@ -692,6 +693,8 @@ void sig_dsp_Signal_destroy(struct sig_Allocator* allocator,
 #define sig_CONNECT_TO_SILENCE(signal, inputName, context)\
     signal->inputs.inputName = context->silence->outputs.main;
 
+#define sig_CONNECT_TO_UNITY(signal, inputName, context)\
+    signal->inputs.inputName = context->unity->outputs.main;
 
 struct sig_dsp_Signal_SingleMonoOutput {
     float_array_ptr main;
@@ -1018,6 +1021,7 @@ void sig_dsp_ToggleGate_destroy(
     struct sig_Allocator* allocator,
     struct sig_dsp_ToggleGate* self);
 
+// TODO: Rename mul and add to scale and offset.
 struct sig_dsp_Oscillator_Inputs {
     float_array_ptr freq;
     float_array_ptr phaseOffset;
