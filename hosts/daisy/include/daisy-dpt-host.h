@@ -33,11 +33,17 @@ enum {
     sig_daisy_DPT_GATE_IN_LAST = sig_daisy_GATE_IN_LAST
 };
 
+const int sig_daisy_DPT_NUM_GATE_INPUTS = sig_daisy_DPT_GATE_IN_LAST;
+
 enum {
     sig_daisy_DPT_GATE_OUT_1 = sig_daisy_GATE_OUT_1,
     sig_daisy_DPT_GATE_OUT_2 = sig_daisy_GATE_OUT_2,
     sig_daisy_DPT_GATE_OUT_LAST = sig_daisy_GATE_OUT_LAST
 };
+
+const int sig_daisy_DPT_NUM_GATE_OUTPUTS = sig_daisy_GATE_OUT_LAST;
+
+const int sig_daisy_DPT_NUM_SWITCHES = 0;
 
 void sig_daisy_DPT_dacWriterCallback(void* dptHost);
 
@@ -63,13 +69,17 @@ void sig_daisy_DPTHostImpl_setGateValue(
     struct sig_daisy_Host* host, int control, float value);
 
 struct sig_daisy_Host* sig_daisy_DPTHost_new(struct sig_Allocator* allocator,
-    daisy::dpt::DPT* dpt, struct sig_dsp_SignalEvaluator* evaluator);
+    sig_AudioSettings* audioSettings,
+    daisy::dpt::DPT* dpt,
+    struct sig_dsp_SignalEvaluator* evaluator);
 
 void sig_daisy_DPTHost_Board_init(struct sig_daisy_Host_Board* self,
     daisy::dpt::DPT* dpt);
 
 void sig_daisy_DPTHost_init(struct sig_daisy_DPTHost* self,
-    daisy::dpt::DPT* dpt, struct sig_dsp_SignalEvaluator* evaluator);
+    sig_AudioSettings* audioSettings,
+    daisy::dpt::DPT* dpt,
+    struct sig_dsp_SignalEvaluator* evaluator);
 
 void sig_daisy_DPTHost_destroy(
     struct sig_Allocator* allocator,

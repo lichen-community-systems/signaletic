@@ -145,25 +145,26 @@ void buildSignalGraph(struct sig_SignalContext* context,
 
 int main(void) {
     allocator.impl->init(&allocator);
-    struct sig_Status status;
-    sig_Status_init(&status);
-
-    sig_List_init(&signals, (void**) &listStorage, MAX_NUM_SIGNALS);
-
-    evaluator = sig_dsp_SignalListEvaluator_new(&allocator, &signals);
-    host = sig_daisy_BluemchenHost_new(&allocator, &bluemchen,
-        (struct sig_dsp_SignalEvaluator*) evaluator);
-    sig_daisy_Host_registerGlobalHost(host);
 
     struct sig_AudioSettings audioSettings = {
-        .sampleRate = bluemchen.AudioSampleRate(),
+        .sampleRate = 96000,
         .numChannels = 2,
         .blockSize = 1
     };
-    bluemchen.SetAudioBlockSize(audioSettings.blockSize);
+
+    struct sig_Status status;
+    sig_Status_init(&status);
+    sig_List_init(&signals, (void**) &listStorage, MAX_NUM_SIGNALS);
+
+    evaluator = sig_dsp_SignalListEvaluator_new(&allocator, &signals);
+    host = sig_daisy_BluemchenHost_new(&allocator,
+        &audioSettings,
+        &bluemchen,
+        (struct sig_dsp_SignalEvaluator*) evaluator);
+    sig_daisy_Host_registerGlobalHost(host);
+
     struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
         &audioSettings);
-
     buildSignalGraph(context, &status);
     host->impl->start(host);
 

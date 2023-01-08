@@ -43,6 +43,14 @@ enum {
 
 const int sig_daisy_PatchSM_NUM_GATE_OUTPUTS = sig_daisy_GATE_OUT_LAST;
 
+
+enum {
+    sig_daisy_PatchSM_SWITCH_1,
+    sig_daisy_PatchSM_SWITCH_2,
+    sig_daisy_PatchSM_SWITCH_LAST
+};
+const int sig_daisy_PatchSM_NUM_SWITCHES = sig_daisy_PatchSM_SWITCH_LAST;
+
 // TODO: What are the additional 4x ADC pins on the Patch SM,
 // and where are they mapped (if at all) on the Patch init?
 enum {
@@ -57,7 +65,7 @@ enum {
     sig_daisy_PatchInit_CV_IN_LAST
 };
 
-const int sig_daisy_PatchInit_NUM_ANALOG_INPUTS = 8;
+const int sig_daisy_PatchInit_NUM_ANALOG_INPUTS = sig_daisy_PatchInit_CV_IN_LAST;
 
 enum {
     sig_daisy_PatchInit_CV_OUT = daisy::patch_sm::CV_OUT_1,
@@ -73,7 +81,7 @@ enum {
     sig_daisy_PatchInit_GATE_IN_LAST = sig_daisy_GATE_IN_LAST
 };
 
-const int sig_daisy_PatchInit_NUM_GATE_INPUTS = sig_daisy_GATE_IN_LAST;
+const int sig_daisy_PatchInit_NUM_GATE_INPUTS = sig_daisy_PatchInit_GATE_IN_LAST;
 
 enum {
     sig_daisy_PatchInit_GATE_OUT_1 = sig_daisy_GATE_OUT_1,
@@ -81,7 +89,16 @@ enum {
     sig_daisy_PatchInit_GATE_OUT_LAST = sig_daisy_GATE_OUT_LAST
 };
 
-const int sig_daisy_PatchInit_NUM_GATE_OUTPUTS = sig_daisy_GATE_OUT_LAST;
+const int sig_daisy_PatchInit_NUM_GATE_OUTPUTS = sig_daisy_PatchInit_GATE_OUT_LAST;
+
+enum {
+    sig_daisy_PatchInit_BUTTON = sig_daisy_PatchSM_SWITCH_1,
+    sig_daisy_PatchInit_TOGGLE = sig_daisy_PatchSM_SWITCH_2,
+    sig_daisy_PatchInit_SWITCH_LAST
+};
+
+const int sig_daisy_PatchInit_NUM_SWITCHES = sig_daisy_PatchInit_SWITCH_LAST;
+
 
 // TODO: Add support for the Patch Init's switch and button.
 
@@ -105,10 +122,12 @@ void sig_daisy_PatchSMHostImpl_setGateValue(
 
 struct sig_daisy_Host* sig_daisy_PatchSMHost_new(
     struct sig_Allocator* allocator,
+    sig_AudioSettings* audioSettings,
     daisy::patch_sm::DaisyPatchSM* board,
     struct sig_dsp_SignalEvaluator* evaluator);
 
 void sig_daisy_PatchSMHost_init(struct sig_daisy_Host* self,
+    sig_AudioSettings* audioSettings,
     daisy::patch_sm::DaisyPatchSM* patchSM,
     struct sig_dsp_SignalEvaluator* evaluator);
 

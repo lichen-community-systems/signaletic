@@ -2,6 +2,39 @@
 
 struct sig_daisy_Host* sig_daisy_Host_globalHost = NULL;
 
+daisy::SaiHandle::Config::SampleRate sig_daisy_Host_convertSampleRate(
+    float sampleRate) {
+    // Copy-pasted from libdaisy
+    // because the Seed has a completely different API
+    // for setting sample rates than the PatchSM.
+    // Srsly, Electrosmith?!
+    // https://github.com/electro-smith/libDaisy/blob/v5.3.0/src/daisy_patch_sm.cpp#L383-L409
+    daisy::SaiHandle::Config::SampleRate sai_sr;
+
+    switch(int(sampleRate)) {
+        case 8000:
+            sai_sr = daisy::SaiHandle::Config::SampleRate::SAI_8KHZ;
+            break;
+        case 16000:
+            sai_sr = daisy::SaiHandle::Config::SampleRate::SAI_16KHZ;
+            break;
+        case 32000:
+            sai_sr = daisy::SaiHandle::Config::SampleRate::SAI_32KHZ;
+            break;
+        case 48000:
+            sai_sr = daisy::SaiHandle::Config::SampleRate::SAI_48KHZ;
+            break;
+        case 96000:
+            sai_sr = daisy::SaiHandle::Config::SampleRate::SAI_96KHZ;
+            break;
+        default:
+            sai_sr = daisy::SaiHandle::Config::SampleRate::SAI_48KHZ;
+            break;
+    }
+
+    return sai_sr;
+}
+
 // TODO: userData is shared, but the API makes it seem as if
 // different pointers could be provided for each of these callbacks.
 // We either need to support two pointers to user data, or provide
@@ -62,6 +95,15 @@ void sig_daisy_Host_audioCallback(daisy::AudioHandle::InputBuffer in,
         self->userData);
 }
 
+
+float sig_daisy_HostImpl_noOpGetControl(struct sig_daisy_Host* host,
+    int control) {
+    return 0.0f;
+}
+
+void sig_daisy_HostImpl_noOpSetControl(struct sig_daisy_Host* host,
+    int control, float value) {}
+
 float sig_daisy_HostImpl_processControlValue(struct sig_daisy_Host* host,
     int control) {
     return control > -1 && control < host->board.config->numAnalogInputs ?
@@ -75,7 +117,8 @@ void sig_daisy_HostImpl_setControlValue(struct sig_daisy_Host* host,
     }
 }
 
-void sig_daisy_Host_writeValueToDACPolling(daisy::DacHandle* dac, int control, float value) {
+void sig_daisy_Host_writeValueToDACPolling(daisy::DacHandle* dac,
+    int control, float value) {
     daisy::DacHandle::Channel channel = static_cast<daisy::DacHandle::Channel>(
         control);
     dac->WriteValue(channel, sig_bipolarToInvUint12(value));
@@ -83,7 +126,7 @@ void sig_daisy_Host_writeValueToDACPolling(daisy::DacHandle* dac, int control, f
 
 float sig_daisy_HostImpl_getGateValue(struct sig_daisy_Host* host,
     int control) {
-    if (control < 0 || control > host->board.config->numGates) {
+    if (control < 0 || control > host->board.config->numGateInputs) {
         return 0.0f;
     }
 
@@ -97,12 +140,24 @@ float sig_daisy_HostImpl_getGateValue(struct sig_daisy_Host* host,
 
 void sig_daisy_HostImpl_setGateValue(struct sig_daisy_Host* host,
     int control, float value) {
-    if (control < 0 || control >= host->board.config->numGates) {
+    if (control < 0 || control >= host->board.config->numGateOutputs) {
         return;
     }
 
     dsy_gpio* gate = host->board.gateOutputs[control];
     dsy_gpio_write(gate, value > 0.0f ? 0 : 1);
+}
+
+float sig_daisy_HostImpl_getSwitchValue(struct sig_daisy_Host* host,
+    int control) {
+    float sample = 0.0f;
+    if (control > -1 && control < host->board.config->numSwitches) {
+        daisy::Switch* sw = &(host->board.switches[control]);
+        sw->Debounce();
+        sample = sw->Pressed();
+    }
+
+    return sample;
 }
 
 struct sig_daisy_GateIn* sig_daisy_GateIn_new(
@@ -137,6 +192,7 @@ void sig_daisy_GateIn_generate(void* signal) {
     int control = self->parameters.control;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        // TODO: Should this only be called at the block rate?
         float sample = host->impl->getGateValue(host, control);
         FLOAT_ARRAY(self->outputs.main)[i] = sample * scale + offset;
     }
@@ -186,6 +242,7 @@ void sig_daisy_GateOut_generate(void* signal) {
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
         float value = FLOAT_ARRAY(self->inputs.source)[i] * scale + offset;
         FLOAT_ARRAY(self->outputs.main)[i] = value;
+        // TODO: Should this only be called at the block rate?
         host->impl->setGateValue(host, control, value);
     }
 }
@@ -227,8 +284,8 @@ void sig_daisy_CVIn_generate(void* signal) {
     float offset = self->parameters.offset;
     int control = self->parameters.control;
 
+    float rawCV = host->impl->getControlValue(host, control);
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float rawCV = host->impl->getControlValue(host, control);
         float sample = rawCV * scale + offset;
         FLOAT_ARRAY(self->outputs.main)[i] = sample;
     }
@@ -236,6 +293,52 @@ void sig_daisy_CVIn_generate(void* signal) {
 
 void sig_daisy_CVIn_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_CVIn* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
+}
+
+
+struct sig_daisy_SwitchIn* sig_daisy_SwitchIn_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context,
+    struct sig_daisy_Host* host) {
+    struct sig_daisy_SwitchIn* self = sig_MALLOC(allocator,
+        struct sig_daisy_SwitchIn);
+    sig_daisy_SwitchIn_init(self, context, host);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_daisy_SwitchIn_init(struct sig_daisy_SwitchIn* self,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host) {
+    sig_dsp_Signal_init(self, context, *sig_daisy_SwitchIn_generate);
+    self->host = host;
+    self->parameters = {
+        .scale = 1.0f,
+        .offset = 0.0f,
+        .control = 0
+    };
+}
+
+void sig_daisy_SwitchIn_generate(void* signal) {
+    struct sig_daisy_SwitchIn* self = (struct sig_daisy_SwitchIn*) signal;
+    struct sig_daisy_Host* host = self->host;
+    float scale = self->parameters.scale;
+    float offset = self->parameters.offset;
+    int control = self->parameters.control;
+
+    float sample = host->impl->getSwitchValue(host, control);
+    float scaledSample = sample * scale + offset;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        FLOAT_ARRAY(self->outputs.main)[i] = scaledSample;
+    }
+}
+
+void sig_daisy_SwitchIn_destroy(struct sig_Allocator* allocator,
+    struct sig_daisy_SwitchIn* self) {
     sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
@@ -279,6 +382,7 @@ void sig_daisy_CVOut_generate(void* signal) {
         float source = FLOAT_ARRAY(self->inputs.source)[i];
         float sample = source * scale + offset;
         FLOAT_ARRAY(self->outputs.main)[i] = sample;
+        // TODO: Should this only be called at the block rate?
         host->impl->setControlValue(host, control, sample);
     }
 }

@@ -105,25 +105,21 @@ void buildSignalGraph(struct sig_SignalContext* context,
 }
 
 int main(void) {
+    struct sig_AudioSettings audioSettings = {
+        .sampleRate = 48000,
+        .numChannels = 2,
+        .blockSize = 1
+    };
+
     struct sig_Status status;
     sig_Status_init(&status);
     alloc.impl->init(&alloc);
     sig_List_init(&signals, (void**) &listStorage, MAX_NUM_SIGNALS);
     evaluator = sig_dsp_SignalListEvaluator_new(&alloc, &signals);
 
-    dptHost = sig_daisy_DPTHost_new(&alloc, &dpt,
-        (struct sig_dsp_SignalEvaluator*) evaluator);
+    dptHost = sig_daisy_DPTHost_new(&alloc,
+        &audioSettings, &dpt, (struct sig_dsp_SignalEvaluator*) evaluator);
     sig_daisy_Host_registerGlobalHost(dptHost);
-
-    // TODO: Hosts should take audioSettings as an argument,
-    // and set up libdaisy according to it.
-    struct sig_AudioSettings audioSettings = {
-        .sampleRate = 48000,
-        .numChannels = 2,
-        .blockSize = 1
-    };
-    dpt.SetAudioSampleRate(audioSettings.sampleRate);
-    dpt.SetAudioBlockSize(audioSettings.blockSize);
 
     struct sig_SignalContext* context = sig_SignalContext_new(
         &alloc, &audioSettings);

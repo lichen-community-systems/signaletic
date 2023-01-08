@@ -30,7 +30,9 @@ struct sig_daisy_Host_BoardConfiguration {
     int numAudioOutputChannels;
     int numAnalogInputs;
     int numAnalogOutputs;
-    int numGates;
+    int numGateInputs;
+    int numGateOutputs;
+    int numSwitches;
 };
 
 struct sig_daisy_Host_Board {
@@ -41,6 +43,7 @@ struct sig_daisy_Host_Board {
     daisy::DacHandle* dac;
     daisy::GateIn* gateInputs[2];
     dsy_gpio* gateOutputs[2];
+    daisy::Switch switches[2];
     void* boardInstance;
 };
 
@@ -61,11 +64,15 @@ typedef void (*sig_daisy_Host_afterEvaluateSignals)(
 struct sig_daisy_Host {
     struct sig_daisy_Host_Impl* impl;
     struct sig_daisy_Host_Board board;
+    struct sig_AudioSettings* audioSettings;
     struct sig_dsp_SignalEvaluator* evaluator;
     sig_daisy_Host_onEvaluateSignals onEvaluateSignals;
     sig_daisy_Host_afterEvaluateSignals afterEvaluateSignals;
     void* userData;
 };
+
+daisy::SaiHandle::Config::SampleRate sig_daisy_Host_convertSampleRate(
+    float sampleRate);
 
 void sig_daisy_Host_addOnEvaluateSignalsListener(
     struct sig_daisy_Host* self,
@@ -84,6 +91,10 @@ void sig_daisy_Host_init(struct sig_daisy_Host* self);
 
 void sig_daisy_Host_registerGlobalHost(struct sig_daisy_Host* host);
 
+void sig_daisy_Host_noOpAudioCallback(daisy::AudioHandle::InputBuffer in,
+    daisy::AudioHandle::OutputBuffer out, size_t size,
+    struct sig_daisy_Host* host, void* userData);
+
 typedef float (*sig_daisy_Host_getControlValue)(
     struct sig_daisy_Host* host, int control);
 
@@ -96,6 +107,9 @@ typedef float (*sig_daisy_Host_getGateValue)(
 typedef void (*sig_daisy_Host_setGateValue)(
     struct sig_daisy_Host* host, int control, float value);
 
+typedef float (*sig_daisy_Host_getSwitchValue)(
+    struct sig_daisy_Host* host, int control);
+
 typedef void (*sig_daisy_Host_start)(struct sig_daisy_Host* host);
 typedef void (*sig_daisy_Host_stop)(struct sig_daisy_Host* host);
 
@@ -104,6 +118,7 @@ struct sig_daisy_Host_Impl {
     sig_daisy_Host_setControlValue setControlValue;
     sig_daisy_Host_getGateValue getGateValue;
     sig_daisy_Host_setGateValue setGateValue;
+    sig_daisy_Host_getSwitchValue getSwitchValue;
     sig_daisy_Host_start start;
     sig_daisy_Host_stop stop;
 };
@@ -117,6 +132,12 @@ struct sig_daisy_Host_Impl {
  * @param value the value to write
  */
 void sig_daisy_Host_writeValueToDACPolling(daisy::DacHandle* dac,
+    int control, float value);
+
+float sig_daisy_HostImpl_noOpGetControl(struct sig_daisy_Host* host,
+    int control);
+
+void sig_daisy_HostImpl_noOpSetControl(struct sig_daisy_Host* host,
     int control, float value);
 
 /**
@@ -139,6 +160,9 @@ float sig_daisy_HostImpl_getGateValue(struct sig_daisy_Host* host,
 
 void sig_daisy_HostImpl_setGateValue(struct sig_daisy_Host* host,
     int control, float value);
+
+float sig_daisy_HostImpl_getSwitchValue(struct sig_daisy_Host* host,
+    int control);
 
 struct sig_daisy_CV_Parameters {
     float scale;
@@ -201,6 +225,24 @@ void sig_daisy_CVIn_init(struct sig_daisy_CVIn* self,
 void sig_daisy_CVIn_generate(void* signal);
 void sig_daisy_CVIn_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_CVIn* self);
+
+
+struct sig_daisy_SwitchIn {
+    struct sig_dsp_Signal signal;
+    struct sig_daisy_CV_Parameters parameters;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+    struct sig_daisy_Host* host;
+    daisy::Switch switchInstance;
+};
+
+struct sig_daisy_SwitchIn* sig_daisy_SwitchIn_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context,
+    struct sig_daisy_Host* host);
+void sig_daisy_SwitchIn_init(struct sig_daisy_SwitchIn* self,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host);
+void sig_daisy_SwitchIn_generate(void* signal);
+void sig_daisy_SwitchIn_destroy(struct sig_Allocator* allocator,
+    struct sig_daisy_SwitchIn* self);
 
 
 struct sig_daisy_CVOut_Inputs {

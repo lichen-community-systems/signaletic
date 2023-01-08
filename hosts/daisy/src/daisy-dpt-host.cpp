@@ -13,16 +13,19 @@ struct sig_daisy_Host_BoardConfiguration sig_daisy_DPTConfig = {
     .numAudioOutputChannels = 2,
     .numAnalogInputs = sig_daisy_DPT_NUM_ANALOG_INPUTS,
     .numAnalogOutputs = sig_daisy_DPT_NUM_ANALOG_OUTPUTS,
-    .numGates = 2
+    .numGateInputs = sig_daisy_DPT_NUM_GATE_INPUTS,
+    .numGateOutputs = sig_daisy_DPT_NUM_GATE_OUTPUTS,
+    .numSwitches = sig_daisy_DPT_NUM_SWITCHES
 };
 
 struct sig_daisy_Host_Impl sig_daisy_DPTHostImpl = {
     .getControlValue = sig_daisy_HostImpl_processControlValue,
     .setControlValue = sig_daisy_DPTHostImpl_setControlValue,
-    .getGateValue = sig_daisy_HostImpl_getGateValue,
-    .setGateValue = sig_daisy_HostImpl_setGateValue,
+    .getGateValue = sig_daisy_HostImpl_noOpGetControl,
+    .setGateValue = sig_daisy_HostImpl_noOpSetControl,
+    .getSwitchValue = sig_daisy_HostImpl_noOpGetControl,
     .start = sig_daisy_DPTHostImpl_start,
-    .stop = sig_daisy_DPTHostImpl_stop
+    .stop = sig_daisy_DPTHostImpl_stop,
 };
 
 void sig_daisy_DPTHostImpl_start(struct sig_daisy_Host* host) {
@@ -63,10 +66,12 @@ void sig_daisy_DPTHostImpl_setControlValue(struct sig_daisy_Host* host,
 }
 
 struct sig_daisy_Host* sig_daisy_DPTHost_new(struct sig_Allocator* allocator,
-    daisy::dpt::DPT* dpt, struct sig_dsp_SignalEvaluator* evaluator) {
+    sig_AudioSettings* audioSettings,
+    daisy::dpt::DPT* dpt,
+    struct sig_dsp_SignalEvaluator* evaluator) {
     struct sig_daisy_DPTHost* self = sig_MALLOC(allocator,
         struct sig_daisy_DPTHost);
-    sig_daisy_DPTHost_init(self, dpt, evaluator);
+    sig_daisy_DPTHost_init(self, audioSettings, dpt, evaluator);
 
     return &self->host;
 }
@@ -84,17 +89,23 @@ void sig_daisy_DPTHost_Board_init(struct sig_daisy_Host_Board* self,
 }
 
 void sig_daisy_DPTHost_init(struct sig_daisy_DPTHost* self,
-    daisy::dpt::DPT* dpt, struct sig_dsp_SignalEvaluator* evaluator) {
+    sig_AudioSettings* audioSettings,
+    daisy::dpt::DPT* dpt,
+    struct sig_dsp_SignalEvaluator* evaluator) {
     self->host.impl = &sig_daisy_DPTHostImpl;
+    self->host.audioSettings = audioSettings;
     self->host.evaluator = evaluator;
     self->expansionDAC = &dpt->dac_exp;
     self->expansionDACBuffer[0] = 4095;
     self->expansionDACBuffer[1] = 4095;
     self->expansionDACBuffer[2] = 4095;
     self->expansionDACBuffer[3] = 4095;
+
+    dpt->Init();
+    dpt->SetAudioBlockSize(audioSettings->blockSize);
+    dpt->SetAudioSampleRate(audioSettings->sampleRate);
     sig_daisy_DPTHost_Board_init(&self->host.board, dpt);
     sig_daisy_Host_init(&self->host);
-    dpt->Init();
     dpt->InitTimer(&sig_daisy_DPT_dacWriterCallback, self);
 }
 

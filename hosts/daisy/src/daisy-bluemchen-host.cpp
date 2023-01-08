@@ -5,7 +5,9 @@ struct sig_daisy_Host_BoardConfiguration sig_daisy_BluemchenConfig = {
     .numAudioOutputChannels = 2,
     .numAnalogInputs = sig_daisy_Bluemchen_NUM_ANALOG_INPUTS,
     .numAnalogOutputs = sig_daisy_Bluemchen_NUM_ANALOG_OUTPUTS,
-    .numGates = 0
+    .numGateInputs = sig_daisy_Bluemchen_NUM_GATE_INPUTS,
+    .numGateOutputs = sig_daisy_Bluemchen_NUM_GATE_OUTPUTS,
+    .numSwitches = sig_daisy_Bluemchen_NUM_SWITCHES
 };
 
 struct sig_daisy_Host_BoardConfiguration sig_daisy_NehcmeulbConfig = {
@@ -13,14 +15,17 @@ struct sig_daisy_Host_BoardConfiguration sig_daisy_NehcmeulbConfig = {
     .numAudioOutputChannels = 2,
     .numAnalogInputs = sig_daisy_Nehcmeulb_NUM_ANALOG_INPUTS,
     .numAnalogOutputs = sig_daisy_Nehcmeulb_NUM_ANALOG_OUTPUTS,
-    .numGates = 0
+    .numGateInputs = sig_daisy_Nehcmeulb_NUM_GATE_INPUTS,
+    .numGateOutputs = sig_daisy_Nehcmeulb_NUM_GATE_OUTPUTS,
+    .numSwitches = sig_daisy_Nehcmeulb_NUM_SWITCHES
 };
 
 struct sig_daisy_Host_Impl sig_daisy_BluemchenHostImpl = {
     .getControlValue = sig_daisy_HostImpl_processControlValue,
     .setControlValue = sig_daisy_HostImpl_setControlValue,
-    .getGateValue = sig_daisy_BluemchenHostImpl_getGateValue,
-    .setGateValue = sig_daisy_BluemchenHostImpl_setGateValue,
+    .getGateValue = sig_daisy_HostImpl_noOpGetControl,
+    .setGateValue = sig_daisy_HostImpl_noOpSetControl,
+    .getSwitchValue = sig_daisy_HostImpl_noOpGetControl,
     .start = sig_daisy_BluemchenHostImpl_start,
     .stop = sig_daisy_BluemchenHostImpl_stop
 };
@@ -39,26 +44,37 @@ void sig_daisy_BluemchenHostImpl_stop(struct sig_daisy_Host* host) {
 }
 
 struct sig_daisy_Host* sig_daisy_BluemchenHost_new(
-    struct sig_Allocator* allocator, kxmx::Bluemchen* bluemchen,
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    kxmx::Bluemchen* bluemchen,
     struct sig_dsp_SignalEvaluator* evaluator) {
     struct sig_daisy_Host* self = sig_MALLOC(allocator, struct sig_daisy_Host);
-    sig_daisy_BluemchenHost_init(self, bluemchen, evaluator,
-        &sig_daisy_BluemchenConfig);
+    sig_daisy_BluemchenHost_init(self,
+        audioSettings,
+        &sig_daisy_BluemchenConfig,
+        bluemchen,
+        evaluator);
 
     return self;
 }
 
 struct sig_daisy_Host* sig_daisy_Nehcmeulb_new(
-    struct sig_Allocator* allocator, kxmx::Bluemchen* bluemchen,
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    kxmx::Bluemchen* bluemchen,
     struct sig_dsp_SignalEvaluator* evaluator) {
     struct sig_daisy_Host* self = sig_MALLOC(allocator, struct sig_daisy_Host);
-    sig_daisy_BluemchenHost_init(self, bluemchen, evaluator,
-        &sig_daisy_NehcmeulbConfig);
+    sig_daisy_BluemchenHost_init(self,
+        audioSettings,
+        &sig_daisy_NehcmeulbConfig,
+        bluemchen,
+        evaluator);
 
     return self;
 }
 
-void sig_daisy_BluemchenHost_Board_init(struct sig_daisy_Host_Board* self,
+void sig_daisy_BluemchenHost_Board_init(
+    struct sig_daisy_Host_Board* self,
     kxmx::Bluemchen* bluemchen,
     struct sig_daisy_Host_BoardConfiguration* boardConfig) {
     self->boardInstance = (void*) bluemchen;
@@ -72,14 +88,24 @@ void sig_daisy_BluemchenHost_Board_init(struct sig_daisy_Host_Board* self,
     self->gateOutputs[1] = NULL;
 }
 
-void sig_daisy_BluemchenHost_init(struct sig_daisy_Host* self,
-    kxmx::Bluemchen* bluemchen, struct sig_dsp_SignalEvaluator* evaluator,
-    struct sig_daisy_Host_BoardConfiguration* boardConfig) {
+
+void sig_daisy_BluemchenHost_init(
+    struct sig_daisy_Host* self,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_daisy_Host_BoardConfiguration* boardConfig,
+    kxmx::Bluemchen* bluemchen,
+    struct sig_dsp_SignalEvaluator* evaluator) {
     self->impl = &sig_daisy_BluemchenHostImpl;
+    self->audioSettings = audioSettings;
     self->evaluator = evaluator;
+
+    bluemchen->Init();
+    daisy::SaiHandle::Config::SampleRate sampleRate =
+        sig_daisy_Host_convertSampleRate(audioSettings->sampleRate);
+    bluemchen->SetAudioSampleRate(sampleRate);
+    bluemchen->SetAudioBlockSize(audioSettings->blockSize);
     sig_daisy_BluemchenHost_Board_init(&self->board, bluemchen, boardConfig);
     sig_daisy_Host_init(self);
-    bluemchen->Init();
 }
 
 void sig_daisy_BluemchenHost_destroy(struct sig_Allocator* allocator,
@@ -90,15 +116,4 @@ void sig_daisy_BluemchenHost_destroy(struct sig_Allocator* allocator,
 void sig_daisy_NehcmeulbHost_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_Host* self) {
     sig_daisy_BluemchenHost_destroy(allocator, self);
-}
-
-float sig_daisy_BluemchenHostImpl_getGateValue(struct sig_daisy_Host* host,
-    int control) {
-    // Bluemchen does not have gate inputs.
-    return 0.0f;
-}
-
-void sig_daisy_BluemchenHostImpl_setGateValue(struct sig_daisy_Host* host,
-    int control, float value) {
-    // No-op; Bluemchen has no gates.
 }

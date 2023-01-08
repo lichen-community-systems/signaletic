@@ -201,22 +201,21 @@ void buildSignalGraph(struct sig_Allocator* allocator,
 }
 
 int main(void) {
-    sig_Status_init(&status);
-    allocator.impl->init(&allocator);
-    signals = sig_List_new(&allocator, MAX_NUM_SIGNALS);
-    evaluator = sig_dsp_SignalListEvaluator_new(&allocator, signals);
-
-    host = sig_daisy_PatchSMHost_new(&allocator, &patchInit,
-        (struct sig_dsp_SignalEvaluator*) evaluator);
-    sig_daisy_Host_registerGlobalHost(host);
-
     struct sig_AudioSettings audioSettings = {
         .sampleRate = 96000,
         .numChannels = 2,
         .blockSize = 96
     };
-    patchInit.SetAudioSampleRate(audioSettings.sampleRate);
-    patchInit.SetAudioBlockSize(audioSettings.blockSize);
+
+    sig_Status_init(&status);
+    allocator.impl->init(&allocator);
+    signals = sig_List_new(&allocator, MAX_NUM_SIGNALS);
+    evaluator = sig_dsp_SignalListEvaluator_new(&allocator, signals);
+
+    host = sig_daisy_PatchSMHost_new(&allocator,
+        &audioSettings, &patchInit,
+        (struct sig_dsp_SignalEvaluator*) evaluator);
+    sig_daisy_Host_registerGlobalHost(host);
 
     struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
         &audioSettings);

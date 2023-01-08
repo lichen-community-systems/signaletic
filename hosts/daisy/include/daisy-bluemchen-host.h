@@ -10,24 +10,10 @@ enum {
 };
 
 const int sig_daisy_Bluemchen_NUM_ANALOG_INPUTS = kxmx::Bluemchen::Ctrl::CTRL_LAST;
-
 const int sig_daisy_Bluemchen_NUM_ANALOG_OUTPUTS = 0;
-
-enum {
-    sig_daisy_Bluemchen_GATE_IN_1 = sig_daisy_GATE_IN_1,
-    sig_daisy_Bluemchen_GATE_IN_2 = sig_daisy_GATE_IN_2,
-    sig_daisy_Bluemchen_GATE_IN_LAST = sig_daisy_GATE_IN_LAST
-};
-
-const int sig_daisy_Bluemchen_NUM_GATE_INPUTS = sig_daisy_GATE_IN_LAST;
-
-enum {
-    sig_daisy_Bluemchen_GATE_OUT_1 = sig_daisy_GATE_OUT_1,
-    sig_daisy_Bluemchen_GATE_OUT_2 = sig_daisy_GATE_OUT_2,
-    sig_daisy_Bluemchen_GATE_OUT_LAST = sig_daisy_GATE_OUT_LAST
-};
-
-const int sig_daisy_Bluemchen_NUM_GATE_OUTPUTS = sig_daisy_GATE_OUT_LAST;
+const int sig_daisy_Bluemchen_NUM_GATE_INPUTS = 0;
+const int sig_daisy_Bluemchen_NUM_GATE_OUTPUTS = 0;
+const int sig_daisy_Bluemchen_NUM_SWITCHES = 0;
 
 enum {
     sig_daisy_Nehcmeulb_CV_IN_KNOB1 = kxmx::Bluemchen::Ctrl::CTRL_1,
@@ -44,48 +30,15 @@ enum {
 
 const int sig_daisy_Nehcmeulb_NUM_ANALOG_INPUTS = 0;
 const int sig_daisy_Nehcmeulb_NUM_ANALOG_OUTPUTS = 2;
-
-enum {
-    sig_daisy_Nehcmeulb_GATE_IN_1 = sig_daisy_GATE_IN_1,
-    sig_daisy_Nehcmeulb_GATE_IN_2 = sig_daisy_GATE_IN_2,
-    sig_daisy_Nehcmeulb_GATE_IN_LAST = sig_daisy_GATE_IN_LAST
-};
-
-const int sig_daisy_Nehcmeulb_NUM_GATE_INPUTS = sig_daisy_GATE_IN_LAST;
-
-enum {
-    sig_daisy_Nehcmeulb_GATE_OUT_1 = sig_daisy_GATE_OUT_1,
-    sig_daisy_Nehcmeulb_GATE_OUT_2 = sig_daisy_GATE_OUT_2,
-    sig_daisy_Nehcmeulb_GATE_OUT_LAST = sig_daisy_GATE_OUT_LAST
-};
-
-const int sig_daisy_Nehcmeulb_NUM_GATE_OUTPUTS = sig_daisy_GATE_OUT_LAST;
+const int sig_daisy_Nehcmeulb_NUM_GATE_INPUTS = 0;
+const int sig_daisy_Nehcmeulb_NUM_GATE_OUTPUTS = 0;
+const int sig_daisy_Nehcmeulb_NUM_SWITCHES = 0;
 
 extern struct sig_daisy_Host_Impl sig_daisy_BluemchenHostImpl;
 
 void sig_daisy_BluemchenHostImpl_start(struct sig_daisy_Host* host);
 
 void sig_daisy_BluemchenHostImpl_stop(struct sig_daisy_Host* host);
-
-/**
- * @brief Always returns silence, since Bluemchen has no gate inputs.
- *
- * @param host the host instance
- * @param control the gate control (null is fine, since Bluemchen has no gates)
- * @return float always returns 0.0f
- */
-float sig_daisy_BluemchenHostImpl_getGateValue(
-    struct sig_daisy_Host* host, int control);
-
-/**
- * @brief Does nothing, since Bluemchen has no gate outputs.
- *
- * @param host the host instance
- * @param control the gate control
- * @param value the gate value to set, which will be ignored
- */
-void sig_daisy_BluemchenHostImpl_setGateValue(
-    struct sig_daisy_Host* host, int control, float value);
 
 /**
  * @brief Creates a new BluemchenHost instance.
@@ -96,7 +49,9 @@ void sig_daisy_BluemchenHostImpl_setGateValue(
  * @return struct sig_daisy_Host*
  */
 struct sig_daisy_Host* sig_daisy_BluemchenHost_new(
-    struct sig_Allocator* allocator, kxmx::Bluemchen* bluemchen,
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    kxmx::Bluemchen* bluemchen,
     struct sig_dsp_SignalEvaluator* evaluator);
 
 /**
@@ -118,8 +73,10 @@ void sig_daisy_BluemchenHost_Board_init(struct sig_daisy_Host_Board* self,
  * @param evaluator a signal evaluator to use in the audio callback
  */
 void sig_daisy_BluemchenHost_init(struct sig_daisy_Host* self,
-    kxmx::Bluemchen* bluemchen, struct sig_dsp_SignalEvaluator* evaluator,
-    struct sig_daisy_Host_BoardConfiguration* boardConfig);
+    struct sig_AudioSettings* audioSettings,
+    struct sig_daisy_Host_BoardConfiguration* boardConfig,
+    kxmx::Bluemchen* bluemchen,
+    struct sig_dsp_SignalEvaluator* evaluator);
 
 /**
  * @brief Destroys a BluemchenHost instance.
