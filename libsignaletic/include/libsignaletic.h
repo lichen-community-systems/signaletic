@@ -1054,6 +1054,8 @@ struct sig_dsp_Oscillator* sig_dsp_Oscillator_new(
     sig_dsp_generateFn generate);
 void sig_dsp_Oscillator_init(struct sig_dsp_Oscillator* self,
     struct sig_SignalContext* context, sig_dsp_generateFn generate);
+float sig_dsp_Oscillator_eoc(float phase);
+float sig_dsp_Oscillator_wrapPhase(float phase);
 void sig_dsp_Oscillator_accumulatePhase(struct sig_dsp_Oscillator* self,
     size_t i);
 void sig_dsp_Oscillator_destroy(struct sig_Allocator* allocator,

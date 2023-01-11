@@ -37,19 +37,13 @@ struct sig_dsp_LinearToFreq* fundamentalFrequency;
 struct sig_daisy_CVIn* ratioKnob;
 struct sig_dsp_BinaryOp* modulatorFrequency;
 struct sig_daisy_CVIn* indexKnob;
-struct sig_dsp_BinaryOp* deviation;
 struct sig_dsp_Oscillator* modulator;
-struct sig_dsp_BinaryOp* carrierFrequency;
 struct sig_dsp_Oscillator* carrier;
-struct sig_dsp_ConstantValue* lfoCarrierDivision;
-struct sig_dsp_ConstantValue* lfoModulatorDivision;
-struct sig_dsp_BinaryOp* lfoFundamentalFrequency;
+struct sig_dsp_LinearToFreq* lfoFundamentalFrequency;
 struct sig_dsp_BinaryOp* lfoModulatorFrequency;
-struct sig_dsp_BinaryOp* lfoDeviation;
 struct sig_dsp_Oscillator* lfoModulator;
-struct sig_dsp_BinaryOp* lfoCarrierFrequency;
 struct sig_dsp_Oscillator* lfoCarrier;
-// TODO: Add a nice LPF after the FM.
+// TODO: Add a nice LPF.
 struct sig_dsp_Tanh* distortion;
 // TODO: Add skew controls for index/ratio for stereo separation.
 struct sig_daisy_AudioOut* leftOut;
@@ -57,10 +51,7 @@ struct sig_daisy_AudioOut* rightOut;
 struct sig_daisy_CVOut* eocCVOut;
 struct sig_daisy_CVOut* eocLED;
 
-// TODO: Factor out a 2-op FM signal so that there is less
-// code duplication between the audio oscillator and the LFO.
-// TODO: Factor out the v/oct tracking code into a custom signal.
-void buildSignalGraph(struct sig_Allocator* allocator,
+void buildKnobGraph(struct sig_Allocator* allocator,
     struct sig_List* signals, struct sig_SignalContext* context,
     struct sig_Status* status) {
     smoothCoefficient = sig_dsp_ConstantValue_new(allocator, context, 0.01);
@@ -86,11 +77,29 @@ void buildSignalGraph(struct sig_Allocator* allocator,
     fineFrequencyLPF->inputs.coefficient = smoothCoefficient->outputs.main;
     fineFrequencyLPF->inputs.source = fineFrequencyKnob->outputs.main;
 
+    ratioKnob = sig_daisy_CVIn_new(allocator, context, host);
+    sig_List_append(signals, ratioKnob, status);
+    ratioKnob->parameters.control = sig_daisy_PatchInit_KNOB_2;
+    ratioKnob->parameters.scale = 2.1f;
+
+    indexKnob = sig_daisy_CVIn_new(allocator, context, host);
+    sig_List_append(signals, indexKnob, status);
+    indexKnob->parameters.control = sig_daisy_PatchInit_KNOB_4;
+    indexKnob->parameters.scale = 5.0f;
+}
+
+void buildCVInputGraph(struct sig_Allocator* allocator,
+    struct sig_List* signals, struct sig_SignalContext* context,
+    struct sig_Status* status) {
     vOctCV = sig_daisy_CVIn_new(allocator, context, host);
     sig_List_append(signals, vOctCV, status);
     vOctCV->parameters.control = sig_daisy_PatchInit_CV_IN_1;
     vOctCV->parameters.scale = 2.5f;
+}
 
+void buildFrequencyGraph(struct sig_Allocator* allocator,
+    struct sig_List* signals, struct sig_SignalContext* context,
+    struct sig_Status* status) {
     coarsePlusVOct = sig_dsp_Add_new(allocator, context);
     sig_List_append(signals, coarsePlusVOct, status);
     coarsePlusVOct->inputs.left = coarseFrequencyLPF->outputs.main;
@@ -105,74 +114,65 @@ void buildSignalGraph(struct sig_Allocator* allocator,
     sig_List_append(signals, fundamentalFrequency, status);
     fundamentalFrequency->inputs.source = coarseVOctPlusFine->outputs.main;
 
-    ratioKnob = sig_daisy_CVIn_new(allocator, context, host);
-    sig_List_append(signals, ratioKnob, status);
-    ratioKnob->parameters.control = sig_daisy_PatchInit_KNOB_2;
-
     modulatorFrequency = sig_dsp_Mul_new(allocator, context);
     sig_List_append(signals, modulatorFrequency, status);
     modulatorFrequency->inputs.left = fundamentalFrequency->outputs.main;
     modulatorFrequency->inputs.right = ratioKnob->outputs.main;
+}
 
-    indexKnob = sig_daisy_CVIn_new(allocator, context, host);
-    sig_List_append(signals, indexKnob, status);
-    indexKnob->parameters.control = sig_daisy_PatchInit_KNOB_4;
-    indexKnob->parameters.scale = 25.0f;
+void buildLFOGraph(struct sig_Allocator* allocator,
+    struct sig_List* signals, struct sig_SignalContext* context,
+    struct sig_Status* status) {
 
-    deviation = sig_dsp_Mul_new(allocator, context);
-    sig_List_append(signals, deviation, status);
-    deviation->inputs.left = indexKnob->outputs.main;
-    deviation->inputs.right = modulatorFrequency->outputs.main;
-
-    modulator = sig_dsp_Sine_new(allocator, context);
-    sig_List_append(signals, modulator, status);
-    modulator->inputs.freq = modulatorFrequency->outputs.main;
-    modulator->inputs.mul = deviation->outputs.main;
-
-    carrierFrequency = sig_dsp_Add_new(allocator, context);
-    sig_List_append(signals, carrierFrequency, status);
-    carrierFrequency->inputs.left = fundamentalFrequency->outputs.main;
-    carrierFrequency->inputs.right = modulator->outputs.main;
-
-    carrier = sig_dsp_Sine_new(allocator, context);
-    sig_List_append(signals, carrier, status);
-    carrier->inputs.freq = carrierFrequency->outputs.main;
-    carrier->inputs.mul = context->unity->outputs.main;
-
-    lfoCarrierDivision = sig_dsp_ConstantValue_new(allocator, context,
-        10000.0f);
-    lfoModulatorDivision = sig_dsp_ConstantValue_new(allocator, context,
-        1000.0f);
-
-    lfoFundamentalFrequency = sig_dsp_Div_new(allocator, context);
+    lfoFundamentalFrequency = sig_dsp_LinearToFreq_new(allocator, context);
     sig_List_append(signals, lfoFundamentalFrequency, status);
-    lfoFundamentalFrequency->inputs.left = fundamentalFrequency->outputs.main;
-    lfoFundamentalFrequency->inputs.right = lfoCarrierDivision->outputs.main;
+    lfoFundamentalFrequency->inputs.source = coarseVOctPlusFine->outputs.main;
+    lfoFundamentalFrequency->parameters.middleFreq = sig_FREQ_C4 / powf(2, 12); // LFO is centred twelve octaves below the audio carrier frequency.
 
-    lfoModulatorFrequency = sig_dsp_Div_new(allocator, context);
+    lfoModulatorFrequency = sig_dsp_Mul_new(allocator, context);
     sig_List_append(signals, lfoModulatorFrequency, status);
-    lfoModulatorFrequency->inputs.left = modulatorFrequency->outputs.main;
-    lfoModulatorFrequency->inputs.right = lfoModulatorDivision->outputs.main;
-
-    lfoDeviation = sig_dsp_Mul_new(allocator, context);
-    sig_List_append(signals, lfoDeviation, status);
-    lfoDeviation->inputs.left = indexKnob->outputs.main;
-    lfoDeviation->inputs.right = lfoModulatorFrequency->outputs.main;
+    lfoModulatorFrequency->inputs.left = lfoFundamentalFrequency->outputs.main;
+    lfoModulatorFrequency->inputs.right = ratioKnob->outputs.main;
 
     lfoModulator = sig_dsp_Sine_new(allocator, context);
     sig_List_append(signals, lfoModulator, status);
     lfoModulator->inputs.freq = lfoModulatorFrequency->outputs.main;
-    lfoModulator->inputs.mul = lfoDeviation->outputs.main;
-
-    lfoCarrierFrequency = sig_dsp_Add_new(allocator, context);
-    sig_List_append(signals, lfoCarrierFrequency, status);
-    lfoCarrierFrequency->inputs.left = lfoFundamentalFrequency->outputs.main;
-    lfoCarrierFrequency->inputs.right = lfoModulator->outputs.main;
+    lfoModulator->inputs.mul = indexKnob->outputs.main;
 
     lfoCarrier = sig_dsp_Sine_new(allocator, context);
     sig_List_append(signals, lfoCarrier, status);
-    lfoCarrier->inputs.freq = lfoCarrierFrequency->outputs.main;
+    lfoCarrier->inputs.freq = lfoFundamentalFrequency->outputs.main;
+    lfoCarrier->inputs.phaseOffset = lfoModulator->outputs.main;
     lfoCarrier->inputs.mul = context->unity->outputs.main;
+}
+
+void buildOscillatorGraph(struct sig_Allocator* allocator,
+    struct sig_List* signals, struct sig_SignalContext* context,
+    struct sig_Status* status) {
+    modulator = sig_dsp_Sine_new(allocator, context);
+    sig_List_append(signals, modulator, status);
+    modulator->inputs.freq = modulatorFrequency->outputs.main;
+    modulator->inputs.mul = indexKnob->outputs.main;
+
+    carrier = sig_dsp_Sine_new(allocator, context);
+    sig_List_append(signals, carrier, status);
+    carrier->inputs.freq = fundamentalFrequency->outputs.main;
+    carrier->inputs.phaseOffset = modulator->outputs.main;
+    carrier->inputs.mul = context->unity->outputs.main;
+}
+
+// TODO: Factor out a 2-op FM signal so that there is less
+// code duplication between the audio oscillator and the LFO.
+// TODO: Factor out the v/oct tracking code into a custom signal.
+void buildSignalGraph(struct sig_Allocator* allocator,
+    struct sig_List* signals, struct sig_SignalContext* context,
+    struct sig_Status* status) {
+
+    buildKnobGraph(allocator, signals, context, status);
+    buildCVInputGraph(allocator, signals, context, status);
+    buildFrequencyGraph(allocator, signals, context, status);
+    buildOscillatorGraph(allocator, signals, context, status);
+    buildLFOGraph(allocator, signals, context, status);
 
     distortion = sig_dsp_Tanh_new(allocator, context);
     sig_List_append(signals, distortion, status);

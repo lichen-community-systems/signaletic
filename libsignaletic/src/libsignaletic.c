@@ -1074,19 +1074,28 @@ void sig_dsp_Oscillator_init(struct sig_dsp_Oscillator* self,
     self->phaseAccumulator = 0.0f;
 }
 
+inline float sig_dsp_Oscillator_eoc(float phase) {
+    return phase < 0.0f || phase > 1.0f ? 1.0f : 0.0f;
+}
+
+inline float sig_dsp_Oscillator_wrapPhase(float phase) {
+    while (phase < 0.0f) {
+        phase += 1.0f;
+    }
+
+    while (phase > 1.0f) {
+        phase -= 1.0f;
+    }
+
+    return phase;
+}
+
 inline void sig_dsp_Oscillator_accumulatePhase(
     struct sig_dsp_Oscillator* self, size_t i) {
     float phaseStep = FLOAT_ARRAY(self->inputs.freq)[i] /
-        self->signal.audioSettings->sampleRate * sig_TWOPI;
-
-    self->phaseAccumulator += phaseStep;
-
-    float eocValue = 0.0;
-    if (self->phaseAccumulator > sig_TWOPI) {
-        self->phaseAccumulator -= sig_TWOPI;
-        eocValue = 1.0;
-    }
-    FLOAT_ARRAY(self->outputs.eoc)[i] = eocValue;
+        self->signal.audioSettings->sampleRate;
+    float phase = self->phaseAccumulator + phaseStep;
+    self->phaseAccumulator = sig_dsp_Oscillator_wrapPhase(phase);
 }
 
 void sig_dsp_Sine_init(struct sig_dsp_Oscillator* self,
@@ -1108,13 +1117,18 @@ void sig_dsp_Sine_generate(void* signal) {
     struct sig_dsp_Oscillator* self = (struct sig_dsp_Oscillator*) signal;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        // TODO: Negative offsets will fail here.
-        float modulatedPhase = fmodf(self->phaseAccumulator +
-            FLOAT_ARRAY(self->inputs.phaseOffset)[i], sig_TWOPI);
+        float modulatedPhase = self->phaseAccumulator +
+            FLOAT_ARRAY(self->inputs.phaseOffset)[i];
+        float eoc = sig_dsp_Oscillator_eoc(modulatedPhase);
+        modulatedPhase = sig_dsp_Oscillator_wrapPhase(modulatedPhase);
 
-        FLOAT_ARRAY(self->outputs.main)[i] = sinf(modulatedPhase) *
-            FLOAT_ARRAY(self->inputs.mul)[i] +
+        float angularPhase = modulatedPhase * sig_TWOPI;
+        float sample = sinf(angularPhase);
+        float scaledSample = sample * FLOAT_ARRAY(self->inputs.mul)[i] +
             FLOAT_ARRAY(self->inputs.add)[i];
+
+        FLOAT_ARRAY(self->outputs.main)[i] = scaledSample;
+        FLOAT_ARRAY(self->outputs.eoc)[i] = eoc;
 
         sig_dsp_Oscillator_accumulatePhase(self, i);
     }
@@ -1137,9 +1151,11 @@ void sig_dsp_LFTriangle_generate(void* signal) {
     struct sig_dsp_Oscillator* self = (struct sig_dsp_Oscillator*) signal;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        // TODO: Negative offsets will fail here.
-        float modulatedPhase = fmodf(self->phaseAccumulator +
-            FLOAT_ARRAY(self->inputs.phaseOffset)[i], sig_TWOPI);
+        float modulatedPhase = self->phaseAccumulator +
+            FLOAT_ARRAY(self->inputs.phaseOffset)[i];
+        float eoc = sig_dsp_Oscillator_eoc(modulatedPhase);
+        modulatedPhase = sig_dsp_Oscillator_wrapPhase(modulatedPhase) *
+            sig_TWOPI;
 
         float val = -1.0f + (2.0f * (modulatedPhase * sig_RECIP_TWOPI));
         val = 2.0f * (fabsf(val) - 0.5f); // Rectify and scale/offset
@@ -1147,7 +1163,7 @@ void sig_dsp_LFTriangle_generate(void* signal) {
         FLOAT_ARRAY(self->outputs.main)[i] = val *
             FLOAT_ARRAY(self->inputs.mul)[i] +
             FLOAT_ARRAY(self->inputs.add)[i];
-
+        FLOAT_ARRAY(self->outputs.eoc)[i] = eoc;
         sig_dsp_Oscillator_accumulatePhase(self, i);
     }
 }
