@@ -122,9 +122,13 @@ void buildSignalGraph(struct sig_SignalContext* context,
     osc->inputs.mul = ampMod->outputs.main;
 
     /** Gain **/
-    // Bluemchen's output circuit clips as it approaches full gain,
-    // so 0.85 seems to be around the practical maximum value.
-    gainLevel = sig_dsp_ConstantValue_new(&allocator, context, 0.85f);
+    // The Daisy Seed's output circuit clips as it approaches full gain.
+    // With the original AK556 codec, 0.85 seems to be around the practical
+    // maximum value. On the newer model with the WM8731 codec, a lower
+    // gain is required. 0.70f seems safe.
+    // I haven't noticed an issue like this with modules based
+    // on the Patch SM board.
+    gainLevel = sig_dsp_ConstantValue_new(&allocator, context, 0.70f);
 
     gain = sig_dsp_Mul_new(&allocator, context);
     sig_List_append(&signals, gain, status);

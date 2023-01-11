@@ -286,7 +286,7 @@ int main(void) {
     // Bluemchen's output circuit clips as it approaches full gain,
     // so 0.85 seems to be around the practical maximum value.
     struct sig_dsp_ConstantValue* gainAmount = sig_dsp_ConstantValue_new(
-        &allocator, context, 0.85f);
+        &allocator, context, 0.70f);
 
     leftGain = sig_dsp_Mul_new(&allocator, context);
     leftGain->inputs.left = leftLooper->outputs.main;
