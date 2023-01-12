@@ -25,18 +25,19 @@ struct sig_dsp_Signal* listStorage[MAX_NUM_SIGNALS];
 struct sig_List* signals;
 
 struct sig_dsp_SignalListEvaluator* evaluator;
-struct sig_dsp_ConstantValue* smoothCoefficient;
-struct sig_daisy_CVIn* coarseFrequencyKnob;
-struct sig_dsp_OnePole* coarseFrequencyLPF;
-struct sig_daisy_CVIn* fineFrequencyKnob;
-struct sig_dsp_OnePole* fineFrequencyLPF;
+struct sig_daisy_FilteredCVIn* coarseFrequencyKnob;
+struct sig_daisy_FilteredCVIn* fineFrequencyKnob;
 struct sig_daisy_CVIn* vOctCV;
 struct sig_dsp_BinaryOp* coarsePlusVOct;
 struct sig_dsp_BinaryOp* coarseVOctPlusFine;
 struct sig_dsp_LinearToFreq* fundamentalFrequency;
-struct sig_daisy_CVIn* ratioKnob;
+struct sig_daisy_FilteredCVIn* ratioKnob;
+struct sig_daisy_FilteredCVIn* ratioCV;
+struct sig_dsp_BinaryOp* combinedRatio;
 struct sig_dsp_BinaryOp* modulatorFrequency;
-struct sig_daisy_CVIn* indexKnob;
+struct sig_daisy_FilteredCVIn* indexKnob;
+struct sig_daisy_FilteredCVIn* indexCV;
+struct sig_dsp_BinaryOp* combinedIndex;
 struct sig_dsp_Oscillator* modulator;
 struct sig_dsp_Oscillator* carrier;
 struct sig_dsp_LinearToFreq* lfoFundamentalFrequency;
@@ -54,35 +55,25 @@ struct sig_daisy_CVOut* eocLED;
 void buildKnobGraph(struct sig_Allocator* allocator,
     struct sig_List* signals, struct sig_SignalContext* context,
     struct sig_Status* status) {
-    smoothCoefficient = sig_dsp_ConstantValue_new(allocator, context, 0.01);
 
-    coarseFrequencyKnob = sig_daisy_CVIn_new(allocator, context, host);
+    coarseFrequencyKnob = sig_daisy_FilteredCVIn_new(allocator,
+        context, host);
     sig_List_append(signals, coarseFrequencyKnob, status);
     coarseFrequencyKnob->parameters.control = sig_daisy_PatchInit_KNOB_1;
     coarseFrequencyKnob->parameters.scale = 7.0f;
     coarseFrequencyKnob->parameters.offset = -3.5f;
 
-    coarseFrequencyLPF = sig_dsp_OnePole_new(allocator, context);
-    sig_List_append(signals, coarseFrequencyLPF, status);
-    coarseFrequencyLPF->inputs.coefficient = smoothCoefficient->outputs.main;
-    coarseFrequencyLPF->inputs.source = coarseFrequencyKnob->outputs.main;
-
-    fineFrequencyKnob = sig_daisy_CVIn_new(allocator, context, host);
+    fineFrequencyKnob = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, fineFrequencyKnob, status);
     fineFrequencyKnob->parameters.control = sig_daisy_PatchInit_KNOB_3;
     fineFrequencyKnob->parameters.offset = -0.5f;
 
-    fineFrequencyLPF = sig_dsp_OnePole_new(allocator, context);
-    sig_List_append(signals, fineFrequencyLPF, status);
-    fineFrequencyLPF->inputs.coefficient = smoothCoefficient->outputs.main;
-    fineFrequencyLPF->inputs.source = fineFrequencyKnob->outputs.main;
-
-    ratioKnob = sig_daisy_CVIn_new(allocator, context, host);
+    ratioKnob = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, ratioKnob, status);
     ratioKnob->parameters.control = sig_daisy_PatchInit_KNOB_2;
     ratioKnob->parameters.scale = 2.1f;
 
-    indexKnob = sig_daisy_CVIn_new(allocator, context, host);
+    indexKnob = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, indexKnob, status);
     indexKnob->parameters.control = sig_daisy_PatchInit_KNOB_4;
     indexKnob->parameters.scale = 5.0f;
@@ -95,6 +86,26 @@ void buildCVInputGraph(struct sig_Allocator* allocator,
     sig_List_append(signals, vOctCV, status);
     vOctCV->parameters.control = sig_daisy_PatchInit_CV_IN_1;
     vOctCV->parameters.scale = 2.5f;
+
+    ratioCV = sig_daisy_FilteredCVIn_new(allocator, context, host);
+    sig_List_append(signals, ratioCV, status);
+    ratioCV->parameters.control = sig_daisy_PatchInit_CV_IN_2;
+    ratioCV->parameters.scale = 2.1f;
+
+    combinedRatio = sig_dsp_Add_new(allocator, context);
+    sig_List_append(signals, combinedRatio, status);
+    combinedRatio->inputs.left = ratioKnob->outputs.main;
+    combinedRatio->inputs.right = ratioCV->outputs.main;
+
+    indexCV = sig_daisy_FilteredCVIn_new(allocator, context, host);
+    sig_List_append(signals, indexCV, status);
+    indexCV->parameters.control = sig_daisy_PatchInit_CV_IN_3;
+    indexCV->parameters.scale = 5.0f;
+
+    combinedIndex = sig_dsp_Add_new(allocator, context);
+    sig_List_append(signals, combinedIndex, status);
+    combinedIndex->inputs.left = indexKnob->outputs.main;
+    combinedIndex->inputs.right = indexCV->outputs.main;
 }
 
 void buildFrequencyGraph(struct sig_Allocator* allocator,
@@ -102,13 +113,13 @@ void buildFrequencyGraph(struct sig_Allocator* allocator,
     struct sig_Status* status) {
     coarsePlusVOct = sig_dsp_Add_new(allocator, context);
     sig_List_append(signals, coarsePlusVOct, status);
-    coarsePlusVOct->inputs.left = coarseFrequencyLPF->outputs.main;
+    coarsePlusVOct->inputs.left = coarseFrequencyKnob->outputs.main;
     coarsePlusVOct->inputs.right = vOctCV->outputs.main;
 
     coarseVOctPlusFine = sig_dsp_Add_new(allocator, context);
     sig_List_append(signals, coarseVOctPlusFine, status);
     coarseVOctPlusFine->inputs.left = coarsePlusVOct->outputs.main;
-    coarseVOctPlusFine->inputs.right = fineFrequencyLPF->outputs.main;
+    coarseVOctPlusFine->inputs.right = fineFrequencyKnob->outputs.main;
 
     fundamentalFrequency = sig_dsp_LinearToFreq_new(allocator, context);
     sig_List_append(signals, fundamentalFrequency, status);
@@ -117,7 +128,7 @@ void buildFrequencyGraph(struct sig_Allocator* allocator,
     modulatorFrequency = sig_dsp_Mul_new(allocator, context);
     sig_List_append(signals, modulatorFrequency, status);
     modulatorFrequency->inputs.left = fundamentalFrequency->outputs.main;
-    modulatorFrequency->inputs.right = ratioKnob->outputs.main;
+    modulatorFrequency->inputs.right = combinedRatio->outputs.main;
 }
 
 void buildLFOGraph(struct sig_Allocator* allocator,
@@ -132,12 +143,12 @@ void buildLFOGraph(struct sig_Allocator* allocator,
     lfoModulatorFrequency = sig_dsp_Mul_new(allocator, context);
     sig_List_append(signals, lfoModulatorFrequency, status);
     lfoModulatorFrequency->inputs.left = lfoFundamentalFrequency->outputs.main;
-    lfoModulatorFrequency->inputs.right = ratioKnob->outputs.main;
+    lfoModulatorFrequency->inputs.right = combinedRatio->outputs.main;
 
     lfoModulator = sig_dsp_Sine_new(allocator, context);
     sig_List_append(signals, lfoModulator, status);
     lfoModulator->inputs.freq = lfoModulatorFrequency->outputs.main;
-    lfoModulator->inputs.mul = indexKnob->outputs.main;
+    lfoModulator->inputs.mul = combinedIndex->outputs.main;
 
     lfoCarrier = sig_dsp_Sine_new(allocator, context);
     sig_List_append(signals, lfoCarrier, status);
@@ -152,7 +163,7 @@ void buildOscillatorGraph(struct sig_Allocator* allocator,
     modulator = sig_dsp_Sine_new(allocator, context);
     sig_List_append(signals, modulator, status);
     modulator->inputs.freq = modulatorFrequency->outputs.main;
-    modulator->inputs.mul = indexKnob->outputs.main;
+    modulator->inputs.mul = combinedIndex->outputs.main;
 
     carrier = sig_dsp_Sine_new(allocator, context);
     sig_List_append(signals, carrier, status);
@@ -163,7 +174,6 @@ void buildOscillatorGraph(struct sig_Allocator* allocator,
 
 // TODO: Factor out a 2-op FM signal so that there is less
 // code duplication between the audio oscillator and the LFO.
-// TODO: Factor out the v/oct tracking code into a custom signal.
 void buildSignalGraph(struct sig_Allocator* allocator,
     struct sig_List* signals, struct sig_SignalContext* context,
     struct sig_Status* status) {
@@ -203,7 +213,7 @@ int main(void) {
     struct sig_AudioSettings audioSettings = {
         .sampleRate = 96000,
         .numChannels = 2,
-        .blockSize = 96
+        .blockSize = 8
     };
 
     sig_Status_init(&status);

@@ -226,6 +226,58 @@ void sig_daisy_CVIn_generate(void* signal);
 void sig_daisy_CVIn_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_CVIn* self);
 
+struct sig_daisy_FilteredCVIn_Parameters {
+    float scale;
+    float offset;
+    int control;
+    float coefficient;
+};
+
+struct sig_daisy_FilteredCVIn {
+    struct sig_dsp_Signal signal;
+    struct sig_daisy_FilteredCVIn_Parameters parameters;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+    struct sig_daisy_Host* host;
+    struct sig_daisy_CVIn* cvIn;
+    struct sig_dsp_Value* coefficient;
+    struct sig_dsp_OnePole* filter;
+};
+
+struct sig_daisy_FilteredCVIn* sig_daisy_FilteredCVIn_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context,
+    struct sig_daisy_Host* host);
+void sig_daisy_FilteredCVIn_init(struct sig_daisy_FilteredCVIn* self,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host);
+void sig_daisy_FilteredCVIn_generate(void* signal);
+void sig_daisy_FilteredCVIn_destroy(struct sig_Allocator* allocator,
+    struct sig_daisy_FilteredCVIn* self);
+
+
+struct sig_daisy_VOctCVIn_Parameters {
+    float scale;
+    float offset;
+    int control;
+    float middleFreq;
+};
+
+struct sig_daisy_VOctCVIn {
+    struct sig_dsp_Signal signal;
+    struct sig_daisy_VOctCVIn_Parameters parameters;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+    struct sig_daisy_Host* host;
+    struct sig_daisy_CVIn* cvIn;
+    struct sig_dsp_LinearToFreq* cvConverter;
+};
+
+struct sig_daisy_VOctCVIn* sig_daisy_VOctCVIn_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context,
+    struct sig_daisy_Host* host);
+void sig_daisy_VOctCVIn_init(struct sig_daisy_VOctCVIn* self,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host);
+void sig_daisy_VOctCVIn_generate(void* signal);
+void sig_daisy_VOctCVIn_destroy(struct sig_Allocator* allocator,
+    struct sig_daisy_VOctCVIn* self);
+
 
 struct sig_daisy_SwitchIn {
     struct sig_dsp_Signal signal;

@@ -298,6 +298,106 @@ void sig_daisy_CVIn_destroy(struct sig_Allocator* allocator,
     sig_dsp_Signal_destroy(allocator, (void*) self);
 }
 
+struct sig_daisy_FilteredCVIn* sig_daisy_FilteredCVIn_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context,
+    struct sig_daisy_Host* host) {
+    struct sig_daisy_FilteredCVIn* self = sig_MALLOC(allocator,
+        struct sig_daisy_FilteredCVIn);
+    self->cvIn = sig_daisy_CVIn_new(allocator, context, host);
+    self->coefficient = sig_dsp_Value_new(allocator, context);
+    self->filter = sig_dsp_OnePole_new(allocator, context);
+    sig_daisy_FilteredCVIn_init(self, context, host);
+
+    return self;
+}
+
+void sig_daisy_FilteredCVIn_init(struct sig_daisy_FilteredCVIn* self,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host) {
+    sig_dsp_Signal_init(self, context, *sig_daisy_FilteredCVIn_generate);
+    self->host = host;
+    self->parameters = {
+        .scale = 1.0f,
+        .offset = 0.0f,
+        .control = 0,
+        .coefficient = 0.01
+    };
+    self->filter->inputs.coefficient = self->coefficient->outputs.main;
+    self->filter->inputs.source = self->cvIn->outputs.main;
+    self->outputs = self->filter->outputs;
+}
+
+void sig_daisy_FilteredCVIn_generate(void* signal) {
+    struct sig_daisy_FilteredCVIn* self =
+        (struct sig_daisy_FilteredCVIn*) signal;
+    // TODO: We have to update these parameters
+    // at block rate because there's no way to know if there
+    // was actually a parameter change made and parameters are not pointers.
+    self->coefficient->parameters.value = self->parameters.coefficient;
+    self->cvIn->parameters.control = self->parameters.control;
+    self->cvIn->parameters.scale = self->parameters.scale;
+    self->cvIn->parameters.offset = self->parameters.offset;
+
+    self->cvIn->signal.generate(self->cvIn);
+    self->coefficient->signal.generate(self->coefficient);
+    self->filter->signal.generate(self->filter);
+}
+
+void sig_daisy_FilteredCVIn_destroy(struct sig_Allocator* allocator,
+    struct sig_daisy_FilteredCVIn* self) {
+    sig_daisy_CVIn_destroy(allocator, self->cvIn);
+    sig_dsp_Value_destroy(allocator, self->coefficient);
+    sig_dsp_OnePole_destroy(allocator, self->filter);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
+}
+
+
+struct sig_daisy_VOctCVIn* sig_daisy_VOctCVIn_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context,
+    struct sig_daisy_Host* host) {
+    struct sig_daisy_VOctCVIn* self = sig_MALLOC(allocator,
+        struct sig_daisy_VOctCVIn);
+    self->cvIn = sig_daisy_CVIn_new(allocator, context, host);
+    self->cvConverter = sig_dsp_LinearToFreq_new(allocator, context);
+    sig_daisy_VOctCVIn_init(self, context, host);
+
+    return self;
+}
+
+void sig_daisy_VOctCVIn_init(struct sig_daisy_VOctCVIn* self,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host) {
+    sig_dsp_Signal_init(self, context, *sig_daisy_VOctCVIn_generate);
+    self->host = host;
+    self->parameters = {
+        .scale = 1.0f,
+        .offset = 0.0f,
+        .control = 0,
+        .middleFreq = self->cvConverter->parameters.middleFreq
+    };
+    self->outputs = self->cvConverter->outputs;
+    self->cvConverter->inputs.source = self->cvIn->outputs.main;
+}
+
+void sig_daisy_VOctCVIn_generate(void* signal) {
+    struct sig_daisy_VOctCVIn* self = (struct sig_daisy_VOctCVIn*) signal;
+    // TODO: We always have to update these parameters
+    // at block rate because there's no way to know if there
+    // was actually a parameter change made and parameters are not pointers.
+    self->cvConverter->parameters.middleFreq = self->parameters.middleFreq;
+    self->cvIn->parameters.control = self->parameters.control;
+    self->cvIn->parameters.scale = self->parameters.scale;
+    self->cvIn->parameters.offset = self->parameters.offset;
+
+    self->cvIn->signal.generate(self->cvIn);
+    self->cvConverter->signal.generate(self->cvConverter);
+}
+
+void sig_daisy_VOctCVIn_destroy(struct sig_Allocator* allocator,
+    struct sig_daisy_VOctCVIn* self) {
+    sig_daisy_CVIn_destroy(allocator, self->cvIn);
+    sig_dsp_LinearToFreq_destroy(allocator, self->cvConverter);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
+}
+
 
 struct sig_daisy_SwitchIn* sig_daisy_SwitchIn_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context,
