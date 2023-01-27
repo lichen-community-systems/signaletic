@@ -151,8 +151,8 @@ public:
         return sig_interpolate_cubic(idx, table, length);
     }
 
-    float filter_onepole(float current, float previous, float coeff) {
-        return sig_filter_onepole(current, previous, coeff);
+    float filter_smooth(float current, float previous, float coeff) {
+        return sig_filter_smooth(current, previous, coeff);
     }
 
     float waveform_sine(float phase) {

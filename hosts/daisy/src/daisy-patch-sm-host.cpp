@@ -80,7 +80,7 @@ void sig_daisy_PatchSMHost_Board_init(struct sig_daisy_Host_Board* self,
     self->gateOutputs[0] = &patchSM->gate_out_1;
     self->gateOutputs[1] = &patchSM->gate_out_2;
     self->switches[0].Init(patchSM->B7, patchSM->AudioCallbackRate());
-    self->switches[0].Init(patchSM->B8, patchSM->AudioCallbackRate());
+    self->switches[1].Init(patchSM->B8, patchSM->AudioCallbackRate());
     self->boardInstance = (void*) patchSM;
 }
 

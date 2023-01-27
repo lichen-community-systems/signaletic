@@ -154,7 +154,7 @@ float sig_daisy_HostImpl_getSwitchValue(struct sig_daisy_Host* host,
     if (control > -1 && control < host->board.config->numSwitches) {
         daisy::Switch* sw = &(host->board.switches[control]);
         sw->Debounce();
-        sample = sw->Pressed();
+        sample = (float) sw->Pressed();
     }
 
     return sample;
@@ -304,8 +304,7 @@ struct sig_daisy_FilteredCVIn* sig_daisy_FilteredCVIn_new(
     struct sig_daisy_FilteredCVIn* self = sig_MALLOC(allocator,
         struct sig_daisy_FilteredCVIn);
     self->cvIn = sig_daisy_CVIn_new(allocator, context, host);
-    self->coefficient = sig_dsp_Value_new(allocator, context);
-    self->filter = sig_dsp_OnePole_new(allocator, context);
+    self->filter = sig_dsp_Smooth_new(allocator, context);
     sig_daisy_FilteredCVIn_init(self, context, host);
 
     return self;
@@ -319,9 +318,8 @@ void sig_daisy_FilteredCVIn_init(struct sig_daisy_FilteredCVIn* self,
         .scale = 1.0f,
         .offset = 0.0f,
         .control = 0,
-        .coefficient = 0.01
+        .time = 0.01f
     };
-    self->filter->inputs.coefficient = self->coefficient->outputs.main;
     self->filter->inputs.source = self->cvIn->outputs.main;
     self->outputs = self->filter->outputs;
 }
@@ -331,22 +329,21 @@ void sig_daisy_FilteredCVIn_generate(void* signal) {
         (struct sig_daisy_FilteredCVIn*) signal;
     // TODO: We have to update these parameters
     // at block rate because there's no way to know if there
-    // was actually a parameter change made and parameters are not pointers.
-    self->coefficient->parameters.value = self->parameters.coefficient;
+    // was actually a parameter change made and parameters are
+    // stored by value, not by pointer.
+    self->filter->parameters.time = self->parameters.time;
     self->cvIn->parameters.control = self->parameters.control;
     self->cvIn->parameters.scale = self->parameters.scale;
     self->cvIn->parameters.offset = self->parameters.offset;
 
     self->cvIn->signal.generate(self->cvIn);
-    self->coefficient->signal.generate(self->coefficient);
     self->filter->signal.generate(self->filter);
 }
 
 void sig_daisy_FilteredCVIn_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_FilteredCVIn* self) {
     sig_daisy_CVIn_destroy(allocator, self->cvIn);
-    sig_dsp_Value_destroy(allocator, self->coefficient);
-    sig_dsp_OnePole_destroy(allocator, self->filter);
+    sig_dsp_Smooth_destroy(allocator, self->filter);
     sig_dsp_Signal_destroy(allocator, (void*) self);
 }
 

@@ -36,6 +36,7 @@ extern "C" {
 static const float sig_PI = 3.14159265358979323846f;
 static const float sig_TWOPI = 6.283185307179586f;
 static const float sig_RECIP_TWOPI = 0.159154943091895f;
+static const float sig_LOG0_001 = -6.907755278982137f;
 static const float sig_LOG2 = 0.6931471805599453;
 static const float sig_FREQ_C4 = 261.6256;
 
@@ -101,6 +102,21 @@ float sig_clamp(float value, float min, float max);
  * @return a random value
  */
 float sig_randf();
+
+/**
+ * @brief Linearly maps a value from one range to another.
+ * This implementation does not clamp the output if the value
+ * is outside of the specified current range.
+ *
+ * @param value the value to map
+ * @param fromMin the minimum of the current range
+ * @param fromMax the maximum of the current range
+ * @param toMin the minimum of the target range
+ * @param toMax the maximum of the target range
+ * @return float the mapped value
+ */
+float sig_linearMap(float value,
+    float fromMin, float fromMax, float toMin, float toMax);
 
 /**
  * Converts a unipolar floating point sample in the range 0.0 to 1.0
@@ -246,13 +262,72 @@ float sig_interpolate_linear(float idx, float_array_ptr table,
 float sig_interpolate_cubic(float idx, float_array_ptr table, size_t length);
 
 /**
- * A one pole filter.
+ * @brief A one pole filter that implements the formula
+ * y[n] = b0 * x[n] + a1 * y[n-1].
+ *
+ * @param current the current sample (i.e. x[n])
+ * @param previous the previous output sample (i.e. y[n-1])
+ * @param b0 the forward coefficient
+ * @param a1 the feedback coefficient
+ * @return float the filtered sample (i.e. y[n])
+ */
+float sig_filter_onepole(float current, float previous, float b0,
+    float a1);
+
+/**
+ * @brief Calculates the feedback coefficient for a high pass one pole filter.
+ *
+ * @param frequency the cutoff frequency of the filter
+ * @param sampleRate the current sample rate
+ * @return float the feedback coeffient (a1)
+ */
+float sig_filter_onepole_HPF_calculateA1(float frequency, float sampleRate);
+
+/**
+ * @brief Calculates the forward coefficient for a high pass one pole filter.
+ *
+ * @param a1 the feedback coefficient
+ * @return float the forward coefficient (b0)
+ */
+float sig_filter_onepole_HPF_calculateB0(float a1);
+
+/**
+ * @brief Calculates the feedback coefficient for a low pass one pole filter.
+ *
+ * @param frequency the cutoff frequency of the filter
+ * @param sampleRate the current sample rate
+ * @return float the feedback coeffient (a1)
+ */
+float sig_filter_onepole_LPF_calculateA1(float frequency, float sampleRate);
+
+/**
+ * @brief Calculates the forward coefficient for a low pass one pole filter.
+ *
+ * @param a1 the feedback coefficient
+ * @return float the forward coefficient (b0)
+ */
+float sig_filter_onepole_LPF_calculateB0(float a1);
+
+/**
+ * An optimized one pole low-pass filter,
+ * typically used for smoothing parameter values.
  *
  * @param current the current sample (n)
  * @param previous the previous sample (n-1)
- * @param coeff the filter coefficient
+ * @param coeff the filter coefficient (a1)
  */
-float sig_filter_onepole(float current, float previous, float coeff);
+float sig_filter_smooth(float current, float previous, float coeff);
+
+/**
+ * @brief Calculates the coefficient from a 60 dB convergence time for
+ * a low pass one pole filter.
+ *
+ * @param timeSecs the time (in seconds) for the filter to converge on the value
+ * @param sampleRate the current sample rate
+ * @return float the coefficient (a1)
+ */
+float sig_filter_smooth_calculateCoefficient(float timeSecs,
+    float sampleRate);
 
 /**
  * Type definition for a waveform generator function.
@@ -514,9 +589,11 @@ void sig_AudioSettings_destroy(struct sig_Allocator* allocator,
     struct sig_AudioSettings* self);
 
 
+
 // TODO: Move to the DSP namespace.
 struct sig_SignalContext {
     struct sig_AudioSettings* audioSettings;
+    struct sig_Buffer* emptyBuffer;
     struct sig_dsp_ConstantValue* silence;
     struct sig_dsp_ConstantValue* unity;
 };
@@ -661,7 +738,8 @@ float_array_ptr sig_AudioBlock_newWithValue(
     struct sig_Allocator* allocator,
     struct sig_AudioSettings* audioSettings,
     float value);
-
+float_array_ptr sig_AudioBlock_newSilent(struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings);
 void sig_AudioBlock_destroy(struct sig_Allocator* allocator,
     float_array_ptr self);
 
@@ -1079,22 +1157,66 @@ void sig_dsp_LFTriangle_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Oscillator* self);
 
 
+struct sig_dsp_Smooth_Inputs {
+    float_array_ptr source;
+};
+
+struct sig_dsp_Smooth_Parameters {
+    float time;
+};
+
+struct sig_dsp_Smooth {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Smooth_Inputs inputs;
+    struct sig_dsp_Smooth_Parameters parameters;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+    float a1;
+    float previousTime;
+    float previousSample;
+};
+
+void sig_dsp_Smooth_init(struct sig_dsp_Smooth* self,
+    struct sig_SignalContext* context);
+struct sig_dsp_Smooth* sig_dsp_Smooth_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_Smooth_generate(void* signal);
+void sig_dsp_Smooth_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Smooth* self);
+
+
+enum sig_dsp_OnePole_Mode {
+    sig_dsp_OnePole_Mode_HIGH_PASS,
+    sig_dsp_OnePole_Mode_LOW_PASS,
+    sig_dsp_OnePole_Mode_NOT_SPECIFIED
+};
+
+struct sig_dsp_OnePole_Parameters {
+    enum sig_dsp_OnePole_Mode mode;
+};
+
 struct sig_dsp_OnePole_Inputs {
     float_array_ptr source;
-    float_array_ptr coefficient;
+    float_array_ptr frequency;
 };
 
 struct sig_dsp_OnePole {
     struct sig_dsp_Signal signal;
     struct sig_dsp_OnePole_Inputs inputs;
+    struct sig_dsp_OnePole_Parameters parameters;
     struct sig_dsp_Signal_SingleMonoOutput outputs;
+    float b0;
+    float a1;
+    enum sig_dsp_OnePole_Mode previousMode;
+    float previousFrequency;
     float previousSample;
 };
 
 void sig_dsp_OnePole_init(struct sig_dsp_OnePole* self,
     struct sig_SignalContext* context);
-struct sig_dsp_OnePole* sig_dsp_OnePole_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+struct sig_dsp_OnePole* sig_dsp_OnePole_new(struct sig_Allocator* allocator,
+    struct sig_SignalContext* context);
+void sig_dsp_OnePole_recalculateCoefficients(struct sig_dsp_OnePole* self,
+    float frequency);
 void sig_dsp_OnePole_generate(void* signal);
 void sig_dsp_OnePole_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_OnePole* self);
@@ -1293,6 +1415,7 @@ void sig_dsp_ClockFreqDetector_generate(void* signal);
 void sig_dsp_ClockFreqDetector_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_ClockFreqDetector* self);
 
+
 struct sig_dsp_LinearToFreq_Inputs {
     float_array_ptr source;
 };
@@ -1315,6 +1438,87 @@ void sig_dsp_LinearToFreq_init(struct sig_dsp_LinearToFreq* self,
 void sig_dsp_LinearToFreq_generate(void* signal);
 void sig_dsp_LinearToFreq_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_LinearToFreq* self);
+
+
+struct sig_dsp_Branch_Inputs {
+    float_array_ptr off;
+    float_array_ptr on;
+    float_array_ptr condition;
+};
+
+struct sig_dsp_Branch {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Branch_Inputs inputs;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
+struct sig_dsp_Branch* sig_dsp_Branch_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_Branch_init(struct sig_dsp_Branch* self,
+    struct sig_SignalContext* context);
+void sig_dsp_Branch_generate(void* signal);
+void sig_dsp_Branch_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Branch* self);
+
+
+struct sig_dsp_List_Inputs {
+    float_array_ptr index;
+};
+
+struct sig_dsp_List_Outputs {
+    float_array_ptr main;
+    float_array_ptr length;
+};
+
+void sig_dsp_List_Outputs_newAudioBlocks(struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_dsp_List_Outputs* outputs);
+
+void sig_dsp_List_Outputs_destroyAudioBlocks(struct sig_Allocator* allocator,
+    struct sig_dsp_List_Outputs* outputs);
+
+struct sig_dsp_List {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_List_Inputs inputs;
+    struct sig_dsp_List_Outputs outputs;
+    struct sig_Buffer* list;
+};
+
+struct sig_dsp_List* sig_dsp_List_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_List_init(struct sig_dsp_List* self,
+    struct sig_SignalContext* context);
+void sig_dsp_List_generate(void* signal);
+void sig_dsp_List_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_List* self);
+
+
+struct sig_dsp_LinearMap_Inputs {
+    float_array_ptr source;
+};
+
+struct sig_dsp_LinearMap_Parameters {
+    float fromMin;
+    float fromMax;
+    float toMin;
+    float toMax;
+};
+
+struct sig_dsp_LinearMap {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_LinearMap_Inputs inputs;
+    struct sig_dsp_LinearMap_Parameters parameters;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
+struct sig_dsp_LinearMap* sig_dsp_LinearMap_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_LinearMap_init(struct sig_dsp_LinearMap* self,
+    struct sig_SignalContext* context);
+void sig_dsp_LinearMap_generate(void* signal);
+void sig_dsp_LinearMap_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_LinearMap* self);
+
 
 #ifdef __cplusplus
 }

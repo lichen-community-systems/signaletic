@@ -230,7 +230,7 @@ struct sig_daisy_FilteredCVIn_Parameters {
     float scale;
     float offset;
     int control;
-    float coefficient;
+    float time;
 };
 
 struct sig_daisy_FilteredCVIn {
@@ -239,8 +239,7 @@ struct sig_daisy_FilteredCVIn {
     struct sig_dsp_Signal_SingleMonoOutput outputs;
     struct sig_daisy_Host* host;
     struct sig_daisy_CVIn* cvIn;
-    struct sig_dsp_Value* coefficient;
-    struct sig_dsp_OnePole* filter;
+    struct sig_dsp_Smooth* filter;
 };
 
 struct sig_daisy_FilteredCVIn* sig_daisy_FilteredCVIn_new(

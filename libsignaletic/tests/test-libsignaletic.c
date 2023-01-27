@@ -1010,6 +1010,5 @@ int main(void) {
     RUN_TEST(test_sig_dsp_TimedGate_unipolar);
     RUN_TEST(test_sig_dsp_TimedGate_resetOnTrigger);
     RUN_TEST(test_sig_dsp_TimedGate_bipolar);
-
     return UNITY_END();
 }

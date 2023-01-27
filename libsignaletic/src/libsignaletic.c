@@ -56,6 +56,12 @@ float sig_randf() {
     return (float) ((double) rand() / ((double) RAND_MAX + 1));
 }
 
+// TODO: Unit tests.
+inline float sig_linearMap(float value,
+    float fromMin, float fromMax, float toMin, float toMax) {
+    return (value - fromMin) * (toMax - toMin) / (fromMax - fromMin) + toMin;
+}
+
 uint16_t sig_unipolarToUint12(float sample) {
     return (uint16_t) (sample * 4095.0f);
 }
@@ -143,9 +149,38 @@ float sig_interpolate_cubic(float idx, float_array_ptr table,
         idxFractional + x0;
 }
 
-// TODO: Unit tests.
-float sig_filter_onepole(float current, float previous, float coeff) {
+inline float sig_filter_onepole(float current, float previous, float b0,
+    float a1) {
+    return b0 * current - a1 * previous;
+};
+
+inline float sig_filter_onepole_HPF_calculateA1(
+    float frequency, float sampleRate) {
+    float fc = frequency / sampleRate;
+    return -expf(-2.0f * sig_PI * (0.5f - fc));
+}
+
+inline float sig_filter_onepole_HPF_calculateB0(float a1) {
+    return 1.0f + a1;
+}
+
+inline float sig_filter_onepole_LPF_calculateA1(
+    float frequency, float sampleRate) {
+    float fc = frequency / sampleRate;
+    return expf(-2.0f * sig_PI * fc);
+}
+
+inline float sig_filter_onepole_LPF_calculateB0(float a1) {
+    return 1.0f - a1;
+}
+
+inline float sig_filter_smooth(float current, float previous, float coeff) {
     return current + coeff * (previous - current);
+}
+
+inline float sig_filter_smooth_calculateCoefficient(float time,
+    float sampleRate) {
+    return expf(sig_LOG0_001 / (time * sampleRate));
 }
 
 // TODO: Unit tests.
@@ -343,6 +378,10 @@ struct sig_SignalContext* sig_SignalContext_new(
         struct sig_SignalContext);
 
     self->audioSettings = audioSettings;
+
+    struct sig_Buffer* emptyBuffer = sig_Buffer_new(allocator, 0);
+    self->emptyBuffer = emptyBuffer;
+
     struct sig_dsp_ConstantValue* silence = sig_dsp_ConstantValue_new(
         allocator, self, 0.0f);
     self->silence = silence;
@@ -393,6 +432,12 @@ float_array_ptr sig_AudioBlock_newWithValue(
     sig_fillWithValue(block, audioSettings->blockSize, value);
 
     return block;
+}
+
+float_array_ptr sig_AudioBlock_newSilent(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings) {
+    return sig_AudioBlock_newWithValue(allocator, audioSettings, 0.0f);
 }
 
 void sig_AudioBlock_destroy(struct sig_Allocator* allocator,
@@ -507,7 +552,7 @@ void sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(
     struct sig_Allocator* allocator,
     struct sig_AudioSettings* audioSettings,
     struct sig_dsp_Signal_SingleMonoOutput* outputs) {
-    outputs->main = sig_AudioBlock_new(allocator, audioSettings);
+    outputs->main = sig_AudioBlock_newSilent(allocator, audioSettings);
 }
 
 void sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(
@@ -1033,8 +1078,8 @@ void sig_dsp_Oscillator_Outputs_newAudioBlocks(
     struct sig_Allocator* allocator,
     struct sig_AudioSettings* audioSettings,
     struct sig_dsp_Oscillator_Outputs* outputs) {
-    outputs->main = sig_AudioBlock_new(allocator, audioSettings);
-    outputs->eoc = sig_AudioBlock_new(allocator, audioSettings);
+    outputs->main = sig_AudioBlock_newSilent(allocator, audioSettings);
+    outputs->eoc = sig_AudioBlock_newSilent(allocator, audioSettings);
 }
 
 void sig_dsp_Oscillator_Outputs_destroyAudioBlocks(
@@ -1174,13 +1219,71 @@ void sig_dsp_LFTriangle_destroy(struct sig_Allocator* allocator,
 }
 
 
+void sig_dsp_Smooth_init(struct sig_dsp_Smooth* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_Smooth_generate);
+    self->previousTime = -1.0f;
+    self->previousSample = 0.0f;
+    self->parameters.time = 0.01f;
+    self->a1 = 0.0f;
+    sig_CONNECT_TO_SILENCE(self, source, context);
+}
+
+struct sig_dsp_Smooth* sig_dsp_Smooth_new(struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
+    struct sig_dsp_Smooth* self = sig_MALLOC(allocator,
+        struct sig_dsp_Smooth);
+    sig_dsp_Smooth_init(self, context);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+// TODO: Unit tests
+void sig_dsp_Smooth_generate(void* signal) {
+    struct sig_dsp_Smooth* self = (struct sig_dsp_Smooth*) signal;
+
+    float previousSample = self->previousSample;
+    float a1 = self->a1;
+    float time = self->parameters.time;
+
+    if (self->previousTime != time) {
+        self->a1 = a1 = sig_filter_smooth_calculateCoefficient(time,
+            self->signal.audioSettings->sampleRate);
+        self->previousTime = time;
+    }
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        FLOAT_ARRAY(self->outputs.main)[i] = previousSample =
+            sig_filter_smooth(
+                FLOAT_ARRAY(self->inputs.source)[i], previousSample, a1);
+    }
+
+    self->previousSample = previousSample;
+}
+
+void sig_dsp_Smooth_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Smooth* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
+}
+
+
+
 void sig_dsp_OnePole_init(struct sig_dsp_OnePole* self,
     struct sig_SignalContext* context) {
     sig_dsp_Signal_init(self, context, *sig_dsp_OnePole_generate);
+    self->parameters.mode = sig_dsp_OnePole_Mode_LOW_PASS;
+    self->a1 = 0.0f;
+    self->b0 = 1.0f;
+    self->previousFrequency = 0.0f;
+    self->previousMode = sig_dsp_OnePole_Mode_NOT_SPECIFIED;
     self->previousSample = 0.0f;
 
     sig_CONNECT_TO_SILENCE(self, source, context);
-    sig_CONNECT_TO_SILENCE(self, coefficient, context);
+    sig_CONNECT_TO_SILENCE(self, frequency, context);
 }
 
 struct sig_dsp_OnePole* sig_dsp_OnePole_new(struct sig_Allocator* allocator,
@@ -1194,26 +1297,48 @@ struct sig_dsp_OnePole* sig_dsp_OnePole_new(struct sig_Allocator* allocator,
     return self;
 }
 
-// TODO: Unit tests
+inline void sig_dsp_OnePole_recalculateCoefficients(
+    struct sig_dsp_OnePole* self, float frequency) {
+    float sampleRate = self->signal.audioSettings->sampleRate;
+    enum sig_dsp_OnePole_Mode mode = self->parameters.mode;
+
+    self->previousFrequency = frequency;
+    self->previousMode = mode;
+
+    if (mode == sig_dsp_OnePole_Mode_HIGH_PASS) {
+        self->a1 = sig_filter_onepole_HPF_calculateA1(frequency, sampleRate);
+        self->b0 = sig_filter_onepole_HPF_calculateB0(self->a1);
+    } else {
+        self->a1 = sig_filter_onepole_LPF_calculateA1(frequency, sampleRate);
+        self->b0 = sig_filter_onepole_LPF_calculateB0(self->a1);
+    }
+}
+
 void sig_dsp_OnePole_generate(void* signal) {
     struct sig_dsp_OnePole* self = (struct sig_dsp_OnePole*) signal;
 
     float previousSample = self->previousSample;
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        FLOAT_ARRAY(self->outputs.main)[i] = previousSample =
-            sig_filter_onepole(
-                FLOAT_ARRAY(self->inputs.source)[i], previousSample,
-                FLOAT_ARRAY(self->inputs.coefficient)[i]);
+        float frequency = FLOAT_ARRAY(self->inputs.frequency)[i];
+        if (self->previousFrequency != frequency ||
+            self->previousMode != self->parameters.mode) {
+            sig_dsp_OnePole_recalculateCoefficients(self, frequency);
+        }
+
+        float sample = sig_filter_onepole(FLOAT_ARRAY(self->inputs.source)[i],
+            previousSample, self->b0, self->a1);
+        FLOAT_ARRAY(self->outputs.main)[i] = sample;
+        previousSample = sample;
+
     }
     self->previousSample = previousSample;
 }
 
 void sig_dsp_OnePole_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_OnePole* self) {
-    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
-        &self->outputs);
-    sig_dsp_Signal_destroy(allocator, (void*) self);
+
 }
+
 
 
 void sig_dsp_Tanh_init(struct sig_dsp_Tanh* self,
@@ -1267,6 +1392,8 @@ void sig_dsp_Looper_init(struct sig_dsp_Looper* self,
     self->playbackPos = 0.0f;
     self->previousRecord = 0.0f;
     self->previousClear = 0.0f;
+
+    sig_dsp_Looper_setBuffer(self, context->emptyBuffer);
 
     sig_CONNECT_TO_SILENCE(self, source, context);
     sig_CONNECT_TO_SILENCE(self, start, context);
@@ -1638,7 +1765,7 @@ static inline float sig_dsp_ClockFreqDetector_calcClockFreq(
     float prevFreq) {
     float freq = sampleRate / (float) samplesSinceLastPulse;
     // TODO: Is an LPF good, or is a moving average better?
-    return sig_filter_onepole(freq, prevFreq, 0.01f);
+    return sig_filter_smooth(freq, prevFreq, 0.01f);
 }
 
 void sig_dsp_ClockFreqDetector_generate(void* signal) {
@@ -1736,6 +1863,153 @@ void sig_dsp_LinearToFreq_generate(void* signal) {
 
 void sig_dsp_LinearToFreq_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_LinearToFreq* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, self);
+}
+
+
+struct sig_dsp_Branch* sig_dsp_Branch_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_Branch* self = sig_MALLOC(allocator, struct sig_dsp_Branch);
+    sig_dsp_Branch_init(self, context);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_dsp_Branch_init(struct sig_dsp_Branch* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_Branch_generate);
+    sig_CONNECT_TO_SILENCE(self, off, context);
+    sig_CONNECT_TO_SILENCE(self, on, context);
+    sig_CONNECT_TO_SILENCE(self, condition, context);
+}
+
+void sig_dsp_Branch_generate(void* signal) {
+    struct sig_dsp_Branch* self = (struct sig_dsp_Branch*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float condition = FLOAT_ARRAY(self->inputs.condition)[i];
+        float off = FLOAT_ARRAY(self->inputs.off)[i];
+        float on = FLOAT_ARRAY(self->inputs.on)[i];
+
+        FLOAT_ARRAY(self->outputs.main)[i] = condition > 0.0f ? on : off;
+    }
+}
+
+void sig_dsp_Branch_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Branch* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, self);
+}
+
+
+void sig_dsp_List_Outputs_newAudioBlocks(struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_dsp_List_Outputs* outputs) {
+    outputs->main = sig_AudioBlock_newSilent(allocator, audioSettings);
+    outputs->length = sig_AudioBlock_newSilent(allocator, audioSettings);
+}
+
+void sig_dsp_List_Outputs_destroyAudioBlocks(struct sig_Allocator* allocator,
+    struct sig_dsp_List_Outputs* outputs) {
+    sig_AudioBlock_destroy(allocator, outputs->main);
+    sig_AudioBlock_destroy(allocator, outputs->length);
+}
+
+struct sig_dsp_List* sig_dsp_List_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_List* self = sig_MALLOC(allocator, struct sig_dsp_List);
+    sig_dsp_List_init(self, context);
+    sig_dsp_List_Outputs_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_dsp_List_init(struct sig_dsp_List* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_List_generate);
+    sig_CONNECT_TO_SILENCE(self, index, context);
+}
+
+void sig_dsp_List_generate(void* signal) {
+    struct sig_dsp_List* self = (struct sig_dsp_List*) signal;
+    struct sig_Buffer* list = self->list;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float index = FLOAT_ARRAY(self->inputs.index)[i];
+        float listLength = (float) list->length;
+        float sample = 0.0f;
+
+        if (listLength > 0.0f) {
+            float scaledIndex = index * (float) (listLength - 1);
+            while (scaledIndex < 0.0f) {
+                scaledIndex += listLength;
+            }
+
+            while (scaledIndex > listLength) {
+                scaledIndex -= listLength;
+            }
+
+            size_t roundedIndex = (size_t) roundf(scaledIndex);
+
+            sample = list->samples[roundedIndex];
+        }
+
+        FLOAT_ARRAY(self->outputs.main)[i] = sample;
+        FLOAT_ARRAY(self->outputs.length)[i] = (float) listLength;
+    }
+}
+
+void sig_dsp_List_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_List* self) {
+    sig_dsp_List_Outputs_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, self);
+}
+
+
+
+struct sig_dsp_LinearMap* sig_dsp_LinearMap_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_LinearMap* self = sig_MALLOC(allocator,
+        struct sig_dsp_LinearMap);
+    sig_dsp_LinearMap_init(self, context);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+void sig_dsp_LinearMap_init(struct sig_dsp_LinearMap* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_LinearMap_generate);
+    self->parameters.fromMin = -1.0f;
+    self->parameters.fromMax = 1.0f;
+    self->parameters.toMin = -5.0f;
+    self->parameters.toMax = 5.0f;
+
+    sig_CONNECT_TO_SILENCE(self, source, context);
+}
+
+void sig_dsp_LinearMap_generate(void* signal) {
+    struct sig_dsp_LinearMap* self = (struct sig_dsp_LinearMap*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        FLOAT_ARRAY(self->outputs.main)[i] = sig_linearMap(
+            FLOAT_ARRAY(self->inputs.source)[i],
+            self->parameters.fromMin,
+            self->parameters.fromMax,
+            self->parameters.toMin,
+            self->parameters.toMax);
+    }
+}
+
+void sig_dsp_LinearMap_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_LinearMap* self) {
     sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);

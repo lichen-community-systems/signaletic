@@ -4,6 +4,7 @@
 
 #define HEAP_SIZE 1024 * 256 // 256KB
 #define MAX_NUM_SIGNALS 64
+#define NUM_RATIOS 9
 
 struct sig_Status status;
 
@@ -16,6 +17,18 @@ struct sig_AllocatorHeap heap = {
 struct sig_Allocator allocator = {
     .impl = &sig_TLSFAllocatorImpl,
     .heap = &heap
+};
+
+float ratios[NUM_RATIOS] =
+    {
+        1.0f/5.0f, 1.0f/4.0f, 1.0f/3.0f, 1.0f/2.0f,
+        1.0f, // Centre point of the knob.
+        2.0f, 3.0f, 4.0f, 5.0f
+    };
+
+struct sig_Buffer ratioList = {
+    .length = NUM_RATIOS,
+    .samples = ratios
 };
 
 daisy::patch_sm::DaisyPatchSM patchInit;
@@ -31,7 +44,11 @@ struct sig_daisy_CVIn* vOctCV;
 struct sig_dsp_BinaryOp* coarsePlusVOct;
 struct sig_dsp_BinaryOp* coarseVOctPlusFine;
 struct sig_dsp_LinearToFreq* fundamentalFrequency;
+struct sig_daisy_SwitchIn* switchIn;
+struct sig_dsp_Branch* ratioFreeBranch;
 struct sig_daisy_FilteredCVIn* ratioKnob;
+struct sig_dsp_BinaryOp* ratioKnobFree;
+struct sig_dsp_List* ratioListSignal;
 struct sig_daisy_FilteredCVIn* ratioCV;
 struct sig_dsp_BinaryOp* combinedRatio;
 struct sig_dsp_BinaryOp* modulatorFrequency;
@@ -52,7 +69,7 @@ struct sig_daisy_AudioOut* rightOut;
 struct sig_daisy_CVOut* eocCVOut;
 struct sig_daisy_CVOut* eocLED;
 
-void buildKnobGraph(struct sig_Allocator* allocator,
+void buildControlGraph(struct sig_Allocator* allocator,
     struct sig_List* signals, struct sig_SignalContext* context,
     struct sig_Status* status) {
 
@@ -68,15 +85,21 @@ void buildKnobGraph(struct sig_Allocator* allocator,
     fineFrequencyKnob->parameters.control = sig_daisy_PatchInit_KNOB_3;
     fineFrequencyKnob->parameters.offset = -0.5f;
 
+    switchIn = sig_daisy_SwitchIn_new(allocator, context, host);
+    sig_List_append(signals, switchIn, status);
+    switchIn->parameters.control = sig_daisy_PatchInit_TOGGLE;
+
     ratioKnob = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, ratioKnob, status);
     ratioKnob->parameters.control = sig_daisy_PatchInit_KNOB_2;
-    ratioKnob->parameters.scale = 2.1f;
+    // TODO: In free mode, we need to scale the ratio by 2.1f,
+    // for both the knob and the CV input.
 
     indexKnob = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, indexKnob, status);
     indexKnob->parameters.control = sig_daisy_PatchInit_KNOB_4;
     indexKnob->parameters.scale = 5.0f;
+    indexKnob->parameters.time = 0.01f;
 }
 
 void buildCVInputGraph(struct sig_Allocator* allocator,
@@ -90,12 +113,23 @@ void buildCVInputGraph(struct sig_Allocator* allocator,
     ratioCV = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, ratioCV, status);
     ratioCV->parameters.control = sig_daisy_PatchInit_CV_IN_2;
-    ratioCV->parameters.scale = 2.1f;
+    // ratioCV->parameters.scale = 2.1f;
 
     combinedRatio = sig_dsp_Add_new(allocator, context);
     sig_List_append(signals, combinedRatio, status);
     combinedRatio->inputs.left = ratioKnob->outputs.main;
     combinedRatio->inputs.right = ratioCV->outputs.main;
+
+    ratioListSignal = sig_dsp_List_new(allocator, context);
+    sig_List_append(signals, ratioListSignal, status);
+    ratioListSignal->list = &ratioList;
+    ratioListSignal->inputs.index = combinedRatio->outputs.main;
+
+    ratioFreeBranch = sig_dsp_Branch_new(allocator, context);
+    sig_List_append(signals, ratioFreeBranch, status);
+    ratioFreeBranch->inputs.condition = switchIn->outputs.main;
+    ratioFreeBranch->inputs.off = combinedRatio->outputs.main;
+    ratioFreeBranch->inputs.on = ratioListSignal->outputs.main;
 
     indexCV = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, indexCV, status);
@@ -128,7 +162,7 @@ void buildFrequencyGraph(struct sig_Allocator* allocator,
     modulatorFrequency = sig_dsp_Mul_new(allocator, context);
     sig_List_append(signals, modulatorFrequency, status);
     modulatorFrequency->inputs.left = fundamentalFrequency->outputs.main;
-    modulatorFrequency->inputs.right = combinedRatio->outputs.main;
+    modulatorFrequency->inputs.right = ratioFreeBranch->outputs.main;
 }
 
 void buildLFOGraph(struct sig_Allocator* allocator,
@@ -143,7 +177,7 @@ void buildLFOGraph(struct sig_Allocator* allocator,
     lfoModulatorFrequency = sig_dsp_Mul_new(allocator, context);
     sig_List_append(signals, lfoModulatorFrequency, status);
     lfoModulatorFrequency->inputs.left = lfoFundamentalFrequency->outputs.main;
-    lfoModulatorFrequency->inputs.right = combinedRatio->outputs.main;
+    lfoModulatorFrequency->inputs.right = ratioFreeBranch->outputs.main;
 
     lfoModulator = sig_dsp_Sine_new(allocator, context);
     sig_List_append(signals, lfoModulator, status);
@@ -178,7 +212,7 @@ void buildSignalGraph(struct sig_Allocator* allocator,
     struct sig_List* signals, struct sig_SignalContext* context,
     struct sig_Status* status) {
 
-    buildKnobGraph(allocator, signals, context, status);
+    buildControlGraph(allocator, signals, context, status);
     buildCVInputGraph(allocator, signals, context, status);
     buildFrequencyGraph(allocator, signals, context, status);
     buildOscillatorGraph(allocator, signals, context, status);
@@ -213,7 +247,7 @@ int main(void) {
     struct sig_AudioSettings audioSettings = {
         .sampleRate = 96000,
         .numChannels = 2,
-        .blockSize = 8
+        .blockSize = 16
     };
 
     sig_Status_init(&status);

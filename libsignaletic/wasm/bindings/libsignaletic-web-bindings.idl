@@ -67,7 +67,7 @@ interface Signaletic {
         unsigned long length);
     float interpolate_cubic(float idx, any table,
         unsigned long length);
-    float filter_onepole(float current, float previous, float coeff);
+    float filter_smooth(float current, float previous, float coeff);
     float waveform_sine(float phase);
     float waveform_square(float phase);
     float waveform_saw(float phase);

@@ -41,18 +41,17 @@ struct sig_Buffer rightBuffer = {
     .samples = rightSamples
 };
 
-struct sig_dsp_ConstantValue* smoothCoefficient;
 struct sig_dsp_Value* start;
-struct sig_dsp_OnePole* startSmoother;
+struct sig_dsp_Smooth* startSmoother;
 struct sig_dsp_Value* end;
-struct sig_dsp_OnePole* endSmoother;
+struct sig_dsp_Smooth* endSmoother;
 struct sig_dsp_Value* speedIncrement;
 struct sig_dsp_Accumulate* speedControl;
 struct sig_dsp_Value* speedMod;
-struct sig_dsp_OnePole* speedModSmoother;
+struct sig_dsp_Smooth* speedModSmoother;
 struct sig_dsp_BinaryOp* speedAdder;
 struct sig_dsp_Value* speedSkew;
-struct sig_dsp_OnePole* speedSkewSmoother;
+struct sig_dsp_Smooth* speedSkewSmoother;
 struct sig_dsp_Invert* leftSpeedSkewInverter;
 struct sig_dsp_BinaryOp* leftSpeedAdder;
 struct sig_dsp_BinaryOp* rightSpeedAdder;
@@ -180,21 +179,19 @@ int main(void) {
     bluemchen.StartAdc();
     initControls();
 
-    smoothCoefficient = sig_dsp_ConstantValue_new(&allocator, context, 0.01f);
-
     start = sig_dsp_Value_new(&allocator, context);
     start->parameters.value = 0.0f;
 
-    startSmoother = sig_dsp_OnePole_new(&allocator, context);
-    startSmoother->inputs.source = start->outputs.main,
-    startSmoother->inputs.coefficient = smoothCoefficient->outputs.main;
+    startSmoother = sig_dsp_Smooth_new(&allocator, context);
+    startSmoother->parameters.time = 0.01f;
+    startSmoother->inputs.source = start->outputs.main;
 
     end = sig_dsp_Value_new(&allocator, context);
     end->parameters.value = 1.0f;
 
-    endSmoother = sig_dsp_OnePole_new(&allocator, context);
+    endSmoother = sig_dsp_Smooth_new(&allocator, context);
+    endSmoother->parameters.time = 0.01f;
     endSmoother->inputs.source = end->outputs.main;
-    endSmoother->inputs.coefficient = smoothCoefficient->outputs.main;
 
     speedIncrement = sig_dsp_Value_new(&allocator, context);
     speedIncrement->parameters.value = 1.0f;
@@ -206,9 +203,9 @@ int main(void) {
     speedMod = sig_dsp_Value_new(&allocator, context);
     speedMod->parameters.value = 0.0f;
 
-    speedModSmoother = sig_dsp_OnePole_new(&allocator, context);
+    speedModSmoother = sig_dsp_Smooth_new(&allocator, context);
+    speedModSmoother->parameters.time = 0.01f;
     speedModSmoother->inputs.source = speedMod->outputs.main;
-    speedModSmoother->inputs.coefficient = smoothCoefficient->outputs.main;
 
     speedAdder = sig_dsp_Add_new(&allocator, context);
     speedAdder->inputs.left = speedControl->outputs.main;
@@ -217,9 +214,9 @@ int main(void) {
     speedSkew = sig_dsp_Value_new(&allocator, context);
     speedSkew->parameters.value = 0.0f;
 
-    speedSkewSmoother = sig_dsp_OnePole_new(&allocator, context);
+    speedSkewSmoother = sig_dsp_Smooth_new(&allocator, context);
+    speedSkewSmoother->parameters.time = 0.01f;
     speedSkewSmoother->inputs.source = speedSkew->outputs.main;
-    speedSkewSmoother->inputs.coefficient = smoothCoefficient->outputs.main;
 
     leftSpeedSkewInverter = sig_dsp_Invert_new(&allocator, context);
     leftSpeedSkewInverter->inputs.source = speedSkewSmoother->outputs.main;
