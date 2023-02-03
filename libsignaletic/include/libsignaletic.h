@@ -859,6 +859,25 @@ void sig_dsp_ConstantValue_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_ConstantValue* self);
 
 
+struct sig_dsp_Abs_Inputs {
+    float_array_ptr source;
+};
+
+struct sig_dsp_Abs {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Abs_Inputs inputs;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
+struct sig_dsp_Abs* sig_dsp_Abs_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_Abs_init(struct sig_dsp_Abs* self,
+    struct sig_SignalContext* context);
+void sig_dsp_Abs_generate(void* signal);
+void sig_dsp_Abs_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Abs* self);
+
+
 struct sig_dsp_BinaryOp_Inputs {
     float_array_ptr left;
     float_array_ptr right;
@@ -1518,6 +1537,37 @@ void sig_dsp_LinearMap_init(struct sig_dsp_LinearMap* self,
 void sig_dsp_LinearMap_generate(void* signal);
 void sig_dsp_LinearMap_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_LinearMap* self);
+
+
+struct sig_dsp_TwoOpFM_Inputs {
+    float_array_ptr frequency;
+    float_array_ptr index;
+    float_array_ptr ratio;
+    float_array_ptr phaseOffset;
+};
+
+struct sig_dsp_TwoOpFM_Outputs {
+    float_array_ptr main;
+    float_array_ptr modulator;
+};
+
+struct sig_dsp_TwoOpFM {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_TwoOpFM_Inputs inputs;
+    struct sig_dsp_TwoOpFM_Outputs outputs;
+    struct sig_dsp_BinaryOp* modulatorFrequency;
+    struct sig_dsp_BinaryOp* carrierPhaseOffset;
+    struct sig_dsp_Oscillator* modulator;
+    struct sig_dsp_Oscillator* carrier;
+};
+
+struct sig_dsp_TwoOpFM* sig_dsp_TwoOpFM_new(struct sig_Allocator* allocator,
+    struct sig_SignalContext* context);
+void sig_dsp_TwoOpFM_init(struct sig_dsp_TwoOpFM* self,
+    struct sig_SignalContext* context);
+void sig_dsp_TwoOpFM_generate(void* signal);
+void sig_dsp_TwoOpFM_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_TwoOpFM* self);
 
 
 #ifdef __cplusplus

@@ -668,6 +668,41 @@ void sig_dsp_ConstantValue_destroy(struct sig_Allocator* allocator,
 };
 
 
+struct sig_dsp_Abs* sig_dsp_Abs_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_Abs* self = sig_MALLOC(allocator,
+        struct sig_dsp_Abs);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+    sig_dsp_Abs_init(self, context);
+
+    return self;
+}
+
+void sig_dsp_Abs_init(struct sig_dsp_Abs* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_Abs_generate);
+    sig_CONNECT_TO_SILENCE(self, source, context);
+}
+
+void sig_dsp_Abs_generate(void* signal) {
+    struct sig_dsp_Abs* self = (struct sig_dsp_Abs*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float source = FLOAT_ARRAY(self->inputs.source)[i];
+        float rectified = fabsf(source);
+        FLOAT_ARRAY(self->outputs.main)[i] = rectified;
+    }
+}
+
+void sig_dsp_Abs_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Abs* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
+}
+
+
 struct sig_dsp_BinaryOp* sig_dsp_BinaryOp_new(struct sig_Allocator* allocator,
     struct sig_SignalContext* context, sig_dsp_generateFn generate) {
     struct sig_dsp_BinaryOp* self = sig_MALLOC(allocator,
@@ -682,8 +717,9 @@ struct sig_dsp_BinaryOp* sig_dsp_BinaryOp_new(struct sig_Allocator* allocator,
 void sig_dsp_BinaryOp_init(struct sig_dsp_BinaryOp* self,
     struct sig_SignalContext* context, sig_dsp_generateFn generate) {
     sig_dsp_Signal_init(self, context, generate);
-    self->inputs.left = context->silence->outputs.main;
-    self->inputs.right = context->silence->outputs.main;
+
+    sig_CONNECT_TO_SILENCE(self, left, context);
+    sig_CONNECT_TO_SILENCE(self, right, context);
 }
 
 void sig_dsp_BinaryOp_destroy(struct sig_Allocator* allocator,
@@ -2012,5 +2048,65 @@ void sig_dsp_LinearMap_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_LinearMap* self) {
     sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
         &self->outputs);
+    sig_dsp_Signal_destroy(allocator, self);
+}
+
+
+struct sig_dsp_TwoOpFM* sig_dsp_TwoOpFM_new(struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
+    struct sig_dsp_TwoOpFM* self = sig_MALLOC(allocator,
+        struct sig_dsp_TwoOpFM);
+    self->modulatorFrequency = sig_dsp_Mul_new(allocator, context);
+    self->carrierPhaseOffset = sig_dsp_Add_new(allocator, context);
+    self->modulator = sig_dsp_Sine_new(allocator, context);
+    self->carrier = sig_dsp_Sine_new(allocator, context);
+
+    sig_dsp_TwoOpFM_init(self, context);
+
+    return self;
+}
+
+void sig_dsp_TwoOpFM_init(struct sig_dsp_TwoOpFM* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_TwoOpFM_generate);
+
+    self->carrierPhaseOffset->inputs.left = self->modulator->outputs.main;
+    self->modulator->inputs.freq = self->modulatorFrequency->outputs.main;
+    self->carrier->inputs.phaseOffset = self->carrierPhaseOffset->outputs.main;
+    self->carrier->inputs.mul = context->unity->outputs.main;
+
+    self->outputs.main = self->carrier->outputs.main;
+    self->outputs.modulator = self->modulator->outputs.main;
+
+    sig_CONNECT_TO_SILENCE(self, frequency, context);
+    sig_CONNECT_TO_SILENCE(self, index, context);
+    sig_CONNECT_TO_SILENCE(self, ratio, context);
+    sig_CONNECT_TO_SILENCE(self, phaseOffset, context);
+}
+
+void sig_dsp_TwoOpFM_generate(void* signal) {
+    struct sig_dsp_TwoOpFM* self = (struct sig_dsp_TwoOpFM*) signal;
+
+    // All inputs need to be rebound every time here since any of
+    // the Signal's inputs could have changed.
+    // TODO: There's a pattern here, you can almost see it.
+    self->carrierPhaseOffset->inputs.right = self->inputs.phaseOffset;
+    self->modulatorFrequency->inputs.left = self->inputs.frequency;
+    self->modulatorFrequency->inputs.right = self->inputs.ratio;
+    self->modulator->inputs.mul = self->inputs.index;
+    self->carrier->inputs.freq = self->inputs.frequency;
+
+    self->modulatorFrequency->signal.generate(self->modulatorFrequency);
+    self->modulator->signal.generate(self->modulator);
+    self->carrierPhaseOffset->signal.generate(self->carrierPhaseOffset);
+    self->carrier->signal.generate(self->carrier);
+}
+
+void sig_dsp_TwoOpFM_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_TwoOpFM* self) {
+    sig_dsp_Mul_destroy(allocator, self->modulatorFrequency);
+    sig_dsp_Add_destroy(allocator, self->carrierPhaseOffset);
+    sig_dsp_Sine_destroy(allocator, self->carrier);
+    sig_dsp_Sine_destroy(allocator, self->modulator);
     sig_dsp_Signal_destroy(allocator, self);
 }

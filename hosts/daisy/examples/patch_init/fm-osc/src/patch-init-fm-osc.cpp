@@ -19,6 +19,7 @@ struct sig_Allocator allocator = {
     .heap = &heap
 };
 
+// TODO: Tune these better.
 float ratios[NUM_RATIOS] =
     {
         1.0f/5.0f, 1.0f/4.0f, 1.0f/3.0f, 1.0f/2.0f,
@@ -47,23 +48,24 @@ struct sig_dsp_LinearToFreq* fundamentalFrequency;
 struct sig_daisy_SwitchIn* switchIn;
 struct sig_dsp_Branch* ratioFreeBranch;
 struct sig_daisy_FilteredCVIn* ratioKnob;
-struct sig_dsp_BinaryOp* ratioKnobFree;
 struct sig_dsp_List* ratioListSignal;
 struct sig_daisy_FilteredCVIn* ratioCV;
 struct sig_dsp_BinaryOp* combinedRatio;
-struct sig_dsp_BinaryOp* modulatorFrequency;
+struct sig_dsp_ConstantValue* ratioFreeScale;
+struct sig_dsp_BinaryOp* ratioFree;
 struct sig_daisy_FilteredCVIn* indexKnob;
 struct sig_daisy_FilteredCVIn* indexCV;
 struct sig_dsp_BinaryOp* combinedIndex;
-struct sig_dsp_Oscillator* modulator;
-struct sig_dsp_Oscillator* carrier;
+struct sig_daisy_FilteredCVIn* indexSkewCV;
+struct sig_dsp_Abs* rectifiedIndexSkew;
+struct sig_dsp_BinaryOp* indexSkewAdder;
+struct sig_dsp_Branch* leftIndex;
+struct sig_dsp_TwoOpFM* leftOp;
+struct sig_dsp_ConstantValue* rightOpPhaseOffset;
+struct sig_dsp_Branch* rightIndex;
+struct sig_dsp_TwoOpFM* rightOp;
 struct sig_dsp_LinearToFreq* lfoFundamentalFrequency;
-struct sig_dsp_BinaryOp* lfoModulatorFrequency;
-struct sig_dsp_Oscillator* lfoModulator;
-struct sig_dsp_Oscillator* lfoCarrier;
-// TODO: Add a nice LPF.
-struct sig_dsp_Tanh* distortion;
-// TODO: Add skew controls for index/ratio for stereo separation.
+struct sig_dsp_TwoOpFM* lfo;
 struct sig_daisy_AudioOut* leftOut;
 struct sig_daisy_AudioOut* rightOut;
 struct sig_daisy_CVOut* eocCVOut;
@@ -92,8 +94,6 @@ void buildControlGraph(struct sig_Allocator* allocator,
     ratioKnob = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, ratioKnob, status);
     ratioKnob->parameters.control = sig_daisy_PatchInit_KNOB_2;
-    // TODO: In free mode, we need to scale the ratio by 2.1f,
-    // for both the knob and the CV input.
 
     indexKnob = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, indexKnob, status);
@@ -113,7 +113,6 @@ void buildCVInputGraph(struct sig_Allocator* allocator,
     ratioCV = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, ratioCV, status);
     ratioCV->parameters.control = sig_daisy_PatchInit_CV_IN_2;
-    // ratioCV->parameters.scale = 2.1f;
 
     combinedRatio = sig_dsp_Add_new(allocator, context);
     sig_List_append(signals, combinedRatio, status);
@@ -125,10 +124,19 @@ void buildCVInputGraph(struct sig_Allocator* allocator,
     ratioListSignal->list = &ratioList;
     ratioListSignal->inputs.index = combinedRatio->outputs.main;
 
+    // In free mode we scale the ratio by 2.1f (tuned by ear)
+    // for more impact.
+    ratioFreeScale = sig_dsp_ConstantValue_new(allocator, context, 2.1f);
+
+    ratioFree = sig_dsp_Mul_new(allocator, context);
+    sig_List_append(signals, ratioFree, status);
+    ratioFree->inputs.left = combinedRatio->outputs.main;
+    ratioFree->inputs.right = ratioFreeScale->outputs.main;
+
     ratioFreeBranch = sig_dsp_Branch_new(allocator, context);
     sig_List_append(signals, ratioFreeBranch, status);
     ratioFreeBranch->inputs.condition = switchIn->outputs.main;
-    ratioFreeBranch->inputs.off = combinedRatio->outputs.main;
+    ratioFreeBranch->inputs.off = ratioFree->outputs.main;
     ratioFreeBranch->inputs.on = ratioListSignal->outputs.main;
 
     indexCV = sig_daisy_FilteredCVIn_new(allocator, context, host);
@@ -140,6 +148,20 @@ void buildCVInputGraph(struct sig_Allocator* allocator,
     sig_List_append(signals, combinedIndex, status);
     combinedIndex->inputs.left = indexKnob->outputs.main;
     combinedIndex->inputs.right = indexCV->outputs.main;
+
+    indexSkewCV = sig_daisy_FilteredCVIn_new(allocator, context, host);
+    sig_List_append(signals, indexSkewCV, status);
+    indexSkewCV->parameters.control = sig_daisy_PatchInit_CV_IN_4;
+    indexSkewCV->parameters.scale = 1.5f;
+
+    rectifiedIndexSkew = sig_dsp_Abs_new(allocator, context);
+    sig_List_append(signals, rectifiedIndexSkew, status);
+    rectifiedIndexSkew->inputs.source = indexSkewCV->outputs.main;
+
+    indexSkewAdder = sig_dsp_Add_new(allocator, context);
+    sig_List_append(signals, indexSkewAdder, status);
+    indexSkewAdder->inputs.left = combinedIndex->outputs.main;
+    indexSkewAdder->inputs.right = rectifiedIndexSkew->outputs.main;
 }
 
 void buildFrequencyGraph(struct sig_Allocator* allocator,
@@ -158,56 +180,8 @@ void buildFrequencyGraph(struct sig_Allocator* allocator,
     fundamentalFrequency = sig_dsp_LinearToFreq_new(allocator, context);
     sig_List_append(signals, fundamentalFrequency, status);
     fundamentalFrequency->inputs.source = coarseVOctPlusFine->outputs.main;
-
-    modulatorFrequency = sig_dsp_Mul_new(allocator, context);
-    sig_List_append(signals, modulatorFrequency, status);
-    modulatorFrequency->inputs.left = fundamentalFrequency->outputs.main;
-    modulatorFrequency->inputs.right = ratioFreeBranch->outputs.main;
 }
 
-void buildLFOGraph(struct sig_Allocator* allocator,
-    struct sig_List* signals, struct sig_SignalContext* context,
-    struct sig_Status* status) {
-
-    lfoFundamentalFrequency = sig_dsp_LinearToFreq_new(allocator, context);
-    sig_List_append(signals, lfoFundamentalFrequency, status);
-    lfoFundamentalFrequency->inputs.source = coarseVOctPlusFine->outputs.main;
-    lfoFundamentalFrequency->parameters.middleFreq = sig_FREQ_C4 / powf(2, 12); // LFO is centred twelve octaves below the audio carrier frequency.
-
-    lfoModulatorFrequency = sig_dsp_Mul_new(allocator, context);
-    sig_List_append(signals, lfoModulatorFrequency, status);
-    lfoModulatorFrequency->inputs.left = lfoFundamentalFrequency->outputs.main;
-    lfoModulatorFrequency->inputs.right = ratioFreeBranch->outputs.main;
-
-    lfoModulator = sig_dsp_Sine_new(allocator, context);
-    sig_List_append(signals, lfoModulator, status);
-    lfoModulator->inputs.freq = lfoModulatorFrequency->outputs.main;
-    lfoModulator->inputs.mul = combinedIndex->outputs.main;
-
-    lfoCarrier = sig_dsp_Sine_new(allocator, context);
-    sig_List_append(signals, lfoCarrier, status);
-    lfoCarrier->inputs.freq = lfoFundamentalFrequency->outputs.main;
-    lfoCarrier->inputs.phaseOffset = lfoModulator->outputs.main;
-    lfoCarrier->inputs.mul = context->unity->outputs.main;
-}
-
-void buildOscillatorGraph(struct sig_Allocator* allocator,
-    struct sig_List* signals, struct sig_SignalContext* context,
-    struct sig_Status* status) {
-    modulator = sig_dsp_Sine_new(allocator, context);
-    sig_List_append(signals, modulator, status);
-    modulator->inputs.freq = modulatorFrequency->outputs.main;
-    modulator->inputs.mul = combinedIndex->outputs.main;
-
-    carrier = sig_dsp_Sine_new(allocator, context);
-    sig_List_append(signals, carrier, status);
-    carrier->inputs.freq = fundamentalFrequency->outputs.main;
-    carrier->inputs.phaseOffset = modulator->outputs.main;
-    carrier->inputs.mul = context->unity->outputs.main;
-}
-
-// TODO: Factor out a 2-op FM signal so that there is less
-// code duplication between the audio oscillator and the LFO.
 void buildSignalGraph(struct sig_Allocator* allocator,
     struct sig_List* signals, struct sig_SignalContext* context,
     struct sig_Status* status) {
@@ -215,39 +189,73 @@ void buildSignalGraph(struct sig_Allocator* allocator,
     buildControlGraph(allocator, signals, context, status);
     buildCVInputGraph(allocator, signals, context, status);
     buildFrequencyGraph(allocator, signals, context, status);
-    buildOscillatorGraph(allocator, signals, context, status);
-    buildLFOGraph(allocator, signals, context, status);
 
-    distortion = sig_dsp_Tanh_new(allocator, context);
-    sig_List_append(signals, distortion, status);
-    distortion->inputs.source = modulator->outputs.main;
+    leftIndex = sig_dsp_Branch_new(allocator, context);
+    sig_List_append(signals, leftIndex, status);
+    leftIndex->inputs.condition = indexSkewCV->outputs.main;
+    leftIndex->inputs.on = combinedIndex->outputs.main;
+    leftIndex->inputs.off = indexSkewAdder->outputs.main;
+
+    leftOp = sig_dsp_TwoOpFM_new(allocator, context);
+    sig_List_append(signals, leftOp, status);
+    leftOp->inputs.frequency = fundamentalFrequency->outputs.main;
+    leftOp->inputs.ratio = ratioFreeBranch->outputs.main;
+    leftOp->inputs.index = leftIndex->outputs.main;
+
+    rightOpPhaseOffset = sig_dsp_ConstantValue_new(allocator, context, 0.25f);
+
+    rightIndex = sig_dsp_Branch_new(allocator, context);
+    sig_List_append(signals, rightIndex, status);
+    rightIndex->inputs.condition = indexSkewCV->outputs.main;
+    rightIndex->inputs.on = indexSkewAdder->outputs.main;
+    rightIndex->inputs.off = combinedIndex->outputs.main;
+
+    rightOp = sig_dsp_TwoOpFM_new(allocator, context);
+    sig_List_append(signals, rightOp, status);
+    rightOp->inputs.frequency = fundamentalFrequency->outputs.main;
+    rightOp->inputs.ratio = ratioFreeBranch->outputs.main;
+    rightOp->inputs.index = rightIndex->outputs.main;
+    rightOp->inputs.phaseOffset = rightOpPhaseOffset->outputs.main;
+
+    lfoFundamentalFrequency = sig_dsp_LinearToFreq_new(allocator, context);
+    sig_List_append(signals, lfoFundamentalFrequency, status);
+    lfoFundamentalFrequency->inputs.source = coarseVOctPlusFine->outputs.main;
+    lfoFundamentalFrequency->parameters.middleFreq = sig_FREQ_C4 /
+        powf(2, 12); // LFO is centred twelve octaves below
+                     // the audio carrier frequency.
+
+    lfo = sig_dsp_TwoOpFM_new(allocator, context);
+    sig_List_append(signals, lfo, status);
+    lfo->inputs.frequency = lfoFundamentalFrequency->outputs.main;
+    lfo->inputs.ratio = ratioFreeBranch->outputs.main;
+    lfo->inputs.index = combinedIndex->outputs.main;
 
     leftOut = sig_daisy_AudioOut_new(allocator, context, host);
     sig_List_append(signals, leftOut, status);
     leftOut->parameters.channel = sig_daisy_AUDIO_OUT_1;
-    leftOut->inputs.source = carrier->outputs.main;
+    leftOut->inputs.source = leftOp->outputs.main;
 
     rightOut = sig_daisy_AudioOut_new(allocator, context, host);
     sig_List_append(signals, rightOut, status);
     rightOut->parameters.channel = sig_daisy_AUDIO_OUT_2;
-    rightOut->inputs.source = distortion->outputs.main;
+    rightOut->inputs.source = rightOp->outputs.main;
 
     eocCVOut = sig_daisy_CVOut_new(allocator, context, host);
     sig_List_append(signals, eocCVOut, status);
     eocLED->parameters.control = sig_daisy_PatchInit_CV_OUT;
-    eocCVOut->inputs.source = lfoCarrier->outputs.main;
+    eocCVOut->inputs.source = lfo->outputs.main;
 
     eocLED = sig_daisy_CVOut_new(allocator, context, host);
     sig_List_append(signals, eocLED, status);
     eocLED->parameters.control = sig_daisy_PatchInit_LED;
-    eocLED->inputs.source = lfoCarrier->outputs.main;
+    eocLED->inputs.source = lfo->outputs.main;
 }
 
 int main(void) {
     struct sig_AudioSettings audioSettings = {
         .sampleRate = 96000,
         .numChannels = 2,
-        .blockSize = 16
+        .blockSize = 64
     };
 
     sig_Status_init(&status);
