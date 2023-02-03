@@ -1993,7 +1993,7 @@ void sig_dsp_List_generate(void* signal) {
 
             size_t roundedIndex = (size_t) roundf(scaledIndex);
 
-            sample = list->samples[roundedIndex];
+            sample = FLOAT_ARRAY(list->samples)[roundedIndex];
         }
 
         FLOAT_ARRAY(self->outputs.main)[i] = sample;

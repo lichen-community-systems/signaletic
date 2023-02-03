@@ -563,7 +563,9 @@ void test_sig_dsp_Sine(void) {
 
     sine->signal.generate(sine);
     for (size_t i = 0; i < BLOCK_SIZE; i++) {
-        TEST_ASSERT_FLOAT_WITHIN(0.00001, sine->outputs.main[i], expected[i]);
+        TEST_ASSERT_FLOAT_WITHIN(0.00001,
+            FLOAT_ARRAY(sine->outputs.main)[i],
+            FLOAT_ARRAY(expected)[i]);
     }
 
     destroyOscInputs(&allocator, &sine->inputs);
