@@ -1394,6 +1394,37 @@ void sig_dsp_TimedGate_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_TimedGate* self);
 
 
+struct cc_sig_DustGate_Inputs {
+    float_array_ptr density;
+    float_array_ptr durationPercentage;
+};
+
+struct cc_sig_DustGate_Parameters {
+    float bipolar;
+};
+
+struct cc_sig_DustGate {
+    struct sig_dsp_Signal signal;
+    struct cc_sig_DustGate_Inputs inputs;
+    struct cc_sig_DustGate_Parameters parameters;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+    struct sig_dsp_Dust* dust;
+    struct sig_dsp_BinaryOp* reciprocalDensity;
+    struct sig_dsp_BinaryOp* densityDurationMultiplier;
+    struct sig_dsp_TimedGate* gate;
+};
+
+struct cc_sig_DustGate* cc_sig_DustGate_new(struct sig_Allocator* allocator,
+    struct sig_SignalContext* context);
+
+void cc_sig_DustGate_init(struct cc_sig_DustGate* self,
+    struct sig_SignalContext* context);
+
+void cc_sig_DustGate_generate(void* signal);
+
+void cc_sig_DustGate_destroy(struct sig_Allocator* allocator,
+    struct cc_sig_DustGate* self);
+
 
 struct sig_dsp_ClockFreqDetector_Inputs {
     float_array_ptr source;

@@ -1,5 +1,5 @@
-#include <tlsf.h>
 #include <string>
+#include <tlsf.h>
 #include <libsignaletic.h>
 #include "../../../../include/daisy-bluemchen-host.h"
 
@@ -29,15 +29,12 @@ struct sig_dsp_SignalListEvaluator* evaluator;
 Bluemchen bluemchen;
 struct sig_daisy_Host* host;
 
-struct sig_daisy_CVIn* coarseFreqKnob;
-struct sig_dsp_Smooth* coarseFrequencyLPF;
-struct sig_daisy_CVIn* fineFreqKnob;
-struct sig_dsp_Smooth* fineLPF;
+struct sig_daisy_FilteredCVIn* coarseFreqKnob;
+struct sig_daisy_FilteredCVIn* fineFreqKnob;
 struct sig_daisy_CVIn* vOctCVIn;
 struct sig_dsp_BinaryOp* coarsePlusVOct;
 struct sig_dsp_BinaryOp* coarseVOctPlusFine;
 struct sig_dsp_LinearToFreq* frequency;
-struct sig_dsp_ConstantValue* ampMod;
 struct sig_dsp_Oscillator* osc;
 struct sig_dsp_ConstantValue* gainLevel;
 struct sig_dsp_BinaryOp* gain;
@@ -71,26 +68,18 @@ void buildSignalGraph(struct sig_SignalContext* context,
     /** Frequency controls **/
     // Bluemchen AnalogControls are all unipolar,
     // so they need to be scaled to bipolar values.
-    coarseFreqKnob = sig_daisy_CVIn_new(&allocator, context, host);
+    coarseFreqKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
     sig_List_append(&signals, coarseFreqKnob, status);
     coarseFreqKnob->parameters.control = bluemchen.CTRL_1;
     coarseFreqKnob->parameters.scale = 10.0f;
     coarseFreqKnob->parameters.offset = -5.0f;
+    coarseFreqKnob->parameters.time = 0.01f;
 
-    coarseFrequencyLPF = sig_dsp_Smooth_new(&allocator, context);
-    sig_List_append(&signals, coarseFrequencyLPF, status);
-    coarseFrequencyLPF->parameters.time = 0.01f;
-    coarseFrequencyLPF->inputs.source = coarseFreqKnob->outputs.main;
-
-    fineFreqKnob = sig_daisy_CVIn_new(&allocator, context, host);
+    fineFreqKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
     sig_List_append(&signals, fineFreqKnob, status);
     fineFreqKnob->parameters.control = bluemchen.CTRL_2;
     fineFreqKnob->parameters.offset = -0.5f;
-
-    fineLPF = sig_dsp_Smooth_new(&allocator, context);
-    sig_List_append(&signals, fineLPF, status);
-    fineLPF->parameters.time = 0.01f;
-    fineLPF->inputs.source = fineFreqKnob->outputs.main;
+    fineFreqKnob->parameters.time = 0.01f;
 
     vOctCVIn = sig_daisy_CVIn_new(&allocator, context, host);
     sig_List_append(&signals, vOctCVIn, status);
@@ -100,23 +89,21 @@ void buildSignalGraph(struct sig_SignalContext* context,
 
     coarsePlusVOct = sig_dsp_Add_new(&allocator, context);
     sig_List_append(&signals, coarsePlusVOct, status);
-    coarsePlusVOct->inputs.left = coarseFrequencyLPF->outputs.main;
+    coarsePlusVOct->inputs.left = coarseFreqKnob->outputs.main;
     coarsePlusVOct->inputs.right = vOctCVIn->outputs.main;
 
     coarseVOctPlusFine = sig_dsp_Add_new(&allocator, context);
     sig_List_append(&signals, coarseVOctPlusFine, status);
     coarseVOctPlusFine->inputs.left = coarsePlusVOct->outputs.main;
-    coarseVOctPlusFine->inputs.right = fineLPF->outputs.main;
+    coarseVOctPlusFine->inputs.right = fineFreqKnob->outputs.main;
 
     frequency = sig_dsp_LinearToFreq_new(&allocator, context);
     sig_List_append(&signals, frequency, status);
     frequency->inputs.source = coarseVOctPlusFine->outputs.main;
 
-    ampMod = sig_dsp_ConstantValue_new(&allocator, context, 1.0f);
     osc = sig_dsp_Sine_new(&allocator, context);
     sig_List_append(&signals, osc, status);
     osc->inputs.freq = frequency->outputs.main;
-    osc->inputs.mul = ampMod->outputs.main;
 
     /** Gain **/
     // The Daisy Seed's output circuit clips as it approaches full gain.

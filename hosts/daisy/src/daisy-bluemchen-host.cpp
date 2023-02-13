@@ -22,13 +22,23 @@ struct sig_daisy_Host_BoardConfiguration sig_daisy_NehcmeulbConfig = {
 
 struct sig_daisy_Host_Impl sig_daisy_BluemchenHostImpl = {
     .getControlValue = sig_daisy_HostImpl_processControlValue,
-    .setControlValue = sig_daisy_HostImpl_setControlValue,
+    .setControlValue = sig_daisy_BluemchenHostImpl_setControlValue,
     .getGateValue = sig_daisy_HostImpl_noOpGetControl,
     .setGateValue = sig_daisy_HostImpl_noOpSetControl,
     .getSwitchValue = sig_daisy_HostImpl_noOpGetControl,
     .start = sig_daisy_BluemchenHostImpl_start,
     .stop = sig_daisy_BluemchenHostImpl_stop
 };
+
+void sig_daisy_BluemchenHostImpl_setControlValue(struct sig_daisy_Host* host,
+    int control, float value) {
+    if (control > -1 && control < host->board.config->numAnalogOutputs) {
+        daisy::DacHandle::Channel channel =
+            static_cast<daisy::DacHandle::Channel>(control);
+        host->board.dac->WriteValue(channel, sig_unipolarToUint12(value));
+    }
+}
+
 
 void sig_daisy_BluemchenHostImpl_start(struct sig_daisy_Host* host) {
     kxmx::Bluemchen* bluemchen = static_cast<kxmx::Bluemchen*>(
@@ -58,7 +68,7 @@ struct sig_daisy_Host* sig_daisy_BluemchenHost_new(
     return self;
 }
 
-struct sig_daisy_Host* sig_daisy_Nehcmeulb_new(
+struct sig_daisy_Host* sig_daisy_NehcmeulbHost_new(
     struct sig_Allocator* allocator,
     struct sig_AudioSettings* audioSettings,
     kxmx::Bluemchen* bluemchen,

@@ -346,3 +346,26 @@ void sig_daisy_AudioOut_init(struct sig_daisy_AudioOut* self,
 void sig_daisy_AudioOut_generate(void* signal);
 void sig_daisy_AudioOut_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_AudioOut* self);
+
+
+struct sig_daisy_AudioIn {
+    struct sig_dsp_Signal signal;
+    struct sig_daisy_AudioParameters parameters;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+    struct sig_daisy_Host* host;
+};
+
+struct sig_daisy_AudioIn* sig_daisy_AudioIn_new(
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context,
+    struct sig_daisy_Host* host);
+void sig_daisy_AudioIn_init(struct sig_daisy_AudioIn* self,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host);
+void sig_daisy_AudioIn_generate(void* signal);
+void sig_daisy_AudioIn_destroy(struct sig_Allocator* allocator,
+    struct sig_daisy_AudioIn* self);
+
+
+struct sig_daisy_Encoder {
+
+};

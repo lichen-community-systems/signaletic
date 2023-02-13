@@ -543,3 +543,55 @@ void sig_daisy_AudioOut_destroy(struct sig_Allocator* allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
 }
+
+
+struct sig_daisy_AudioIn* sig_daisy_AudioIn_new(
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context,
+    struct sig_daisy_Host* host) {
+    struct sig_daisy_AudioIn* self = sig_MALLOC(allocator,
+        struct sig_daisy_AudioIn);
+    sig_daisy_AudioIn_init(self, context, host);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_daisy_AudioIn_init(struct sig_daisy_AudioIn* self,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host) {
+    sig_dsp_Signal_init(self, context, *sig_daisy_AudioIn_generate);
+    self->host = host;
+    self->parameters = {
+        .channel = 0
+    };
+}
+
+void sig_daisy_AudioIn_generate(void* signal) {
+    struct sig_daisy_AudioIn* self = (struct sig_daisy_AudioIn*) signal;
+    struct sig_daisy_Host* host = self->host;
+    daisy::AudioHandle::InputBuffer in = host->board.audioInputs;
+    int channel = self->parameters.channel;
+
+    // TODO: We need a validation stage for Signals so that we can
+    // avoid these conditionals happening at block rate.
+    if (channel < 0 ||
+        channel >= host->board.config->numAudioInputChannels) {
+        // There's a channel mismatch, just do nothing.
+        return;
+    }
+
+    // TODO: Is it safe to assume here that the Signal's block size is
+    // the same as the Host's?
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        FLOAT_ARRAY(self->outputs.main)[i] = in[channel][i];
+    }
+
+}
+
+void sig_daisy_AudioIn_destroy(struct sig_Allocator* allocator,
+    struct sig_daisy_AudioIn* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
+}

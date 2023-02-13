@@ -28,13 +28,16 @@ enum {
     sig_daisy_Nehcmeulb_CV_OUT_LAST
 };
 
-const int sig_daisy_Nehcmeulb_NUM_ANALOG_INPUTS = 0;
+const int sig_daisy_Nehcmeulb_NUM_ANALOG_INPUTS = sig_daisy_Nehcmeulb_CV_IN_LAST;
 const int sig_daisy_Nehcmeulb_NUM_ANALOG_OUTPUTS = 2;
 const int sig_daisy_Nehcmeulb_NUM_GATE_INPUTS = 0;
 const int sig_daisy_Nehcmeulb_NUM_GATE_OUTPUTS = 0;
 const int sig_daisy_Nehcmeulb_NUM_SWITCHES = 0;
 
 extern struct sig_daisy_Host_Impl sig_daisy_BluemchenHostImpl;
+
+void sig_daisy_BluemchenHostImpl_setControlValue(struct sig_daisy_Host* host,
+    int control, float value);
 
 void sig_daisy_BluemchenHostImpl_start(struct sig_daisy_Host* host);
 
@@ -85,4 +88,14 @@ void sig_daisy_BluemchenHost_init(struct sig_daisy_Host* self,
  * @param self the BluemchenHost to destroy
  */
 void sig_daisy_BluemchenHost_destroy(struct sig_Allocator* allocator,
+    struct sig_daisy_Host* self);
+
+
+struct sig_daisy_Host* sig_daisy_NehcmeulbHost_new(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    kxmx::Bluemchen* bluemchen,
+    struct sig_dsp_SignalEvaluator* evaluator);
+
+void sig_daisy_NehcmeulbHost_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_Host* self);

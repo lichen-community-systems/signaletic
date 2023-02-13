@@ -1767,6 +1767,76 @@ void sig_dsp_TimedGate_destroy(struct sig_Allocator* allocator,
 }
 
 
+struct cc_sig_DustGate* cc_sig_DustGate_new(struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
+    struct cc_sig_DustGate* self = sig_MALLOC(allocator,
+        struct cc_sig_DustGate);
+
+    self->reciprocalDensity = sig_dsp_Div_new(allocator, context);
+    self->reciprocalDensity->inputs.left = context->unity->outputs.main;
+
+    self->densityDurationMultiplier = sig_dsp_Mul_new(allocator, context);
+    self->densityDurationMultiplier->inputs.left =
+        self->reciprocalDensity->outputs.main;
+
+    self->dust = sig_dsp_Dust_new(allocator, context);
+
+    self->gate = sig_dsp_TimedGate_new(allocator, context);
+    self->gate->inputs.trigger = self->dust->outputs.main;
+    self->gate->inputs.duration =
+        self->densityDurationMultiplier->outputs.main;
+
+    cc_sig_DustGate_init(self, context);
+    self->outputs.main = self->gate->outputs.main;
+
+    return self;
+}
+
+
+void cc_sig_DustGate_init(struct cc_sig_DustGate* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *cc_sig_DustGate_generate);
+    sig_CONNECT_TO_SILENCE(self, density, context);
+    sig_CONNECT_TO_SILENCE(self, durationPercentage, context);
+};
+
+void cc_sig_DustGate_generate(void* signal) {
+    struct cc_sig_DustGate* self = (struct cc_sig_DustGate*) signal;
+
+    // Bind all parameters (remove this when we have change events).
+    self->dust->inputs.density = self->inputs.density;
+    self->reciprocalDensity->inputs.right = self->inputs.density;
+    self->densityDurationMultiplier->inputs.right =
+        self->inputs.durationPercentage;
+    self->dust->parameters.bipolar = self->parameters.bipolar;
+    self->gate->parameters.bipolar = self->parameters.bipolar;
+
+    // Evaluate all signals.
+    self->reciprocalDensity->signal.generate(self->reciprocalDensity);
+    self->densityDurationMultiplier->signal.generate(
+        self->densityDurationMultiplier);
+    self->dust->signal.generate(self->dust);
+    self->gate->signal.generate(self->gate);
+}
+
+
+void cc_sig_DustGate_destroy(struct sig_Allocator* allocator,
+    struct cc_sig_DustGate* self) {
+    sig_dsp_TimedGate_destroy(allocator, self->gate);
+
+    sig_dsp_Mul_destroy(allocator, self->densityDurationMultiplier);
+    sig_AudioBlock_destroy(allocator, self->reciprocalDensity->inputs.left);
+    sig_dsp_Div_destroy(allocator, self->reciprocalDensity);
+
+    sig_dsp_Dust_destroy(allocator, self->dust);
+
+    // We don't call sig_dsp_Signal_destroy
+    // because our output is borrowed from self->gate,
+    // and it was already freed in TimeGate's destructor.
+    allocator->impl->free(allocator, self);
+}
+
+
 void sig_dsp_ClockFreqDetector_init(struct sig_dsp_ClockFreqDetector* self,
     struct sig_SignalContext* context) {
     sig_dsp_Signal_init(self, context, *sig_dsp_ClockFreqDetector_generate);
