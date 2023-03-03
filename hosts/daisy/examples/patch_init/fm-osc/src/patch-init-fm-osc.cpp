@@ -68,8 +68,8 @@ struct sig_dsp_LinearToFreq* lfoFundamentalFrequency;
 struct sig_dsp_TwoOpFM* lfo;
 struct sig_daisy_AudioOut* leftOut;
 struct sig_daisy_AudioOut* rightOut;
-struct sig_daisy_CVOut* eocCVOut;
-struct sig_daisy_CVOut* eocLED;
+struct sig_daisy_CVOut* lfoCVOut;
+struct sig_daisy_CVOut* lfoLEDOut;
 
 void buildControlGraph(struct sig_Allocator* allocator,
     struct sig_List* signals, struct sig_SignalContext* context,
@@ -240,22 +240,22 @@ void buildSignalGraph(struct sig_Allocator* allocator,
     rightOut->parameters.channel = sig_daisy_AUDIO_OUT_2;
     rightOut->inputs.source = rightOp->outputs.main;
 
-    eocCVOut = sig_daisy_CVOut_new(allocator, context, host);
-    sig_List_append(signals, eocCVOut, status);
-    eocLED->parameters.control = sig_daisy_PatchInit_CV_OUT;
-    eocCVOut->inputs.source = lfo->outputs.main;
+    lfoCVOut = sig_daisy_CVOut_new(allocator, context, host);
+    sig_List_append(signals, lfoCVOut, status);
+    lfoCVOut->parameters.control = sig_daisy_PatchInit_CV_OUT;
+    lfoCVOut->inputs.source = lfo->outputs.main;
 
-    eocLED = sig_daisy_CVOut_new(allocator, context, host);
-    sig_List_append(signals, eocLED, status);
-    eocLED->parameters.control = sig_daisy_PatchInit_LED;
-    eocLED->inputs.source = lfo->outputs.main;
+    lfoLEDOut = sig_daisy_CVOut_new(allocator, context, host);
+    sig_List_append(signals, lfoLEDOut, status);
+    lfoLEDOut->parameters.control = sig_daisy_PatchInit_LED;
+    lfoLEDOut->inputs.source = lfo->outputs.main;
 }
 
 int main(void) {
     struct sig_AudioSettings audioSettings = {
         .sampleRate = 96000,
         .numChannels = 2,
-        .blockSize = 64
+        .blockSize = 128
     };
 
     sig_Status_init(&status);

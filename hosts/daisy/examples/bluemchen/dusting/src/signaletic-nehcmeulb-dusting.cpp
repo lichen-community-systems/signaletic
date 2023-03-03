@@ -49,14 +49,23 @@ void UpdateOled() {
     bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     displayStr.Clear();
-    float bpm = densityClockSum->outputs.main[0] * 60.0f;
-    displayStr.AppendFloat(bpm, 0);
-    bluemchen.display.SetCursor(0, 8);
-    bluemchen.display.WriteString(displayStr.Cstr(), Font_11x18, true);
-    displayStr.Clear();
-    displayStr.Append("bpm");
+    float density = densityClockSum->outputs.main[0];
+    float formatted = 0.0f;
+    if (density < 6.0f) {
+        formatted = density * 60.0f;
+        displayStr.Append("bpm");
+    } else {
+        formatted = density;
+        displayStr.Append(" Hz");
+    }
+
     bluemchen.display.SetCursor(44, 16);
     bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+
+    displayStr.Clear();
+    displayStr.AppendFloat(formatted, 0);
+    bluemchen.display.SetCursor(0, 8);
+    bluemchen.display.WriteString(displayStr.Cstr(), Font_11x18, true);
 
     bluemchen.display.Update();
 }
