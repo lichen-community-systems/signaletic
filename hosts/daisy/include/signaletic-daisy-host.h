@@ -323,6 +323,7 @@ void sig_daisy_CVOut_destroy(struct sig_Allocator* allocator,
 
 struct sig_daisy_AudioParameters {
     int channel;
+    float scale;
 };
 
 struct sig_daisy_AudioOut_Inputs {

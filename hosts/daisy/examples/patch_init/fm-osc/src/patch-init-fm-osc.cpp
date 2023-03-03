@@ -80,7 +80,7 @@ void buildControlGraph(struct sig_Allocator* allocator,
     sig_List_append(signals, coarseFrequencyKnob, status);
     coarseFrequencyKnob->parameters.control = sig_daisy_PatchInit_KNOB_1;
     coarseFrequencyKnob->parameters.scale = 7.0f;
-    coarseFrequencyKnob->parameters.offset = -3.5f;
+    coarseFrequencyKnob->parameters.offset = -4.0f;
 
     fineFrequencyKnob = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, fineFrequencyKnob, status);
@@ -233,11 +233,13 @@ void buildSignalGraph(struct sig_Allocator* allocator,
     leftOut = sig_daisy_AudioOut_new(allocator, context, host);
     sig_List_append(signals, leftOut, status);
     leftOut->parameters.channel = sig_daisy_AUDIO_OUT_1;
+    leftOut->parameters.scale = 0.9f; // PatchSM DAC is a just a touch hot.
     leftOut->inputs.source = leftOp->outputs.main;
 
     rightOut = sig_daisy_AudioOut_new(allocator, context, host);
     sig_List_append(signals, rightOut, status);
     rightOut->parameters.channel = sig_daisy_AUDIO_OUT_2;
+    rightOut->parameters.scale = 0.9f;
     rightOut->inputs.source = rightOp->outputs.main;
 
     lfoCVOut = sig_daisy_CVOut_new(allocator, context, host);

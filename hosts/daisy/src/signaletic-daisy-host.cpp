@@ -509,7 +509,8 @@ void sig_daisy_AudioOut_init(struct sig_daisy_AudioOut* self,
     sig_dsp_Signal_init(self, context, *sig_daisy_AudioOut_generate);
     self->host = host;
     self->parameters = {
-        .channel = 0
+        .channel = 0,
+        .scale = 1.0f
     };
 
     sig_CONNECT_TO_SILENCE(self, source, context);
@@ -521,6 +522,7 @@ void sig_daisy_AudioOut_generate(void* signal) {
     daisy::AudioHandle::OutputBuffer out = host->board.audioOutputs;
     float_array_ptr source = self->inputs.source;
     int channel = self->parameters.channel;
+    float scale = self->parameters.scale;
 
     // TODO: We need a validation stage for Signals so that we can
     // avoid these conditionals happening at block rate.
@@ -533,7 +535,7 @@ void sig_daisy_AudioOut_generate(void* signal) {
     // TODO: Is it safe to assume here that the Signal's block size is
     // the same as the Host's?
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        out[channel][i] = FLOAT_ARRAY(source)[i];
+        out[channel][i] = FLOAT_ARRAY(source)[i] * scale;
     }
 }
 
@@ -563,7 +565,8 @@ void sig_daisy_AudioIn_init(struct sig_daisy_AudioIn* self,
     sig_dsp_Signal_init(self, context, *sig_daisy_AudioIn_generate);
     self->host = host;
     self->parameters = {
-        .channel = 0
+        .channel = 0,
+        .scale = 1.0f
     };
 }
 
@@ -572,6 +575,7 @@ void sig_daisy_AudioIn_generate(void* signal) {
     struct sig_daisy_Host* host = self->host;
     daisy::AudioHandle::InputBuffer in = host->board.audioInputs;
     int channel = self->parameters.channel;
+    float scale = self->parameters.scale;
 
     // TODO: We need a validation stage for Signals so that we can
     // avoid these conditionals happening at block rate.
@@ -584,9 +588,8 @@ void sig_daisy_AudioIn_generate(void* signal) {
     // TODO: Is it safe to assume here that the Signal's block size is
     // the same as the Host's?
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        FLOAT_ARRAY(self->outputs.main)[i] = in[channel][i];
+        FLOAT_ARRAY(self->outputs.main)[i] = in[channel][i] * scale;
     }
-
 }
 
 void sig_daisy_AudioIn_destroy(struct sig_Allocator* allocator,
