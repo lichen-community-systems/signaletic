@@ -978,6 +978,159 @@ void test_sig_dsp_TimedGate_bipolar(void) {
         thirdGate->samples, thirdGate->length);
 }
 
+void generateAndTestListIndex(struct sig_dsp_Value* idx, float idxValue,
+    struct sig_dsp_List* list, float expectedListValue) {
+    idx->parameters.value = idxValue;
+    idx->signal.generate(idx);
+    list->signal.generate(list);
+    testAssertBufferContainsValueOnly(&allocator, expectedListValue,
+        list->outputs.main, audioSettings->blockSize);
+}
+
+void test_sig_dsp_List_wrapping(void) {
+    struct sig_dsp_Value* idx = sig_dsp_Value_new(&allocator,
+        context);
+
+    float listItems[5] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
+    struct sig_Buffer listBuffer = {
+        .length = 5,
+        .samples = listItems
+    };
+
+    struct sig_dsp_List* list = sig_dsp_List_new(&allocator, context);
+    list->list = &listBuffer;
+    list->inputs.index = idx->outputs.main;
+
+    // No index rounding required.
+    generateAndTestListIndex(idx, 0.0f, list, 1.0f);
+    testAssertBufferContainsValueOnly(&allocator, 5.0f,
+        list->outputs.length, audioSettings->blockSize);
+
+    // Index is normalized between 0.0->1.0f,
+    // so there are values at 0.0, 0.25 0.5 0.75, 1.0
+    // Fractional indexes less than halfway should be rounded down.
+    generateAndTestListIndex(idx, 0.12f, list, 1.0f);
+
+    // Fractional indexes >= half should be rounded up.
+    generateAndTestListIndex(idx, 0.125f, list, 2.0f);
+
+    // Another even index.
+    generateAndTestListIndex(idx, 0.5f, list, 3.0f);
+
+    // Nearly the last index.
+    generateAndTestListIndex(idx, 0.99f, list, 5.0f);
+
+    // Just past the first index.
+    generateAndTestListIndex(idx, 0.00001f, list, 1.0f);
+
+    // Exactly the last index.
+    generateAndTestListIndex(idx, 1.0f, list, 5.0f);
+
+    // A slightly out of bounds index should round down to the last index.
+    generateAndTestListIndex(idx, 1.1f, list, 5.0f);
+
+    // But a larger index should round up and
+    // wrap around to return the first value.
+    generateAndTestListIndex(idx, 1.25f, list, 1.0f);
+
+    // Larger indices should wrap around past the beginning.
+    generateAndTestListIndex(idx, 1.5f, list, 2.0f);
+
+    // Very large indices should wrap around the beginning again.
+    generateAndTestListIndex(idx, 3.0f, list, 3.0f);
+
+    // Negative indices should wrap around the end.
+    // Note the index "shift" here: -0.25 should point
+    // to the last value in the list.
+    generateAndTestListIndex(idx, -0.25f, list, 5.0f);
+
+    // But not if they're not negative enough.
+    generateAndTestListIndex(idx, -0.12f, list, 1.0f);
+
+    // Very negative indices should keep wrapping around.
+    generateAndTestListIndex(idx, -1.5f, list, 5.0f);
+
+    // Small lists should work.
+    float small[2] = {1.0f, 2.0f};
+    listBuffer.length = 2;
+    listBuffer.samples = small;
+    generateAndTestListIndex(idx, 0.0f, list, 1.0f);
+    generateAndTestListIndex(idx, 1.0f, list, 2.0f);
+    generateAndTestListIndex(idx, 0.5f, list, 2.0f);
+    generateAndTestListIndex(idx, 0.25f, list, 1.0f);
+    generateAndTestListIndex(idx, -1.0f, list, 2.0f);
+    generateAndTestListIndex(idx, -0.25f, list, 1.0f);
+    generateAndTestListIndex(idx, -0.5f, list, 2.0f);
+
+    // Very small lists should work.
+    float verySmall[1] = {1.0f};
+    listBuffer.length = 1;
+    listBuffer.samples = verySmall;
+    generateAndTestListIndex(idx, 1.0f, list, 1.0f);
+    generateAndTestListIndex(idx, 0.0f, list, 1.0f);
+    generateAndTestListIndex(idx, 0.5f, list, 1.0f);
+    generateAndTestListIndex(idx, -0.5f, list, 1.0f);
+    generateAndTestListIndex(idx, -1.15f, list, 1.0f);
+}
+
+void test_sig_dsp_List_clamping(void) {
+    struct sig_dsp_Value* idx = sig_dsp_Value_new(&allocator,
+        context);
+
+    float listItems[5] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
+    struct sig_Buffer listBuffer = {
+        .length = 5,
+        .samples = listItems
+    };
+
+    struct sig_dsp_List* list = sig_dsp_List_new(&allocator, context);
+    list->parameters.wrap = 0.0f;
+    list->list = &listBuffer;
+    list->inputs.index = idx->outputs.main;
+
+    generateAndTestListIndex(idx, 0.0f, list, 1.0f);
+    generateAndTestListIndex(idx, 0.00001f, list, 1.0f);
+    generateAndTestListIndex(idx, 0.99f, list, 5.0f);
+    generateAndTestListIndex(idx, 1.0f, list, 5.0f);
+    generateAndTestListIndex(idx, 1.001f, list, 5.0f);
+    generateAndTestListIndex(idx, 1.125f, list, 5.0f);
+    generateAndTestListIndex(idx, 1.25f, list, 5.0f);
+    generateAndTestListIndex(idx, 3.0f, list, 5.0f);
+    generateAndTestListIndex(idx, -0.00001f, list, 1.0f);
+    generateAndTestListIndex(idx, -0.99f, list, 1.0f);
+    generateAndTestListIndex(idx, -1.5f, list, 1.0f);
+}
+
+void test_sig_dsp_List_noList(void) {
+    struct sig_dsp_Value* idx = sig_dsp_Value_new(&allocator,
+        context);
+
+    float empty[0] = {};
+    struct sig_Buffer listBuffer = {
+        .length = 0,
+        .samples = empty
+    };
+
+    struct sig_dsp_List* list = sig_dsp_List_new(&allocator, context);
+    list->inputs.index = idx->outputs.main;
+
+    // A NULL list should return silence.
+    list->signal.generate(list);
+    testAssertBufferIsSilent(&allocator, list->outputs.main,
+        audioSettings->blockSize);
+    testAssertBufferIsSilent(&allocator, list->outputs.length,
+        audioSettings->blockSize);
+
+    // An empty list should return silence.
+    list->list = &listBuffer;
+    list->signal.generate(list);
+    testAssertBufferIsSilent(&allocator, list->outputs.main,
+        audioSettings->blockSize);
+    testAssertBufferIsSilent(&allocator, list->outputs.length,
+        audioSettings->blockSize);
+
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -1012,5 +1165,9 @@ int main(void) {
     RUN_TEST(test_sig_dsp_TimedGate_unipolar);
     RUN_TEST(test_sig_dsp_TimedGate_resetOnTrigger);
     RUN_TEST(test_sig_dsp_TimedGate_bipolar);
+    RUN_TEST(test_sig_dsp_List_wrapping);
+    RUN_TEST(test_sig_dsp_List_clamping);
+    RUN_TEST(test_sig_dsp_List_noList);
+
     return UNITY_END();
 }

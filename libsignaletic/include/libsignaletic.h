@@ -97,6 +97,18 @@ float sig_fmaxf(float a, float b);
 float sig_clamp(float value, float min, float max);
 
 /**
+ * @brief Computes the remainder of the floored division of two arguments.
+ * This is useful when implementing "through zero" wrap arounds.
+ * See https://en.wikipedia.org/wiki/Modulo#Variants_of_the_definition
+ * for more information.
+ *
+ * @param num the numerator
+ * @param denom the denominator
+ * @return float the remainder of the floored division operation
+ */
+float sig_flooredfmodf(float num, float denom);
+
+/**
  * Generates a random float between 0.0 and 1.0.
  *
  * @return a random value
@@ -1527,9 +1539,15 @@ void sig_dsp_List_Outputs_newAudioBlocks(struct sig_Allocator* allocator,
 void sig_dsp_List_Outputs_destroyAudioBlocks(struct sig_Allocator* allocator,
     struct sig_dsp_List_Outputs* outputs);
 
+
+struct sig_dsp_List_Parameters {
+    float wrap;
+};
+
 struct sig_dsp_List {
     struct sig_dsp_Signal signal;
     struct sig_dsp_List_Inputs inputs;
+    struct sig_dsp_List_Parameters parameters;
     struct sig_dsp_List_Outputs outputs;
     struct sig_Buffer* list;
 };

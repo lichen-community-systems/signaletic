@@ -19,7 +19,7 @@ inline void sig_Status_reportResult(struct sig_Status* status,
     }
 }
 
-float sig_fminf(float a, float b) {
+inline float sig_fminf(float a, float b) {
     float r;
 #ifdef __arm__
     asm("vminnm.f32 %[d], %[n], %[m]" : [d] "=t"(r) : [n] "t"(a), [m] "t"(b) :);
@@ -29,7 +29,7 @@ float sig_fminf(float a, float b) {
     return r;
 }
 
-float sig_fmaxf(float a, float b) {
+inline float sig_fmaxf(float a, float b) {
     float r;
 #ifdef __arm__
     asm("vmaxnm.f32 %[d], %[n], %[m]" : [d] "=t"(r) : [n] "t"(a), [m] "t"(b) :);
@@ -40,8 +40,19 @@ float sig_fmaxf(float a, float b) {
 }
 
 // TODO: Unit tests
-float sig_clamp(float value, float min, float max) {
+inline float sig_clamp(float value, float min, float max) {
     return sig_fminf(sig_fmaxf(value, min), max);
+}
+
+// TODO: Unit tests
+inline float sig_flooredfmodf(float numer, float denom) {
+    float remain = fmodf(numer, denom);
+    if ((remain > 0.0f && denom < 0.0f) ||
+        (remain < 0.0f && denom > 0.0f)) {
+        remain = remain + denom;
+    }
+
+    return remain;
 }
 
 // TODO: Replace this with an object that implements
@@ -1176,7 +1187,10 @@ inline void sig_dsp_Oscillator_accumulatePhase(
     float phaseStep = FLOAT_ARRAY(self->inputs.freq)[i] /
         self->signal.audioSettings->sampleRate;
     float phase = self->phaseAccumulator + phaseStep;
-    self->phaseAccumulator = sig_dsp_Oscillator_wrapPhase(phase);
+
+    // TODO: Benchmark this against wrapPhase() above,
+    // which is currently unused.
+    self->phaseAccumulator = sig_flooredfmodf(phase, 1.0f);
 }
 
 void sig_dsp_Sine_init(struct sig_dsp_Oscillator* self,
@@ -2039,35 +2053,43 @@ struct sig_dsp_List* sig_dsp_List_new(
 void sig_dsp_List_init(struct sig_dsp_List* self,
     struct sig_SignalContext* context) {
     sig_dsp_Signal_init(self, context, *sig_dsp_List_generate);
+    self->parameters.wrap = 1.0f;
     sig_CONNECT_TO_SILENCE(self, index, context);
 }
 
 void sig_dsp_List_generate(void* signal) {
     struct sig_dsp_List* self = (struct sig_dsp_List*) signal;
     struct sig_Buffer* list = self->list;
+    size_t blockSize = self->signal.audioSettings->blockSize;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float index = FLOAT_ARRAY(self->inputs.index)[i];
-        float listLength = (float) list->length;
-        float sample = 0.0f;
+    // List buffers can only be updated at control rate.
+    // TODO: Cache these and only recalculate when
+    // the list buffer changes.
+    size_t listLength = self->list != NULL ? list->length : 0;
+    float listLengthF = (float) listLength;
+    size_t lastIndex = listLength - 1;
+    float lastIndexF = (float) lastIndex;
+    bool shouldWrap = self->parameters.wrap > 0.0f;
 
-        if (listLength > 0.0f) {
-            float scaledIndex = index * (float) (listLength - 1);
-            while (scaledIndex < 0.0f) {
-                scaledIndex += listLength;
-            }
-
-            while (scaledIndex > listLength) {
-                scaledIndex -= listLength;
-            }
-
-            size_t roundedIndex = (size_t) roundf(scaledIndex);
-
-            sample = FLOAT_ARRAY(list->samples)[roundedIndex];
+    if (listLength < 1) {
+        // There's nothing in the list; just output silence.
+        for (size_t i = 0; i < blockSize; i++) {
+            FLOAT_ARRAY(self->outputs.main)[i] = 0.0f;
+            FLOAT_ARRAY(self->outputs.length)[i] = listLengthF;
         }
+    } else {
+        for (size_t i = 0; i < blockSize; i++) {
+            float index = FLOAT_ARRAY(self->inputs.index)[i];
+            float scaledIndex = index * lastIndexF;
+            float roundedIndex = roundf(scaledIndex);
+            float wrappedIndex = shouldWrap ?
+                sig_flooredfmodf(roundedIndex, listLengthF) :
+                sig_clamp(roundedIndex, 0.0f, lastIndexF);
 
-        FLOAT_ARRAY(self->outputs.main)[i] = sample;
-        FLOAT_ARRAY(self->outputs.length)[i] = (float) listLength;
+            float sample = FLOAT_ARRAY(list->samples)[(size_t) wrappedIndex];
+            FLOAT_ARRAY(self->outputs.main)[i] = sample;
+            FLOAT_ARRAY(self->outputs.length)[i] = listLengthF;
+        }
     }
 }
 
