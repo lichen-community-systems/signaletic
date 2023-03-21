@@ -1215,7 +1215,7 @@ void sig_dsp_Sine_generate(void* signal) {
         float modulatedPhase = self->phaseAccumulator +
             FLOAT_ARRAY(self->inputs.phaseOffset)[i];
         float eoc = sig_dsp_Oscillator_eoc(modulatedPhase);
-        modulatedPhase = sig_dsp_Oscillator_wrapPhase(modulatedPhase);
+        modulatedPhase = sig_flooredfmodf(modulatedPhase, 1.0f);
 
         float angularPhase = modulatedPhase * sig_TWOPI;
         float sample = sinf(angularPhase);
@@ -1249,7 +1249,7 @@ void sig_dsp_LFTriangle_generate(void* signal) {
         float modulatedPhase = self->phaseAccumulator +
             FLOAT_ARRAY(self->inputs.phaseOffset)[i];
         float eoc = sig_dsp_Oscillator_eoc(modulatedPhase);
-        modulatedPhase = sig_dsp_Oscillator_wrapPhase(modulatedPhase) *
+        modulatedPhase = sig_flooredfmodf(modulatedPhase, 1.0f) *
             sig_TWOPI;
 
         float val = -1.0f + (2.0f * (modulatedPhase * sig_RECIP_TWOPI));
