@@ -4,7 +4,7 @@
 
 #define HEAP_SIZE 1024 * 256 // 256KB
 #define MAX_NUM_SIGNALS 64
-#define NUM_RATIOS 9
+#define NUM_RATIOS 23
 
 struct sig_Status status;
 
@@ -19,13 +19,18 @@ struct sig_Allocator allocator = {
     .heap = &heap
 };
 
-// TODO: Tune these better.
-float ratios[NUM_RATIOS] =
-    {
-        1.0f/5.0f, 1.0f/4.0f, 1.0f/3.0f, 1.0f/2.0f,
-        1.0f, // Centre point of the knob.
-        2.0f, 3.0f, 4.0f, 5.0f
-    };
+float ratios[NUM_RATIOS] = {
+    // From Truax's normal form ratios
+    // ordered to the Farey Sequence.
+    // https://www.sfu.ca/sonic-studio-webdav/handbook/fmtut.html
+    1.0/6.0f, 1.0f/5.0f, 2.0f/9.0f, 1.0f/4.0f,
+    2.0f/7.0f, 1.0f/3.0f, 3.0f/8.0f, 2.0f/5.0f,
+    3.0/7.0f, 4.0f/9.0f, 1.0f/2.0f,
+    1.0f,
+    2.0f/1.0f, 9.0f/4.0f, 7.0f/3.0f, 5.0f/2.0f,
+    8.0f/3.0f, 3.0f/1.0f, 7.0f/2.0f, 4.0f/1.0f,
+    9.0f/2.0f, 5.0f/1.0f, 6.0f/1.0f
+};
 
 struct sig_Buffer ratioList = {
     .length = NUM_RATIOS,
