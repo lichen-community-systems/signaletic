@@ -1105,7 +1105,7 @@ void test_sig_dsp_List_noList(void) {
     struct sig_dsp_Value* idx = sig_dsp_Value_new(&allocator,
         context);
 
-    float empty[0] = {};
+    float empty[1] = {42.0f};  // Not so empty, because MSVC.
     struct sig_Buffer listBuffer = {
         .length = 0,
         .samples = empty
