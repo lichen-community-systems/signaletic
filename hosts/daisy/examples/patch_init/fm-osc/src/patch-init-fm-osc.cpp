@@ -4,7 +4,7 @@
 
 #define HEAP_SIZE 1024 * 256 // 256KB
 #define MAX_NUM_SIGNALS 64
-#define NUM_RATIOS 23
+#define NUM_RATIOS 31
 
 struct sig_Status status;
 
@@ -23,13 +23,17 @@ float ratios[NUM_RATIOS] = {
     // From Truax's normal form ratios
     // ordered to the Farey Sequence.
     // https://www.sfu.ca/sonic-studio-webdav/handbook/fmtut.html
-    1.0/6.0f, 1.0f/5.0f, 2.0f/9.0f, 1.0f/4.0f,
-    2.0f/7.0f, 1.0f/3.0f, 3.0f/8.0f, 2.0f/5.0f,
+    1.0f/10.0f, 1.0f/9.0f, 1.0f/8.0f,
+    1.0f/7.0f, 1.0f/6.0f, 1.0f/5.0f,
+    2.0f/9.0f, 1.0f/4.0f, 2.0f/7.0f,
+    1.0f/3.0f, 3.0f/8.0f, 2.0f/5.0f,
     3.0/7.0f, 4.0f/9.0f, 1.0f/2.0f,
     1.0f,
-    2.0f/1.0f, 9.0f/4.0f, 7.0f/3.0f, 5.0f/2.0f,
-    8.0f/3.0f, 3.0f/1.0f, 7.0f/2.0f, 4.0f/1.0f,
-    9.0f/2.0f, 5.0f/1.0f, 6.0f/1.0f
+    2.0f/1.0f, 9.0f/4.0f, 7.0f/3.0f,
+    5.0f/2.0f, 8.0f/3.0f, 3.0f/1.0f,
+    7.0f/2.0f, 4.0f/1.0f, 9.0f/2.0f,
+    5.0f/1.0f, 6.0f/1.0f, 7.0f/1.0f,
+    8.0f/1.0f, 9.0f/1.0f, 10.0f/1.0f
 };
 
 struct sig_Buffer ratioList = {
@@ -99,12 +103,11 @@ void buildControlGraph(struct sig_Allocator* allocator,
     ratioKnob = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, ratioKnob, status);
     ratioKnob->parameters.control = sig_daisy_PatchInit_KNOB_2;
+    ratioKnob->parameters.scale = 0.5f;
 
     indexKnob = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, indexKnob, status);
     indexKnob->parameters.control = sig_daisy_PatchInit_KNOB_4;
-    indexKnob->parameters.scale = 5.0f;
-    indexKnob->parameters.time = 0.01f;
 }
 
 void buildCVInputGraph(struct sig_Allocator* allocator,
@@ -118,6 +121,8 @@ void buildCVInputGraph(struct sig_Allocator* allocator,
     ratioCV = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, ratioCV, status);
     ratioCV->parameters.control = sig_daisy_PatchInit_CV_IN_2;
+    ratioCV->parameters.scale = 0.25f;
+    ratioCV->parameters.offset = 0.25f;
 
     combinedRatio = sig_dsp_Add_new(allocator, context);
     sig_List_append(signals, combinedRatio, status);
@@ -129,9 +134,9 @@ void buildCVInputGraph(struct sig_Allocator* allocator,
     ratioListSignal->list = &ratioList;
     ratioListSignal->inputs.index = combinedRatio->outputs.main;
 
-    // In free mode we scale the ratio by 2.1f (tuned by ear)
-    // for more impact.
-    ratioFreeScale = sig_dsp_ConstantValue_new(allocator, context, 2.1f);
+    // In free mode, scale the ratio for more impact.
+    // TODO: This should track 1V/oct in free mode.
+    ratioFreeScale = sig_dsp_ConstantValue_new(allocator, context, 4.0f);
 
     ratioFree = sig_dsp_Mul_new(allocator, context);
     sig_List_append(signals, ratioFree, status);
