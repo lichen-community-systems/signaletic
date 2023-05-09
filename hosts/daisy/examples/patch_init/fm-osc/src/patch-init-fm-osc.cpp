@@ -88,8 +88,8 @@ void buildControlGraph(struct sig_Allocator* allocator,
         context, host);
     sig_List_append(signals, coarseFrequencyKnob, status);
     coarseFrequencyKnob->parameters.control = sig_daisy_PatchInit_KNOB_1;
-    coarseFrequencyKnob->parameters.scale = 7.0f;
-    coarseFrequencyKnob->parameters.offset = -4.0f;
+    coarseFrequencyKnob->parameters.scale = 5.0f;
+    coarseFrequencyKnob->parameters.offset = -3.5f;
 
     fineFrequencyKnob = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, fineFrequencyKnob, status);
@@ -116,7 +116,7 @@ void buildCVInputGraph(struct sig_Allocator* allocator,
     vOctCV = sig_daisy_CVIn_new(allocator, context, host);
     sig_List_append(signals, vOctCV, status);
     vOctCV->parameters.control = sig_daisy_PatchInit_CV_IN_1;
-    vOctCV->parameters.scale = 2.5f;
+    vOctCV->parameters.scale = 5.0f;
 
     ratioCV = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, ratioCV, status);
