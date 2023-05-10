@@ -60,8 +60,7 @@ struct sig_daisy_FilteredCVIn* ratioKnob;
 struct sig_dsp_List* ratioListSignal;
 struct sig_daisy_FilteredCVIn* ratioCV;
 struct sig_dsp_BinaryOp* combinedRatio;
-struct sig_dsp_ConstantValue* ratioFreeScale;
-struct sig_dsp_BinaryOp* ratioFree;
+struct sig_dsp_LinearMap* ratioFreeMap;
 struct sig_daisy_FilteredCVIn* indexKnob;
 struct sig_daisy_FilteredCVIn* indexCV;
 struct sig_dsp_BinaryOp* combinedIndex;
@@ -134,19 +133,18 @@ void buildCVInputGraph(struct sig_Allocator* allocator,
     ratioListSignal->list = &ratioList;
     ratioListSignal->inputs.index = combinedRatio->outputs.main;
 
-    // In free mode, scale the ratio for more impact.
-    // TODO: This should track 1V/oct in free mode.
-    ratioFreeScale = sig_dsp_ConstantValue_new(allocator, context, 4.0f);
-
-    ratioFree = sig_dsp_Mul_new(allocator, context);
-    sig_List_append(signals, ratioFree, status);
-    ratioFree->inputs.left = combinedRatio->outputs.main;
-    ratioFree->inputs.right = ratioFreeScale->outputs.main;
+    ratioFreeMap = sig_dsp_LinearMap_new(allocator, context);
+    sig_List_append(signals, ratioFreeMap, status);
+    ratioFreeMap->parameters.fromMin = 0.0f;
+    ratioFreeMap->parameters.fromMax = 1.0f;
+    ratioFreeMap->parameters.toMin = ratios[0];
+    ratioFreeMap->parameters.toMax = ratios[NUM_RATIOS - 1];
+    ratioFreeMap->inputs.source = combinedRatio->outputs.main;
 
     ratioFreeBranch = sig_dsp_Branch_new(allocator, context);
     sig_List_append(signals, ratioFreeBranch, status);
     ratioFreeBranch->inputs.condition = switchIn->outputs.main;
-    ratioFreeBranch->inputs.off = ratioFree->outputs.main;
+    ratioFreeBranch->inputs.off = ratioFreeMap->outputs.main;
     ratioFreeBranch->inputs.on = ratioListSignal->outputs.main;
 
     indexCV = sig_daisy_FilteredCVIn_new(allocator, context, host);
@@ -162,7 +160,7 @@ void buildCVInputGraph(struct sig_Allocator* allocator,
     indexSkewCV = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, indexSkewCV, status);
     indexSkewCV->parameters.control = sig_daisy_PatchInit_CV_IN_4;
-    indexSkewCV->parameters.scale = 1.5f;
+    indexSkewCV->parameters.scale = 1.125f; // Tuned by ear for subtlety.
 
     rectifiedIndexSkew = sig_dsp_Abs_new(allocator, context);
     sig_List_append(signals, rectifiedIndexSkew, status);
