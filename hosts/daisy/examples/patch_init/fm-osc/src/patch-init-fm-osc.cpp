@@ -140,7 +140,6 @@ void buildCVInputGraph(struct sig_Allocator* allocator,
     indexCV = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, indexCV, status);
     indexCV->parameters.control = sig_daisy_PatchInit_CV_IN_3;
-    indexCV->parameters.scale = 5.0f;
 
     combinedIndex = sig_dsp_Add_new(allocator, context);
     sig_List_append(signals, combinedIndex, status);
