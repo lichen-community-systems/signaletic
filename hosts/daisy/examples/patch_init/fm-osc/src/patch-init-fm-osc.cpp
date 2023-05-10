@@ -4,7 +4,7 @@
 
 #define HEAP_SIZE 1024 * 256 // 256KB
 #define MAX_NUM_SIGNALS 64
-#define NUM_RATIOS 31
+#define NUM_RATIOS 33
 
 struct sig_Status status;
 
@@ -23,7 +23,7 @@ float ratios[NUM_RATIOS] = {
     // From Truax's normal form ratios
     // ordered to the Farey Sequence.
     // https://www.sfu.ca/sonic-studio-webdav/handbook/fmtut.html
-    1.0f/10.0f, 1.0f/9.0f, 1.0f/8.0f,
+    1.0f/11.0f, 1.0f/10.0f, 1.0f/9.0f, 1.0f/8.0f,
     1.0f/7.0f, 1.0f/6.0f, 1.0f/5.0f,
     2.0f/9.0f, 1.0f/4.0f, 2.0f/7.0f,
     1.0f/3.0f, 3.0f/8.0f, 2.0f/5.0f,
@@ -33,7 +33,7 @@ float ratios[NUM_RATIOS] = {
     5.0f/2.0f, 8.0f/3.0f, 3.0f/1.0f,
     7.0f/2.0f, 4.0f/1.0f, 9.0f/2.0f,
     5.0f/1.0f, 6.0f/1.0f, 7.0f/1.0f,
-    8.0f/1.0f, 9.0f/1.0f, 10.0f/1.0f
+    8.0f/1.0f, 9.0f/1.0f, 10.0f/1.0f, 11.0f/1.0f
 };
 
 struct sig_Buffer ratioList = {
@@ -60,7 +60,12 @@ struct sig_daisy_FilteredCVIn* ratioKnob;
 struct sig_dsp_List* ratioListSignal;
 struct sig_daisy_FilteredCVIn* ratioCV;
 struct sig_dsp_BinaryOp* combinedRatio;
-struct sig_dsp_LinearMap* ratioFreeMap;
+struct sig_dsp_ConstantValue* ratioFreeScaleValue;
+struct sig_dsp_BinaryOp* ratioFreeScale;
+struct sig_dsp_ConstantValue* ratioFreeOffsetValue;
+struct sig_dsp_BinaryOp* ratioFreeOffset;
+struct sig_dsp_LinearToFreq* modulatorFreeFrequency;
+struct sig_dsp_BinaryOp* ratioFree;
 struct sig_daisy_FilteredCVIn* indexKnob;
 struct sig_daisy_FilteredCVIn* indexCV;
 struct sig_dsp_BinaryOp* combinedIndex;
@@ -82,7 +87,6 @@ struct sig_daisy_CVOut* lfoLEDOut;
 void buildControlGraph(struct sig_Allocator* allocator,
     struct sig_List* signals, struct sig_SignalContext* context,
     struct sig_Status* status) {
-
     coarseFrequencyKnob = sig_daisy_FilteredCVIn_new(allocator,
         context, host);
     sig_List_append(signals, coarseFrequencyKnob, status);
@@ -133,20 +137,6 @@ void buildCVInputGraph(struct sig_Allocator* allocator,
     ratioListSignal->list = &ratioList;
     ratioListSignal->inputs.index = combinedRatio->outputs.main;
 
-    ratioFreeMap = sig_dsp_LinearMap_new(allocator, context);
-    sig_List_append(signals, ratioFreeMap, status);
-    ratioFreeMap->parameters.fromMin = 0.0f;
-    ratioFreeMap->parameters.fromMax = 1.0f;
-    ratioFreeMap->parameters.toMin = ratios[0];
-    ratioFreeMap->parameters.toMax = ratios[NUM_RATIOS - 1];
-    ratioFreeMap->inputs.source = combinedRatio->outputs.main;
-
-    ratioFreeBranch = sig_dsp_Branch_new(allocator, context);
-    sig_List_append(signals, ratioFreeBranch, status);
-    ratioFreeBranch->inputs.condition = switchIn->outputs.main;
-    ratioFreeBranch->inputs.off = ratioFreeMap->outputs.main;
-    ratioFreeBranch->inputs.on = ratioListSignal->outputs.main;
-
     indexCV = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, indexCV, status);
     indexCV->parameters.control = sig_daisy_PatchInit_CV_IN_3;
@@ -188,6 +178,35 @@ void buildFrequencyGraph(struct sig_Allocator* allocator,
     fundamentalFrequency = sig_dsp_LinearToFreq_new(allocator, context);
     sig_List_append(signals, fundamentalFrequency, status);
     fundamentalFrequency->inputs.source = coarseVOctPlusFine->outputs.main;
+
+    ratioFreeScaleValue = sig_dsp_ConstantValue_new(allocator, context, 15.0f);
+    ratioFreeScale = sig_dsp_Mul_new(allocator, context);
+    sig_List_append(signals, ratioFreeScale, status);
+    ratioFreeScale->inputs.left = combinedRatio->outputs.main;
+    ratioFreeScale->inputs.right = ratioFreeScaleValue->outputs.main;
+
+    ratioFreeOffsetValue = sig_dsp_ConstantValue_new(allocator, context, -8.5f);
+    ratioFreeOffset = sig_dsp_Add_new(allocator, context);
+    sig_List_append(signals, ratioFreeOffset, status);
+    ratioFreeOffset->inputs.left = ratioFreeScale->outputs.main;
+    ratioFreeOffset->inputs.right = ratioFreeOffsetValue->outputs.main;
+
+    modulatorFreeFrequency = sig_dsp_LinearToFreq_new(allocator, context);
+    sig_List_append(signals, modulatorFreeFrequency, status);
+    modulatorFreeFrequency->inputs.source = ratioFreeOffset->outputs.main;
+
+    // TODO: Remove this extra division by adding a way to
+    // directly address the modulator's frequency in free mode.
+    ratioFree = sig_dsp_Div_new(allocator, context);
+    sig_List_append(signals, ratioFree, status);
+    ratioFree->inputs.left = modulatorFreeFrequency->outputs.main;
+    ratioFree->inputs.right = fundamentalFrequency->outputs.main;
+
+    ratioFreeBranch = sig_dsp_Branch_new(allocator, context);
+    sig_List_append(signals, ratioFreeBranch, status);
+    ratioFreeBranch->inputs.condition = switchIn->outputs.main;
+    ratioFreeBranch->inputs.off = ratioFree->outputs.main;
+    ratioFreeBranch->inputs.on = ratioListSignal->outputs.main;
 }
 
 void buildSignalGraph(struct sig_Allocator* allocator,
