@@ -45,6 +45,36 @@
         "type": "cortex-debug"
       },
       {
+        "name": "Remote Bluemchen Filter",
+        "configFiles": [
+          "interface/stlink.cfg",
+          "target/stm32h7x.cfg"
+        ],
+        "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/filter",
+        "debuggerArgs": [
+          "-d",
+          "${workspaceRoot}/hosts/daisy/examples/bluemchen/oscillfilterator"
+        ],
+        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/filter/build/signaletic-bluemchen-filter.elf",
+        "interface": "swd",
+        "openOCDLaunchCommands": [
+          "init",
+          "reset init"
+        ],
+        "preLaunchTask": "Debug Build Bluemchen Examples",
+        "preRestartCommands": [
+          "load",
+          "enable breakpoint",
+          "monitor reset"
+        ],
+        "request": "launch",
+        "runToEntryPoint": "main",
+        "servertype": "openocd",
+        "showDevDebugOutput": "parsed",
+        "svdFile": "${workspaceRoot}/.vscode/STM32H750x.svd",
+        "type": "cortex-debug"
+      },
+      {
         "name": "Remote Bluemchen Looper",
         "configFiles": [
           "interface/stlink.cfg",

@@ -1619,6 +1619,54 @@ void sig_dsp_TwoOpFM_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_TwoOpFM* self);
 
 
+struct sig_dsp_Filter_Inputs {
+    float_array_ptr source;
+    float_array_ptr frequency;
+    float_array_ptr resonance;
+};
+
+/**
+ * @brief A 24dB Moog-style ladder low pass filter.
+ * Adapted from Dimitri Diakopoulos' version of
+ * Miller Puckette's BSD licensed ~bob implementation.
+ *
+ * https://github.com/ddiakopoulos/MoogLadders/blob/9cef8fac86a35c40f4a99bcc9b52b8874ee5ff2b/src/RKSimulationModel.h
+ * https://github.com/pure-data/pure-data/blob/3b4be8c6e228397b27615b279451578e71cabfcf/extra/bob~/bob~.c
+ *
+ * Inputs:
+ *  - source: the input to filter
+ *  - frequency: the cutoff frequency in Hz
+ *  - resonance: the resonance; values > 4 lead to instability
+ *
+ */
+struct sig_dsp_BobLPF {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Filter_Inputs inputs;
+    // TODO: Add outputs for the other filter poles.
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+
+    float state[4];
+    float deriv1[4];
+    float deriv2[4];
+    float deriv3[4];
+    float deriv4[4];
+    float tempState[4];
+
+    float saturation;
+    float saturationInv;
+    float stepSize;
+};
+
+struct sig_dsp_BobLPF* sig_dsp_BobLPF_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_BobLPF_init(struct sig_dsp_BobLPF* self,
+    struct sig_SignalContext* context);
+float sig_dsp_BobLPF_clip(float value, float saturation,
+    float saturationInv);
+void sig_dsp_BobLPF_generate(void* signal);
+void sig_dsp_BobLPF_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_BobLPF* self);
+
 #ifdef __cplusplus
 }
 #endif
