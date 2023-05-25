@@ -142,6 +142,8 @@ void buildSignalGraph(struct sig_SignalContext* context,
 
     leftFilter = sig_dsp_LadderLPF_new(&allocator, context);
     sig_List_append(&signals, leftFilter, status);
+    leftFilter->parameters.overdrive = 1.1f;
+    leftFilter->parameters.passbandGain = 0.5f;
     leftFilter->inputs.source = leftIn->outputs.main;
     leftFilter->inputs.frequency = leftFrequency->outputs.main;
     leftFilter->inputs.resonance = resonanceKnob->outputs.main;
@@ -157,6 +159,8 @@ void buildSignalGraph(struct sig_SignalContext* context,
 
     rightFilter = sig_dsp_LadderLPF_new(&allocator, context);
     sig_List_append(&signals, rightFilter, status);
+    rightFilter->parameters.overdrive = 1.1f;
+    leftFilter->parameters.passbandGain = 0.5f;
     rightFilter->inputs.source = rightIn->outputs.main;
     rightFilter->inputs.frequency = rightFrequency->outputs.main;
     rightFilter->inputs.resonance = resonanceKnob->outputs.main;

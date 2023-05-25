@@ -2347,13 +2347,27 @@ void sig_dsp_BobLPF_destroy(struct sig_Allocator* allocator,
 }
 
 
+void sig_dsp_LadderLPF_Outputs_newAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_dsp_LadderLPF_Outputs* outputs) {
+    outputs->main = sig_AudioBlock_newSilent(allocator, audioSettings);
+    outputs->twoPole = sig_AudioBlock_newSilent(allocator, audioSettings);
+}
+
+void sig_dsp_LadderLPF_Outputs_destroyAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_dsp_LadderLPF_Outputs* outputs) {
+    sig_AudioBlock_destroy(allocator, outputs->main);
+    sig_AudioBlock_destroy(allocator, outputs->twoPole);
+}
 
 struct sig_dsp_LadderLPF* sig_dsp_LadderLPF_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context) {
     struct sig_dsp_LadderLPF* self = sig_MALLOC(allocator,
         struct sig_dsp_LadderLPF);
     sig_dsp_LadderLPF_init(self, context);
-    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+    sig_dsp_LadderLPF_Outputs_newAudioBlocks(allocator,
         context->audioSettings, &self->outputs);
 
     return self;
@@ -2364,6 +2378,12 @@ void sig_dsp_LadderLPF_init(
     struct sig_SignalContext* context) {
     sig_dsp_Signal_init(self, context, *sig_dsp_LadderLPF_generate);
 
+    struct sig_dsp_LadderLPF_Parameters parameters = {
+        .passbandGain = 0.5f,
+        .overdrive = 1.0f
+    };
+    self->parameters = parameters;
+
     self->interpolation = 2;
     self->interpolationRecip = 1.0f / self->interpolation;
     self->alpha = 1.0f;
@@ -2373,7 +2393,6 @@ void sig_dsp_LadderLPF_init(
     self->k = 1.0f;
     self->fBase = 1000.0f;
     self->qAdjust = 1.0f;
-    self->pbg = 0.5f;
     self->prevFrequency = -1.0f;
     self->prevInput = 0.0f;
 
@@ -2406,12 +2425,15 @@ inline float sig_dsp_LadderLPF_calcStage(
 void sig_dsp_LadderLPF_generate(void* signal) {
     struct sig_dsp_LadderLPF* self =
         (struct sig_dsp_LadderLPF*) signal;
+    float interpolationRecip = self->interpolationRecip;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float input = FLOAT_ARRAY(self->inputs.source)[i];
+        float input = FLOAT_ARRAY(self->inputs.source)[i] *
+            self->parameters.overdrive;
         float frequency = FLOAT_ARRAY(self->inputs.frequency)[i];
         float resonance = FLOAT_ARRAY(self->inputs.resonance)[i];
-        float total = 0.0f;
+        float total12db = 0.0f;
+        float total24db = 0.0f;
         float interp = 0.0f;
 
         // Recalculate coefficients if the frequency has changed.
@@ -2425,27 +2447,30 @@ void sig_dsp_LadderLPF_generate(void* signal) {
 
         for (size_t os = 0; os < self->interpolation; os++) {
             float u = (interp * self->prevInput + (1.0f - interp) * input) -
-                (self->z1[3] - self->pbg * input) * self->k * self->qAdjust;
+                (self->z1[3] - self->parameters.passbandGain * input) *
+                self->k * self->qAdjust;
             u = sig_fastTanhf(u);
             float stage1 = sig_dsp_LadderLPF_calcStage(self,
                 u, 0);
             float stage2 = sig_dsp_LadderLPF_calcStage(self,
                 stage1, 1);
+            total12db += stage2 * interpolationRecip;
             float stage3 = sig_dsp_LadderLPF_calcStage(self,
                 stage2, 2);
             float stage4 = sig_dsp_LadderLPF_calcStage(self,
                 stage3, 3);
-            total += stage4 * self->interpolationRecip;
-            interp += self->interpolationRecip;
+            total24db += stage4 * interpolationRecip;
+            interp += interpolationRecip;
         }
         self->prevInput = input;
-        FLOAT_ARRAY(self->outputs.main)[i] = total;
+        FLOAT_ARRAY(self->outputs.main)[i] = total24db;
+        FLOAT_ARRAY(self->outputs.twoPole)[i] = total12db;
     }
 }
 
 void sig_dsp_LadderLPF_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_LadderLPF* self) {
-    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+    sig_dsp_LadderLPF_Outputs_destroyAudioBlocks(allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
 }
