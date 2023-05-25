@@ -1634,6 +1634,28 @@ struct sig_dsp_Filter_Inputs {
 };
 
 
+struct sig_dsp_FourPoleFilter_Outputs {
+    /**
+     * @brief The four pole 24 dB output from the filter.
+     */
+    float_array_ptr main;
+
+    /**
+     * @brief A two pole 12 dB output from the second stage of the filter.
+     */
+    float_array_ptr twoPole;
+};
+
+void sig_dsp_FourPoleFilter_Outputs_newAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_dsp_FourPoleFilter_Outputs* outputs);
+
+void sig_dsp_FourPoleFilter_Outputs_destroyAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_dsp_FourPoleFilter_Outputs* outputs);
+
+
 /**
  * @brief Miller Pucket's 24dB Moog-style ladder low pass filter.
  * Imitates a Moog resonant filter by Runge-Kutte numerical integration
@@ -1664,7 +1686,7 @@ struct sig_dsp_BobLPF {
     struct sig_dsp_Signal signal;
     struct sig_dsp_Filter_Inputs inputs;
     // TODO: Add outputs for the other filter poles.
-    struct sig_dsp_Signal_SingleMonoOutput outputs;
+    struct sig_dsp_FourPoleFilter_Outputs outputs;
 
     float state[4];
     float deriv1[4];
@@ -1690,32 +1712,21 @@ void sig_dsp_BobLPF_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_BobLPF* self);
 
 
+
 struct sig_dsp_LadderLPF_Parameters {
     /**
      * @brief The passband gain of the filter (best between 0.0-0.5),
-     * helps to offset the drop in low frequencies when resonance is high.
+     * higher values will amplify the lower frequencies when resonance is high.
      */
     float passbandGain;
 
     /**
-     * @brief Gain prior to the filter, allowing for greater saturation levels.
+     * @brief Input gain applied prior to the filter,
+     * allowing for greater saturation levels (best between 0.0-4.0)
      */
     float overdrive;
 };
 
-struct sig_dsp_LadderLPF_Outputs {
-    float_array_ptr main;
-    float_array_ptr twoPole;
-};
-
-void sig_dsp_LadderLPF_Outputs_newAudioBlocks(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* audioSettings,
-    struct sig_dsp_LadderLPF_Outputs* outputs);
-
-void sig_dsp_LadderLPF_Outputs_destroyAudioBlocks(
-    struct sig_Allocator* allocator,
-    struct sig_dsp_LadderLPF_Outputs* outputs);
 /**
  * @brief Valimaki and Huovilainen's Moog-style Ladder Filter
  * Ported from Infrasonic Audio LLC's adaptation of
@@ -1732,7 +1743,7 @@ struct sig_dsp_LadderLPF {
     struct sig_dsp_Filter_Inputs inputs;
     struct sig_dsp_LadderLPF_Parameters parameters;
     // TODO: Add outputs for the other filter poles.
-    struct sig_dsp_LadderLPF_Outputs outputs;
+    struct sig_dsp_FourPoleFilter_Outputs outputs;
 
     uint8_t interpolation;
     float interpolationRecip;

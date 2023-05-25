@@ -2213,12 +2213,28 @@ void sig_dsp_TwoOpFM_destroy(struct sig_Allocator* allocator,
 
 
 
+void sig_dsp_FourPoleFilter_Outputs_newAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_dsp_FourPoleFilter_Outputs* outputs) {
+    outputs->main = sig_AudioBlock_newSilent(allocator, audioSettings);
+    outputs->twoPole = sig_AudioBlock_newSilent(allocator, audioSettings);
+}
+
+void sig_dsp_FourPoleFilter_Outputs_destroyAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_dsp_FourPoleFilter_Outputs* outputs) {
+    sig_AudioBlock_destroy(allocator, outputs->main);
+    sig_AudioBlock_destroy(allocator, outputs->twoPole);
+}
+
+
 struct sig_dsp_BobLPF* sig_dsp_BobLPF_new(struct sig_Allocator* allocator,
     struct sig_SignalContext* context) {
     struct sig_dsp_BobLPF* self = sig_MALLOC(allocator,
         struct sig_dsp_BobLPF);
     sig_dsp_BobLPF_init(self, context);
-    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+    sig_dsp_FourPoleFilter_Outputs_newAudioBlocks(allocator,
         context->audioSettings, &self->outputs);
 
     return self;
@@ -2327,6 +2343,7 @@ void sig_dsp_BobLPF_generate(void* signal) {
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
         float input = FLOAT_ARRAY(self->inputs.source)[i];
+        // TODO: Should we account for oversampling here?
         float cutoff = sig_TWOPI * FLOAT_ARRAY(self->inputs.frequency)[i];
         float resonance = FLOAT_ARRAY(self->inputs.resonance)[i];
         resonance = resonance < 0.0f ? 0.0f : resonance;
@@ -2336,38 +2353,24 @@ void sig_dsp_BobLPF_generate(void* signal) {
         }
 
         FLOAT_ARRAY(self->outputs.main)[i] = self->state[3];
+        FLOAT_ARRAY(self->outputs.twoPole)[i] = self->state[1];
     }
 }
 
 void sig_dsp_BobLPF_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_BobLPF* self) {
-    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+    sig_dsp_FourPoleFilter_Outputs_destroyAudioBlocks(allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
 }
 
-
-void sig_dsp_LadderLPF_Outputs_newAudioBlocks(
-    struct sig_Allocator* allocator,
-    struct sig_AudioSettings* audioSettings,
-    struct sig_dsp_LadderLPF_Outputs* outputs) {
-    outputs->main = sig_AudioBlock_newSilent(allocator, audioSettings);
-    outputs->twoPole = sig_AudioBlock_newSilent(allocator, audioSettings);
-}
-
-void sig_dsp_LadderLPF_Outputs_destroyAudioBlocks(
-    struct sig_Allocator* allocator,
-    struct sig_dsp_LadderLPF_Outputs* outputs) {
-    sig_AudioBlock_destroy(allocator, outputs->main);
-    sig_AudioBlock_destroy(allocator, outputs->twoPole);
-}
 
 struct sig_dsp_LadderLPF* sig_dsp_LadderLPF_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context) {
     struct sig_dsp_LadderLPF* self = sig_MALLOC(allocator,
         struct sig_dsp_LadderLPF);
     sig_dsp_LadderLPF_init(self, context);
-    sig_dsp_LadderLPF_Outputs_newAudioBlocks(allocator,
+    sig_dsp_FourPoleFilter_Outputs_newAudioBlocks(allocator,
         context->audioSettings, &self->outputs);
 
     return self;
@@ -2470,7 +2473,7 @@ void sig_dsp_LadderLPF_generate(void* signal) {
 
 void sig_dsp_LadderLPF_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_LadderLPF* self) {
-    sig_dsp_LadderLPF_Outputs_destroyAudioBlocks(allocator,
+    sig_dsp_FourPoleFilter_Outputs_destroyAudioBlocks(allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
 }
