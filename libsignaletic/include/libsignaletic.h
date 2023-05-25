@@ -116,6 +116,14 @@ float sig_flooredfmodf(float num, float denom);
 float sig_randf();
 
 /**
+ * @brief A fast tanh approximation
+ *
+ * @param x floating point value representing a hyperbolic angle
+ * @return float the hyperbolic tangent of x
+ */
+float sig_fastTanhf(float x);
+
+/**
  * @brief Linearly maps a value from one range to another.
  * This implementation does not clamp the output if the value
  * is outside of the specified current range.
@@ -1626,9 +1634,22 @@ struct sig_dsp_Filter_Inputs {
 };
 
 /**
- * @brief A 24dB Moog-style ladder low pass filter.
+ * @brief Miller Pucket's 24dB Moog-style ladder low pass filter.
+ * Imitates a Moog resonant filter by Runge-Kutte numerical integration
+ * of a differential equation approximately describing the dynamics of
+ * the circuit.
+ *
+ * The differential equations are:
+ *	y1' = k * (S(x - r * y4) - S(y1))
+ *	y2' = k * (S(y1) - S(y2))
+ *	y3' = k * (S(y2) - S(y3))
+ *	y4' = k * (S(y3) - S(y4))
+ * where k controls the cutoff frequency,
+ * r is feedback (<= 4 for stability),
+ * and S(x) is a saturation function.
+ *
  * Adapted from Dimitri Diakopoulos' version of
- * Miller Puckette's BSD licensed ~bob implementation.
+ * Pure Data's BSD-licensed ~bob implementation.
  *
  * https://github.com/ddiakopoulos/MoogLadders/blob/9cef8fac86a35c40f4a99bcc9b52b8874ee5ff2b/src/RKSimulationModel.h
  * https://github.com/pure-data/pure-data/blob/3b4be8c6e228397b27615b279451578e71cabfcf/extra/bob~/bob~.c
@@ -1637,7 +1658,6 @@ struct sig_dsp_Filter_Inputs {
  *  - source: the input to filter
  *  - frequency: the cutoff frequency in Hz
  *  - resonance: the resonance; values > 4 lead to instability
- *
  */
 struct sig_dsp_BobLPF {
     struct sig_dsp_Signal signal;
@@ -1654,6 +1674,7 @@ struct sig_dsp_BobLPF {
 
     float saturation;
     float saturationInv;
+    uint8_t oversample;
     float stepSize;
 };
 
@@ -1666,6 +1687,97 @@ float sig_dsp_BobLPF_clip(float value, float saturation,
 void sig_dsp_BobLPF_generate(void* signal);
 void sig_dsp_BobLPF_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_BobLPF* self);
+
+
+
+/**
+ * @brief Valimaki and Huovilainen's Moog-style Ladder Filter
+ * Ported from Infrasonic Audio LLC's adaptation of
+ * Richard Van Hoesel's implementation from the Teensy Audio Library.
+ * https://gist.github.com/ndonald2/534831b639b8c78d40279b5007e06e5b
+ *
+ * Inputs:
+ *  - source: the input to filter
+ *  - frequency: the cutoff frequency in Hz
+ *  - resonance: the resonance (stable values in the range 0 - 1.8)
+ */
+struct sig_dsp_LadderLPF {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Filter_Inputs inputs;
+    // TODO: Add outputs for the other filter poles.
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+
+    uint8_t interpolation;
+    float interpolationRecip;
+    float alpha;
+    float beta[4];
+    float z0[4];
+    float z1[4];
+    float k;
+    float fBase;
+    float qAdjust;
+    float pbg;
+    float prevFrequency;
+    float prevInput;
+};
+
+struct sig_dsp_LadderLPF* sig_dsp_LadderLPF_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_LadderLPF_init(
+    struct sig_dsp_LadderLPF* self,
+    struct sig_SignalContext* context);
+void sig_dsp_LadderLPF_calcCoefficients(
+    struct sig_dsp_LadderLPF* self, float freq);
+float sig_dsp_LadderLPF_calcStage(
+    struct sig_dsp_LadderLPF* self, float s, uint8_t i);
+void sig_dsp_LadderLPF_generate(void* signal);
+void sig_dsp_LadderLPF_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_LadderLPF* self);
+
+
+
+struct sig_dsp_TiltEQ_Inputs {
+    float_array_ptr source;
+    float_array_ptr frequency; // 20-20000 Hz
+    float_array_ptr gain; // -6 to +6 dB, normalized to -1.0 to 1.0
+};
+
+/**
+ * @brief A Tilt Equalizer.
+ * Boosts a range of the spectrum above or below the centre frequency,
+ * while attunuating the opposite range. More extreme settings will
+ * turn the filter into first order low-pass or high-pass.
+ * This is achieved with greater gain factors
+ * (ex: +6db for high pass, or -6db for low pass)
+ *
+ * This implementation is written by moc.liamg@321tiloen
+ * from the musicdsp.org archive. It is an emulation
+ * of the "Niveau" filter from the "Elysia mPressor" compressor plugin.
+ *
+ * https://www.musicdsp.org/en/latest/Filters/267-simple-tilt-equalizer.html
+ *
+ *  Inputs:
+ *  - source: the input to filter
+ *  - frequency: the centre frequency in Hz (20-20000 Hz)
+ *  - gain: the EQ gain, in dB (-6.0 to +6.0 dB)
+ */
+struct sig_dsp_TiltEQ {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_TiltEQ_Inputs inputs;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+
+    float sr3;
+    float lpOut;
+};
+
+struct sig_dsp_TiltEQ* sig_dsp_TiltEQ_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_TiltEQ_init(struct sig_dsp_TiltEQ* self,
+    struct sig_SignalContext* context);
+void sig_dsp_TiltEQ_generate(void* signal);
+void sig_dsp_TiltEQ_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_TiltEQ* self);
+
 
 #ifdef __cplusplus
 }
