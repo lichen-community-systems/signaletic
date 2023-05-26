@@ -2229,20 +2229,20 @@ void sig_dsp_FourPoleFilter_Outputs_destroyAudioBlocks(
 }
 
 
-struct sig_dsp_BobLPF* sig_dsp_BobLPF_new(struct sig_Allocator* allocator,
+struct sig_dsp_Bob* sig_dsp_Bob_new(struct sig_Allocator* allocator,
     struct sig_SignalContext* context) {
-    struct sig_dsp_BobLPF* self = sig_MALLOC(allocator,
-        struct sig_dsp_BobLPF);
-    sig_dsp_BobLPF_init(self, context);
+    struct sig_dsp_Bob* self = sig_MALLOC(allocator,
+        struct sig_dsp_Bob);
+    sig_dsp_Bob_init(self, context);
     sig_dsp_FourPoleFilter_Outputs_newAudioBlocks(allocator,
         context->audioSettings, &self->outputs);
 
     return self;
 }
 
-void sig_dsp_BobLPF_init(struct sig_dsp_BobLPF* self,
+void sig_dsp_Bob_init(struct sig_dsp_Bob* self,
     struct sig_SignalContext* context) {
-    sig_dsp_Signal_init(self, context, *sig_dsp_BobLPF_generate);
+    sig_dsp_Signal_init(self, context, *sig_dsp_Bob_generate);
 
     self->state[0] = self->state[1] = self->state[2] = self->state[3] = 0.0f;
     self->saturation = 3.0f;
@@ -2254,9 +2254,13 @@ void sig_dsp_BobLPF_init(struct sig_dsp_BobLPF* self,
     sig_CONNECT_TO_SILENCE(self, source, context);
     sig_CONNECT_TO_SILENCE(self, frequency, context);
     sig_CONNECT_TO_SILENCE(self, resonance, context);
+    sig_CONNECT_TO_SILENCE(self, stage1Mix, context);
+    sig_CONNECT_TO_SILENCE(self, stage2Mix, context);
+    sig_CONNECT_TO_SILENCE(self, stage3Mix, context);
+    sig_CONNECT_TO_UNITY(self, stage4Mix, context);
 }
 
-inline float sig_dsp_BobLPF_clip(float value, float saturation,
+inline float sig_dsp_Bob_clip(float value, float saturation,
     float saturationInv) {
     // A lower cost tanh approximation used to simulate
     // the clipping function of a transistor pair.
@@ -2271,14 +2275,14 @@ inline float sig_dsp_BobLPF_clip(float value, float saturation,
     return (saturation * (v2 - (1.0f / 3.0f) * v2 * v2 * v2));
 }
 
-static inline void sig_dsp_BobLPF_calculateDerivatives(float input,
+static inline void sig_dsp_Bob_calculateDerivatives(float input,
     float saturation, float saturationInv, float cutoff, float resonance,
     float* deriv, float* state) {
-    float satState0 = sig_dsp_BobLPF_clip(state[0], saturation, saturationInv);
-    float satState1 = sig_dsp_BobLPF_clip(state[1], saturation, saturationInv);
-    float satState2 = sig_dsp_BobLPF_clip(state[2], saturation, saturationInv);
-    float satState3 = sig_dsp_BobLPF_clip(state[3], saturation, saturationInv);
-    float inputSat = sig_dsp_BobLPF_clip(input - resonance * state[3],
+    float satState0 = sig_dsp_Bob_clip(state[0], saturation, saturationInv);
+    float satState1 = sig_dsp_Bob_clip(state[1], saturation, saturationInv);
+    float satState2 = sig_dsp_Bob_clip(state[2], saturation, saturationInv);
+    float satState3 = sig_dsp_Bob_clip(state[3], saturation, saturationInv);
+    float inputSat = sig_dsp_Bob_clip(input - resonance * state[3],
         saturation, saturationInv);
     deriv[0] = cutoff * (inputSat - satState0);
     deriv[1] = cutoff * (satState0 - satState1);
@@ -2286,7 +2290,7 @@ static inline void sig_dsp_BobLPF_calculateDerivatives(float input,
     deriv[3] = cutoff * (satState2 - satState3);
 }
 
-static inline void sig_dsp_BobLPF_updateTempState(float* tempState,
+static inline void sig_dsp_Bob_updateTempState(float* tempState,
     float* state, float stepSize, float* deriv) {
     tempState[0] = state[0] + 0.5 * stepSize * deriv[0];
     tempState[1] = state[1] + 0.5 * stepSize * deriv[1];
@@ -2294,7 +2298,7 @@ static inline void sig_dsp_BobLPF_updateTempState(float* tempState,
     tempState[3] = state[3] + 0.5 * stepSize * deriv[3];
 }
 
-static inline void sig_dsp_BobLPF_updateState(float* state, float stepSize,
+static inline void sig_dsp_Bob_updateState(float* state, float stepSize,
     float* deriv1, float* deriv2, float* deriv3, float* deriv4) {
     state[0] += (1.0 / 6.0) * stepSize *
         (deriv1[0] + 2.0 * deriv2[0] + 2.0 * deriv3[0] + deriv4[0]);
@@ -2307,7 +2311,7 @@ static inline void sig_dsp_BobLPF_updateState(float* state, float stepSize,
 
 }
 
-static inline void sig_dsp_BobLPF_solve(struct sig_dsp_BobLPF* self,
+static inline void sig_dsp_Bob_solve(struct sig_dsp_Bob* self,
     float input, float cutoff, float resonance) {
     float stepSize = self->stepSize;
     float saturation = self->saturation;
@@ -2319,69 +2323,73 @@ static inline void sig_dsp_BobLPF_solve(struct sig_dsp_BobLPF* self,
     float* deriv3 = self->deriv3;
     float* deriv4 = self->deriv4;
 
-    sig_dsp_BobLPF_calculateDerivatives(input, saturation, saturationInv,
+    sig_dsp_Bob_calculateDerivatives(input, saturation, saturationInv,
         cutoff, resonance, deriv1, state);
-    sig_dsp_BobLPF_updateTempState(tempState, state, stepSize, deriv1);
+    sig_dsp_Bob_updateTempState(tempState, state, stepSize, deriv1);
 
-    sig_dsp_BobLPF_calculateDerivatives(input, saturation, saturationInv,
+    sig_dsp_Bob_calculateDerivatives(input, saturation, saturationInv,
         cutoff, resonance, deriv2, tempState);
-    sig_dsp_BobLPF_updateTempState(tempState, state, stepSize, deriv2);
+    sig_dsp_Bob_updateTempState(tempState, state, stepSize, deriv2);
 
-    sig_dsp_BobLPF_calculateDerivatives(input, saturation, saturationInv,
+    sig_dsp_Bob_calculateDerivatives(input, saturation, saturationInv,
         cutoff, resonance, deriv3, tempState);
-    sig_dsp_BobLPF_updateTempState(tempState, state, stepSize, deriv3);
+    sig_dsp_Bob_updateTempState(tempState, state, stepSize, deriv3);
 
-    sig_dsp_BobLPF_calculateDerivatives(input, saturation, saturationInv,
+    sig_dsp_Bob_calculateDerivatives(input, saturation, saturationInv,
         cutoff, resonance, deriv4, tempState);
 
-    sig_dsp_BobLPF_updateState(state, stepSize, deriv1, deriv2, deriv3, deriv4);
+    sig_dsp_Bob_updateState(state, stepSize, deriv1, deriv2, deriv3, deriv4);
 }
 
-void sig_dsp_BobLPF_generate(void* signal) {
-    struct sig_dsp_BobLPF* self = (struct sig_dsp_BobLPF*) signal;
+void sig_dsp_Bob_generate(void* signal) {
+    struct sig_dsp_Bob* self = (struct sig_dsp_Bob*) signal;
     uint8_t oversample = self->oversample;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
         float input = FLOAT_ARRAY(self->inputs.source)[i];
-        // TODO: Should we account for oversampling here?
         float cutoff = sig_TWOPI * FLOAT_ARRAY(self->inputs.frequency)[i];
         float resonance = FLOAT_ARRAY(self->inputs.resonance)[i];
         resonance = resonance < 0.0f ? 0.0f : resonance;
 
         for (uint8_t j = 0; j < oversample; j++) {
-            sig_dsp_BobLPF_solve(self, input, cutoff, resonance);
+            sig_dsp_Bob_solve(self, input, cutoff, resonance);
         }
 
-        FLOAT_ARRAY(self->outputs.main)[i] = self->state[3];
+        FLOAT_ARRAY(self->outputs.main)[i] =
+            (self->state[0] * FLOAT_ARRAY(self->inputs.stage1Mix)[i]) +
+            (self->state[1] * FLOAT_ARRAY(self->inputs.stage2Mix)[i]) +
+            (self->state[2] * FLOAT_ARRAY(self->inputs.stage3Mix)[i]) +
+            (self->state[3] * FLOAT_ARRAY(self->inputs.stage4Mix)[i]);
+        FLOAT_ARRAY(self->outputs.fourPole)[i] = self->state[3];
         FLOAT_ARRAY(self->outputs.twoPole)[i] = self->state[1];
     }
 }
 
-void sig_dsp_BobLPF_destroy(struct sig_Allocator* allocator,
-    struct sig_dsp_BobLPF* self) {
+void sig_dsp_Bob_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Bob* self) {
     sig_dsp_FourPoleFilter_Outputs_destroyAudioBlocks(allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
 }
 
 
-struct sig_dsp_LadderLPF* sig_dsp_LadderLPF_new(
+struct sig_dsp_Ladder* sig_dsp_Ladder_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context) {
-    struct sig_dsp_LadderLPF* self = sig_MALLOC(allocator,
-        struct sig_dsp_LadderLPF);
-    sig_dsp_LadderLPF_init(self, context);
+    struct sig_dsp_Ladder* self = sig_MALLOC(allocator,
+        struct sig_dsp_Ladder);
+    sig_dsp_Ladder_init(self, context);
     sig_dsp_FourPoleFilter_Outputs_newAudioBlocks(allocator,
         context->audioSettings, &self->outputs);
 
     return self;
 }
 
-void sig_dsp_LadderLPF_init(
-    struct sig_dsp_LadderLPF* self,
+void sig_dsp_Ladder_init(
+    struct sig_dsp_Ladder* self,
     struct sig_SignalContext* context) {
-    sig_dsp_Signal_init(self, context, *sig_dsp_LadderLPF_generate);
+    sig_dsp_Signal_init(self, context, *sig_dsp_Ladder_generate);
 
-    struct sig_dsp_LadderLPF_Parameters parameters = {
+    struct sig_dsp_Ladder_Parameters parameters = {
         .passbandGain = 0.5f,
         .overdrive = 1.0f
     };
@@ -2402,10 +2410,14 @@ void sig_dsp_LadderLPF_init(
     sig_CONNECT_TO_SILENCE(self, source, context);
     sig_CONNECT_TO_SILENCE(self, frequency, context);
     sig_CONNECT_TO_SILENCE(self, resonance, context);
+    sig_CONNECT_TO_SILENCE(self, stage1Mix, context);
+    sig_CONNECT_TO_SILENCE(self, stage2Mix, context);
+    sig_CONNECT_TO_SILENCE(self, stage3Mix, context);
+    sig_CONNECT_TO_UNITY(self, stage4Mix, context);
 }
 
-inline void sig_dsp_LadderLPF_calcCoefficients(
-    struct sig_dsp_LadderLPF* self, float freq) {
+inline void sig_dsp_Ladder_calcCoefficients(
+    struct sig_dsp_Ladder* self, float freq) {
     float sampleRate = self->signal.audioSettings->sampleRate;
     freq = sig_clamp(freq, 5.0f, sampleRate * 0.425f);
     float wc = freq * (float) (sig_TWOPI /
@@ -2416,8 +2428,8 @@ inline void sig_dsp_LadderLPF_calcCoefficients(
     self->qAdjust = 1.006f + 0.0536f * wc - 0.095f * wc2 - 0.05f * wc2 * wc2;
 }
 
-inline float sig_dsp_LadderLPF_calcStage(
-    struct sig_dsp_LadderLPF* self, float s, uint8_t i) {
+inline float sig_dsp_Ladder_calcStage(
+    struct sig_dsp_Ladder* self, float s, uint8_t i) {
     float ft = s * (1.0f/1.3f) + (0.3f/1.3f) * self->z0[i] - self->z1[i];
     ft = ft * self->alpha + self->z1[i];
     self->z1[i] = ft;
@@ -2425,9 +2437,9 @@ inline float sig_dsp_LadderLPF_calcStage(
     return ft;
 }
 
-void sig_dsp_LadderLPF_generate(void* signal) {
-    struct sig_dsp_LadderLPF* self =
-        (struct sig_dsp_LadderLPF*) signal;
+void sig_dsp_Ladder_generate(void* signal) {
+    struct sig_dsp_Ladder* self =
+        (struct sig_dsp_Ladder*) signal;
     float interpolationRecip = self->interpolationRecip;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
@@ -2435,17 +2447,15 @@ void sig_dsp_LadderLPF_generate(void* signal) {
             self->parameters.overdrive;
         float frequency = FLOAT_ARRAY(self->inputs.frequency)[i];
         float resonance = FLOAT_ARRAY(self->inputs.resonance)[i];
-        float total12db = 0.0f;
-        float total24db = 0.0f;
+        float totals[4] = {0.0f, 0.0f, 0.0f, 0.0f};
         float interp = 0.0f;
 
         // Recalculate coefficients if the frequency has changed.
         if (frequency != self->prevFrequency) {
-            sig_dsp_LadderLPF_calcCoefficients(self, frequency);
+            sig_dsp_Ladder_calcCoefficients(self, frequency);
             self->prevFrequency = frequency;
         }
 
-        // FIXME: This need only be updated if resonance was changed.
         self->k = 4.0f * resonance;
 
         for (size_t os = 0; os < self->interpolation; os++) {
@@ -2453,26 +2463,33 @@ void sig_dsp_LadderLPF_generate(void* signal) {
                 (self->z1[3] - self->parameters.passbandGain * input) *
                 self->k * self->qAdjust;
             u = sig_fastTanhf(u);
-            float stage1 = sig_dsp_LadderLPF_calcStage(self,
+            float stage1 = sig_dsp_Ladder_calcStage(self,
                 u, 0);
-            float stage2 = sig_dsp_LadderLPF_calcStage(self,
+            totals[0] += stage1 * interpolationRecip;
+            float stage2 = sig_dsp_Ladder_calcStage(self,
                 stage1, 1);
-            total12db += stage2 * interpolationRecip;
-            float stage3 = sig_dsp_LadderLPF_calcStage(self,
+            totals[1] += stage2 * interpolationRecip;
+            float stage3 = sig_dsp_Ladder_calcStage(self,
                 stage2, 2);
-            float stage4 = sig_dsp_LadderLPF_calcStage(self,
+            totals[2] += stage3 * interpolationRecip;
+            float stage4 = sig_dsp_Ladder_calcStage(self,
                 stage3, 3);
-            total24db += stage4 * interpolationRecip;
+            totals[3] += stage4 * interpolationRecip;
             interp += interpolationRecip;
         }
         self->prevInput = input;
-        FLOAT_ARRAY(self->outputs.main)[i] = total24db;
-        FLOAT_ARRAY(self->outputs.twoPole)[i] = total12db;
+        FLOAT_ARRAY(self->outputs.main)[i] =
+            (totals[0] * FLOAT_ARRAY(self->inputs.stage1Mix)[i]) +
+            (totals[1] * FLOAT_ARRAY(self->inputs.stage2Mix)[i]) +
+            (totals[2] * FLOAT_ARRAY(self->inputs.stage3Mix)[i]) +
+            (totals[3] * FLOAT_ARRAY(self->inputs.stage4Mix)[i]);
+        FLOAT_ARRAY(self->outputs.twoPole)[i] = totals[1];
+        FLOAT_ARRAY(self->outputs.fourPole)[i] = totals[3];
     }
 }
 
-void sig_dsp_LadderLPF_destroy(struct sig_Allocator* allocator,
-    struct sig_dsp_LadderLPF* self) {
+void sig_dsp_Ladder_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Ladder* self) {
     sig_dsp_FourPoleFilter_Outputs_destroyAudioBlocks(allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);

@@ -42,8 +42,8 @@ struct sig_dsp_Branch* rightFrequencyCVSkewed;
 struct sig_dsp_LinearToFreq* rightFrequency;
 struct sig_daisy_AudioIn* leftIn;
 struct sig_daisy_AudioIn* rightIn;
-struct sig_dsp_LadderLPF* leftFilter;
-struct sig_dsp_LadderLPF* rightFilter;
+struct sig_dsp_Ladder* leftFilter;
+struct sig_dsp_Ladder* rightFilter;
 struct sig_daisy_AudioOut* leftOut;
 struct sig_daisy_AudioOut* rightOut;
 
@@ -51,7 +51,7 @@ void UpdateOled() {
     bluemchen.display.Fill(false);
 
     displayStr.Clear();
-    displayStr.Append("  ~bob~  ");
+    displayStr.Append(" Bifocals");
     bluemchen.display.SetCursor(0, 0);
     bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
@@ -82,14 +82,16 @@ void buildSignalGraph(struct sig_SignalContext* context,
     frequencyKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
     sig_List_append(&signals, frequencyKnob, status);
     frequencyKnob->parameters.control = sig_daisy_Bluemchen_CV_IN_KNOB_1;
-    frequencyKnob->parameters.scale = 9.5f; // 7.25f for Bob
-    frequencyKnob->parameters.offset = -4.5f; // -4.0f for Bob
+    frequencyKnob->parameters.scale = 10.0f;
+    frequencyKnob->parameters.offset = -5.0f;
+    frequencyKnob->parameters.time = 0.1f;
 
     vOctCVIn = sig_daisy_FilteredCVIn_new(&allocator, context, host);
     sig_List_append(&signals, vOctCVIn, status);
     vOctCVIn->parameters.control =  sig_daisy_Bluemchen_CV_IN_CV1;
-    vOctCVIn->parameters.scale = 2.5f;
-    vOctCVIn->parameters.offset = -1.25f;
+    vOctCVIn->parameters.scale = 4.0f;
+    vOctCVIn->parameters.offset = -2.0f;
+    vOctCVIn->parameters.time = 0.1f;
 
     frequencyKnobPlusVOct = sig_dsp_Add_new(&allocator, context);
     sig_List_append(&signals, frequencyKnobPlusVOct, status);
@@ -101,6 +103,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     frequencySkewCV->parameters.control = sig_daisy_Bluemchen_CV_IN_CV2;
     frequencySkewCV->parameters.scale = 5.0f;
     frequencySkewCV->parameters.offset = -2.5f;
+    frequencySkewCV->parameters.time = 0.1f;
 
     rectifiedSkew = sig_dsp_Abs_new(&allocator, context);
     sig_List_append(&signals, rectifiedSkew, status);
@@ -134,13 +137,13 @@ void buildSignalGraph(struct sig_SignalContext* context,
     resonanceKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
     sig_List_append(&signals, resonanceKnob, status);
     resonanceKnob->parameters.control = sig_daisy_Bluemchen_CV_IN_KNOB_2;
-    resonanceKnob->parameters.scale = 1.7f; // 4.0f for Bob
+    resonanceKnob->parameters.scale = 1.8f; // 4.0f for Bob
 
     leftIn = sig_daisy_AudioIn_new(&allocator, context, host);
     sig_List_append(&signals, leftIn, status);
     leftIn->parameters.channel = 0;
 
-    leftFilter = sig_dsp_LadderLPF_new(&allocator, context);
+    leftFilter = sig_dsp_Ladder_new(&allocator, context);
     sig_List_append(&signals, leftFilter, status);
     leftFilter->parameters.overdrive = 1.1f;
     leftFilter->parameters.passbandGain = 0.5f;
@@ -157,7 +160,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     sig_List_append(&signals, rightIn, status);
     rightIn->parameters.channel = 1;
 
-    rightFilter = sig_dsp_LadderLPF_new(&allocator, context);
+    rightFilter = sig_dsp_Ladder_new(&allocator, context);
     sig_List_append(&signals, rightFilter, status);
     rightFilter->parameters.overdrive = 1.1f;
     leftFilter->parameters.passbandGain = 0.5f;
@@ -177,7 +180,7 @@ int main(void) {
     struct sig_AudioSettings audioSettings = {
         .sampleRate = 96000,
         .numChannels = 2,
-        .blockSize = 8
+        .blockSize = 16
     };
 
     struct sig_Status status;

@@ -1627,23 +1627,32 @@ void sig_dsp_TwoOpFM_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_TwoOpFM* self);
 
 
-struct sig_dsp_Filter_Inputs {
+struct sig_dsp_FourPoleFilter_Inputs {
     float_array_ptr source;
     float_array_ptr frequency;
     float_array_ptr resonance;
+    float_array_ptr stage1Mix;
+    float_array_ptr stage2Mix;
+    float_array_ptr stage3Mix;
+    float_array_ptr stage4Mix;
 };
 
 
 struct sig_dsp_FourPoleFilter_Outputs {
     /**
-     * @brief The four pole 24 dB output from the filter.
+     * @brief A mix of all filter stages based on the stage mix inputs.
      */
     float_array_ptr main;
 
     /**
-     * @brief A two pole 12 dB output from the second stage of the filter.
+     * @brief The full two pole 12 dB output of the filter.
      */
     float_array_ptr twoPole;
+
+    /**
+     * @brief The full four pole 24 dB output from the filter.
+     */
+    float_array_ptr fourPole;
 };
 
 void sig_dsp_FourPoleFilter_Outputs_newAudioBlocks(
@@ -1682,9 +1691,9 @@ void sig_dsp_FourPoleFilter_Outputs_destroyAudioBlocks(
  *  - frequency: the cutoff frequency in Hz
  *  - resonance: the resonance; values > 4 lead to instability
  */
-struct sig_dsp_BobLPF {
+struct sig_dsp_Bob {
     struct sig_dsp_Signal signal;
-    struct sig_dsp_Filter_Inputs inputs;
+    struct sig_dsp_FourPoleFilter_Inputs inputs;
     // TODO: Add outputs for the other filter poles.
     struct sig_dsp_FourPoleFilter_Outputs outputs;
 
@@ -1701,19 +1710,19 @@ struct sig_dsp_BobLPF {
     float stepSize;
 };
 
-struct sig_dsp_BobLPF* sig_dsp_BobLPF_new(
+struct sig_dsp_Bob* sig_dsp_Bob_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context);
-void sig_dsp_BobLPF_init(struct sig_dsp_BobLPF* self,
+void sig_dsp_Bob_init(struct sig_dsp_Bob* self,
     struct sig_SignalContext* context);
-float sig_dsp_BobLPF_clip(float value, float saturation,
+float sig_dsp_Bob_clip(float value, float saturation,
     float saturationInv);
-void sig_dsp_BobLPF_generate(void* signal);
-void sig_dsp_BobLPF_destroy(struct sig_Allocator* allocator,
-    struct sig_dsp_BobLPF* self);
+void sig_dsp_Bob_generate(void* signal);
+void sig_dsp_Bob_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Bob* self);
 
 
 
-struct sig_dsp_LadderLPF_Parameters {
+struct sig_dsp_Ladder_Parameters {
     /**
      * @brief The passband gain of the filter (best between 0.0-0.5),
      * higher values will amplify the lower frequencies when resonance is high.
@@ -1738,11 +1747,10 @@ struct sig_dsp_LadderLPF_Parameters {
  *  - frequency: the cutoff frequency in Hz
  *  - resonance: the resonance (stable values in the range 0 - 1.8)
  */
-struct sig_dsp_LadderLPF {
+struct sig_dsp_Ladder {
     struct sig_dsp_Signal signal;
-    struct sig_dsp_Filter_Inputs inputs;
-    struct sig_dsp_LadderLPF_Parameters parameters;
-    // TODO: Add outputs for the other filter poles.
+    struct sig_dsp_FourPoleFilter_Inputs inputs;
+    struct sig_dsp_Ladder_Parameters parameters;
     struct sig_dsp_FourPoleFilter_Outputs outputs;
 
     uint8_t interpolation;
@@ -1758,18 +1766,18 @@ struct sig_dsp_LadderLPF {
     float prevInput;
 };
 
-struct sig_dsp_LadderLPF* sig_dsp_LadderLPF_new(
+struct sig_dsp_Ladder* sig_dsp_Ladder_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context);
-void sig_dsp_LadderLPF_init(
-    struct sig_dsp_LadderLPF* self,
+void sig_dsp_Ladder_init(
+    struct sig_dsp_Ladder* self,
     struct sig_SignalContext* context);
-void sig_dsp_LadderLPF_calcCoefficients(
-    struct sig_dsp_LadderLPF* self, float freq);
-float sig_dsp_LadderLPF_calcStage(
-    struct sig_dsp_LadderLPF* self, float s, uint8_t i);
-void sig_dsp_LadderLPF_generate(void* signal);
-void sig_dsp_LadderLPF_destroy(struct sig_Allocator* allocator,
-    struct sig_dsp_LadderLPF* self);
+void sig_dsp_Ladder_calcCoefficients(
+    struct sig_dsp_Ladder* self, float freq);
+float sig_dsp_Ladder_calcStage(
+    struct sig_dsp_Ladder* self, float s, uint8_t i);
+void sig_dsp_Ladder_generate(void* signal);
+void sig_dsp_Ladder_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Ladder* self);
 
 
 
