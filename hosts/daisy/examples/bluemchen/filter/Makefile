@@ -10,7 +10,7 @@ C_INCLUDES += -I../../../../../libsignaletic/vendor/tlsf -I../../../../../libsig
 
 CPP_SOURCES = ../../../vendor/kxmx_bluemchen/src/kxmx_bluemchen.cpp ../../../src/signaletic-daisy-host.cpp ../../../src/daisy-bluemchen-host.cpp src/${TARGET}.cpp
 
-USE_FATFS = 1
+USE_FATFS = 0
 
 # Library Locations
 LIBDAISY_DIR = ../../../vendor/libDaisy

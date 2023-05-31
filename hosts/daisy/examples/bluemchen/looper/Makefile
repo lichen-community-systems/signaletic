@@ -1,8 +1,8 @@
 # Project Name
 TARGET ?= signaletic-bluemchen-looper
 
-DEBUG = 1
-OPT = -O0
+DEBUG = 0
+OPT = -O3
 
 # Sources
 C_SOURCES += ../../../../../libsignaletic/vendor/tlsf/tlsf.c ../../../../../libsignaletic/src/libsignaletic.c

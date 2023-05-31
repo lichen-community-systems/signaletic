@@ -1,8 +1,8 @@
 # Project Name
 TARGET ?= signaletic-dpt-lfos
 
-DEBUG = 1
-OPT = -O0
+DEBUG = 0
+OPT = -O3
 
 # Sources
 C_SOURCES += ../../../../../libsignaletic/vendor/tlsf/tlsf.c ../../../../../libsignaletic/src/libsignaletic.c
@@ -11,7 +11,7 @@ C_INCLUDES += -I../../../../../libsignaletic/vendor/tlsf -I../../../../../libsig
 CPP_INCLUDES += -I../vendor/lib -I../../../vendor/lib/dev -I../../../include
 CPP_SOURCES = src/${TARGET}.cpp ../../../vendor/dpt/lib/daisy_dpt.cpp ../../../vendor/dpt/lib/dev/DAC7554.cpp ../../../src/signaletic-daisy-host.cpp ../../../src/daisy-dpt-host.cpp
 
-USE_FATFS = 1
+USE_FATFS = 0
 
 # Library Locations
 LIBDAISY_DIR = ../../../vendor/libDaisy

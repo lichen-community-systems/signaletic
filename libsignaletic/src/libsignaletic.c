@@ -2254,6 +2254,7 @@ void sig_dsp_Bob_init(struct sig_dsp_Bob* self,
     sig_CONNECT_TO_SILENCE(self, source, context);
     sig_CONNECT_TO_SILENCE(self, frequency, context);
     sig_CONNECT_TO_SILENCE(self, resonance, context);
+    sig_CONNECT_TO_SILENCE(self, inputMix, context);
     sig_CONNECT_TO_SILENCE(self, stage1Mix, context);
     sig_CONNECT_TO_SILENCE(self, stage2Mix, context);
     sig_CONNECT_TO_SILENCE(self, stage3Mix, context);
@@ -2356,6 +2357,7 @@ void sig_dsp_Bob_generate(void* signal) {
         }
 
         FLOAT_ARRAY(self->outputs.main)[i] =
+            (input * FLOAT_ARRAY(self->inputs.inputMix)[i]) +
             (self->state[0] * FLOAT_ARRAY(self->inputs.stage1Mix)[i]) +
             (self->state[1] * FLOAT_ARRAY(self->inputs.stage2Mix)[i]) +
             (self->state[2] * FLOAT_ARRAY(self->inputs.stage3Mix)[i]) +
@@ -2410,6 +2412,7 @@ void sig_dsp_Ladder_init(
     sig_CONNECT_TO_SILENCE(self, source, context);
     sig_CONNECT_TO_SILENCE(self, frequency, context);
     sig_CONNECT_TO_SILENCE(self, resonance, context);
+    sig_CONNECT_TO_SILENCE(self, inputMix, context);
     sig_CONNECT_TO_SILENCE(self, stage1Mix, context);
     sig_CONNECT_TO_SILENCE(self, stage2Mix, context);
     sig_CONNECT_TO_SILENCE(self, stage3Mix, context);
@@ -2479,6 +2482,7 @@ void sig_dsp_Ladder_generate(void* signal) {
         }
         self->prevInput = input;
         FLOAT_ARRAY(self->outputs.main)[i] =
+            (input * FLOAT_ARRAY(self->inputs.inputMix)[i]) +
             (totals[0] * FLOAT_ARRAY(self->inputs.stage1Mix)[i]) +
             (totals[1] * FLOAT_ARRAY(self->inputs.stage2Mix)[i]) +
             (totals[2] * FLOAT_ARRAY(self->inputs.stage3Mix)[i]) +

@@ -1,5 +1,5 @@
 # Project Name
-TARGET ?= patch-init-fm-osc
+TARGET ?= signaletic-versio-filter
 
 DEBUG = 0
 OPT = -O3
@@ -9,7 +9,7 @@ C_SOURCES += ../../../../../libsignaletic/vendor/tlsf/tlsf.c ../../../../../libs
 C_INCLUDES += -I../../../../../libsignaletic/vendor/tlsf -I../../../../../libsignaletic/include
 
 CPP_INCLUDES += -I../vendor/lib -I../../../vendor/lib/dev -I../../../include
-CPP_SOURCES = src/${TARGET}.cpp ../../../src/signaletic-daisy-host.cpp ../../../src/daisy-patch-sm-host.cpp
+CPP_SOURCES = src/${TARGET}.cpp ../../../src/signaletic-daisy-host.cpp ../../../src/daisy-versio-host.cpp
 
 USE_FATFS = 0
 

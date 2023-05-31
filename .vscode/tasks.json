@@ -123,6 +123,20 @@
             "type": "shell"
         },
         {
+            "label": "Debug Build Versio Examples",
+            "dependsOn": [
+                "Build libdaisy"
+            ],
+            "command": "make clean;DEBUG=1 make",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/versio"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
             "label": "Build Bluemchen Examples",
             "dependsOn": [
                 "Build libdaisy"

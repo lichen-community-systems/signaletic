@@ -1631,6 +1631,7 @@ struct sig_dsp_FourPoleFilter_Inputs {
     float_array_ptr source;
     float_array_ptr frequency;
     float_array_ptr resonance;
+    float_array_ptr inputMix;
     float_array_ptr stage1Mix;
     float_array_ptr stage2Mix;
     float_array_ptr stage3Mix;

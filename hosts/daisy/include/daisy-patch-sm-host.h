@@ -99,10 +99,6 @@ enum {
 
 const int sig_daisy_PatchInit_NUM_SWITCHES = sig_daisy_PatchInit_SWITCH_LAST;
 
-
-// TODO: Add support for the Patch Init's switch and button.
-
-
 extern struct sig_daisy_Host_Impl sig_daisy_PatchSMHostImpl;
 
 void sig_daisy_PatchSMHostImpl_start(

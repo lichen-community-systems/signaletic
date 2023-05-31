@@ -193,6 +193,36 @@
         "showDevDebugOutput": "parsed",
         "svdFile": "${workspaceRoot}/.vscode/STM32H750x.svd",
         "type": "cortex-debug"
+      },
+      {
+        "name": "Remote Versio Filter",
+        "configFiles": [
+          "interface/stlink.cfg",
+          "target/stm32h7x.cfg"
+        ],
+        "cwd": "${workspaceFolder}/hosts/daisy/examples/versio/filter",
+        "debuggerArgs": [
+          "-d",
+          "${workspaceRoot}/hosts/daisy/examples/versio/filter"
+        ],
+        "executable": "${workspaceRoot}/hosts/daisy/examples/versio/filter/build/signaletic-versio-filter.elf",
+        "interface": "swd",
+        "openOCDLaunchCommands": [
+          "init",
+          "reset init"
+        ],
+        "preLaunchTask": "Debug Build Versio Examples",
+        "preRestartCommands": [
+          "load",
+          "enable breakpoint",
+          "monitor reset"
+        ],
+        "request": "launch",
+        "runToEntryPoint": "main",
+        "servertype": "openocd",
+        "showDevDebugOutput": "parsed",
+        "svdFile": "${workspaceRoot}/.vscode/STM32H750x.svd",
+        "type": "cortex-debug"
       }
     ],
     "version": "0.2.0"
