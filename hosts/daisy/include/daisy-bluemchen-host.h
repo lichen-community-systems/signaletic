@@ -14,6 +14,7 @@ const int sig_daisy_Bluemchen_NUM_ANALOG_OUTPUTS = 0;
 const int sig_daisy_Bluemchen_NUM_GATE_INPUTS = 0;
 const int sig_daisy_Bluemchen_NUM_GATE_OUTPUTS = 0;
 const int sig_daisy_Bluemchen_NUM_SWITCHES = 0;
+const int sig_daisy_Bluemchen_NUM_ENCODERS = 1;
 
 enum {
     sig_daisy_Nehcmeulb_CV_IN_KNOB1 = kxmx::Bluemchen::Ctrl::CTRL_1,
@@ -33,6 +34,7 @@ const int sig_daisy_Nehcmeulb_NUM_ANALOG_OUTPUTS = 2;
 const int sig_daisy_Nehcmeulb_NUM_GATE_INPUTS = 0;
 const int sig_daisy_Nehcmeulb_NUM_GATE_OUTPUTS = 0;
 const int sig_daisy_Nehcmeulb_NUM_SWITCHES = 0;
+const int sig_daisy_Nehcmeulb_NUM_ENCODERS = 1;
 
 extern struct sig_daisy_Host_Impl sig_daisy_BluemchenHostImpl;
 

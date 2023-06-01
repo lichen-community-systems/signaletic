@@ -29,6 +29,58 @@ struct sig_dsp_SignalListEvaluator* evaluator;
 Bluemchen bluemchen;
 struct sig_daisy_Host* host;
 
+#define NUM_FILTER_MODES 6
+#define NUM_FILTER_STAGES 5
+
+float mixingCoefficients[NUM_FILTER_STAGES][NUM_FILTER_MODES] = {
+    // 4 pole LP, 2 pole LP, 2 pole BP, 4 pole BP, 4 pole HP, 2 pole HP.
+    {0, 0,  0,  0,  1,  1}, // Input gain (A)
+    {0, 0,  2,  0, -4, -2}, // Stage 1 (B)
+    {0, 1, -2,  4,  6,  1}, // Stage 2 (C)
+    {0, 0,  0, -8, -4,  0}, // Stage 3 (D)
+    {1, 0,  0,  4,  1,  0}  // Stage 4 (E)
+};
+
+const char filterModeStrings[NUM_FILTER_MODES][4] = {
+    "4LP", "2LP", "2BP", "4BP", "4HP", "2HP"
+};
+
+struct sig_Buffer aCoefficientBuffer = {
+    .length = NUM_FILTER_MODES,
+    .samples = mixingCoefficients[0]
+};
+
+struct sig_Buffer bCoefficientBuffer = {
+    .length = NUM_FILTER_MODES,
+    .samples = mixingCoefficients[1]
+};
+
+struct sig_Buffer cCoefficientBuffer = {
+    .length = NUM_FILTER_MODES,
+    .samples = mixingCoefficients[2]
+};
+
+struct sig_Buffer dCoefficientBuffer = {
+    .length = NUM_FILTER_MODES,
+    .samples = mixingCoefficients[3]
+};
+
+struct sig_Buffer eCoefficientBuffer = {
+    .length = NUM_FILTER_MODES,
+    .samples = mixingCoefficients[4]
+};
+
+struct sig_daisy_EncoderIn* encoderIn;
+struct sig_dsp_List* aList;
+struct sig_dsp_Smooth* aSmooth;
+struct sig_dsp_List* bList;
+struct sig_dsp_Smooth* bSmooth;
+struct sig_dsp_List* cList;
+struct sig_dsp_Smooth* cSmooth;
+struct sig_dsp_List* dList;
+struct sig_dsp_Smooth* dSmooth;
+struct sig_dsp_List* eList;
+struct sig_dsp_Smooth* eSmooth;
 struct sig_daisy_FilteredCVIn* frequencyKnob;
 struct sig_daisy_FilteredCVIn* resonanceKnob;
 struct sig_daisy_FilteredCVIn* vOctCVIn;
@@ -44,6 +96,8 @@ struct sig_daisy_AudioIn* leftIn;
 struct sig_daisy_AudioIn* rightIn;
 struct sig_dsp_Ladder* leftFilter;
 struct sig_dsp_Ladder* rightFilter;
+struct sig_dsp_Tanh* leftSaturation;
+struct sig_dsp_Tanh* rightSaturation;
 struct sig_daisy_AudioOut* leftOut;
 struct sig_daisy_AudioOut* rightOut;
 
@@ -72,11 +126,80 @@ void UpdateOled() {
     bluemchen.display.SetCursor(0, 16);
     bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
+    displayStr.Clear();
+    displayStr.Append(filterModeStrings[(size_t) aList->outputs.index[0]]);
+    bluemchen.display.SetCursor(0, 24);
+    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+
     bluemchen.display.Update();
 }
 
 void buildSignalGraph(struct sig_SignalContext* context,
      struct sig_Status* status) {
+    encoderIn = sig_daisy_EncoderIn_new(&allocator, context, host);
+    sig_List_append(&signals, encoderIn, status);
+    encoderIn->parameters.control = 0;
+
+    aList = sig_dsp_List_new(&allocator, context);
+    sig_List_append(&signals, aList, status);
+    aList->list = &aCoefficientBuffer;
+    aList->parameters.wrap = 1.0f;
+    aList->parameters.normalizeIndex = 0.0f;
+    aList->inputs.index = encoderIn->outputs.main;
+
+    aSmooth = sig_dsp_Smooth_new(&allocator, context);
+    sig_List_append(&signals, aSmooth, status);
+    aSmooth->inputs.source = aList->outputs.main;
+    aSmooth->parameters.time = 0.1f;
+
+    bList = sig_dsp_List_new(&allocator, context);
+    sig_List_append(&signals, bList, status);
+    bList->list = &bCoefficientBuffer;
+    bList->parameters.wrap = 1.0f;
+    bList->parameters.normalizeIndex = 0.0f;
+    bList->inputs.index = encoderIn->outputs.main;
+
+    bSmooth = sig_dsp_Smooth_new(&allocator, context);
+    sig_List_append(&signals, bSmooth, status);
+    bSmooth->inputs.source = bList->outputs.main;
+    bSmooth->parameters.time = 0.1f;
+
+    cList = sig_dsp_List_new(&allocator, context);
+    sig_List_append(&signals, cList, status);
+    cList->list = &cCoefficientBuffer;
+    cList->parameters.wrap = 1.0f;
+    cList->parameters.normalizeIndex = 0.0f;
+    cList->inputs.index = encoderIn->outputs.main;
+
+    cSmooth = sig_dsp_Smooth_new(&allocator, context);
+    sig_List_append(&signals, cSmooth, status);
+    cSmooth->inputs.source = cList->outputs.main;
+    cSmooth->parameters.time = 0.1f;
+
+    dList = sig_dsp_List_new(&allocator, context);
+    sig_List_append(&signals, dList, status);
+    dList->list = &dCoefficientBuffer;
+    dList->parameters.wrap = 1.0f;
+    dList->parameters.normalizeIndex = 0.0f;
+    dList->inputs.index = encoderIn->outputs.main;
+
+    dSmooth = sig_dsp_Smooth_new(&allocator, context);
+    sig_List_append(&signals, dSmooth, status);
+    dSmooth->inputs.source = dList->outputs.main;
+    dSmooth->parameters.time = 0.1f;
+
+    eList = sig_dsp_List_new(&allocator, context);
+    sig_List_append(&signals, eList, status);
+    eList->list = &eCoefficientBuffer;
+    eList->parameters.wrap = 1.0f;
+    eList->parameters.normalizeIndex = 0.0f;
+    eList->inputs.index = encoderIn->outputs.main;
+
+    eSmooth = sig_dsp_Smooth_new(&allocator, context);
+    sig_List_append(&signals, eSmooth, status);
+    eSmooth->inputs.source = eList->outputs.main;
+    eSmooth->parameters.time = 0.1f;
+
     // Bluemchen AnalogControls are all unipolar,
     // so they need to be scaled to bipolar values.
     frequencyKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
@@ -150,11 +273,20 @@ void buildSignalGraph(struct sig_SignalContext* context,
     leftFilter->inputs.source = leftIn->outputs.main;
     leftFilter->inputs.frequency = leftFrequency->outputs.main;
     leftFilter->inputs.resonance = resonanceKnob->outputs.main;
+    leftFilter->inputs.inputMix = aSmooth->outputs.main;
+    leftFilter->inputs.stage1Mix = bSmooth->outputs.main;
+    leftFilter->inputs.stage2Mix = cSmooth->outputs.main;
+    leftFilter->inputs.stage3Mix = dSmooth->outputs.main;
+    leftFilter->inputs.stage4Mix = eSmooth->outputs.main;
+
+    leftSaturation = sig_dsp_Tanh_new(&allocator, context);
+    sig_List_append(&signals, leftSaturation, status);
+    leftSaturation->inputs.source = leftFilter->outputs.main;
 
     leftOut = sig_daisy_AudioOut_new(&allocator, context, host);
     sig_List_append(&signals, leftOut, status);
     leftOut->parameters.channel = 0;
-    leftOut->inputs.source = leftFilter->outputs.main;
+    leftOut->inputs.source = leftSaturation->outputs.main;
 
     rightIn = sig_daisy_AudioIn_new(&allocator, context, host);
     sig_List_append(&signals, rightIn, status);
@@ -167,11 +299,20 @@ void buildSignalGraph(struct sig_SignalContext* context,
     rightFilter->inputs.source = rightIn->outputs.main;
     rightFilter->inputs.frequency = rightFrequency->outputs.main;
     rightFilter->inputs.resonance = resonanceKnob->outputs.main;
+    rightFilter->inputs.inputMix = aSmooth->outputs.main;
+    rightFilter->inputs.stage1Mix = bSmooth->outputs.main;
+    rightFilter->inputs.stage2Mix = cSmooth->outputs.main;
+    rightFilter->inputs.stage3Mix = dSmooth->outputs.main;
+    rightFilter->inputs.stage4Mix = eSmooth->outputs.main;
+
+    rightSaturation = sig_dsp_Tanh_new(&allocator, context);
+    sig_List_append(&signals, rightSaturation, status);
+    rightSaturation->inputs.source = rightFilter->outputs.main;
 
     rightOut = sig_daisy_AudioOut_new(&allocator, context, host);
     sig_List_append(&signals, rightOut, status);
     rightOut->parameters.channel = 1;
-    rightOut->inputs.source = rightFilter->outputs.main;
+    rightOut->inputs.source = rightSaturation->outputs.main;
 }
 
 int main(void) {

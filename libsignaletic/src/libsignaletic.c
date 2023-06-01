@@ -2039,12 +2039,14 @@ void sig_dsp_List_Outputs_newAudioBlocks(struct sig_Allocator* allocator,
     struct sig_AudioSettings* audioSettings,
     struct sig_dsp_List_Outputs* outputs) {
     outputs->main = sig_AudioBlock_newSilent(allocator, audioSettings);
+    outputs->index = sig_AudioBlock_newSilent(allocator, audioSettings);
     outputs->length = sig_AudioBlock_newSilent(allocator, audioSettings);
 }
 
 void sig_dsp_List_Outputs_destroyAudioBlocks(struct sig_Allocator* allocator,
     struct sig_dsp_List_Outputs* outputs) {
     sig_AudioBlock_destroy(allocator, outputs->main);
+    sig_AudioBlock_destroy(allocator, outputs->index);
     sig_AudioBlock_destroy(allocator, outputs->length);
 }
 
@@ -2062,6 +2064,7 @@ void sig_dsp_List_init(struct sig_dsp_List* self,
     struct sig_SignalContext* context) {
     sig_dsp_Signal_init(self, context, *sig_dsp_List_generate);
     self->parameters.wrap = 1.0f;
+    self->parameters.normalizeIndex = 1.0f;
     sig_CONNECT_TO_SILENCE(self, index, context);
 }
 
@@ -2083,12 +2086,14 @@ void sig_dsp_List_generate(void* signal) {
         // There's nothing in the list; just output silence.
         for (size_t i = 0; i < blockSize; i++) {
             FLOAT_ARRAY(self->outputs.main)[i] = 0.0f;
+            FLOAT_ARRAY(self->outputs.index)[i] = -1.0f;
             FLOAT_ARRAY(self->outputs.length)[i] = listLengthF;
         }
     } else {
         for (size_t i = 0; i < blockSize; i++) {
             float index = FLOAT_ARRAY(self->inputs.index)[i];
-            float scaledIndex = index * lastIndexF;
+            float scaledIndex = self->parameters.normalizeIndex > 0.0f ?
+                index * lastIndexF : index;
             float roundedIndex = roundf(scaledIndex);
             float wrappedIndex = shouldWrap ?
                 sig_flooredfmodf(roundedIndex, listLengthF) :
@@ -2096,6 +2101,7 @@ void sig_dsp_List_generate(void* signal) {
 
             float sample = FLOAT_ARRAY(list->samples)[(size_t) wrappedIndex];
             FLOAT_ARRAY(self->outputs.main)[i] = sample;
+            FLOAT_ARRAY(self->outputs.index)[i] = wrappedIndex;
             FLOAT_ARRAY(self->outputs.length)[i] = listLengthF;
         }
     }

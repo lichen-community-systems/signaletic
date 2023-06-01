@@ -160,6 +160,34 @@ float sig_daisy_HostImpl_getSwitchValue(struct sig_daisy_Host* host,
     return sample;
 }
 
+float sig_daisy_HostImpl_getEncoderIncrement(struct sig_daisy_Host* host,
+    int control) {
+    float increment = 0.0f;
+
+    if (control > -1 && control < host->board.config->numEncoders) {
+        daisy::Encoder* enc = host->board.encoders[control];
+        increment = (float) enc->Increment();
+    }
+
+    return increment;
+}
+
+float sig_daisy_HostImpl_processEncoderButtonValue(struct sig_daisy_Host* host,
+    int control) {
+    bool isPressed = false;
+
+    if (control > -1 && control < host->board.config->numEncoders) {
+        daisy::Encoder* enc = host->board.encoders[control];
+        // TODO: We need to separate the evaluation of controls
+        // from value retrieval so that multiple instances that are
+        // bound to a signal control won't cause time to "tick" too fast.
+        enc->Debounce();
+        isPressed = enc->Pressed();
+    }
+
+    return isPressed ? 1.0f : 0.0f;
+}
+
 struct sig_daisy_GateIn* sig_daisy_GateIn_new(
     struct sig_Allocator* allocator,
     struct sig_SignalContext* context,
@@ -437,6 +465,74 @@ void sig_daisy_SwitchIn_generate(void* signal) {
 void sig_daisy_SwitchIn_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_SwitchIn* self) {
     sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
+}
+
+
+void sig_daisy_EncoderIn_Outputs_newAudioBlocks(struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_daisy_EncoderIn_Outputs* outputs) {
+    outputs->main = sig_AudioBlock_newSilent(allocator, audioSettings);
+    outputs->button = sig_AudioBlock_newSilent(allocator, audioSettings);
+}
+
+void sig_daisy_EncoderIn_Outputs_destroyAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_daisy_EncoderIn_Outputs* outputs) {
+    sig_AudioBlock_destroy(allocator, outputs->main);
+    sig_AudioBlock_destroy(allocator, outputs->button);
+}
+
+struct sig_daisy_EncoderIn* sig_daisy_EncoderIn_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context,
+    struct sig_daisy_Host* host) {
+    struct sig_daisy_EncoderIn* self = sig_MALLOC(allocator,
+        struct sig_daisy_EncoderIn);
+    sig_daisy_EncoderIn_init(self, context, host);
+    sig_daisy_EncoderIn_Outputs_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_daisy_EncoderIn_init(struct sig_daisy_EncoderIn* self,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host) {
+    sig_dsp_Signal_init(self, context, *sig_daisy_EncoderIn_generate);
+    self->host = host;
+    self->parameters = {
+        .scale = 1.0f,
+        .offset = 0.0f,
+        .control = 0
+    };
+
+    self->accumulatedValue = 0.0f;
+}
+
+void sig_daisy_EncoderIn_generate(void* signal) {
+    struct sig_daisy_EncoderIn* self = (struct sig_daisy_EncoderIn*) signal;
+    struct sig_daisy_Host* host = self->host;
+    float scale = self->parameters.scale;
+    float offset = self->parameters.offset;
+    int control = self->parameters.control;
+
+    float incrementValue = host->impl->getEncoderIncrement(host, control);
+    float buttonValue = host->impl->getEncoderButtonValue(host, control);
+    float accumulatedValue = self->accumulatedValue + incrementValue;
+    float scaledAccumulatedValue = accumulatedValue * scale + offset;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        FLOAT_ARRAY(self->outputs.main)[i] = scaledAccumulatedValue;
+        FLOAT_ARRAY(self->outputs.increment)[i] = incrementValue;
+        FLOAT_ARRAY(self->outputs.button)[i] = buttonValue;
+    }
+
+    self->accumulatedValue = accumulatedValue;
+}
+
+void sig_daisy_EncoderIn_destroy(struct sig_Allocator* allocator,
+    struct sig_daisy_EncoderIn* self) {
+    sig_daisy_EncoderIn_Outputs_destroyAudioBlocks(allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
 }

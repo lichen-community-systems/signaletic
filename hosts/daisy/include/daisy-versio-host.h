@@ -16,6 +16,7 @@ const int sig_daisy_Versio_NUM_ANALOG_INPUTS = sig_daisy_Versio_CV_IN_LAST;
 const int sig_daisy_Versio_NUM_ANALOG_OUTPUTS = 0;
 const int sig_daisy_Versio_NUM_GATE_INPUTS = 0;
 const int sig_daisy_Versio_NUM_GATE_OUTPUTS = 0;
+const int sig_daisy_Versio_NUM_ENCODERS = 0;
 
 // Versio has one button
 enum {

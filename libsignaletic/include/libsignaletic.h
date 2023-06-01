@@ -1537,6 +1537,7 @@ struct sig_dsp_List_Inputs {
 
 struct sig_dsp_List_Outputs {
     float_array_ptr main;
+    float_array_ptr index;
     float_array_ptr length;
 };
 
@@ -1550,6 +1551,7 @@ void sig_dsp_List_Outputs_destroyAudioBlocks(struct sig_Allocator* allocator,
 
 struct sig_dsp_List_Parameters {
     float wrap;
+    float normalizeIndex;
 };
 
 struct sig_dsp_List {

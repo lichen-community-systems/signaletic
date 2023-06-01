@@ -7,7 +7,8 @@ struct sig_daisy_Host_BoardConfiguration sig_daisy_VersioConfig = {
     .numAnalogOutputs = sig_daisy_Versio_NUM_ANALOG_OUTPUTS,
     .numGateInputs = sig_daisy_Versio_NUM_GATE_INPUTS,
     .numGateOutputs = sig_daisy_Versio_NUM_GATE_OUTPUTS,
-    .numSwitches = sig_daisy_Versio_NUM_SWITCHES
+    .numSwitches = sig_daisy_Versio_NUM_SWITCHES,
+    .numEncoders = sig_daisy_Versio_NUM_ENCODERS
 };
 
 struct sig_daisy_Host_Impl sig_daisy_VersioHostImpl = {
@@ -16,6 +17,8 @@ struct sig_daisy_Host_Impl sig_daisy_VersioHostImpl = {
     .getGateValue = sig_daisy_HostImpl_noOpGetControl,
     .setGateValue = sig_daisy_HostImpl_noOpSetControl,
     .getSwitchValue = sig_daisy_HostImpl_getSwitchValue,
+    .getEncoderIncrement = sig_daisy_HostImpl_noOpGetControl,
+    .getEncoderButtonValue = sig_daisy_HostImpl_noOpGetControl,
     .start = sig_daisy_VersioHostImpl_start,
     .stop = sig_daisy_VersioHostImpl_stop
 };

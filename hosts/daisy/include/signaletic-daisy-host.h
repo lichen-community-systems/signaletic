@@ -1,6 +1,8 @@
 #include <libsignaletic.h>
 #include "daisy.h"
 
+#define MAX_NUM_CONTROLS 16
+
 enum {
     sig_daisy_AUDIO_IN_1 = 0,
     sig_daisy_AUDIO_IN_2,
@@ -33,6 +35,7 @@ struct sig_daisy_Host_BoardConfiguration {
     int numGateInputs;
     int numGateOutputs;
     int numSwitches;
+    int numEncoders;
 };
 
 struct sig_daisy_Host_Board {
@@ -41,9 +44,10 @@ struct sig_daisy_Host_Board {
     daisy::AudioHandle::OutputBuffer audioOutputs;
     daisy::AnalogControl* analogControls;
     daisy::DacHandle* dac;
-    daisy::GateIn* gateInputs[2];
-    dsy_gpio* gateOutputs[2];
-    daisy::Switch switches[2];
+    daisy::GateIn* gateInputs[MAX_NUM_CONTROLS];
+    dsy_gpio* gateOutputs[MAX_NUM_CONTROLS];
+    daisy::Switch switches[MAX_NUM_CONTROLS];
+    daisy::Encoder* encoders[MAX_NUM_CONTROLS];
     void* boardInstance;
 };
 
@@ -110,6 +114,12 @@ typedef void (*sig_daisy_Host_setGateValue)(
 typedef float (*sig_daisy_Host_getSwitchValue)(
     struct sig_daisy_Host* host, int control);
 
+typedef float (*sig_daisy_Host_getEncoderIncrement)(
+    struct sig_daisy_Host* host, int control);
+
+typedef float (*sig_daisy_Host_getEncoderButtonValue)(
+    struct sig_daisy_Host* host, int control);
+
 typedef void (*sig_daisy_Host_start)(struct sig_daisy_Host* host);
 typedef void (*sig_daisy_Host_stop)(struct sig_daisy_Host* host);
 
@@ -119,6 +129,8 @@ struct sig_daisy_Host_Impl {
     sig_daisy_Host_getGateValue getGateValue;
     sig_daisy_Host_setGateValue setGateValue;
     sig_daisy_Host_getSwitchValue getSwitchValue;
+    sig_daisy_Host_getEncoderIncrement getEncoderIncrement;
+    sig_daisy_Host_getEncoderButtonValue getEncoderButtonValue;
     sig_daisy_Host_start start;
     sig_daisy_Host_stop stop;
 };
@@ -162,6 +174,12 @@ void sig_daisy_HostImpl_setGateValue(struct sig_daisy_Host* host,
     int control, float value);
 
 float sig_daisy_HostImpl_getSwitchValue(struct sig_daisy_Host* host,
+    int control);
+
+float sig_daisy_HostImpl_getEncoderIncrement(struct sig_daisy_Host* host,
+    int control);
+
+float sig_daisy_HostImpl_processEncoderButtonValue(struct sig_daisy_Host* host,
     int control);
 
 struct sig_daisy_CV_Parameters {
@@ -294,6 +312,58 @@ void sig_daisy_SwitchIn_init(struct sig_daisy_SwitchIn* self,
 void sig_daisy_SwitchIn_generate(void* signal);
 void sig_daisy_SwitchIn_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_SwitchIn* self);
+
+
+struct sig_daisy_EncoderIn_Outputs {
+    /**
+     * @brief The encoder's accumulated value.
+     * This output tracks the sum of all increment values over time.
+     */
+    float_array_ptr main;
+
+    /**
+     * @brief The encoder's increment value.
+     * This output represents the state of change of the encoder:
+     *  -1.0 if the encoder was turned counterclockwise,
+     *  +1.0 if turned clockwise,
+     *  0.0 if the encoder was not turned
+     */
+    float_array_ptr increment;  // The encoder's increment value
+
+    /**
+     * @brief A gate signal for the encoder's button.
+     * This output will be > 1.0 if the button is currently pressed,
+     * and 0.0 it is not.
+     */
+    float_array_ptr button;
+};
+
+void sig_daisy_EncoderIn_Outputs_newAudioBlocks(struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_daisy_EncoderIn_Outputs* outputs);
+
+void sig_daisy_EncoderIn_Outputs_destroyAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_daisy_EncoderIn_Outputs* outputs);
+
+struct sig_daisy_EncoderIn {
+    struct sig_dsp_Signal signal;
+    struct sig_daisy_CV_Parameters parameters;
+    struct sig_daisy_EncoderIn_Outputs outputs;
+    struct sig_daisy_Host* host;
+    daisy::Encoder encoder;
+
+    float accumulatedValue;
+};
+
+struct sig_daisy_EncoderIn* sig_daisy_EncoderIn_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context,
+    struct sig_daisy_Host* host);
+void sig_daisy_EncoderIn_init(struct sig_daisy_EncoderIn* self,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host);
+void sig_daisy_EncoderIn_generate(void* signal);
+void sig_daisy_EncoderIn_destroy(struct sig_Allocator* allocator,
+    struct sig_daisy_EncoderIn* self);
 
 
 struct sig_daisy_CVOut_Inputs {

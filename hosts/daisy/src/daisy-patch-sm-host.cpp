@@ -7,7 +7,8 @@ struct sig_daisy_Host_BoardConfiguration sig_daisy_PatchSMConfig = {
     .numAnalogOutputs = sig_daisy_PatchSM_NUM_ANALOG_OUTPUTS,
     .numGateInputs = sig_daisy_PatchSM_NUM_GATE_INPUTS,
     .numGateOutputs = sig_daisy_PatchSM_NUM_GATE_OUTPUTS,
-    .numSwitches = sig_daisy_PatchSM_NUM_SWITCHES
+    .numSwitches = sig_daisy_PatchSM_NUM_SWITCHES,
+    .numEncoders = sig_daisy_PatchSM_NUM_ENCODERS
 };
 
 struct sig_daisy_Host_BoardConfiguration sig_daisy_PatchInitConfig = {
@@ -17,7 +18,8 @@ struct sig_daisy_Host_BoardConfiguration sig_daisy_PatchInitConfig = {
     .numAnalogOutputs = sig_daisy_PatchInit_NUM_ANALOG_OUTPUTS,
     .numGateInputs = sig_daisy_PatchInit_NUM_GATE_INPUTS,
     .numGateOutputs = sig_daisy_PatchInit_NUM_GATE_OUTPUTS,
-    .numSwitches = sig_daisy_PatchInit_NUM_SWITCHES
+    .numSwitches = sig_daisy_PatchInit_NUM_SWITCHES,
+    .numEncoders = sig_daisy_PatchInit_NUM_ENCODERS
 };
 
 struct sig_daisy_Host_Impl sig_daisy_PatchSMHostImpl = {
@@ -26,6 +28,8 @@ struct sig_daisy_Host_Impl sig_daisy_PatchSMHostImpl = {
     .getGateValue = sig_daisy_HostImpl_getGateValue,
     .setGateValue = sig_daisy_HostImpl_setGateValue,
     .getSwitchValue = sig_daisy_HostImpl_getSwitchValue,
+    .getEncoderIncrement = sig_daisy_HostImpl_noOpGetControl,
+    .getEncoderButtonValue = sig_daisy_HostImpl_noOpGetControl,
     .start = sig_daisy_PatchSMHostImpl_start,
     .stop = sig_daisy_PatchSMHostImpl_stop
 };

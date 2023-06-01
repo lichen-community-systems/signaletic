@@ -7,7 +7,8 @@ struct sig_daisy_Host_BoardConfiguration sig_daisy_BluemchenConfig = {
     .numAnalogOutputs = sig_daisy_Bluemchen_NUM_ANALOG_OUTPUTS,
     .numGateInputs = sig_daisy_Bluemchen_NUM_GATE_INPUTS,
     .numGateOutputs = sig_daisy_Bluemchen_NUM_GATE_OUTPUTS,
-    .numSwitches = sig_daisy_Bluemchen_NUM_SWITCHES
+    .numSwitches = sig_daisy_Bluemchen_NUM_SWITCHES,
+    .numEncoders = sig_daisy_Bluemchen_NUM_ENCODERS
 };
 
 struct sig_daisy_Host_BoardConfiguration sig_daisy_NehcmeulbConfig = {
@@ -17,7 +18,8 @@ struct sig_daisy_Host_BoardConfiguration sig_daisy_NehcmeulbConfig = {
     .numAnalogOutputs = sig_daisy_Nehcmeulb_NUM_ANALOG_OUTPUTS,
     .numGateInputs = sig_daisy_Nehcmeulb_NUM_GATE_INPUTS,
     .numGateOutputs = sig_daisy_Nehcmeulb_NUM_GATE_OUTPUTS,
-    .numSwitches = sig_daisy_Nehcmeulb_NUM_SWITCHES
+    .numSwitches = sig_daisy_Nehcmeulb_NUM_SWITCHES,
+    .numEncoders = sig_daisy_Nehcmeulb_NUM_ENCODERS
 };
 
 struct sig_daisy_Host_Impl sig_daisy_BluemchenHostImpl = {
@@ -26,6 +28,8 @@ struct sig_daisy_Host_Impl sig_daisy_BluemchenHostImpl = {
     .getGateValue = sig_daisy_HostImpl_noOpGetControl,
     .setGateValue = sig_daisy_HostImpl_noOpSetControl,
     .getSwitchValue = sig_daisy_HostImpl_noOpGetControl,
+    .getEncoderIncrement = sig_daisy_HostImpl_getEncoderIncrement,
+    .getEncoderButtonValue = sig_daisy_HostImpl_processEncoderButtonValue,
     .start = sig_daisy_BluemchenHostImpl_start,
     .stop = sig_daisy_BluemchenHostImpl_stop
 };
@@ -38,7 +42,6 @@ void sig_daisy_BluemchenHostImpl_setControlValue(struct sig_daisy_Host* host,
         host->board.dac->WriteValue(channel, sig_unipolarToUint12(value));
     }
 }
-
 
 void sig_daisy_BluemchenHostImpl_start(struct sig_daisy_Host* host) {
     kxmx::Bluemchen* bluemchen = static_cast<kxmx::Bluemchen*>(
@@ -96,6 +99,7 @@ void sig_daisy_BluemchenHost_Board_init(
     self->gateInputs[1] = NULL;
     self->gateOutputs[0] = NULL;
     self->gateOutputs[1] = NULL;
+    self->encoders[0] = &bluemchen->encoder;
 }
 
 
