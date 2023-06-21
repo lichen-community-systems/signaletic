@@ -28,18 +28,17 @@ struct sig_daisy_Host* host;
 
 struct sig_daisy_FilteredCVIn* frequencyCV;
 struct sig_daisy_FilteredCVIn* resonance;
-// struct sig_daisy_FilteredCVIn* frequencySkewCV;
-struct sig_daisy_FilteredCVIn* a;
+struct sig_daisy_FilteredCVIn* frequencySkewCV;
+struct sig_daisy_TriSwitchIn* a;
 struct sig_daisy_FilteredCVIn* b;
 struct sig_daisy_FilteredCVIn* c;
 struct sig_daisy_FilteredCVIn* d;
 struct sig_daisy_FilteredCVIn* e;
-
-// struct sig_dsp_Abs* rectifiedSkew;
-// struct sig_dsp_BinaryOp* frequencyCVSkewAdder;
-// struct sig_dsp_Branch* leftFrequencyCVSkewed;
+struct sig_dsp_Abs* rectifiedSkew;
+struct sig_dsp_BinaryOp* frequencyCVSkewAdder;
+struct sig_dsp_Branch* leftFrequencyCVSkewed;
 struct sig_dsp_LinearToFreq* leftFrequency;
-// struct sig_dsp_Branch* rightFrequencyCVSkewed;
+struct sig_dsp_Branch* rightFrequencyCVSkewed;
 struct sig_dsp_LinearToFreq* rightFrequency;
 struct sig_daisy_AudioIn* leftIn;
 struct sig_daisy_AudioIn* rightIn;
@@ -62,64 +61,63 @@ void buildSignalGraph(struct sig_SignalContext* context,
     frequencyCV->parameters.offset = -5.0f;
     frequencyCV->parameters.time = 0.1f;
 
-    // frequencySkewCV = sig_daisy_FilteredCVIn_new(&allocator, context, host);
-    // sig_List_append(&signals, frequencySkewCV, status);
-    // frequencySkewCV->parameters.control = sig_daisy_Versio_CV_IN_3;
-    // frequencySkewCV->parameters.scale = 5.0f;
-    // frequencySkewCV->parameters.offset = -2.5f;
-    // frequencySkewCV->parameters.time = 0.1f;
+    frequencySkewCV = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    sig_List_append(&signals, frequencySkewCV, status);
+    frequencySkewCV->parameters.control = sig_daisy_Versio_CV_IN_7;
+    frequencySkewCV->parameters.scale = 5.0f;
+    frequencySkewCV->parameters.offset = -2.5f;
+    frequencySkewCV->parameters.time = 0.1f;
 
-    // rectifiedSkew = sig_dsp_Abs_new(&allocator, context);
-    // sig_List_append(&signals, rectifiedSkew, status);
-    // rectifiedSkew->inputs.source = frequencySkewCV->outputs.main;
+    rectifiedSkew = sig_dsp_Abs_new(&allocator, context);
+    sig_List_append(&signals, rectifiedSkew, status);
+    rectifiedSkew->inputs.source = frequencySkewCV->outputs.main;
 
-    // frequencyCVSkewAdder = sig_dsp_Add_new(&allocator, context);
-    // sig_List_append(&signals, frequencyCVSkewAdder, status);
-    // frequencyCVSkewAdder->inputs.left = frequencyCV->outputs.main;
-    // frequencyCVSkewAdder->inputs.right = rectifiedSkew->outputs.main;
+    frequencyCVSkewAdder = sig_dsp_Add_new(&allocator, context);
+    sig_List_append(&signals, frequencyCVSkewAdder, status);
+    frequencyCVSkewAdder->inputs.left = frequencyCV->outputs.main;
+    frequencyCVSkewAdder->inputs.right = rectifiedSkew->outputs.main;
 
-    // leftFrequencyCVSkewed = sig_dsp_Branch_new(&allocator, context);
-    // sig_List_append(&signals, leftFrequencyCVSkewed, status);
-    // leftFrequencyCVSkewed->inputs.condition = frequencySkewCV->outputs.main;
-    // leftFrequencyCVSkewed->inputs.on = frequencyCV->outputs.main;
-    // leftFrequencyCVSkewed->inputs.off = frequencyCVSkewAdder->outputs.main;
+    leftFrequencyCVSkewed = sig_dsp_Branch_new(&allocator, context);
+    sig_List_append(&signals, leftFrequencyCVSkewed, status);
+    leftFrequencyCVSkewed->inputs.condition = frequencySkewCV->outputs.main;
+    leftFrequencyCVSkewed->inputs.on = frequencyCV->outputs.main;
+    leftFrequencyCVSkewed->inputs.off = frequencyCVSkewAdder->outputs.main;
 
     leftFrequency = sig_dsp_LinearToFreq_new(&allocator, context);
     sig_List_append(&signals, leftFrequency, status);
-    leftFrequency->inputs.source = frequencyCV->outputs.main;
+    leftFrequency->inputs.source = leftFrequencyCVSkewed->outputs.main;
 
-    // rightFrequencyCVSkewed = sig_dsp_Branch_new(&allocator, context);
-    // sig_List_append(&signals, rightFrequencyCVSkewed, status);
-    // rightFrequencyCVSkewed->inputs.condition = frequencySkewCV->outputs.main;
-    // rightFrequencyCVSkewed->inputs.on = frequencyCVSkewAdder->outputs.main;
-    // rightFrequencyCVSkewed->inputs.off = frequencyCV->outputs.main;
+    rightFrequencyCVSkewed = sig_dsp_Branch_new(&allocator, context);
+    sig_List_append(&signals, rightFrequencyCVSkewed, status);
+    rightFrequencyCVSkewed->inputs.condition = frequencySkewCV->outputs.main;
+    rightFrequencyCVSkewed->inputs.on = frequencyCVSkewAdder->outputs.main;
+    rightFrequencyCVSkewed->inputs.off = frequencyCV->outputs.main;
 
     rightFrequency = sig_dsp_LinearToFreq_new(&allocator, context);
     sig_List_append(&signals, rightFrequency, status);
-    rightFrequency->inputs.source = frequencyCV->outputs.main;
+    rightFrequency->inputs.source = rightFrequencyCVSkewed->outputs.main;
 
     resonance = sig_daisy_FilteredCVIn_new(&allocator, context, host);
     sig_List_append(&signals, resonance, status);
-    resonance->parameters.control = sig_daisy_Versio_CV_IN_2;
+    resonance->parameters.control = sig_daisy_Versio_CV_IN_5;
     resonance->parameters.scale = 1.8f;
 
-    a = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    a = sig_daisy_TriSwitchIn_new(&allocator, context, host);
     sig_List_append(&signals, a, status);
-    a->parameters.control = sig_daisy_Versio_CV_IN_3;
-    a->parameters.time = 0.1f;
+    a->parameters.control = sig_daisy_Versio_TRI_SWITCH_1;
 
     b = sig_daisy_FilteredCVIn_new(&allocator, context, host);
     sig_List_append(&signals, b, status);
-    b->parameters.control = sig_daisy_Versio_CV_IN_4;
-    b->parameters.scale = 6.0f;
+    b->parameters.control = sig_daisy_Versio_CV_IN_2;
+    b->parameters.scale = 8.0f;
     b->parameters.offset = -4.0f;
     b->parameters.time = 0.1f;
 
     c = sig_daisy_FilteredCVIn_new(&allocator, context, host);
     sig_List_append(&signals, c, status);
-    c->parameters.control = sig_daisy_Versio_CV_IN_5;
-    c->parameters.scale = 8.0f;
-    c->parameters.offset = -2.0f;
+    c->parameters.control = sig_daisy_Versio_CV_IN_3;
+    c->parameters.scale = 12.0f;
+    c->parameters.offset = -6.0f;
     c->parameters.time = 0.1f;
 
     d = sig_daisy_FilteredCVIn_new(&allocator, context, host);
@@ -131,7 +129,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
 
     e = sig_daisy_FilteredCVIn_new(&allocator, context, host);
     sig_List_append(&signals, e, status);
-    e->parameters.control = sig_daisy_Versio_CV_IN_7;
+    e->parameters.control = sig_daisy_Versio_CV_IN_4;
     e->parameters.scale = 4.0f;
     e->parameters.time = 0.1f;
 

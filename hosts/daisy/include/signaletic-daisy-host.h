@@ -35,6 +35,7 @@ struct sig_daisy_Host_BoardConfiguration {
     int numGateInputs;
     int numGateOutputs;
     int numSwitches;
+    int numTriSwitches;
     int numEncoders;
 };
 
@@ -45,8 +46,13 @@ struct sig_daisy_Host_Board {
     daisy::AnalogControl* analogControls;
     daisy::DacHandle* dac;
     daisy::GateIn* gateInputs[MAX_NUM_CONTROLS];
+    // TODO: It's unwieldy and unscalable to accumulate all possible
+    // hardware UI controls into one Board object. We need
+    // a more dynamic data structure for referencing
+    // hardware capabilities.
     dsy_gpio* gateOutputs[MAX_NUM_CONTROLS];
     daisy::Switch switches[MAX_NUM_CONTROLS];
+    daisy::Switch3 triSwitches[MAX_NUM_CONTROLS];
     daisy::Encoder* encoders[MAX_NUM_CONTROLS];
     void* boardInstance;
 };
@@ -114,6 +120,9 @@ typedef void (*sig_daisy_Host_setGateValue)(
 typedef float (*sig_daisy_Host_getSwitchValue)(
     struct sig_daisy_Host* host, int control);
 
+typedef float (*sig_daisy_Host_getTriSwitchValue)(
+    struct sig_daisy_Host* host, int control);
+
 typedef float (*sig_daisy_Host_getEncoderIncrement)(
     struct sig_daisy_Host* host, int control);
 
@@ -129,6 +138,7 @@ struct sig_daisy_Host_Impl {
     sig_daisy_Host_getGateValue getGateValue;
     sig_daisy_Host_setGateValue setGateValue;
     sig_daisy_Host_getSwitchValue getSwitchValue;
+    sig_daisy_Host_getTriSwitchValue getTriSwitchValue;
     sig_daisy_Host_getEncoderIncrement getEncoderIncrement;
     sig_daisy_Host_getEncoderButtonValue getEncoderButtonValue;
     sig_daisy_Host_start start;
@@ -174,6 +184,9 @@ void sig_daisy_HostImpl_setGateValue(struct sig_daisy_Host* host,
     int control, float value);
 
 float sig_daisy_HostImpl_getSwitchValue(struct sig_daisy_Host* host,
+    int control);
+
+float sig_daisy_HostImpl_getTriSwitchValue(struct sig_daisy_Host* host,
     int control);
 
 float sig_daisy_HostImpl_getEncoderIncrement(struct sig_daisy_Host* host,
@@ -295,6 +308,9 @@ void sig_daisy_VOctCVIn_generate(void* signal);
 void sig_daisy_VOctCVIn_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_VOctCVIn* self);
 
+// TODO: Replace SwitchIn and TriSwitchIn with a more generic
+// implementation that operates on a configurable list of GPIO pins
+// (since a three way switch just consists of two separate pins).
 
 struct sig_daisy_SwitchIn {
     struct sig_dsp_Signal signal;
@@ -312,6 +328,23 @@ void sig_daisy_SwitchIn_init(struct sig_daisy_SwitchIn* self,
 void sig_daisy_SwitchIn_generate(void* signal);
 void sig_daisy_SwitchIn_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_SwitchIn* self);
+
+struct sig_daisy_TriSwitchIn {
+    struct sig_dsp_Signal signal;
+    struct sig_daisy_CV_Parameters parameters;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+    struct sig_daisy_Host* host;
+    daisy::Switch switchInstance;
+};
+
+struct sig_daisy_TriSwitchIn* sig_daisy_TriSwitchIn_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context,
+    struct sig_daisy_Host* host);
+void sig_daisy_TriSwitchIn_init(struct sig_daisy_TriSwitchIn* self,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host);
+void sig_daisy_TriSwitchIn_generate(void* signal);
+void sig_daisy_TriSwitchIn_destroy(struct sig_Allocator* allocator,
+    struct sig_daisy_TriSwitchIn* self);
 
 
 struct sig_daisy_EncoderIn_Outputs {

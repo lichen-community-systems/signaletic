@@ -8,6 +8,7 @@ struct sig_daisy_Host_BoardConfiguration sig_daisy_PatchSMConfig = {
     .numGateInputs = sig_daisy_PatchSM_NUM_GATE_INPUTS,
     .numGateOutputs = sig_daisy_PatchSM_NUM_GATE_OUTPUTS,
     .numSwitches = sig_daisy_PatchSM_NUM_SWITCHES,
+    .numTriSwitches = sig_daisy_PatchSM_NUM_TRI_SWITCHES,
     .numEncoders = sig_daisy_PatchSM_NUM_ENCODERS
 };
 
@@ -19,6 +20,7 @@ struct sig_daisy_Host_BoardConfiguration sig_daisy_PatchInitConfig = {
     .numGateInputs = sig_daisy_PatchInit_NUM_GATE_INPUTS,
     .numGateOutputs = sig_daisy_PatchInit_NUM_GATE_OUTPUTS,
     .numSwitches = sig_daisy_PatchInit_NUM_SWITCHES,
+    .numTriSwitches = sig_daisy_PatchInit_NUM_TRI_SWITCHES,
     .numEncoders = sig_daisy_PatchInit_NUM_ENCODERS
 };
 
@@ -28,6 +30,7 @@ struct sig_daisy_Host_Impl sig_daisy_PatchSMHostImpl = {
     .getGateValue = sig_daisy_HostImpl_getGateValue,
     .setGateValue = sig_daisy_HostImpl_setGateValue,
     .getSwitchValue = sig_daisy_HostImpl_getSwitchValue,
+    .getTriSwitchValue = sig_daisy_HostImpl_noOpGetControl,
     .getEncoderIncrement = sig_daisy_HostImpl_noOpGetControl,
     .getEncoderButtonValue = sig_daisy_HostImpl_noOpGetControl,
     .start = sig_daisy_PatchSMHostImpl_start,

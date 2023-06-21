@@ -8,6 +8,7 @@ struct sig_daisy_Host_BoardConfiguration sig_daisy_BluemchenConfig = {
     .numGateInputs = sig_daisy_Bluemchen_NUM_GATE_INPUTS,
     .numGateOutputs = sig_daisy_Bluemchen_NUM_GATE_OUTPUTS,
     .numSwitches = sig_daisy_Bluemchen_NUM_SWITCHES,
+    .numTriSwitches = sig_daisy_Bluemchen_NUM_TRI_SWITCHES,
     .numEncoders = sig_daisy_Bluemchen_NUM_ENCODERS
 };
 
@@ -19,6 +20,7 @@ struct sig_daisy_Host_BoardConfiguration sig_daisy_NehcmeulbConfig = {
     .numGateInputs = sig_daisy_Nehcmeulb_NUM_GATE_INPUTS,
     .numGateOutputs = sig_daisy_Nehcmeulb_NUM_GATE_OUTPUTS,
     .numSwitches = sig_daisy_Nehcmeulb_NUM_SWITCHES,
+    .numTriSwitches = sig_daisy_Nehcmeulb_NUM_TRI_SWITCHES,
     .numEncoders = sig_daisy_Nehcmeulb_NUM_ENCODERS
 };
 
@@ -28,6 +30,7 @@ struct sig_daisy_Host_Impl sig_daisy_BluemchenHostImpl = {
     .getGateValue = sig_daisy_HostImpl_noOpGetControl,
     .setGateValue = sig_daisy_HostImpl_noOpSetControl,
     .getSwitchValue = sig_daisy_HostImpl_noOpGetControl,
+    .getTriSwitchValue = sig_daisy_HostImpl_noOpGetControl,
     .getEncoderIncrement = sig_daisy_HostImpl_getEncoderIncrement,
     .getEncoderButtonValue = sig_daisy_HostImpl_processEncoderButtonValue,
     .start = sig_daisy_BluemchenHostImpl_start,

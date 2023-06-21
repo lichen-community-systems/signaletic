@@ -44,6 +44,7 @@ enum {
 const int sig_daisy_DPT_NUM_GATE_OUTPUTS = sig_daisy_GATE_OUT_LAST;
 
 const int sig_daisy_DPT_NUM_SWITCHES = 0;
+const int sig_daisy_DPT_NUM_TRI_SWITCHES = 0;
 const int sig_daisy_DPT_NUM_ENCODERS = 0;
 
 void sig_daisy_DPT_dacWriterCallback(void* dptHost);

@@ -26,7 +26,15 @@ enum {
 
 const int sig_daisy_Versio_NUM_SWITCHES = sig_daisy_Versio_SWITCH_LAST;
 
-// TODO: Add support for three-way switches.
+enum {
+    sig_daisy_Versio_TRI_SWITCH_1 = daisy::DaisyVersio::AV_TOGGLE3::SW_0,
+    sig_daisy_Versio_TRI_SWITCH_2 = daisy::DaisyVersio::AV_TOGGLE3::SW_1,
+    sig_daisy_Versio_TRI_SWITCH_LAST
+};
+
+const int sig_daisy_Versio_NUM_TRI_SWITCHES = sig_daisy_Versio_TRI_SWITCH_LAST;
+
+
 // TODO: Add support for RGB LEDs.
 
 extern struct sig_daisy_Host_Impl sig_daisy_VersioHostImpl;

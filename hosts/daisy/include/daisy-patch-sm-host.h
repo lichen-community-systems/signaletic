@@ -50,6 +50,7 @@ enum {
     sig_daisy_PatchSM_SWITCH_LAST
 };
 const int sig_daisy_PatchSM_NUM_SWITCHES = sig_daisy_PatchSM_SWITCH_LAST;
+const int sig_daisy_PatchSM_NUM_TRI_SWITCHES = 0;
 const int sig_daisy_PatchSM_NUM_ENCODERS = 0;
 
 // TODO: What are the additional 4x ADC pins on the Patch SM,
@@ -99,6 +100,7 @@ enum {
 };
 
 const int sig_daisy_PatchInit_NUM_SWITCHES = sig_daisy_PatchInit_SWITCH_LAST;
+const int sig_daisy_PatchInit_NUM_TRI_SWITCHES = 0;
 const int sig_daisy_PatchInit_NUM_ENCODERS = 0;
 
 extern struct sig_daisy_Host_Impl sig_daisy_PatchSMHostImpl;

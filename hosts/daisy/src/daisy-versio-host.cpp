@@ -8,6 +8,7 @@ struct sig_daisy_Host_BoardConfiguration sig_daisy_VersioConfig = {
     .numGateInputs = sig_daisy_Versio_NUM_GATE_INPUTS,
     .numGateOutputs = sig_daisy_Versio_NUM_GATE_OUTPUTS,
     .numSwitches = sig_daisy_Versio_NUM_SWITCHES,
+    .numTriSwitches = sig_daisy_Versio_NUM_TRI_SWITCHES,
     .numEncoders = sig_daisy_Versio_NUM_ENCODERS
 };
 
@@ -17,6 +18,7 @@ struct sig_daisy_Host_Impl sig_daisy_VersioHostImpl = {
     .getGateValue = sig_daisy_HostImpl_noOpGetControl,
     .setGateValue = sig_daisy_HostImpl_noOpSetControl,
     .getSwitchValue = sig_daisy_HostImpl_getSwitchValue,
+    .getTriSwitchValue = sig_daisy_HostImpl_getTriSwitchValue,
     .getEncoderIncrement = sig_daisy_HostImpl_noOpGetControl,
     .getEncoderButtonValue = sig_daisy_HostImpl_noOpGetControl,
     .start = sig_daisy_VersioHostImpl_start,
@@ -59,6 +61,7 @@ void sig_daisy_VersioHost_Board_init(struct sig_daisy_Host_Board* self,
     self->gateOutputs[0] = NULL;
     self->gateOutputs[1] = NULL;
     self->switches[0] = versio->tap;
+    self->triSwitches[0] = versio->sw[0];
     self->boardInstance = (void*) versio;
 }
 

@@ -160,6 +160,21 @@ float sig_daisy_HostImpl_getSwitchValue(struct sig_daisy_Host* host,
     return sample;
 }
 
+float sig_daisy_HostImpl_getTriSwitchValue(struct sig_daisy_Host* host,
+    int control) {
+    float sample = 0.0f;
+    if (control > -1 && control < host->board.config->numTriSwitches) {
+        daisy::Switch3* sw = &(host->board.triSwitches[control]);
+        int rawValue = sw->Read();
+        // Left/up is mapped to +1, centre is 0, down/right is -1.
+        sample = rawValue == sw->POS_UP ? 1.0f : rawValue == sw->POS_DOWN ?
+            -1.0f : 0.0f;
+    }
+
+    return sample;
+}
+
+
 float sig_daisy_HostImpl_getEncoderIncrement(struct sig_daisy_Host* host,
     int control) {
     float increment = 0.0f;
@@ -468,6 +483,54 @@ void sig_daisy_SwitchIn_destroy(struct sig_Allocator* allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
 }
+
+
+
+struct sig_daisy_TriSwitchIn* sig_daisy_TriSwitchIn_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context,
+    struct sig_daisy_Host* host) {
+    struct sig_daisy_TriSwitchIn* self = sig_MALLOC(allocator,
+        struct sig_daisy_TriSwitchIn);
+    sig_daisy_TriSwitchIn_init(self, context, host);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_daisy_TriSwitchIn_init(struct sig_daisy_TriSwitchIn* self,
+    struct sig_SignalContext* context, struct sig_daisy_Host* host) {
+    sig_dsp_Signal_init(self, context, *sig_daisy_TriSwitchIn_generate);
+    self->host = host;
+    self->parameters = {
+        .scale = 1.0f,
+        .offset = 0.0f,
+        .control = 0
+    };
+}
+
+void sig_daisy_TriSwitchIn_generate(void* signal) {
+    struct sig_daisy_TriSwitchIn* self = (struct sig_daisy_TriSwitchIn*) signal;
+    struct sig_daisy_Host* host = self->host;
+    float scale = self->parameters.scale;
+    float offset = self->parameters.offset;
+    int control = self->parameters.control;
+
+    float sample = host->impl->getTriSwitchValue(host, control);
+    float scaledSample = sample * scale + offset;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        FLOAT_ARRAY(self->outputs.main)[i] = scaledSample;
+    }
+}
+
+void sig_daisy_TriSwitchIn_destroy(struct sig_Allocator* allocator,
+    struct sig_daisy_SwitchIn* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
+}
+
 
 
 void sig_daisy_EncoderIn_Outputs_newAudioBlocks(struct sig_Allocator* allocator,
