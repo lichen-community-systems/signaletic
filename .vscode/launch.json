@@ -200,12 +200,12 @@
           "interface/stlink.cfg",
           "target/stm32h7x.cfg"
         ],
-        "cwd": "${workspaceFolder}/hosts/daisy/examples/versio/filter",
+        "cwd": "${workspaceFolder}/hosts/daisy/examples/versio/pole-mix-filter",
         "debuggerArgs": [
           "-d",
-          "${workspaceRoot}/hosts/daisy/examples/versio/filter"
+          "${workspaceRoot}/hosts/daisy/examples/versio/pole-mix-filter"
         ],
-        "executable": "${workspaceRoot}/hosts/daisy/examples/versio/filter/build/signaletic-versio-filter.elf",
+        "executable": "${workspaceRoot}/hosts/daisy/examples/versio/pole-mix-filter/build/signaletic-versio-pole-mix-filter.elf",
         "interface": "swd",
         "openOCDLaunchCommands": [
           "init",

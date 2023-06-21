@@ -1,3 +1,9 @@
+// Inspired by the pole-mixing multimode from the Oberheim XPander.
+// https://electricdruid.net/multimode-filters-part-2-pole-mixing-filters/
+// and Valimaki and Huovilainen, "Oscillator and Filter Algorithms for Virtual
+// Analog Synthesis." Computer Music Journal, Vol. 30, No. 2 (Summer, 2006),
+// pp. 19-31. https://www.jstor.org/stable/3682001
+
 #include <string>
 #include <tlsf.h>
 #include <libsignaletic.h>

@@ -1,5 +1,5 @@
 all:
-	$(MAKE) -C filter
+	$(MAKE) -C pole-mix-filter
 
 clean:
-	$(MAKE) -C filter clean
+	$(MAKE) -C pole-mix-filter clean

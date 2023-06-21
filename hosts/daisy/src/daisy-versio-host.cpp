@@ -55,7 +55,6 @@ void sig_daisy_VersioHost_Board_init(struct sig_daisy_Host_Board* self,
     self->config = &sig_daisy_VersioConfig;
     self->analogControls = &versio->knobs[0];
     self->dac = &versio->seed.dac;
-    // Bluemchen has no gates.
     self->gateInputs[0] = &versio->gate;
     self->gateInputs[1] = NULL;
     self->gateOutputs[0] = NULL;

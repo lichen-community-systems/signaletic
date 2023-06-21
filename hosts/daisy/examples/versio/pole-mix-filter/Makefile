@@ -1,5 +1,5 @@
 # Project Name
-TARGET ?= signaletic-versio-filter
+TARGET ?= signaletic-versio-pole-mix-filter
 
 DEBUG = 0
 OPT = -O3
