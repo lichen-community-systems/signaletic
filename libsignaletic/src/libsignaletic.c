@@ -2260,11 +2260,11 @@ void sig_dsp_Bob_init(struct sig_dsp_Bob* self,
     sig_CONNECT_TO_SILENCE(self, source, context);
     sig_CONNECT_TO_SILENCE(self, frequency, context);
     sig_CONNECT_TO_SILENCE(self, resonance, context);
-    sig_CONNECT_TO_SILENCE(self, inputMix, context);
-    sig_CONNECT_TO_SILENCE(self, stage1Mix, context);
-    sig_CONNECT_TO_SILENCE(self, stage2Mix, context);
-    sig_CONNECT_TO_SILENCE(self, stage3Mix, context);
-    sig_CONNECT_TO_UNITY(self, stage4Mix, context);
+    sig_CONNECT_TO_SILENCE(self, inputGain, context);
+    sig_CONNECT_TO_SILENCE(self, pole1Gain, context);
+    sig_CONNECT_TO_SILENCE(self, pole2Gain, context);
+    sig_CONNECT_TO_SILENCE(self, pole3Gain, context);
+    sig_CONNECT_TO_UNITY(self, pole4Gain, context);
 }
 
 inline float sig_dsp_Bob_clip(float value, float saturation,
@@ -2363,11 +2363,11 @@ void sig_dsp_Bob_generate(void* signal) {
         }
 
         FLOAT_ARRAY(self->outputs.main)[i] =
-            (input * FLOAT_ARRAY(self->inputs.inputMix)[i]) +
-            (self->state[0] * FLOAT_ARRAY(self->inputs.stage1Mix)[i]) +
-            (self->state[1] * FLOAT_ARRAY(self->inputs.stage2Mix)[i]) +
-            (self->state[2] * FLOAT_ARRAY(self->inputs.stage3Mix)[i]) +
-            (self->state[3] * FLOAT_ARRAY(self->inputs.stage4Mix)[i]);
+            (input * FLOAT_ARRAY(self->inputs.inputGain)[i]) +
+            (self->state[0] * FLOAT_ARRAY(self->inputs.pole1Gain)[i]) +
+            (self->state[1] * FLOAT_ARRAY(self->inputs.pole2Gain)[i]) +
+            (self->state[2] * FLOAT_ARRAY(self->inputs.pole3Gain)[i]) +
+            (self->state[3] * FLOAT_ARRAY(self->inputs.pole4Gain)[i]);
         FLOAT_ARRAY(self->outputs.fourPole)[i] = self->state[3];
         FLOAT_ARRAY(self->outputs.twoPole)[i] = self->state[1];
     }
@@ -2418,11 +2418,11 @@ void sig_dsp_Ladder_init(
     sig_CONNECT_TO_SILENCE(self, source, context);
     sig_CONNECT_TO_SILENCE(self, frequency, context);
     sig_CONNECT_TO_SILENCE(self, resonance, context);
-    sig_CONNECT_TO_SILENCE(self, inputMix, context);
-    sig_CONNECT_TO_SILENCE(self, stage1Mix, context);
-    sig_CONNECT_TO_SILENCE(self, stage2Mix, context);
-    sig_CONNECT_TO_SILENCE(self, stage3Mix, context);
-    sig_CONNECT_TO_UNITY(self, stage4Mix, context);
+    sig_CONNECT_TO_SILENCE(self, inputGain, context);
+    sig_CONNECT_TO_SILENCE(self, pole1Gain, context);
+    sig_CONNECT_TO_SILENCE(self, pole2Gain, context);
+    sig_CONNECT_TO_SILENCE(self, pole3Gain, context);
+    sig_CONNECT_TO_UNITY(self, pole4Gain, context);
 }
 
 inline void sig_dsp_Ladder_calcCoefficients(
@@ -2488,11 +2488,11 @@ void sig_dsp_Ladder_generate(void* signal) {
         }
         self->prevInput = input;
         FLOAT_ARRAY(self->outputs.main)[i] =
-            (input * FLOAT_ARRAY(self->inputs.inputMix)[i]) +
-            (totals[0] * FLOAT_ARRAY(self->inputs.stage1Mix)[i]) +
-            (totals[1] * FLOAT_ARRAY(self->inputs.stage2Mix)[i]) +
-            (totals[2] * FLOAT_ARRAY(self->inputs.stage3Mix)[i]) +
-            (totals[3] * FLOAT_ARRAY(self->inputs.stage4Mix)[i]);
+            (input * FLOAT_ARRAY(self->inputs.inputGain)[i]) +
+            (totals[0] * FLOAT_ARRAY(self->inputs.pole1Gain)[i]) +
+            (totals[1] * FLOAT_ARRAY(self->inputs.pole2Gain)[i]) +
+            (totals[2] * FLOAT_ARRAY(self->inputs.pole3Gain)[i]) +
+            (totals[3] * FLOAT_ARRAY(self->inputs.pole4Gain)[i]);
         FLOAT_ARRAY(self->outputs.twoPole)[i] = totals[1];
         FLOAT_ARRAY(self->outputs.fourPole)[i] = totals[3];
     }

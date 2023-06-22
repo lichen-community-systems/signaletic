@@ -29,20 +29,20 @@ struct sig_dsp_SignalListEvaluator* evaluator;
 Bluemchen bluemchen;
 struct sig_daisy_Host* host;
 
-#define NUM_FILTER_MODES 6
+#define NUM_FILTER_MODES 8
 #define NUM_FILTER_STAGES 5
 
 float mixingCoefficients[NUM_FILTER_STAGES][NUM_FILTER_MODES] = {
-    // 4 pole LP, 2 pole LP, 2 pole BP, 4 pole BP, 4 pole HP, 2 pole HP.
-    {0, 0,  0,  0,  1,  1}, // Input gain (A)
-    {0, 0,  2,  0, -4, -2}, // Stage 1 (B)
-    {0, 1, -2,  4,  6,  1}, // Stage 2 (C)
-    {0, 0,  0, -8, -4,  0}, // Stage 3 (D)
-    {1, 0,  0,  4,  1,  0}  // Stage 4 (E)
+    // 4LP, 3LP, 2LP, 2BP, 4BP, 4HP, 2HP, 4APP.
+    {  0,   0,   0,   0,   0,   1,   1,   1}, // Input gain (A)
+    {  0,   0,   0,  -1,   0,  -4,  -2,  -4}, // Pole 1 (B)
+    {  0,   0,   1,   1,   1,   6,   1,  12}, // Pole 2 (C)
+    {  0,  -1,   0,   0,  -2,  -4,   0, -16}, // Pole 3 (D)
+    {  1,   0,   0,   0,   1,   1,   0,   8}  // Pole 4 (E)
 };
 
 const char filterModeStrings[NUM_FILTER_MODES][4] = {
-    "4LP", "2LP", "2BP", "4BP", "4HP", "2HP"
+    "4LP", "3LP", "2LP", "2BP", "4BP", "4HP", "2HP", "PHA"
 };
 
 struct sig_Buffer aCoefficientBuffer = {
@@ -273,11 +273,11 @@ void buildSignalGraph(struct sig_SignalContext* context,
     leftFilter->inputs.source = leftIn->outputs.main;
     leftFilter->inputs.frequency = leftFrequency->outputs.main;
     leftFilter->inputs.resonance = resonanceKnob->outputs.main;
-    leftFilter->inputs.inputMix = aSmooth->outputs.main;
-    leftFilter->inputs.stage1Mix = bSmooth->outputs.main;
-    leftFilter->inputs.stage2Mix = cSmooth->outputs.main;
-    leftFilter->inputs.stage3Mix = dSmooth->outputs.main;
-    leftFilter->inputs.stage4Mix = eSmooth->outputs.main;
+    leftFilter->inputs.inputGain = aSmooth->outputs.main;
+    leftFilter->inputs.pole1Gain = bSmooth->outputs.main;
+    leftFilter->inputs.pole2Gain = cSmooth->outputs.main;
+    leftFilter->inputs.pole3Gain = dSmooth->outputs.main;
+    leftFilter->inputs.pole4Gain = eSmooth->outputs.main;
 
     leftSaturation = sig_dsp_Tanh_new(&allocator, context);
     sig_List_append(&signals, leftSaturation, status);
@@ -299,11 +299,11 @@ void buildSignalGraph(struct sig_SignalContext* context,
     rightFilter->inputs.source = rightIn->outputs.main;
     rightFilter->inputs.frequency = rightFrequency->outputs.main;
     rightFilter->inputs.resonance = resonanceKnob->outputs.main;
-    rightFilter->inputs.inputMix = aSmooth->outputs.main;
-    rightFilter->inputs.stage1Mix = bSmooth->outputs.main;
-    rightFilter->inputs.stage2Mix = cSmooth->outputs.main;
-    rightFilter->inputs.stage3Mix = dSmooth->outputs.main;
-    rightFilter->inputs.stage4Mix = eSmooth->outputs.main;
+    rightFilter->inputs.inputGain = aSmooth->outputs.main;
+    rightFilter->inputs.pole1Gain = bSmooth->outputs.main;
+    rightFilter->inputs.pole2Gain = cSmooth->outputs.main;
+    rightFilter->inputs.pole3Gain = dSmooth->outputs.main;
+    rightFilter->inputs.pole4Gain = eSmooth->outputs.main;
 
     rightSaturation = sig_dsp_Tanh_new(&allocator, context);
     sig_List_append(&signals, rightSaturation, status);

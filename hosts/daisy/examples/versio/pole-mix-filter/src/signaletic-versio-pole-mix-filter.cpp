@@ -4,6 +4,51 @@
 // Analog Synthesis." Computer Music Journal, Vol. 30, No. 2 (Summer, 2006),
 // pp. 19-31. https://www.jstor.org/stable/3682001
 
+/*
+Mixing coefficients for filter responses, as listed in Electric Druid (2020):
+(in the form [Response name {Input, 1-pole, 2-pole, 3-pole, 4-pole}])
+x = included in the Oberheim XPander
+Low Pass:
+  6dB lowpass {0, -1, 0, 0, 0} x
+  12dB lowpass {0, 0, 1, 0, 0} x
+  18dB lowpass {0, 0, 0, -1, 0} x
+  24dB lowpass {0, 0, 0, 0, 1} x
+High Pass:
+  6dB highpass {1, -1, 0, 0, 0} x
+  12dB highpass {1, -2, 1, 0, 0} x
+  18dB highpass {1, -3, 3, -1, 0} x
+  24dB highpass {1, -4, 6, -4, 1}
+Band Pass:
+  12dB bandpass  {0, -1, 1, 0, 0} x
+  24dB bandpass {0, 0, 1, -2, 1} x
+  6dB highpass + 12dB lowpass {0, 0, 1, -1, 0}
+  6dB highpass + 18dB lowpass {0, 0, 0, -1, 1}
+  12dB highpass + 6dB lowpass {0, -1, 2, -1, 0} x
+  18dB highpass + 6dB lowpass {0, 1, 3, -3, 1} x
+Notch:
+  12dB notch {1, -2, 2, -0, 0} x
+  18dB notch {1, -3, 3, -2, 0}
+  12dB notch + 6db lowpass {0, -1, 2, -2, 0} x
+All Pass:
+  6dB all pass {1, -2, 0, 0, 0}
+  12dB all pass {1, -4, 4, 0, 0}
+  18dB all pass {1, -6, 12, -8, 0} x
+  24dB all pass {1, -8, 24, -32, 16}
+  18dB allpass + 6dB lowpass {0, -1, 3, -6, 4} x
+All Pass Phaser:
+  6dB phaser {1, -1, 0, 0, 0} (same as the 6dB high pass)
+  12dB phaser {1, -2, 2, 0, 0}
+  18dB phaser {1, -3, 6, -4, 0}
+  24dB phaser {1, -4, 12, -16, 8}
+*/
+
+/*
+Knob Scaling:
+  Pole 1 (B): -4..4 (should be -8..0)
+  Pole 2 (C): -6..6 (should be 0..24)
+  Pole 3 (D): -8..0 (should be -32..0)
+  Pole 4 (E): 0..4 (should be 0..16)
+*/
 #include <string>
 #include <tlsf.h>
 #include <libsignaletic.h>
@@ -115,28 +160,25 @@ void buildSignalGraph(struct sig_SignalContext* context,
     b = sig_daisy_FilteredCVIn_new(&allocator, context, host);
     sig_List_append(&signals, b, status);
     b->parameters.control = sig_daisy_Versio_CV_IN_2;
-    b->parameters.scale = 8.0f;
-    b->parameters.offset = -4.0f;
+    b->parameters.scale = -8.0f;
     b->parameters.time = 0.1f;
 
     c = sig_daisy_FilteredCVIn_new(&allocator, context, host);
     sig_List_append(&signals, c, status);
     c->parameters.control = sig_daisy_Versio_CV_IN_3;
-    c->parameters.scale = 12.0f;
-    c->parameters.offset = -6.0f;
+    c->parameters.scale = 24.0f;
     c->parameters.time = 0.1f;
 
     d = sig_daisy_FilteredCVIn_new(&allocator, context, host);
     sig_List_append(&signals, d, status);
     d->parameters.control = sig_daisy_Versio_CV_IN_6;
-    d->parameters.scale = 8.0f;
-    d->parameters.offset = -8.0f;
+    d->parameters.scale = -32.0f;
     d->parameters.time = 0.1f;
 
     e = sig_daisy_FilteredCVIn_new(&allocator, context, host);
     sig_List_append(&signals, e, status);
     e->parameters.control = sig_daisy_Versio_CV_IN_4;
-    e->parameters.scale = 4.0f;
+    e->parameters.scale = 16.0f;
     e->parameters.time = 0.1f;
 
     leftIn = sig_daisy_AudioIn_new(&allocator, context, host);
@@ -150,11 +192,11 @@ void buildSignalGraph(struct sig_SignalContext* context,
     leftFilter->inputs.source = leftIn->outputs.main;
     leftFilter->inputs.frequency = leftFrequency->outputs.main;
     leftFilter->inputs.resonance = resonance->outputs.main;
-    leftFilter->inputs.inputMix = a->outputs.main;
-    leftFilter->inputs.stage1Mix = b->outputs.main;
-    leftFilter->inputs.stage2Mix = c->outputs.main;
-    leftFilter->inputs.stage3Mix = d->outputs.main;
-    leftFilter->inputs.stage4Mix = e->outputs.main;
+    leftFilter->inputs.inputGain = a->outputs.main;
+    leftFilter->inputs.pole1Gain = b->outputs.main;
+    leftFilter->inputs.pole2Gain = c->outputs.main;
+    leftFilter->inputs.pole3Gain = d->outputs.main;
+    leftFilter->inputs.pole4Gain = e->outputs.main;
 
     leftSaturation = sig_dsp_Tanh_new(&allocator, context);
     sig_List_append(&signals, leftSaturation, status);
@@ -176,11 +218,11 @@ void buildSignalGraph(struct sig_SignalContext* context,
     rightFilter->inputs.source = rightIn->outputs.main;
     rightFilter->inputs.frequency = rightFrequency->outputs.main;
     rightFilter->inputs.resonance = resonance->outputs.main;
-    rightFilter->inputs.inputMix = a->outputs.main;
-    rightFilter->inputs.stage1Mix = b->outputs.main;
-    rightFilter->inputs.stage2Mix = c->outputs.main;
-    rightFilter->inputs.stage3Mix = d->outputs.main;
-    rightFilter->inputs.stage4Mix = e->outputs.main;
+    rightFilter->inputs.inputGain = a->outputs.main;
+    rightFilter->inputs.pole1Gain = b->outputs.main;
+    rightFilter->inputs.pole2Gain = c->outputs.main;
+    rightFilter->inputs.pole3Gain = d->outputs.main;
+    rightFilter->inputs.pole4Gain = e->outputs.main;
 
     rightSaturation = sig_dsp_Tanh_new(&allocator, context);
     sig_List_append(&signals, rightSaturation, status);
