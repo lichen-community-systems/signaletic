@@ -16,7 +16,7 @@ struct sig_daisy_Host_BoardConfiguration sig_daisy_DPTConfig = {
     .numGateInputs = sig_daisy_DPT_NUM_GATE_INPUTS,
     .numGateOutputs = sig_daisy_DPT_NUM_GATE_OUTPUTS,
     .numSwitches = sig_daisy_DPT_NUM_SWITCHES,
-    .numTriSwitches = sig_daisy_DPT_NUM_SWITCHES,
+    .numTriSwitches = sig_daisy_DPT_NUM_TRI_SWITCHES,
     .numEncoders = sig_daisy_DPT_NUM_ENCODERS
 };
 
