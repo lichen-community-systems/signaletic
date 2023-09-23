@@ -7,9 +7,9 @@
             ],
             "defines": [],
             "macFrameworkPath": [
-                "/Library/Developer/CommandLineTools/SDKs/MacOSX11.sdk/System/Library/Frameworks"
+                "/Library/Developer/CommandLineTools/SDKs/MacOSX13.sdk/System/Library/Frameworks"
             ],
-            "compilerPath": "/opt/homebrew/opt/llvm/bin/clang",
+            "compilerPath": "/usr/bin/clang",
             "cStandard": "c99",
             "cppStandard": "c++11",
             "intelliSenseMode": "macos-clang-arm64",
