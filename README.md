@@ -6,7 +6,7 @@ This project is an early-stage effort to rewrite and redesign the core signal pr
 
 * *Multirepresentational*: Signaletic will provide the low-level infrastructure to support both visual patching alongside an interpreted and transpiled-to-C "signal expression language" (and to switch back and forth between representations on the fly).
 * *Live repatching without compilation*: provide a highly mutable audio graph, so that instruments can be dynamically reconfigured while they are running (on platforms where this is appropriate).
-* *Vastly portable, "embedded first"*: support deployment on resource-constrained embedded microcontroller-bsaed systems (such as Daisy), browser-based AudioWorklets (via Web Assembly), and desktop and mobile operating systems (macOS, Windows, Linux, iOS).
+* *Very portable, embedded first*: support deployment on resource-constrained embedded microcontroller-bsaed systems (such as Daisy), browser-based AudioWorklets (via Web Assembly), and desktop and mobile operating systems (macOS, Windows, Linux, iOS).
 * *Fully externalized state*: Provide a means for [fully externalizing all state](http://openresearch.ocadu.ca/id/eprint/2059/1/Clark_sdr_2017_preprint.pdf) via a Nexus-like RESTful API, including:
     * Creating signals
     * Getting signal values/representations
