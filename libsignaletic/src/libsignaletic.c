@@ -44,6 +44,8 @@ inline float sig_clamp(float value, float min, float max) {
     return sig_fminf(sig_fmaxf(value, min), max);
 }
 
+// TODO: Implement a fast fmodf
+// See: https://github.com/electro-smith/DaisySP/blob/0cc02b37579e3619efde73be49a1fa01ffee5cf6/Source/Utility/dsp.h#L89-L95
 // TODO: Unit tests
 inline float sig_flooredfmodf(float numer, float denom) {
     float remain = fmodf(numer, denom);
@@ -1789,10 +1791,10 @@ void sig_dsp_TimedGate_destroy(struct sig_Allocator* allocator,
 }
 
 
-struct cc_sig_DustGate* cc_sig_DustGate_new(struct sig_Allocator* allocator,
+struct sig_dsp_DustGate* sig_dsp_DustGate_new(struct sig_Allocator* allocator,
     struct sig_SignalContext* context) {
-    struct cc_sig_DustGate* self = sig_MALLOC(allocator,
-        struct cc_sig_DustGate);
+    struct sig_dsp_DustGate* self = sig_MALLOC(allocator,
+        struct sig_dsp_DustGate);
 
     self->reciprocalDensity = sig_dsp_Div_new(allocator, context);
     self->reciprocalDensity->inputs.left = context->unity->outputs.main;
@@ -1808,22 +1810,22 @@ struct cc_sig_DustGate* cc_sig_DustGate_new(struct sig_Allocator* allocator,
     self->gate->inputs.duration =
         self->densityDurationMultiplier->outputs.main;
 
-    cc_sig_DustGate_init(self, context);
+    sig_dsp_DustGate_init(self, context);
     self->outputs.main = self->gate->outputs.main;
 
     return self;
 }
 
 
-void cc_sig_DustGate_init(struct cc_sig_DustGate* self,
+void sig_dsp_DustGate_init(struct sig_dsp_DustGate* self,
     struct sig_SignalContext* context) {
-    sig_dsp_Signal_init(self, context, *cc_sig_DustGate_generate);
+    sig_dsp_Signal_init(self, context, *sig_dsp_DustGate_generate);
     sig_CONNECT_TO_SILENCE(self, density, context);
     sig_CONNECT_TO_SILENCE(self, durationPercentage, context);
 };
 
-void cc_sig_DustGate_generate(void* signal) {
-    struct cc_sig_DustGate* self = (struct cc_sig_DustGate*) signal;
+void sig_dsp_DustGate_generate(void* signal) {
+    struct sig_dsp_DustGate* self = (struct sig_dsp_DustGate*) signal;
 
     // Bind all parameters (remove this when we have change events).
     self->dust->inputs.density = self->inputs.density;
@@ -1842,8 +1844,8 @@ void cc_sig_DustGate_generate(void* signal) {
 }
 
 
-void cc_sig_DustGate_destroy(struct sig_Allocator* allocator,
-    struct cc_sig_DustGate* self) {
+void sig_dsp_DustGate_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_DustGate* self) {
     sig_dsp_TimedGate_destroy(allocator, self->gate);
 
     sig_dsp_Mul_destroy(allocator, self->densityDurationMultiplier);

@@ -31,10 +31,10 @@ struct sig_daisy_FilteredCVIn* durationKnob;
 struct sig_daisy_AudioIn* clockIn;
 struct sig_dsp_ClockFreqDetector* clockFrequency;
 struct sig_dsp_BinaryOp* densityClockSum;
-struct cc_sig_DustGate* cvDustGate;
+struct sig_dsp_DustGate* cvDustGate;
 struct sig_dsp_BinaryOp* audioDensity;
 struct sig_dsp_ConstantValue* audioDensityScale;
-struct cc_sig_DustGate* audioDustGate;
+struct sig_dsp_DustGate* audioDustGate;
 struct sig_daisy_CVOut* dustCVOut;
 struct sig_daisy_CVOut* clockCVOut;
 struct sig_daisy_AudioOut* leftAudioOut;
@@ -100,7 +100,7 @@ void buildGraph(struct sig_SignalContext* context, struct sig_Status* status) {
     densityClockSum->inputs.left = clockFrequency->outputs.main;
     densityClockSum->inputs.right = densityKnob->outputs.main;
 
-    cvDustGate = cc_sig_DustGate_new(&allocator, context);
+    cvDustGate = sig_dsp_DustGate_new(&allocator, context);
     sig_List_append(&signals, cvDustGate, status);
     cvDustGate->inputs.density = densityClockSum->outputs.main;
     cvDustGate->inputs.durationPercentage = durationKnob->outputs.main;
@@ -124,7 +124,7 @@ void buildGraph(struct sig_SignalContext* context, struct sig_Status* status) {
     audioDensity->inputs.left = densityClockSum->outputs.main;
     audioDensity->inputs.right = audioDensityScale->outputs.main;
 
-    audioDustGate = cc_sig_DustGate_new(&allocator, context);
+    audioDustGate = sig_dsp_DustGate_new(&allocator, context);
     sig_List_append(&signals, audioDustGate, status);
     audioDustGate->parameters.bipolar = 1.0f;
     audioDustGate->inputs.density = audioDensity->outputs.main;
