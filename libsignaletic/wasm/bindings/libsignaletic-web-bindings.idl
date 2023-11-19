@@ -37,11 +37,11 @@ interface Signals {
         sig_dsp_Oscillator triangle);
 
 
-    sig_dsp_ClockFreqDetector ClockFreqDetector_new(sig_Allocator allocator,
+    sig_dsp_ClockDetector ClockDetector_new(sig_Allocator allocator,
         sig_SignalContext context);
 
-    void ClockFreqDetector_destroy(sig_Allocator allocator,
-        sig_dsp_ClockFreqDetector detector);
+    void ClockDetector_destroy(sig_Allocator allocator,
+        sig_dsp_ClockDetector detector);
 };
 
 interface Signaletic {
@@ -219,13 +219,13 @@ interface sig_dsp_BinaryOp {
 };
 
 
-interface sig_dsp_ClockFreqDetector_Inputs {
+interface sig_dsp_ClockDetector_Inputs {
     attribute any source;
 };
 
-interface sig_dsp_ClockFreqDetector {
+interface sig_dsp_ClockDetector {
     [Value] attribute sig_dsp_Signal signal;
-    [Value] attribute sig_dsp_ClockFreqDetector_Inputs inputs;
+    [Value] attribute sig_dsp_ClockDetector_Inputs inputs;
     [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
 };
 

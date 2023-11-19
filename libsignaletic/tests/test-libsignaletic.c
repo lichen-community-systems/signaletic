@@ -714,7 +714,7 @@ void WaveformPlayer_destroy(struct sig_test_BufferPlayer* player) {
 
 void testClockDetector(struct sig_test_BufferPlayer* clockPlayer,
     float duration, float expectedFreq) {
-    struct sig_dsp_ClockFreqDetector* det = sig_dsp_ClockFreqDetector_new(
+    struct sig_dsp_ClockDetector* det = sig_dsp_ClockDetector_new(
         &allocator, context);
     det->inputs.source = clockPlayer->outputs.main;
 
@@ -726,7 +726,7 @@ void testClockDetector(struct sig_test_BufferPlayer* clockPlayer,
         FLOAT_ARRAY(det->outputs.main)[0],
         "The clock's frequency should have been detected correctly.");
 
-    sig_dsp_ClockFreqDetector_destroy(&allocator, det);
+    sig_dsp_ClockDetector_destroy(&allocator, det);
 }
 
 void testClockDetector_SingleWaveform(sig_waveform_generator waveform,
@@ -740,17 +740,17 @@ void testClockDetector_SingleWaveform(sig_waveform_generator waveform,
     WaveformPlayer_destroy(clockPlayer);
 }
 
-void test_sig_dsp_ClockFreqDetector_square() {
+void test_sig_dsp_ClockDetector_square() {
     // Square wave, 2Hz for two seconds.
     testClockDetector_SingleWaveform(sig_waveform_square, 2.0f, 2.0f);
 }
 
-void test_sig_dsp_ClockFreqDetector_sine() {
+void test_sig_dsp_ClockDetector_sine() {
     // Sine wave, 10 Hz.
     testClockDetector_SingleWaveform(sig_waveform_sine, 2.0f, 10.0f);
 }
 
-void test_sig_dsp_ClockFreqDetector_slowDown() {
+void test_sig_dsp_ClockDetector_slowDown() {
     float bufferDuration = 2.0f;
     size_t bufferLen = (size_t) audioSettings->sampleRate * bufferDuration;
     size_t halfBufferLen = bufferLen / 2;
@@ -780,7 +780,7 @@ void test_sig_dsp_ClockFreqDetector_slowDown() {
     sig_test_BufferPlayer_destroy(&allocator, clockPlayer);
 }
 
-void test_sig_dsp_ClockFreqDetector_stop() {
+void test_sig_dsp_ClockDetector_stop() {
     float bufferDuration = 122.0f;
     float clockDuration = 1.0f;
     size_t bufferLen = (size_t) audioSettings->sampleRate * bufferDuration;
@@ -1158,10 +1158,10 @@ int main(void) {
     RUN_TEST(test_sig_dsp_Sine_phaseWrapsAt2PI);
     RUN_TEST(test_test_sig_dsp_Sine_isOffset);
     RUN_TEST(test_sig_dsp_Dust);
-    RUN_TEST(test_sig_dsp_ClockFreqDetector_square);
-    RUN_TEST(test_sig_dsp_ClockFreqDetector_sine);
-    RUN_TEST(test_sig_dsp_ClockFreqDetector_slowDown);
-    RUN_TEST(test_sig_dsp_ClockFreqDetector_stop);
+    RUN_TEST(test_sig_dsp_ClockDetector_square);
+    RUN_TEST(test_sig_dsp_ClockDetector_sine);
+    RUN_TEST(test_sig_dsp_ClockDetector_slowDown);
+    RUN_TEST(test_sig_dsp_ClockDetector_stop);
     RUN_TEST(test_sig_dsp_TimedGate_unipolar);
     RUN_TEST(test_sig_dsp_TimedGate_resetOnTrigger);
     RUN_TEST(test_sig_dsp_TimedGate_bipolar);

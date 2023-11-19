@@ -26,10 +26,12 @@ struct sig_List signals;
 struct sig_dsp_SignalListEvaluator* evaluator;
 struct sig_daisy_Host* host;
 
+struct sig_daisy_EncoderIn* tapTempo;
 struct sig_daisy_FilteredCVIn* densityKnob;
 struct sig_daisy_FilteredCVIn* durationKnob;
-struct sig_daisy_AudioIn* clockIn;
-struct sig_dsp_ClockFreqDetector* clockFrequency;
+struct sig_daisy_CVIn* clockIn;
+struct sig_dsp_BinaryOp* clockPulseSum;
+struct sig_dsp_ClockDetector* clock;
 struct sig_dsp_BinaryOp* densityClockSum;
 struct sig_dsp_DustGate* cvDustGate;
 struct sig_dsp_BinaryOp* audioDensity;
@@ -67,29 +69,48 @@ void UpdateOled() {
     bluemchen.display.SetCursor(0, 8);
     bluemchen.display.WriteString(displayStr.Cstr(), Font_11x18, true);
 
+    float gateState = cvDustGate->outputs.main[0];
+    if (gateState > 0.0f) {
+        displayStr.Clear();
+        displayStr.Append("o");
+        bluemchen.display.SetCursor(28, 24);
+        bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+    }
+
     bluemchen.display.Update();
 }
 
 void buildGraph(struct sig_SignalContext* context, struct sig_Status* status) {
+    tapTempo = sig_daisy_EncoderIn_new(&allocator, context, host);
+    sig_List_append(&signals, tapTempo, status);
+
     densityKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
     sig_List_append(&signals, densityKnob, status);
     densityKnob->parameters.control = sig_daisy_Nehcmeulb_CV_IN_KNOB1;
-    densityKnob->parameters.scale = 20.0f;
+    densityKnob->parameters.scale = 10.0f;
 
     durationKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
     sig_List_append(&signals, durationKnob, status);
     durationKnob->parameters.control = sig_daisy_Nehcmeulb_CV_IN_KNOB2;
 
-    // TODO: Does the Nehcmeulb actually split the input to both the
-    // CV and audio input pins on the Daisy? If so, we should read clock
-    // signals from the CV input instead of audio.
-    clockIn = sig_daisy_AudioIn_new(&allocator, context, host);
+    // Nehcmeulb splits the input to both the CV and the audio inputs.
+    // Here, we want to read DC pulses so the CV input is the right place.
+    clockIn = sig_daisy_CVIn_new(&allocator, context, host);
     sig_List_append(&signals, clockIn, status);
-    clockIn->parameters.channel = sig_daisy_AUDIO_IN_1;
+    clockIn->parameters.control = sig_daisy_Nehcmeulb_CV_IN_CV1;
+    // Don't forget, Bluemchen inputs are bipolar in hardware
+    // but end up scaled between 0 and 1 when reading them in software.
+    clockIn->parameters.scale = 2.0f;
+    clockIn->parameters.offset = -1.0f;
 
-    clockFrequency = sig_dsp_ClockFreqDetector_new(&allocator, context);
-    sig_List_append(&signals, clockFrequency, status);
-    clockFrequency->inputs.source = clockIn->outputs.main;
+    clockPulseSum = sig_dsp_Add_new(&allocator, context);
+    sig_List_append(&signals, clockPulseSum, status);
+    clockPulseSum->inputs.left = tapTempo->outputs.button;
+    clockPulseSum->inputs.right = clockIn->outputs.main;
+
+    clock = sig_dsp_ClockDetector_new(&allocator, context);
+    sig_List_append(&signals, clock, status);
+    clock->inputs.source = clockPulseSum->outputs.main;
 
     // TODO: Add a CV input for controlling density,
     // which is centred on 0.0 and allows for negative values
@@ -97,7 +118,7 @@ void buildGraph(struct sig_SignalContext* context, struct sig_Status* status) {
 
     densityClockSum = sig_dsp_Add_new(&allocator, context);
     sig_List_append(&signals, densityClockSum, status);
-    densityClockSum->inputs.left = clockFrequency->outputs.main;
+    densityClockSum->inputs.left = clock->outputs.main;
     densityClockSum->inputs.right = densityKnob->outputs.main;
 
     cvDustGate = sig_dsp_DustGate_new(&allocator, context);
@@ -110,7 +131,7 @@ void buildGraph(struct sig_SignalContext* context, struct sig_Status* status) {
     dustCVOut->parameters.control = sig_daisy_Nehcmeulb_CV_OUT_1;
     dustCVOut->inputs.source = cvDustGate->outputs.main;
 
-    // TODO: Output a regular pulse wave at the densityClockSum frequency
+    // TODO: Output an envelope on each trigger on CV_OUT_2
 
     clockCVOut = sig_daisy_CVOut_new(&allocator, context, host);
     sig_List_append(&signals, clockCVOut, status);
@@ -151,7 +172,7 @@ int main(void) {
     struct sig_AudioSettings audioSettings = {
         .sampleRate = 48000,
         .numChannels = 2,
-        .blockSize = 2
+        .blockSize = 48
     };
 
     struct sig_SignalContext* context = sig_SignalContext_new(&allocator,

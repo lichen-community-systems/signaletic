@@ -20,6 +20,8 @@ const int sig_daisy_Bluemchen_NUM_ENCODERS = 1;
 enum {
     sig_daisy_Nehcmeulb_CV_IN_KNOB1 = kxmx::Bluemchen::Ctrl::CTRL_1,
     sig_daisy_Nehcmeulb_CV_IN_KNOB2 = kxmx::Bluemchen::Ctrl::CTRL_2,
+    sig_daisy_Nehcmeulb_CV_IN_CV1 = kxmx::Bluemchen::Ctrl::CTRL_3,
+    sig_daisy_Nehcmeulb_CV_IN_CV2 = kxmx::Bluemchen::Ctrl::CTRL_4,
     sig_daisy_Nehcmeulb_CV_IN_LAST
 };
 

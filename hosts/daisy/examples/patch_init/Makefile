@@ -1,5 +1,6 @@
 all:
 	$(MAKE) -C fm-osc
+	$(MAKE) -C calibrator
 
 clean:
-	$(MAKE) -C fm-osc clean
+	$(MAKE) -C calibrator clean

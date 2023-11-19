@@ -28,7 +28,7 @@ struct sig_List signals = {
 
 struct sig_dsp_SignalListEvaluator* evaluator;
 struct sig_daisy_GateIn* clockInput;
-struct sig_dsp_ClockFreqDetector* clockFreq;
+struct sig_dsp_ClockDetector* clockFreq;
 struct sig_daisy_CVIn* lfoAmpValue;
 struct sig_dsp_BinaryOp* lfoGain;
 struct sig_daisy_CVIn* lfoClockScaleValue;
@@ -55,7 +55,7 @@ void InitCVInputs(struct sig_SignalContext* context,
 }
 
 void InitClock(struct sig_SignalContext* context, struct sig_Status* status) {
-    clockFreq = sig_dsp_ClockFreqDetector_new(&alloc, context);
+    clockFreq = sig_dsp_ClockDetector_new(&alloc, context);
     clockFreq->inputs.source = clockInput->outputs.main;
     sig_List_append(&signals, clockFreq, status);
 }

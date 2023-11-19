@@ -105,7 +105,7 @@
         "type": "cortex-debug"
       },
       {
-        "name": "Remote Bluemchen Dusting",
+        "name": "Remote Nehcmeulb Dusting",
         "configFiles": [
           "interface/stlink.cfg",
           "target/stm32h7x.cfg"
@@ -116,6 +116,36 @@
           "${workspaceRoot}/hosts/daisy/examples/bluemchen/dusting"
         ],
         "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/dusting/build/signaletic-nehcmeulb-dusting.elf",
+        "interface": "swd",
+        "openOCDLaunchCommands": [
+          "init",
+          "reset init"
+        ],
+        "preLaunchTask": "Debug Build Bluemchen Examples",
+        "preRestartCommands": [
+          "load",
+          "enable breakpoint",
+          "monitor reset"
+        ],
+        "request": "launch",
+        "runToEntryPoint": "main",
+        "servertype": "openocd",
+        "showDevDebugOutput": "parsed",
+        "svdFile": "${workspaceRoot}/.vscode/STM32H750x.svd",
+        "type": "cortex-debug"
+      },
+      {
+        "name": "Remote Bluemchen Calibrator",
+        "configFiles": [
+          "interface/stlink.cfg",
+          "target/stm32h7x.cfg"
+        ],
+        "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/calibrator",
+        "debuggerArgs": [
+          "-d",
+          "${workspaceRoot}/hosts/daisy/examples/bluemchen/calibrator"
+        ],
+        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/calibrator/build/signaletic-bluemchen-calibrator.elf",
         "interface": "swd",
         "openOCDLaunchCommands": [
           "init",

@@ -210,6 +210,34 @@ float sig_linearToFreq(float value, float middleFreq);
 float sig_freqToLinear(float freq, float middleFreq);
 
 /**
+ * @brief Sums all values in an array.
+ *
+ * @param values an array of floating point values
+ * @param length the length of the array
+ * @return float the sum of all values
+ */
+float sig_sum(float_array_ptr values, size_t length);
+
+/**
+ * @brief Returns the index of the smallest value in an array.
+ *
+ * @param values an array of floating point values
+ * @param length the length of the warray
+ * @return size_t the index to the smallest item in the array
+ */
+size_t sig_indexOfMin(float_array_ptr values, size_t length);
+
+/**
+ * @brief Returns the index of the largest value in an array.
+ *
+ * @param values an array of floating point values
+ * @param length the length of the warray
+ * @return size_t the index to the largest item in the array
+
+ */
+size_t sig_indexOfMax(float_array_ptr values, size_t length);
+
+/**
  * Type definition for array fill functions.
  *
  * @param i the current index of the array
@@ -280,6 +308,36 @@ float sig_interpolate_linear(float idx, float_array_ptr table,
  * @return the interpolated value
  */
 float sig_interpolate_cubic(float idx, float_array_ptr table, size_t length);
+
+/**
+ * @brief Returns the mean average of all values in the specified array.
+ *
+ * @param values an array of floating point values to average
+ * @param length the number of values in the array
+ * @return float the mean of all values
+ */
+float sig_filter_mean(float_array_ptr values, size_t length);
+
+/**
+ * @brief Returns the mean average of values in the array, after excluding the
+ * largest and smallest values.
+ *
+ * @param values an array of floating point values to average
+ * @param length the number of values in the array
+ * @return float float the mean of all values
+ */
+float sig_filter_meanExcludeMinMax(float_array_ptr values, size_t length);
+
+/**
+ * @brief An exponential moving average filter that implements the formula
+ * y[n] = a * x[n] + (1 - a) * y[n-1]
+ *
+ * @param current the current sample (i.e. x[n])
+ * @param previous the previous output sample (i.e. y[n-1])
+ * @param a the coefficient (between 0 and 1); values closer to 0 apply more filtering)
+ * @return float the filtered sample (i.e. y[n])
+ */
+float sig_filter_ema(float current, float previous, float a);
 
 /**
  * @brief A one pole filter that implements the formula
@@ -879,6 +937,7 @@ void sig_dsp_ConstantValue_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_ConstantValue* self);
 
 
+
 struct sig_dsp_Abs_Inputs {
     float_array_ptr source;
 };
@@ -896,6 +955,33 @@ void sig_dsp_Abs_init(struct sig_dsp_Abs* self,
 void sig_dsp_Abs_generate(void* signal);
 void sig_dsp_Abs_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Abs* self);
+
+
+
+struct sig_dsp_ScaleOffset_Inputs {
+    float_array_ptr source;
+};
+
+struct sig_dsp_ScaleOffset_Parameters {
+    float scale;
+    float offset;
+};
+
+struct sig_dsp_ScaleOffset {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_ScaleOffset_Inputs inputs;
+    struct sig_dsp_ScaleOffset_Parameters parameters;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
+struct sig_dsp_ScaleOffset* sig_dsp_ScaleOffset_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_ScaleOffset_init(struct sig_dsp_ScaleOffset* self,
+    struct sig_SignalContext* context);
+void sig_dsp_ScaleOffset_generate(void* signal);
+void sig_dsp_ScaleOffset_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_ScaleOffset* self);
+
 
 
 struct sig_dsp_BinaryOp_Inputs {
@@ -920,6 +1006,14 @@ void sig_dsp_Add_init(struct sig_dsp_BinaryOp* self,
     struct sig_SignalContext* context);
 void sig_dsp_Add_generate(void* signal);
 void sig_dsp_Add_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_BinaryOp* self);
+
+struct sig_dsp_BinaryOp* sig_dsp_Sub_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_Sub_init(struct sig_dsp_BinaryOp* self,
+    struct sig_SignalContext* context);
+void sig_dsp_Sub_generate(void* signal);
+void sig_dsp_Sub_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_BinaryOp* self);
 
 struct sig_dsp_BinaryOp* sig_dsp_Mul_new(
@@ -977,6 +1071,8 @@ struct sig_dsp_Accumulate_Inputs {
 
 struct sig_dsp_Accumulate_Parameters {
     float accumulatorStart;
+    float wrap;
+    float maxValue;
 };
 
 /**
@@ -1223,6 +1319,33 @@ void sig_dsp_Smooth_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Smooth* self);
 
 
+
+struct sig_dsp_EMA_Inputs {
+    float_array_ptr source;
+};
+
+struct sig_dsp_EMA_Parameters {
+    float alpha;
+};
+
+struct sig_dsp_EMA {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_EMA_Inputs inputs;
+    struct sig_dsp_EMA_Parameters parameters;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+    float previousSample;
+};
+
+void sig_dsp_EMA_init(struct sig_dsp_EMA* self,
+    struct sig_SignalContext* context);
+struct sig_dsp_EMA* sig_dsp_EMA_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_EMA_generate(void* signal);
+void sig_dsp_EMA_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_EMA* self);
+
+
+
 enum sig_dsp_OnePole_Mode {
     sig_dsp_OnePole_Mode_HIGH_PASS,
     sig_dsp_OnePole_Mode_LOW_PASS,
@@ -1446,13 +1569,44 @@ void sig_dsp_DustGate_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_DustGate* self);
 
 
-struct sig_dsp_ClockFreqDetector_Inputs {
+/**
+ * @brief Inputs for a ClockDetector.
+ */
+struct sig_dsp_ClockDetector_Inputs {
+    /**
+     * @brief The incoming clock signal.
+     */
     float_array_ptr source;
 };
 
-struct sig_dsp_ClockFreqDetector_Parameters {
+struct sig_dsp_ClockDetector_Outputs {
+    /**
+     * @brief The detected clock frequency in pulses per second (i.e. Hz).
+     */
+    float_array_ptr main;
+
+    /**
+     * @brief The detected clock frequency in beats per minute.
+     */
+    float_array_ptr bpm;
+};
+
+void sig_dsp_ClockDetector_Outputs_newAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_dsp_ClockDetector_Outputs* outputs);
+
+void sig_dsp_ClockDetector_Outputs_destroyAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_dsp_ClockDetector_Outputs* outputs);
+
+struct sig_dsp_ClockDetector_Parameters {
+    /**
+     * @brief The minimum value that a trigger must reach to be detected
+     * as a clock pulse.
+     *
+     */
     float threshold;
-    float timeoutDuration;
 };
 
 /**
@@ -1463,27 +1617,28 @@ struct sig_dsp_ClockFreqDetector_Parameters {
  * Inputs:
  *  - source the incoming clock signal
  */
-struct sig_dsp_ClockFreqDetector {
+struct sig_dsp_ClockDetector {
     struct sig_dsp_Signal signal;
-    struct sig_dsp_ClockFreqDetector_Inputs inputs;
-    struct sig_dsp_ClockFreqDetector_Parameters parameters;
-    struct sig_dsp_Signal_SingleMonoOutput outputs;
+    struct sig_dsp_ClockDetector_Inputs inputs;
+    struct sig_dsp_ClockDetector_Parameters parameters;
+    struct sig_dsp_ClockDetector_Outputs outputs;
 
     float previousTrigger;
     bool isRisingEdge;
+    uint8_t numPulsesDetected;
     uint32_t samplesSinceLastPulse;
     float clockFreq;
     uint32_t pulseDurSamples;
 };
 
-void sig_dsp_ClockFreqDetector_init(
-    struct sig_dsp_ClockFreqDetector* self,
+void sig_dsp_ClockDetector_init(
+    struct sig_dsp_ClockDetector* self,
     struct sig_SignalContext* context);
-struct sig_dsp_ClockFreqDetector* sig_dsp_ClockFreqDetector_new(
+struct sig_dsp_ClockDetector* sig_dsp_ClockDetector_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context);
-void sig_dsp_ClockFreqDetector_generate(void* signal);
-void sig_dsp_ClockFreqDetector_destroy(struct sig_Allocator* allocator,
-    struct sig_dsp_ClockFreqDetector* self);
+void sig_dsp_ClockDetector_generate(void* signal);
+void sig_dsp_ClockDetector_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_ClockDetector* self);
 
 
 struct sig_dsp_LinearToFreq_Inputs {
@@ -1826,6 +1981,41 @@ void sig_dsp_TiltEQ_generate(void* signal);
 void sig_dsp_TiltEQ_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_TiltEQ* self);
 
+
+
+struct sig_dsp_Calibrator_Inputs {
+    float_array_ptr source;
+    float_array_ptr gate;
+};
+
+struct sig_dsp_Calibrator_RecordingState {
+    float minValue;
+    float maxValue;
+    size_t numSamplesRecorded;
+    float sum;
+};
+
+void sig_dsp_Calibrator_RecordingState_init(struct
+    sig_dsp_Calibrator_RecordingState* state);
+
+struct sig_dsp_Calibrator {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Calibrator_Inputs inputs;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+
+    struct sig_dsp_Calibrator_RecordingState state;
+    float previousGate;
+    size_t stage;
+    float calibrationReadings[3];
+};
+
+struct sig_dsp_Calibrator* sig_dsp_Calibrator_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_Calibrator_init(struct sig_dsp_Calibrator* self,
+    struct sig_SignalContext* context);
+void sig_dsp_Calibrator_generate(void* signal);
+void sig_dsp_Calibrator_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Calibrator* self);
 
 #ifdef __cplusplus
 }

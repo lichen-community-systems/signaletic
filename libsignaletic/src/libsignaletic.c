@@ -112,6 +112,56 @@ float sig_freqToLinear(float freq, float middleFreq) {
     return (logf(freq / middleFreq) / sig_LOG2);
 }
 
+// TODO: Unit tests.
+inline float sig_sum(float_array_ptr values, size_t length) {
+    float sum = 0;
+    for (size_t i = 0; i < length; i++) {
+        sum += values[i];
+    }
+
+    return sum;
+}
+
+// TODO: Unit tests.
+inline size_t sig_indexOfMin(float_array_ptr values, size_t length) {
+    size_t indexOfMin = 0;
+
+    if (length < 1) {
+        return indexOfMin;
+    }
+
+    float minValue = values[0];
+    for (size_t i = 1; i < length; i++) {
+        float currentValue = values[i];
+        if (currentValue < minValue) {
+            indexOfMin = i;
+            minValue = currentValue;
+        }
+    }
+
+    return indexOfMin;
+}
+
+// TODO: Unit tests.
+inline size_t sig_indexOfMax(float_array_ptr values, size_t length) {
+    size_t indexOfMax = 0;
+
+    if (length < 1) {
+        return indexOfMax;
+    }
+
+    float maxValue = values[0];
+    for (size_t i = 1; i < length; i++) {
+        float currentValue = values[i];
+        if (currentValue > maxValue) {
+            indexOfMax = i;
+            maxValue = currentValue;
+        }
+    }
+
+    return indexOfMax;
+}
+
 float sig_randomFill(size_t i, float_array_ptr array) {
     return sig_randf();
 }
@@ -170,10 +220,37 @@ float sig_interpolate_cubic(float idx, float_array_ptr table,
         idxFractional + x0;
 }
 
+// TODO: Unit tests.
+inline float sig_filter_mean(float_array_ptr values, size_t length) {
+    float sum = sig_sum(values, length);
+    return sum / (float) length;
+}
+
+// TODO: Unit tests.
+inline float sig_filter_meanExcludeMinMax(float_array_ptr values,
+    size_t length) {
+    if (length < 1) {
+        return 0.0f;
+    } else if (length < 3) {
+        return sig_filter_mean(values, length);
+    }
+
+    float min = values[sig_indexOfMin(values, length)];
+    float max = values[sig_indexOfMax(values, length)];
+    float exclude = min + max;
+    float sum = sig_sum(values, length) - exclude;
+    return sum / (float) (length - 2);
+}
+
+// TODO: Unit tests.
+inline float sig_filter_ema(float current, float previous, float a) {
+    return (a * current) + (1 - a) * previous;
+}
+
 inline float sig_filter_onepole(float current, float previous, float b0,
     float a1) {
     return b0 * current - a1 * previous;
-};
+}
 
 inline float sig_filter_onepole_HPF_calculateA1(
     float frequency, float sampleRate) {
@@ -724,6 +801,44 @@ void sig_dsp_Abs_destroy(struct sig_Allocator* allocator,
 }
 
 
+
+struct sig_dsp_ScaleOffset* sig_dsp_ScaleOffset_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_ScaleOffset* self = sig_MALLOC(allocator,
+        struct sig_dsp_ScaleOffset);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+    sig_dsp_ScaleOffset_init(self, context);
+
+    return self;
+}
+
+void sig_dsp_ScaleOffset_init(struct sig_dsp_ScaleOffset* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_ScaleOffset_generate);
+    sig_CONNECT_TO_SILENCE(self, source, context);
+}
+
+void sig_dsp_ScaleOffset_generate(void* signal) {
+    struct sig_dsp_ScaleOffset* self = (struct sig_dsp_ScaleOffset*) signal;
+
+    float scale = self->parameters.scale;
+    float offset = self->parameters.offset;
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float source = FLOAT_ARRAY(self->inputs.source)[i];
+        FLOAT_ARRAY(self->outputs.main)[i] = source * scale + offset;
+    }
+}
+
+void sig_dsp_ScaleOffset_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_ScaleOffset* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
+}
+
+
+
 struct sig_dsp_BinaryOp* sig_dsp_BinaryOp_new(struct sig_Allocator* allocator,
     struct sig_SignalContext* context, sig_dsp_generateFn generate) {
     struct sig_dsp_BinaryOp* self = sig_MALLOC(allocator,
@@ -774,6 +889,36 @@ void sig_dsp_Add_generate(void* signal) {
 }
 
 void sig_dsp_Add_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_BinaryOp* self) {
+    sig_dsp_BinaryOp_destroy(allocator, self);
+}
+
+
+
+struct sig_dsp_BinaryOp* sig_dsp_Sub_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    return sig_dsp_BinaryOp_new(allocator, context, *sig_dsp_Sub_generate);
+}
+
+void sig_dsp_Sub_init(struct sig_dsp_BinaryOp* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_BinaryOp_init(self, context, *sig_dsp_Sub_generate);
+}
+
+// TODO: Unit tests.
+void sig_dsp_Sub_generate(void* signal) {
+    struct sig_dsp_BinaryOp* self = (struct sig_dsp_BinaryOp*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float left = FLOAT_ARRAY(self->inputs.left)[i];
+        float right = FLOAT_ARRAY(self->inputs.right)[i];
+        float val = left - right;
+
+        FLOAT_ARRAY(self->outputs.main)[i] = val;
+    }
+}
+
+void sig_dsp_Sub_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_BinaryOp* self) {
     sig_dsp_BinaryOp_destroy(allocator, self);
 }
@@ -883,7 +1028,9 @@ void sig_dsp_Accumulate_init(struct sig_dsp_Accumulate* self,
     sig_dsp_Signal_init(self, context, *sig_dsp_Accumulate_generate);
 
     struct sig_dsp_Accumulate_Parameters parameters = {
-        .accumulatorStart = 1.0
+        .accumulatorStart = 1.0,
+        .wrap = 0.0f,
+        .maxValue = 1.0f
     };
     self->parameters = parameters;
 
@@ -900,13 +1047,23 @@ void sig_dsp_Accumulate_generate(void* signal) {
     struct sig_dsp_Accumulate* self =
         (struct sig_dsp_Accumulate*) signal;
 
-    float reset = FLOAT_ARRAY(self->inputs.reset)[0];
-    if (reset > 0.0f && self->previousReset <= 0.0f) {
-        // Reset the accumulator if we received a trigger.
-        self->accumulator = self->parameters.accumulatorStart;
-    }
-
     self->accumulator += FLOAT_ARRAY(self->inputs.source)[0];
+
+    float reset = FLOAT_ARRAY(self->inputs.reset)[0];
+    float wrap = self->parameters.wrap;
+    float maxValue = self->parameters.maxValue;
+
+    // Reset the accumulator if we received a trigger
+    // or if we're wrapping and we've gone past the min/max value.
+    if (reset > 0.0f && self->previousReset <= 0.0f) {
+        self->accumulator = self->parameters.accumulatorStart;
+    } else if (wrap > 0.0f) {
+        if (self->accumulator > maxValue) {
+            self->accumulator = self->parameters.accumulatorStart;
+        } else if (self->accumulator < self->parameters.accumulatorStart) {
+            self->accumulator = self->parameters.maxValue;
+        }
+    }
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
         FLOAT_ARRAY(self->outputs.main)[i] = self->accumulator;
@@ -1396,7 +1553,52 @@ void sig_dsp_OnePole_generate(void* signal) {
 
 void sig_dsp_OnePole_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_OnePole* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
+}
 
+
+
+void sig_dsp_EMA_init(struct sig_dsp_EMA* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_EMA_generate);
+    self->parameters.alpha = 0.1f;
+    self->previousSample = 0.0f;
+
+    sig_CONNECT_TO_SILENCE(self, source, context);
+}
+
+struct sig_dsp_EMA* sig_dsp_EMA_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_EMA* self = sig_MALLOC(allocator,
+        struct sig_dsp_EMA);
+    sig_dsp_EMA_init(self, context);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+
+}
+void sig_dsp_EMA_generate(void* signal) {
+    struct sig_dsp_EMA* self = (struct sig_dsp_EMA*) signal;
+    float previousSample = self->previousSample;
+    float alpha = self->parameters.alpha;
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float source = FLOAT_ARRAY(self->inputs.source)[i];
+        float sample = sig_filter_ema(source, previousSample, alpha);
+        FLOAT_ARRAY(self->outputs.main)[i] = sample;
+        previousSample = sample;
+    }
+
+    self->previousSample = previousSample;
+}
+
+void sig_dsp_EMA_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_EMA* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
 }
 
 
@@ -1861,63 +2063,80 @@ void sig_dsp_DustGate_destroy(struct sig_Allocator* allocator,
 }
 
 
-void sig_dsp_ClockFreqDetector_init(struct sig_dsp_ClockFreqDetector* self,
-    struct sig_SignalContext* context) {
-    sig_dsp_Signal_init(self, context, *sig_dsp_ClockFreqDetector_generate);
 
-    struct sig_dsp_ClockFreqDetector_Parameters params = {
-        .threshold = 0.1f,
-        .timeoutDuration = 120.0f
+void sig_dsp_ClockDetector_Outputs_newAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_dsp_ClockDetector_Outputs* outputs) {
+    outputs->main = sig_AudioBlock_newSilent(allocator, audioSettings);
+    outputs->bpm = sig_AudioBlock_newSilent(allocator, audioSettings);
+}
+
+void sig_dsp_ClockDetector_Outputs_destroyAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_dsp_ClockDetector_Outputs* outputs) {
+
+    sig_AudioBlock_destroy(allocator, outputs->main);
+    sig_AudioBlock_destroy(allocator, outputs->bpm);
+}
+
+void sig_dsp_ClockDetector_init(struct sig_dsp_ClockDetector* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_ClockDetector_generate);
+
+    struct sig_dsp_ClockDetector_Parameters params = {
+        .threshold = 0.04f // 0.2V, assuming 10Vpp
     };
 
     self->parameters = params;
     self->previousTrigger = 0.0f;
-    self->samplesSinceLastPulse = 0;
+    self->isRisingEdge = false;
+    self->numPulsesDetected = 0;
+    self->samplesSinceLastPulse = self->signal.audioSettings->sampleRate;
     self->clockFreq = 0.0f;
     self->pulseDurSamples = 0;
 
     sig_CONNECT_TO_SILENCE(self, source, context);
 }
 
-struct sig_dsp_ClockFreqDetector* sig_dsp_ClockFreqDetector_new(
+struct sig_dsp_ClockDetector* sig_dsp_ClockDetector_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context) {
-    struct sig_dsp_ClockFreqDetector* self = sig_MALLOC(allocator,
-        struct sig_dsp_ClockFreqDetector);
-    sig_dsp_ClockFreqDetector_init(self, context);
-    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+    struct sig_dsp_ClockDetector* self = sig_MALLOC(allocator,
+        struct sig_dsp_ClockDetector);
+    sig_dsp_ClockDetector_init(self, context);
+    sig_dsp_ClockDetector_Outputs_newAudioBlocks(allocator,
         context->audioSettings, &self->outputs);
 
     return self;
 }
 
-static inline float sig_dsp_ClockFreqDetector_calcClockFreq(
+static inline float sig_dsp_ClockDetector_calcClockFreq(
     float sampleRate, uint32_t samplesSinceLastPulse,
     float prevFreq) {
     float freq = sampleRate / (float) samplesSinceLastPulse;
-    // TODO: Is an LPF good, or is a moving average better?
-    return sig_filter_smooth(freq, prevFreq, 0.01f);
+
+    return freq;
 }
 
-void sig_dsp_ClockFreqDetector_generate(void* signal) {
-    struct sig_dsp_ClockFreqDetector* self =
-        (struct sig_dsp_ClockFreqDetector*) signal;
+void sig_dsp_ClockDetector_generate(void* signal) {
+    struct sig_dsp_ClockDetector* self =
+        (struct sig_dsp_ClockDetector*) signal;
     float_array_ptr source = self->inputs.source;
-    float_array_ptr output = self->outputs.main;
 
     float previousTrigger = self->previousTrigger;
     float clockFreq = self->clockFreq;
     bool isRisingEdge = self->isRisingEdge;
+    uint32_t numPulsesDetected = self->numPulsesDetected;
     uint32_t samplesSinceLastPulse = self->samplesSinceLastPulse;
     float sampleRate = self->signal.audioSettings->sampleRate;
     float threshold = self->parameters.threshold;
-    float timeoutDuration = self->parameters.timeoutDuration;
     uint32_t pulseDurSamples = self->pulseDurSamples;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
         samplesSinceLastPulse++;
 
         float sourceSamp = FLOAT_ARRAY(source)[i];
-        if (sourceSamp > 0.0f && previousTrigger <= 0.0f) {
+        if (sourceSamp > 0.0f && previousTrigger < threshold) {
             // Start of rising edge.
             isRisingEdge = true;
         } else if (sourceSamp < previousTrigger) {
@@ -1929,34 +2148,36 @@ void sig_dsp_ClockFreqDetector_generate(void* signal) {
         if (isRisingEdge && sourceSamp >= threshold) {
             // Signal is rising and threshold has been reached,
             // so this is a pulse.
-            clockFreq = sig_dsp_ClockFreqDetector_calcClockFreq(
-                sampleRate, samplesSinceLastPulse, clockFreq);
+            numPulsesDetected++;
+            if (numPulsesDetected > 1) {
+                // Need to have found at least two pulses before
+                // the frequency can be reliably determined.
+                clockFreq = sig_dsp_ClockDetector_calcClockFreq(
+                    sampleRate, samplesSinceLastPulse, clockFreq);
+                numPulsesDetected = 1;
+            }
             pulseDurSamples = samplesSinceLastPulse;
             samplesSinceLastPulse = 0;
             isRisingEdge = false;
-        } else if (samplesSinceLastPulse > sampleRate * timeoutDuration) {
-            // It's been too long since we've received a pulse.
-            clockFreq = 0.0f;
-        } else if (samplesSinceLastPulse > pulseDurSamples) {
-            // Tempo is slowing down; recalculate it.
-            clockFreq = sig_dsp_ClockFreqDetector_calcClockFreq(
-                sampleRate, samplesSinceLastPulse, clockFreq);
         }
 
-        FLOAT_ARRAY(output)[i] = clockFreq;
+        FLOAT_ARRAY(self->outputs.main)[i] = clockFreq;
+        FLOAT_ARRAY(self->outputs.bpm)[i] = clockFreq * 60.0f;
+
         previousTrigger = sourceSamp;
     }
 
     self->previousTrigger = previousTrigger;
     self->clockFreq = clockFreq;
     self->isRisingEdge = isRisingEdge;
+    self->numPulsesDetected = numPulsesDetected;
     self->samplesSinceLastPulse = samplesSinceLastPulse;
     self->pulseDurSamples = pulseDurSamples;
 }
 
-void sig_dsp_ClockFreqDetector_destroy(struct sig_Allocator* allocator,
-    struct sig_dsp_ClockFreqDetector* self) {
-    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+void sig_dsp_ClockDetector_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_ClockDetector* self) {
+    sig_dsp_ClockDetector_Outputs_destroyAudioBlocks(allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
 }
@@ -2570,6 +2791,97 @@ void sig_dsp_TiltEQ_generate(void* signal) {
 
 void sig_dsp_TiltEQ_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_TiltEQ* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, self);
+}
+
+
+
+struct sig_dsp_Calibrator* sig_dsp_Calibrator_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_Calibrator* self = sig_MALLOC(allocator,
+        struct sig_dsp_Calibrator);
+    sig_dsp_Calibrator_init(self, context);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+inline void sig_dsp_Calibrator_RecordingState_init(
+    struct sig_dsp_Calibrator_RecordingState* state) {
+    state->minValue = 1.0f;
+    state->maxValue = 0.0f;
+    state->numSamplesRecorded = 0;
+    state->sum = 0.0f;
+}
+
+void sig_dsp_Calibrator_init(struct sig_dsp_Calibrator* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_Calibrator_generate);
+
+    self->previousGate = 0.0f;
+    self->stage = 0;
+    self->calibrationReadings[0] = 0.0f;
+    self->calibrationReadings[1] = 1.0f;
+    self->calibrationReadings[2] = 3.0f;
+
+    sig_dsp_Calibrator_RecordingState_init(&self->state);
+
+    sig_CONNECT_TO_SILENCE(self, source, context);
+    sig_CONNECT_TO_SILENCE(self, gate, context);
+}
+
+void sig_dsp_Calibrator_generate(void* signal) {
+    struct sig_dsp_Calibrator* self = (struct sig_dsp_Calibrator*) signal;
+
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float source = FLOAT_ARRAY(self->inputs.source)[i];
+        float gate = FLOAT_ARRAY(self->inputs.gate)[i];
+
+        if (gate <= 0.0f && self->previousGate > 0.0f) {
+            // Gate is low; recording has just stopped.
+            // Calculate offset by discarding the highest and lowest values,
+            // and then averaging the rest.
+            self->state.sum -= self->state.minValue;
+            self->state.sum -= self->state.maxValue;
+            self->calibrationReadings[self->stage] = self->state.sum /
+                (self->state.numSamplesRecorded - 2);
+            sig_dsp_Calibrator_RecordingState_init(&self->state);
+            self->stage = (self->stage + 1) % 3;
+        } else if (gate > 0.0f) {
+            // Gate is high; we're recording.
+            self->state.sum += source;
+            self->state.numSamplesRecorded++;
+
+            if (source < self->state.minValue) {
+                self->state.minValue = source;
+            }
+
+            if (source > self->state.maxValue) {
+                self->state.maxValue = source;
+            }
+        }
+
+        // Calibrate using piecewise linear fit from
+        // readings sampled at 1.0V and 3.0V.
+        float dcOffset = self->calibrationReadings[0];
+        float yk = self->calibrationReadings[1];
+        float ykplus1 = self->calibrationReadings[2];
+        float delta = ykplus1 - yk;
+        float scale = 2.0f / delta;
+        float offset = 1.0f - scale * yk;
+        float px = offset + (scale * source);
+        FLOAT_ARRAY(self->outputs.main)[i] = px - dcOffset;
+
+        self->previousGate = gate;
+    }
+}
+
+void sig_dsp_Calibrator_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Calibrator* self) {
     sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);

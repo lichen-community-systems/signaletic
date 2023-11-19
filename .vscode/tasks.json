@@ -183,9 +183,23 @@
             "type": "shell"
         },
         {
-            "label": "Build and Flash Bluemchen Dusting",
+            "label": "Build and Flash Nehcmeulb Dusting",
             "options": {
                 "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/dusting"
+            },
+            "dependsOn": [
+                "Build Bluemchen Examples"
+            ],
+            "command": "make program",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
+            "label": "Build and Flash Nehcmeulb Calibrator",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/calibrator"
             },
             "dependsOn": [
                 "Build Bluemchen Examples"

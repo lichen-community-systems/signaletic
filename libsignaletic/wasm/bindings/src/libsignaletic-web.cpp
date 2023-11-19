@@ -71,15 +71,15 @@ public:
     }
 
 
-    struct sig_dsp_ClockFreqDetector* ClockFreqDetector_new(
+    struct sig_dsp_ClockDetector* ClockDetector_new(
         struct sig_Allocator* allocator,
         struct sig_SignalContext* context) {
-        return sig_dsp_ClockFreqDetector_new(allocator, context);
+        return sig_dsp_ClockDetector_new(allocator, context);
     }
 
-    void ClockFreqDetector_destroy(struct sig_Allocator* allocator,
-        struct sig_dsp_ClockFreqDetector* self) {
-        return sig_dsp_ClockFreqDetector_destroy(allocator, self);
+    void ClockDetector_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_ClockDetector* self) {
+        return sig_dsp_ClockDetector_destroy(allocator, self);
     }
 };
 
