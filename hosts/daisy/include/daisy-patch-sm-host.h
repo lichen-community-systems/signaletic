@@ -1,3 +1,6 @@
+#ifndef SIGNALETIC_DAISY_PATCH_SM_H
+#define SIGNALETIC_DAISY_PATCH_SM_H
+
 #include "./signaletic-daisy-host.h"
 #include "../vendor/libDaisy/src/daisy_patch_sm.h"
 
@@ -137,3 +140,5 @@ void sig_daisy_PatchSMHost_Board_init(struct sig_daisy_Host_Board* self,
 void sig_daisy_PatchSMHost_destroy(
     struct sig_Allocator* allocator,
     struct sig_daisy_Host* self);
+
+#endif SIGNALETIC_DAISY_PATCH_SM_H

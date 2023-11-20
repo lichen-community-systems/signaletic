@@ -1,3 +1,6 @@
+#ifndef SIGNALETIC_DAISY_VERSIO_H
+#define SIGNALETIC_DAISY_VERSIO_H
+
 #include "./signaletic-daisy-host.h"
 #include "../vendor/libDaisy/src/daisy_versio.h"
 
@@ -58,3 +61,5 @@ void sig_daisy_VersioHost_init(struct sig_daisy_Host* self,
     struct sig_AudioSettings* audioSettings,
     daisy::DaisyVersio* versio,
     struct sig_dsp_SignalEvaluator* evaluator);
+
+#endif // SIGNALETIC_DAISY_VERSIO_H

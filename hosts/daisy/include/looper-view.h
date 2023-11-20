@@ -1,3 +1,6 @@
+#ifndef SIGNALETIC_LOOPER_VIEW_H
+#define SIGNALETIC_LOOPER_VIEW_H
+
 // Note: This is a C++ file because I haven't gotten around to
 // considering how to wrap Daisy objects in C,
 // and doing so doesn't seem hugely important since we're certain
@@ -172,3 +175,5 @@ void sig_ui_daisy_LooperView_render(struct sig_ui_daisy_LooperView* self,
     sig_ui_daisy_LoopRenderer_drawPositionLine(self->loopRenderer,
         playbackPos, self->positionLineThickness, foregroundOn);
 }
+
+#endif // SIGNALETIC_LOOPER_VIEW_H

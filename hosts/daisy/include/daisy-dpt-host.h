@@ -1,3 +1,6 @@
+#ifndef SIGNALETIC_DAISY_DPT_H
+#define SIGNALETIC_DAISY_DPT_H
+
 #include "./signaletic-daisy-host.h"
 #include "../vendor/dpt/lib/daisy_dpt.h"
 
@@ -86,3 +89,5 @@ void sig_daisy_DPTHost_init(struct sig_daisy_DPTHost* self,
 void sig_daisy_DPTHost_destroy(
     struct sig_Allocator* allocator,
     struct sig_daisy_DPTHost* self);
+
+#endif // SIGNALETIC_DAISY_DPT_H

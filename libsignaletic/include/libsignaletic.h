@@ -1641,6 +1641,7 @@ void sig_dsp_ClockDetector_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_ClockDetector* self);
 
 
+
 struct sig_dsp_LinearToFreq_Inputs {
     float_array_ptr source;
 };

@@ -1,7 +1,7 @@
 # Project Name
 TARGET ?= signaletic-bluemchen-calibrator
 
-DEBUG = 0
+DEBUG = 1
 OPT = -O0
 
 # Sources

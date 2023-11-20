@@ -1,5 +1,5 @@
 #include "daisy.h"
-#include <libsignaletic.h>
+#include "../include/signaletic-dpt-lfos-signals.h"
 #include "../../../../include/daisy-dpt-host.h"
 
 #define HEAP_SIZE 1024 * 256 // 256KB
@@ -29,12 +29,14 @@ struct sig_List signals = {
 struct sig_dsp_SignalListEvaluator* evaluator;
 struct sig_daisy_GateIn* clockInput;
 struct sig_dsp_ClockDetector* clockFreq;
-struct sig_daisy_CVIn* lfoAmpValue;
-struct sig_dsp_BinaryOp* lfoGain;
-struct sig_daisy_CVIn* lfoClockScaleValue;
-struct sig_dsp_BinaryOp* lfoClockScale;
-struct sig_dsp_Oscillator* lfo;
-struct sig_daisy_CVOut* cv1Out;
+struct sig_daisy_ClockedLFO* lfo1;
+struct sig_daisy_ClockedLFO* lfo2;
+struct sig_daisy_ClockedLFO* lfo3;
+struct sig_daisy_ClockedLFO* lfo4;
+struct sig_dsp_BinaryOp* lfo1PlusLFO3;
+struct sig_dsp_BinaryOp* lfo2PlusLFO4;
+struct sig_daisy_CVOut* lfo1And3Out;
+struct sig_daisy_CVOut* lfo2And4Out;
 struct sig_daisy_GateOut* gate1Out;
 
 void InitCVInputs(struct sig_SignalContext* context,
@@ -42,16 +44,6 @@ void InitCVInputs(struct sig_SignalContext* context,
     clockInput = sig_daisy_GateIn_new(&alloc, context, dptHost);
     clockInput->parameters.control = sig_daisy_DPT_GATE_IN_1;
     sig_List_append(&signals, clockInput, status);
-
-    lfoClockScaleValue = sig_daisy_CVIn_new(&alloc, context, dptHost);
-    lfoClockScaleValue->parameters.control = sig_daisy_DPT_CV_IN_1;
-    lfoClockScaleValue->parameters.scale = 9.9f;
-    lfoClockScaleValue->parameters.offset = 0.1f;
-    sig_List_append(&signals, lfoClockScaleValue, status);
-
-    lfoAmpValue = sig_daisy_CVIn_new(&alloc, context, dptHost);
-    lfoAmpValue->parameters.control = sig_daisy_DPT_CV_IN_2;
-    sig_List_append(&signals, lfoAmpValue, status);
 }
 
 void InitClock(struct sig_SignalContext* context, struct sig_Status* status) {
@@ -61,35 +53,59 @@ void InitClock(struct sig_SignalContext* context, struct sig_Status* status) {
 }
 
 void InitLFO(struct sig_SignalContext* context, struct sig_Status* status) {
-    lfoClockScale = sig_dsp_Mul_new(&alloc, context);
-    lfoClockScale->inputs.left = clockFreq->outputs.main;
-    lfoClockScale->inputs.right = lfoClockScaleValue->outputs.main;
-    sig_List_append(&signals, lfoClockScale, status);
+    lfo1 = sig_daisy_ClockedLFO_new(&alloc, context, dptHost);
+    sig_List_append(&signals, lfo1, status);
+    lfo1->parameters.freqScaleCVInputControl = sig_daisy_DPT_CV_IN_1;
+    lfo1->parameters.lfoGainCVInputControl = sig_daisy_DPT_CV_IN_2;
+    lfo1->parameters.cvOutputControl = sig_daisy_DPT_CV_OUT_1;
+    lfo1->inputs.clockFreq = clockFreq->outputs.main;
 
-    lfo = sig_dsp_LFTriangle_new(&alloc, context);
-    lfo->inputs.freq = lfoClockScale->outputs.main;
-    lfo->inputs.mul = sig_AudioBlock_newWithValue(&alloc,
-        context->audioSettings, 1.0f);
-    sig_List_append(&signals, lfo, status);
+    lfo2 = sig_daisy_ClockedLFO_new(&alloc, context, dptHost);
+    sig_List_append(&signals, lfo2, status);
+    lfo2->parameters.freqScaleCVInputControl = sig_daisy_DPT_CV_IN_3;
+    lfo2->parameters.lfoGainCVInputControl = sig_daisy_DPT_CV_IN_4;
+    lfo2->parameters.cvOutputControl = sig_daisy_DPT_CV_OUT_2;
+    lfo2->inputs.clockFreq = clockFreq->outputs.main;
 
-    lfoGain = sig_dsp_Mul_new(&alloc, context);
-    lfoGain->inputs.left = lfo->outputs.main;
-    lfoGain->inputs.right = lfoAmpValue->outputs.main;
-    sig_List_append(&signals, lfoGain, status);
+    lfo3 = sig_daisy_ClockedLFO_new(&alloc, context, dptHost);
+    sig_List_append(&signals, lfo3, status);
+    lfo3->inputs.clockFreq = clockFreq->outputs.main;
+    lfo3->parameters.freqScaleCVInputControl = sig_daisy_DPT_CV_IN_5;
+    lfo3->parameters.lfoGainCVInputControl = sig_daisy_DPT_CV_IN_6;
+    lfo3->parameters.cvOutputControl = sig_daisy_DPT_CV_OUT_3;
+
+    lfo4 = sig_daisy_ClockedLFO_new(&alloc, context, dptHost);
+    sig_List_append(&signals, lfo4, status);
+    lfo4->inputs.clockFreq = clockFreq->outputs.main;
+    lfo4->parameters.freqScaleCVInputControl = sig_daisy_DPT_CV_IN_7;
+    lfo4->parameters.lfoGainCVInputControl = sig_daisy_DPT_CV_IN_8;
+    lfo4->parameters.cvOutputControl = sig_daisy_DPT_CV_OUT_4;
+
+    lfo1PlusLFO3 = sig_dsp_Add_new(&alloc, context);
+    sig_List_append(&signals, lfo1PlusLFO3, status);
+    lfo1PlusLFO3->inputs.left = lfo1->outputs.main;
+    lfo1PlusLFO3->inputs.right = lfo3->outputs.main;
+
+    lfo2PlusLFO4 = sig_dsp_Add_new(&alloc, context);
+    sig_List_append(&signals, lfo2PlusLFO4, status);
+    lfo2PlusLFO4->inputs.left = lfo2->outputs.main;
+    lfo2PlusLFO4->inputs.right = lfo4->outputs.main;
+
+    lfo1And3Out = sig_daisy_CVOut_new(&alloc, context, dptHost);
+    sig_List_append(&signals, lfo1And3Out, status);
+    lfo1And3Out->inputs.source = lfo1PlusLFO3->outputs.main;
+    lfo1And3Out->parameters.control = sig_daisy_DPT_CV_OUT_5;
+    lfo1And3Out->parameters.scale = 0.5f; // TODO: Replace with a wavefolder.
+
+    lfo2And4Out = sig_daisy_CVOut_new(&alloc, context, dptHost);
+    sig_List_append(&signals, lfo2And4Out, status);
+    lfo2And4Out->inputs.source = lfo2PlusLFO4->outputs.main;
+    lfo2And4Out->parameters.control = sig_daisy_DPT_CV_OUT_6;
+    lfo2And4Out->parameters.scale = 0.5f;
 }
 
 void InitCVOutputs(struct sig_SignalContext* context,
     struct sig_Status* status) {
-    cv1Out = sig_daisy_CVOut_new(&alloc, context, dptHost);
-    cv1Out->parameters.control = sig_daisy_DPT_CV_OUT_1;
-    cv1Out->inputs.source = lfoGain->outputs.main;
-    sig_List_append(&signals, cv1Out, status);
-
-    // TODO: My DPT seems to output -4.67V to 7.96V,
-    // this was tuned by hand with the VCV Rack oscilloscope.
-    cv1Out->parameters.scale = 0.68;
-    cv1Out->parameters.offset = -0.32;
-
     gate1Out = sig_daisy_GateOut_new(&alloc, context, dptHost);
     gate1Out->parameters.control = sig_daisy_DPT_GATE_OUT_1;
     gate1Out->inputs.source = clockInput->outputs.main;
@@ -108,7 +124,7 @@ int main(void) {
     struct sig_AudioSettings audioSettings = {
         .sampleRate = 48000,
         .numChannels = 2,
-        .blockSize = 1
+        .blockSize = 48
     };
 
     struct sig_Status status;

@@ -1999,21 +1999,10 @@ struct sig_dsp_DustGate* sig_dsp_DustGate_new(struct sig_Allocator* allocator,
         struct sig_dsp_DustGate);
 
     self->reciprocalDensity = sig_dsp_Div_new(allocator, context);
-    self->reciprocalDensity->inputs.left = context->unity->outputs.main;
-
     self->densityDurationMultiplier = sig_dsp_Mul_new(allocator, context);
-    self->densityDurationMultiplier->inputs.left =
-        self->reciprocalDensity->outputs.main;
-
     self->dust = sig_dsp_Dust_new(allocator, context);
-
     self->gate = sig_dsp_TimedGate_new(allocator, context);
-    self->gate->inputs.trigger = self->dust->outputs.main;
-    self->gate->inputs.duration =
-        self->densityDurationMultiplier->outputs.main;
-
     sig_dsp_DustGate_init(self, context);
-    self->outputs.main = self->gate->outputs.main;
 
     return self;
 }
@@ -2022,9 +2011,17 @@ struct sig_dsp_DustGate* sig_dsp_DustGate_new(struct sig_Allocator* allocator,
 void sig_dsp_DustGate_init(struct sig_dsp_DustGate* self,
     struct sig_SignalContext* context) {
     sig_dsp_Signal_init(self, context, *sig_dsp_DustGate_generate);
+    self->reciprocalDensity->inputs.left = context->unity->outputs.main;
+    self->densityDurationMultiplier->inputs.left =
+        self->reciprocalDensity->outputs.main;
+    self->gate->inputs.trigger = self->dust->outputs.main;
+    self->gate->inputs.duration =
+        self->densityDurationMultiplier->outputs.main;
+    self->outputs.main = self->gate->outputs.main;
+
     sig_CONNECT_TO_SILENCE(self, density, context);
     sig_CONNECT_TO_SILENCE(self, durationPercentage, context);
-};
+}
 
 void sig_dsp_DustGate_generate(void* signal) {
     struct sig_dsp_DustGate* self = (struct sig_dsp_DustGate*) signal;
@@ -2181,6 +2178,8 @@ void sig_dsp_ClockDetector_destroy(struct sig_Allocator* allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
 }
+
+
 
 struct sig_dsp_LinearToFreq* sig_dsp_LinearToFreq_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context) {

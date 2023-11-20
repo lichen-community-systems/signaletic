@@ -1,3 +1,6 @@
+#ifndef SIGNALETIC_DAISY_HOST_H
+#define SIGNALETIC_DAISY_HOST_H
+
 #include <libsignaletic.h>
 #include "daisy.h"
 
@@ -473,3 +476,5 @@ void sig_daisy_AudioIn_destroy(struct sig_Allocator* allocator,
 struct sig_daisy_Encoder {
 
 };
+
+#endif /* SIGNALETIC_DAISY_HOST_H */

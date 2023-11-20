@@ -1,3 +1,6 @@
+#ifndef SIGNALETIC_DAISY_BLUEMCHENHOST_H
+#define SIGNALETIC_DAISY_BLUEMCHENHOST_H
+
 #include "./signaletic-daisy-host.h"
 #include "../vendor/kxmx_bluemchen/src/kxmx_bluemchen.h"
 
@@ -105,3 +108,5 @@ struct sig_daisy_Host* sig_daisy_NehcmeulbHost_new(
 
 void sig_daisy_NehcmeulbHost_destroy(struct sig_Allocator* allocator,
     struct sig_daisy_Host* self);
+
+#endif // SIGNALETIC_DAISY_BLUEMCHENHOST_H
