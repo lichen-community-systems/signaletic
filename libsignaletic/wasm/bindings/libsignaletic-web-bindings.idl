@@ -219,6 +219,12 @@ interface sig_dsp_BinaryOp {
 };
 
 
+
+interface sig_dsp_ClockDetector_Outputs {
+    attribute any main;
+    attribute any bpm;
+};
+
 interface sig_dsp_ClockDetector_Inputs {
     attribute any source;
 };
@@ -226,6 +232,6 @@ interface sig_dsp_ClockDetector_Inputs {
 interface sig_dsp_ClockDetector {
     [Value] attribute sig_dsp_Signal signal;
     [Value] attribute sig_dsp_ClockDetector_Inputs inputs;
-    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+    [Value] attribute sig_dsp_ClockDetector_Outputs outputs;
 };
 

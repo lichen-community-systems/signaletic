@@ -116,7 +116,7 @@ float sig_freqToLinear(float freq, float middleFreq) {
 inline float sig_sum(float_array_ptr values, size_t length) {
     float sum = 0;
     for (size_t i = 0; i < length; i++) {
-        sum += values[i];
+        sum += FLOAT_ARRAY(values)[i];
     }
 
     return sum;
@@ -130,9 +130,9 @@ inline size_t sig_indexOfMin(float_array_ptr values, size_t length) {
         return indexOfMin;
     }
 
-    float minValue = values[0];
+    float minValue = FLOAT_ARRAY(values)[0];
     for (size_t i = 1; i < length; i++) {
-        float currentValue = values[i];
+        float currentValue = FLOAT_ARRAY(values)[i];
         if (currentValue < minValue) {
             indexOfMin = i;
             minValue = currentValue;
@@ -150,9 +150,9 @@ inline size_t sig_indexOfMax(float_array_ptr values, size_t length) {
         return indexOfMax;
     }
 
-    float maxValue = values[0];
+    float maxValue = FLOAT_ARRAY(values)[0];
     for (size_t i = 1; i < length; i++) {
-        float currentValue = values[i];
+        float currentValue = FLOAT_ARRAY(values)[i];
         if (currentValue > maxValue) {
             indexOfMax = i;
             maxValue = currentValue;
@@ -235,8 +235,8 @@ inline float sig_filter_meanExcludeMinMax(float_array_ptr values,
         return sig_filter_mean(values, length);
     }
 
-    float min = values[sig_indexOfMin(values, length)];
-    float max = values[sig_indexOfMax(values, length)];
+    float min = FLOAT_ARRAY(values)[sig_indexOfMin(values, length)];
+    float max = FLOAT_ARRAY(values)[sig_indexOfMax(values, length)];
     float exclude = min + max;
     float sum = sig_sum(values, length) - exclude;
     return sum / (float) (length - 2);
