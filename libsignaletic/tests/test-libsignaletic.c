@@ -726,6 +726,13 @@ void testClockDetector(struct sig_test_BufferPlayer* clockPlayer,
         FLOAT_ARRAY(det->outputs.main)[0],
         "The clock's frequency should have been detected correctly.");
 
+    float expectedBPM = expectedFreq * 60.0f;
+
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.05,
+        expectedBPM,
+        FLOAT_ARRAY(det->outputs.bpm)[0],
+        "The clock's bpm tempo should have been detected correctly.");
+
     sig_dsp_ClockDetector_destroy(&allocator, det);
 }
 
@@ -803,7 +810,9 @@ void test_sig_dsp_ClockDetector_stop() {
     struct sig_test_BufferPlayer* clockPlayer = sig_test_BufferPlayer_new(
         &allocator, context, waveformBuffer);
 
-    testClockDetector(clockPlayer, bufferDuration, 0.0f);
+    // When it no longer receives clock pulses, the detector
+    // should hold on to whatever tempo it last calculated.
+    testClockDetector(clockPlayer, bufferDuration, clockFreq);
 
     sig_BufferView_destroy(&allocator, silentSection);
     sig_BufferView_destroy(&allocator, clockSection);
