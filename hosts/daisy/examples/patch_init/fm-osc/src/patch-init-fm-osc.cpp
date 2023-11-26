@@ -50,7 +50,9 @@ struct sig_List* signals;
 struct sig_dsp_SignalListEvaluator* evaluator;
 struct sig_daisy_FilteredCVIn* coarseFrequencyKnob;
 struct sig_daisy_FilteredCVIn* fineFrequencyKnob;
+struct sig_daisy_SwitchIn* button;
 struct sig_daisy_CVIn* vOctCV;
+struct sig_dsp_Calibrator* vOctCalibrator;
 struct sig_dsp_BinaryOp* coarsePlusVOct;
 struct sig_dsp_BinaryOp* coarseVOctPlusFine;
 struct sig_dsp_LinearToFreq* fundamentalFrequency;
@@ -92,7 +94,7 @@ void buildControlGraph(struct sig_Allocator* allocator,
     sig_List_append(signals, coarseFrequencyKnob, status);
     coarseFrequencyKnob->parameters.control = sig_daisy_PatchInit_KNOB_1;
     coarseFrequencyKnob->parameters.scale = 5.0f;
-    coarseFrequencyKnob->parameters.offset = -3.5f;
+    coarseFrequencyKnob->parameters.offset = -2.5f;
 
     fineFrequencyKnob = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, fineFrequencyKnob, status);
@@ -111,6 +113,10 @@ void buildControlGraph(struct sig_Allocator* allocator,
     indexKnob = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, indexKnob, status);
     indexKnob->parameters.control = sig_daisy_PatchInit_KNOB_4;
+
+    button = sig_daisy_SwitchIn_new(allocator, context, host);
+    sig_List_append(signals, button, status);
+    button->parameters.control = sig_daisy_PatchSM_SWITCH_1;
 }
 
 void buildCVInputGraph(struct sig_Allocator* allocator,
@@ -120,6 +126,11 @@ void buildCVInputGraph(struct sig_Allocator* allocator,
     sig_List_append(signals, vOctCV, status);
     vOctCV->parameters.control = sig_daisy_PatchInit_CV_IN_1;
     vOctCV->parameters.scale = 5.0f;
+
+    vOctCalibrator = sig_dsp_Calibrator_new(allocator, context);
+    sig_List_append(signals, vOctCalibrator, status);
+    vOctCalibrator->inputs.source = vOctCV->outputs.main;
+    vOctCalibrator->inputs.gate = button->outputs.main;
 
     ratioCV = sig_daisy_FilteredCVIn_new(allocator, context, host);
     sig_List_append(signals, ratioCV, status);
@@ -167,7 +178,7 @@ void buildFrequencyGraph(struct sig_Allocator* allocator,
     coarsePlusVOct = sig_dsp_Add_new(allocator, context);
     sig_List_append(signals, coarsePlusVOct, status);
     coarsePlusVOct->inputs.left = coarseFrequencyKnob->outputs.main;
-    coarsePlusVOct->inputs.right = vOctCV->outputs.main;
+    coarsePlusVOct->inputs.right = vOctCalibrator->outputs.main;
 
     coarseVOctPlusFine = sig_dsp_Add_new(allocator, context);
     sig_List_append(signals, coarseVOctPlusFine, status);
