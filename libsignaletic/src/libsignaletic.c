@@ -2875,6 +2875,9 @@ void sig_dsp_Calibrator_generate(void* signal) {
         // The ADC tops out slightly before 5 volts,
         // so this keeps it the in the range of 9 semitones
         // above the fourth octave.
+        // This sounds accurate at 2V, but is flat
+        // in octaves below and sharp in higher ones.
+
         // size_t calibrationIdx = (size_t) floorf(fabsf(source));
         // struct sig_dsp_Calibrator_State start = self->states[calibrationIdx];
         // struct sig_dsp_Calibrator_State end = self->states[calibrationIdx + 1];
