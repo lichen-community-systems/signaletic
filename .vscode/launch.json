@@ -225,6 +225,36 @@
         "type": "cortex-debug"
       },
       {
+        "name": "Remote Patch.Init() Calibrator",
+        "configFiles": [
+          "interface/stlink.cfg",
+          "target/stm32h7x.cfg"
+        ],
+        "cwd": "${workspaceFolder}/hosts/daisy/examples/patch_init/calibrator",
+        "debuggerArgs": [
+          "-d",
+          "${workspaceRoot}/hosts/daisy/examples/patch_init/calibrator"
+        ],
+        "executable": "${workspaceRoot}/hosts/daisy/examples/patch_init/calibrator/build/patch-init-calibrator.elf",
+        "interface": "swd",
+        "openOCDLaunchCommands": [
+          "init",
+          "reset init"
+        ],
+        "preLaunchTask": "Debug Build Patch.Init() Examples",
+        "preRestartCommands": [
+          "load",
+          "enable breakpoint",
+          "monitor reset"
+        ],
+        "request": "launch",
+        "runToEntryPoint": "main",
+        "servertype": "openocd",
+        "showDevDebugOutput": "parsed",
+        "svdFile": "${workspaceRoot}/.vscode/STM32H750x.svd",
+        "type": "cortex-debug"
+      },
+      {
         "name": "Remote Versio Filter",
         "configFiles": [
           "interface/stlink.cfg",

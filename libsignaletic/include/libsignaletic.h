@@ -1989,25 +1989,31 @@ struct sig_dsp_Calibrator_Inputs {
     float_array_ptr gate;
 };
 
-struct sig_dsp_Calibrator_RecordingState {
-    float minValue;
-    float maxValue;
+struct sig_dsp_Calibrator_State {
+    float target;
     size_t numSamplesRecorded;
+    float min;
+    float max;
     float sum;
+    float avg;
+    float diff;
 };
 
-void sig_dsp_Calibrator_RecordingState_init(struct
-    sig_dsp_Calibrator_RecordingState* state);
+void sig_dsp_Calibrator_State_init(struct sig_dsp_Calibrator_State* states,
+    float* targetValues, size_t numStages);
+
+// TODO: Don't hardcode this.
+#define sig_dsp_Calibrator_NUM_STAGES 6
+#define sig_dsp_Calibrator_TARGET_VALUES {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 4.75f}
 
 struct sig_dsp_Calibrator {
     struct sig_dsp_Signal signal;
     struct sig_dsp_Calibrator_Inputs inputs;
     struct sig_dsp_Signal_SingleMonoOutput outputs;
 
-    struct sig_dsp_Calibrator_RecordingState state;
+    struct sig_dsp_Calibrator_State states[sig_dsp_Calibrator_NUM_STAGES];
     float previousGate;
     size_t stage;
-    float calibrationReadings[3];
 };
 
 struct sig_dsp_Calibrator* sig_dsp_Calibrator_new(

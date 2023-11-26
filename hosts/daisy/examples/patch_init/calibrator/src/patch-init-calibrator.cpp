@@ -26,15 +26,9 @@ struct sig_daisy_Host* host;
 struct sig_dsp_ConstantValue* ampScale;
 struct sig_daisy_SwitchIn* button;
 struct sig_daisy_CVIn* cv1In;
-struct sig_daisy_CVIn* cv2In;
 struct sig_dsp_Calibrator* cv1Calibrator;
-struct sig_dsp_Calibrator* cv2Calibrator;
-
 struct sig_dsp_Oscillator* sine1;
 struct sig_dsp_LinearToFreq* sine1Voct;
-struct sig_dsp_Oscillator* sine2;
-struct sig_dsp_LinearToFreq* sine2Voct;
-
 struct sig_daisy_AudioOut* audio1Out;
 struct sig_daisy_AudioOut* audio2Out;
 
@@ -54,16 +48,6 @@ void buildGraph(struct sig_SignalContext* context, struct sig_Status* status) {
     cv1Calibrator->inputs.source = cv1In->outputs.main;
     cv1Calibrator->inputs.gate = button->outputs.main;
 
-    cv2In = sig_daisy_CVIn_new(&allocator, context, host);
-    sig_List_append(&signals, cv2In, status);
-    cv2In->parameters.control = sig_daisy_PatchInit_CV_IN_2;
-    cv2In->parameters.scale = 5.0f;
-
-    cv2Calibrator = sig_dsp_Calibrator_new(&allocator, context);
-    sig_List_append(&signals, cv2Calibrator, status);
-    cv2Calibrator->inputs.source = cv2In->outputs.main;
-    cv2Calibrator->inputs.gate = button->outputs.main;
-
     ampScale = sig_dsp_ConstantValue_new(&allocator, context, 0.5f);
 
     sine1Voct = sig_dsp_LinearToFreq_new(&allocator, context);
@@ -80,19 +64,11 @@ void buildGraph(struct sig_SignalContext* context, struct sig_Status* status) {
     audio1Out->parameters.channel = sig_daisy_AUDIO_OUT_1;
     audio1Out->inputs.source = sine1->outputs.main;
 
-    sine2Voct = sig_dsp_LinearToFreq_new(&allocator, context);
-    sig_List_append(&signals, sine2Voct, status);
-    sine2Voct->inputs.source = cv2Calibrator->outputs.main;
-
-    sine2 = sig_dsp_Sine_new(&allocator, context);
-    sig_List_append(&signals, sine2, status);
-    sine2->inputs.freq = sine2Voct->outputs.main;
-    sine2->inputs.mul = ampScale->outputs.main;
-
     audio2Out = sig_daisy_AudioOut_new(&allocator, context, host);
     sig_List_append(&signals, audio2Out, status);
     audio2Out->parameters.channel = sig_daisy_AUDIO_OUT_2;
-    audio2Out->inputs.source = sine2->outputs.main;
+    audio2Out->inputs.source = sine1->outputs.main;
+
 }
 
 int main(void) {

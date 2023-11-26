@@ -141,4 +141,4 @@ void sig_daisy_PatchSMHost_destroy(
     struct sig_Allocator* allocator,
     struct sig_daisy_Host* self);
 
-#endif SIGNALETIC_DAISY_PATCH_SM_H
+#endif // SIGNALETIC_DAISY_PATCH_SM_H
