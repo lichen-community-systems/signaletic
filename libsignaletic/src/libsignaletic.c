@@ -2875,26 +2875,35 @@ void sig_dsp_Calibrator_generate(void* signal) {
         // The ADC tops out slightly before 5 volts,
         // so this keeps it the in the range of 9 semitones
         // above the fourth octave.
-        // This sounds accurate at 2V, but is flat
-        // in octaves below and sharp in higher ones.
+        // This is now very accurate across the whole range,
+        // Although it does seem to be about 10 cents flat for some reason.
 
-        // size_t calibrationIdx = (size_t) floorf(fabsf(source));
-        // struct sig_dsp_Calibrator_State start = self->states[calibrationIdx];
-        // struct sig_dsp_Calibrator_State end = self->states[calibrationIdx + 1];
-        // float yk = start.avg;
-        // float ykplus1 = end.avg;
-        // float tk = start.target;
-        // float tkplus1 = end.target;
-        // float px = yk + ((ykplus1 - yk) / (tkplus1 - tk)) * (source - tk);
-        // FLOAT_ARRAY(self->outputs.main)[i] = px;
+        // Look up the start and end values of the segment
+        // that our value is within range of.
+        size_t calibrationIdx = (size_t) floorf(sig_clamp(source, 0.0f, 4.0f));
+        struct sig_dsp_Calibrator_State start = self->states[calibrationIdx];
+        struct sig_dsp_Calibrator_State end = self->states[calibrationIdx + 1];
 
-        float yk = self->states[1].avg;
-        float ykplus1 = self->states[3].avg;
-        float delta = ykplus1 - yk;
-        float scale = 2.0f / delta;
-        float offset = 1.0f - scale * yk;
-        float px = offset + (scale * source);
+        // y is the target segment.
+        float yk = start.target;
+        float ykplus1 = end.target;
+
+        // t is the measured segment during the calibration process.
+        float tk = start.avg;
+        float tkplus1 = end.avg;
+
+        // x is the incoming sample to be fit to the segment.
+        float x = source;
+        float px = yk + ((ykplus1 - yk) / (tkplus1 - tk)) * (x - tk);
         FLOAT_ARRAY(self->outputs.main)[i] = px;
+
+        // float yk = self->states[1].avg;
+        // float ykplus1 = self->states[3].avg;
+        // float delta = ykplus1 - yk;
+        // float scale = 2.0f / delta;
+        // float offset = 1.0f - scale * yk;
+        // float px = offset + (scale * source);
+        // FLOAT_ARRAY(self->outputs.main)[i] = px;
 
         self->previousGate = gate;
     }
