@@ -2808,17 +2808,17 @@ struct sig_dsp_Calibrator* sig_dsp_Calibrator_new(
     return self;
 }
 
-inline void sig_dsp_Calibrator_State_init(
-    struct sig_dsp_Calibrator_State* states,
-    float* targetValues, size_t numStages) {
-    for (size_t i = 0; i < numStages; i++) {
-        struct sig_dsp_Calibrator_State* state = &states[i];
-        state->target = state->avg = targetValues[i];
-        state->numSamplesRecorded = 0;
-        state->min = INFINITY;
-        state->max = -INFINITY;
-        state->sum = 0.0f;
-        state->diff = 0.0f;
+inline void sig_dsp_Calibrator_Node_init(
+    struct sig_dsp_Calibrator_Node* nodes,
+    float* targetValues, size_t numNodes) {
+    for (size_t i = 0; i < numNodes; i++) {
+        struct sig_dsp_Calibrator_Node* node = &nodes[i];
+        node->target = node->avg = targetValues[i];
+        node->numSamplesRecorded = 0;
+        node->min = INFINITY;
+        node->max = -INFINITY;
+        node->sum = 0.0f;
+        node->diff = 0.0f;
     }
 }
 
@@ -2830,12 +2830,53 @@ void sig_dsp_Calibrator_init(struct sig_dsp_Calibrator* self,
 
     float targetValues[sig_dsp_Calibrator_NUM_STAGES] =
         sig_dsp_Calibrator_TARGET_VALUES;
-    sig_dsp_Calibrator_State_init(self->states,
+    sig_dsp_Calibrator_Node_init(self->nodes,
         targetValues, sig_dsp_Calibrator_NUM_STAGES);
 
     sig_CONNECT_TO_SILENCE(self, source, context);
     sig_CONNECT_TO_SILENCE(self, gate, context);
 }
+
+inline size_t sig_dsp_Calibrator_locateIntervalForValue(float x,
+    struct sig_dsp_Calibrator_Node* nodes, size_t numNodes) {
+    size_t lastNodeIdx = numNodes - 1;
+    size_t intervalEndIdx = lastNodeIdx;
+    for (size_t i = 0; i < lastNodeIdx - 1; i++) {
+        size_t nextIdx = i + 1;
+        struct sig_dsp_Calibrator_Node nextState = nodes[nextIdx];
+        if (x < nextState.avg) {
+            intervalEndIdx = nextIdx;
+            break;
+        }
+    }
+
+    return intervalEndIdx;
+}
+
+inline float sig_dsp_Calibrator_fitValueToCalibrationData(float x,
+    struct sig_dsp_Calibrator_Node* nodes, size_t numNodes) {
+        // Calibrate using piecewise linear fit from
+        // readings sampled at 0.0, 1.0, 2.0, 3.0, 4.0 and 4.75V.
+        // The ADC tops out slightly before 5 volts,
+        // So 4.75V is 9 semitones above the fourth octave.
+
+        // Find the segment in which the current value is located.
+        size_t intervalEndIdx = sig_dsp_Calibrator_locateIntervalForValue(x,
+            nodes, numNodes);
+        struct sig_dsp_Calibrator_Node start = nodes[intervalEndIdx - 1];
+        struct sig_dsp_Calibrator_Node end = nodes[intervalEndIdx];
+
+        // y is the interval values measured during the calibration process.
+        float yk = start.avg;
+        float ykplus1 = end.avg;
+
+        // t is the target interval values.
+        float tk = start.target;
+        float tkplus1 = end.target;
+
+        // Interpolate the calibrated value.
+        return tk + ((tkplus1 - tk) / (ykplus1 - yk)) * (x - yk);
+};
 
 void sig_dsp_Calibrator_generate(void* signal) {
     struct sig_dsp_Calibrator* self = (struct sig_dsp_Calibrator*) signal;
@@ -2844,66 +2885,35 @@ void sig_dsp_Calibrator_generate(void* signal) {
         float source = FLOAT_ARRAY(self->inputs.source)[i];
         float gate = FLOAT_ARRAY(self->inputs.gate)[i];
         size_t stage = self->stage;
-        struct sig_dsp_Calibrator_State* state = &self->states[stage];
+        struct sig_dsp_Calibrator_Node* node = &self->nodes[stage];
 
         if (gate <= 0.0f && self->previousGate > 0.0f) {
             // Gate is low; recording has just stopped.
             // Calculate offset by discarding the highest and lowest values,
             // and then averaging the rest.
-            state->sum -= state->min;
-            state->sum -= state->max;
-            state->avg = state->sum /
-                (state->numSamplesRecorded - 2);
-            state->diff = -(state->target - state->avg);
+            node->sum -= node->min;
+            node->sum -= node->max;
+            node->avg = node->sum /
+                (node->numSamplesRecorded - 2);
+            node->diff = -(node->target - node->avg);
             self->stage = (stage + 1) % sig_dsp_Calibrator_NUM_STAGES;
         } else if (gate > 0.0f) {
             // Gate is high; we're recording.
-            state->sum += source;
-            state->numSamplesRecorded++;
+            node->sum += source;
+            node->numSamplesRecorded++;
 
-            if (source < state->min) {
-                state->min = source;
+            if (source < node->min) {
+                node->min = source;
             }
 
-            if (source > state->max) {
-                state->max = source;
+            if (source > node->max) {
+                node->max = source;
             }
         }
 
-        // Calibrate using piecewise linear fit from
-        // readings sampled between 0.0 and 4.75V.
-        // The ADC tops out slightly before 5 volts,
-        // so this keeps it the in the range of 9 semitones
-        // above the fourth octave.
-        // This is now very accurate across the whole range,
-        // Although it does seem to be about 10 cents flat for some reason.
-
-        // Look up the start and end values of the segment
-        // that our value is within range of.
-        size_t calibrationIdx = (size_t) floorf(sig_clamp(source, 0.0f, 4.0f));
-        struct sig_dsp_Calibrator_State start = self->states[calibrationIdx];
-        struct sig_dsp_Calibrator_State end = self->states[calibrationIdx + 1];
-
-        // y is the target segment.
-        float yk = start.target;
-        float ykplus1 = end.target;
-
-        // t is the measured segment during the calibration process.
-        float tk = start.avg;
-        float tkplus1 = end.avg;
-
-        // x is the incoming sample to be fit to the segment.
-        float x = source;
-        float px = yk + ((ykplus1 - yk) / (tkplus1 - tk)) * (x - tk);
+        float px = sig_dsp_Calibrator_fitValueToCalibrationData(source,
+            self->nodes, sig_dsp_Calibrator_NUM_STAGES);
         FLOAT_ARRAY(self->outputs.main)[i] = px;
-
-        // float yk = self->states[1].avg;
-        // float ykplus1 = self->states[3].avg;
-        // float delta = ykplus1 - yk;
-        // float scale = 2.0f / delta;
-        // float offset = 1.0f - scale * yk;
-        // float px = offset + (scale * source);
-        // FLOAT_ARRAY(self->outputs.main)[i] = px;
 
         self->previousGate = gate;
     }
