@@ -83,7 +83,8 @@ struct sig_dsp_List* eList;
 struct sig_dsp_Smooth* eSmooth;
 struct sig_daisy_FilteredCVIn* frequencyKnob;
 struct sig_daisy_FilteredCVIn* resonanceKnob;
-struct sig_daisy_FilteredCVIn* vOctCVIn;
+struct sig_daisy_CVIn* vOctCVIn;
+struct sig_dsp_Calibrator* vOctCalibrator;
 struct sig_daisy_FilteredCVIn* frequencySkewCV;
 struct sig_dsp_Abs* rectifiedSkew;
 struct sig_dsp_BinaryOp* frequencyCVSkewAdder;
@@ -209,17 +210,21 @@ void buildSignalGraph(struct sig_SignalContext* context,
     frequencyKnob->parameters.offset = -5.0f;
     frequencyKnob->parameters.time = 0.1f;
 
-    vOctCVIn = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    vOctCVIn = sig_daisy_CVIn_new(&allocator, context, host);
     sig_List_append(&signals, vOctCVIn, status);
     vOctCVIn->parameters.control =  sig_daisy_Bluemchen_CV_IN_CV1;
-    vOctCVIn->parameters.scale = 4.0f;
-    vOctCVIn->parameters.offset = -2.0f;
-    vOctCVIn->parameters.time = 0.1f;
+    vOctCVIn->parameters.scale = 10.0f;
+    vOctCVIn->parameters.offset = -5.0f;
+
+    vOctCalibrator = sig_dsp_Calibrator_new(&allocator, context);
+    sig_List_append(&signals, vOctCalibrator, status);
+    vOctCalibrator->inputs.source = vOctCVIn->outputs.main;
+    vOctCalibrator->inputs.gate = encoderIn->outputs.button;
 
     frequencyKnobPlusVOct = sig_dsp_Add_new(&allocator, context);
     sig_List_append(&signals, frequencyKnobPlusVOct, status);
     frequencyKnobPlusVOct->inputs.left = frequencyKnob->outputs.main;
-    frequencyKnobPlusVOct->inputs.right = vOctCVIn->outputs.main;
+    frequencyKnobPlusVOct->inputs.right = vOctCalibrator->outputs.main;
 
     frequencySkewCV = sig_daisy_FilteredCVIn_new(&allocator, context, host);
     sig_List_append(&signals, frequencySkewCV, status);
