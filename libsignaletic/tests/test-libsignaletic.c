@@ -344,6 +344,46 @@ void test_sig_BufferView(void) {
         "The subarray should contain the correct values.");
 }
 
+void test_sig_linearXFade(void) {
+    float left = 0.66f;
+    float right = 0.45f;
+    float mix = -1.0f;
+    float expected = left;
+    float actual = sig_linearXFade(left, right, mix);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(expected, actual, "Left signal only.");
+
+    mix = 1.0f;
+    expected = right;
+    actual = sig_linearXFade(left, right, mix);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(expected, actual, "Right signal only.");
+
+    mix = 0.0f;
+    expected = 0.555f;
+    actual = sig_linearXFade(left, right, mix);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(expected, actual,
+        "Both signals mixed evenly.");
+
+    mix = -0.25f;
+    expected = 0.58125f;
+    actual = sig_linearXFade(left, right, mix);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(expected, actual,
+        "25 percent to the left.");
+
+    left = 0.001f;
+    right = 0.01f;
+    mix = -0.5f;
+    expected = 0.00325f;
+    actual = sig_linearXFade(left, right, mix);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(expected, actual,
+        "50 percent to the left.");
+
+    mix = 0.5f;
+    expected = 0.00775f;
+    actual = sig_linearXFade(left, right, mix);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(expected, actual,
+        "50 percent to the left.");
+}
+
 void test_sig_dsp_Value(void) {
     struct sig_dsp_Value* value = sig_dsp_Value_new(&allocator, context);
     value->parameters.value = 123.45f;
@@ -1158,6 +1198,7 @@ int main(void) {
     RUN_TEST(test_sig_AudioBlock_newWithValue);
     RUN_TEST(test_sig_Buffer);
     RUN_TEST(test_sig_BufferView);
+    RUN_TEST(test_sig_linearXFade);
     RUN_TEST(test_sig_dsp_Value);
     RUN_TEST(test_sig_dsp_ConstantValue);
     RUN_TEST(test_sig_dsp_TimedTriggerCounter);

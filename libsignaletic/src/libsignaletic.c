@@ -190,8 +190,6 @@ float sig_interpolate_linear(float idx, float_array_ptr table,
     int32_t idxIntegral = (int32_t) idx;
     float idxFractional = idx - (float) idxIntegral;
     float a = FLOAT_ARRAY(table)[idxIntegral];
-    // TODO: Do we want to wrap around the end like this,
-    // or should we expect users to provide us with idx within bounds?
     float b = FLOAT_ARRAY(table)[(idxIntegral + 1) % length];
 
     return a + (b - a) * idxFractional;
@@ -202,9 +200,6 @@ float sig_interpolate_cubic(float idx, float_array_ptr table,
     size_t length) {
     size_t idxIntegral = (size_t) idx;
     float idxFractional = idx - (float) idxIntegral;
-
-    // TODO: As above, are these modulo operations required,
-    // or should we expect users to provide us in-bound values?
     const size_t i0 = idxIntegral % length;
     const float xm1 = FLOAT_ARRAY(table)[i0 > 0 ? i0 - 1 : length - 1];
     const float x0 = FLOAT_ARRAY(table)[i0];
@@ -321,6 +316,9 @@ void sig_TLSFAllocator_init(struct sig_Allocator* allocator) {
 
 void* sig_TLSFAllocator_malloc(struct sig_Allocator* allocator,
     size_t size) {
+    // TODO: TLSF will return a null pointer if we're out of memory.
+    // The Allocator API needs to be extended to always take a Status object
+    // for any operation that can fail.
     return tlsf_malloc(allocator->heap->memory, size);
 }
 
@@ -470,6 +468,7 @@ void sig_AudioSettings_destroy(struct sig_Allocator* allocator,
 }
 
 
+
 struct sig_SignalContext* sig_SignalContext_new(
     struct sig_Allocator* allocator, struct sig_AudioSettings* audioSettings) {
     struct sig_SignalContext* self = sig_MALLOC(allocator,
@@ -603,9 +602,7 @@ void sig_Buffer_destroy(struct sig_Allocator* allocator, struct sig_Buffer* self
 struct sig_Buffer* sig_BufferView_new(
     struct sig_Allocator* allocator,
     struct sig_Buffer* buffer, size_t startIdx, size_t length) {
-    struct sig_Buffer* self = (struct sig_Buffer*)
-        allocator->impl->malloc(allocator,
-            sizeof(struct sig_Buffer));
+    struct sig_Buffer* self = sig_MALLOC(allocator, struct sig_Buffer);
 
     // TODO: Need to signal an error rather than
     // just returning a null pointer and a length of zero.
@@ -627,6 +624,155 @@ void sig_BufferView_destroy(struct sig_Allocator* allocator,
     allocator->impl->free(allocator, self);
 }
 
+
+
+struct sig_DelayLine* sig_DelayLine_new(struct sig_Allocator* allocator,
+    size_t maxDelayLength) {
+    struct sig_DelayLine* self = sig_MALLOC(allocator, struct sig_DelayLine);
+    self->buffer = sig_Buffer_new(allocator, maxDelayLength);
+    sig_DelayLine_init(self);
+
+    return self;
+}
+
+struct sig_DelayLine* sig_DelayLine_newSeconds(struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings, float maxDelaySecs) {
+    size_t maxDelayLength = (size_t) roundf(
+        maxDelaySecs * audioSettings->sampleRate);
+
+    return sig_DelayLine_new(allocator, maxDelayLength);
+}
+
+struct sig_DelayLine* sig_DelayLine_newWithTransferredBuffer(
+    struct sig_Allocator* allocator, struct sig_Buffer* buffer) {
+    struct sig_DelayLine* self = sig_MALLOC(allocator, struct sig_DelayLine);
+    self->buffer = buffer;
+    sig_DelayLine_init(self);
+
+    return self;
+}
+
+void sig_DelayLine_init(struct sig_DelayLine* self) {
+    self->writeIdx = 0;
+    sig_Buffer_fillWithSilence(self->buffer); // Zero the delay line.
+}
+
+inline float sig_DelayLine_readAt(struct sig_DelayLine* self, size_t readPos) {
+    size_t idx = (self->writeIdx + readPos) % self->buffer->length;
+    return self->buffer->samples[idx];
+}
+
+inline float sig_DelayLine_linearReadAt(struct sig_DelayLine* self,
+    float readPos) {
+    size_t maxDelayLength = self->buffer->length;
+    float* delayLineSamples = self->buffer->samples;
+    int32_t integ = (int32_t) readPos;
+    float frac = readPos - (float) integ;
+    float a = delayLineSamples[(self->writeIdx + integ) % maxDelayLength];
+    float b = delayLineSamples[(self->writeIdx + integ + 1) % maxDelayLength];
+
+    return a + (b - a) * frac;
+}
+
+inline float sig_DelayLine_cubicReadAt(struct sig_DelayLine* self,
+    float readPos) {
+    size_t maxDelayLength = self->buffer->length;
+    float* delayLineSamples = self->buffer->samples;
+
+    int32_t integ = (int32_t) readPos;
+    float frac = readPos - (float) integ;
+    int32_t t = (self->writeIdx + integ + maxDelayLength);
+    float xm1 = delayLineSamples[(t - 1) % maxDelayLength];
+    float x0 = delayLineSamples[t % maxDelayLength];
+    float x1 = delayLineSamples[(t + 1) % maxDelayLength];
+    float x2 = delayLineSamples[(t + 2) % maxDelayLength];
+    float c = (x1 - xm1) * 0.5f;
+    float v = x0 - x1;
+    float w = c + v;
+    float a = w + v + (x2 - x0) * 0.5f;
+    float bNeg = w + a;
+
+    return (((a * frac) - bNeg) * frac + c) * frac + x0;
+}
+
+inline void sig_DelayLine_write(struct sig_DelayLine* self, float sample) {
+    size_t maxDelayLength = self->buffer->length;
+    self->buffer->samples[self->writeIdx] = sample;
+    self->writeIdx = (self->writeIdx - 1 + maxDelayLength) % maxDelayLength;
+}
+
+inline float sig_DelayLine_calcCombFeedback(float delayTime, float decayTime) {
+    // Convert 60dB time in secs to g coefficient
+    // (also why is the equation in Dodge and Jerse wrong?)
+    if (delayTime <= 0.0f || decayTime <= 0.0f) {
+        return 0.0f;
+    }
+
+    return expf(sig_LOG0_001 * delayTime / decayTime);
+}
+
+#define sig_DelayLine_comb_IMPL(self, sample, readPos, g, readFn) \
+    float read = readFn(self, readPos); \
+    float toWrite = sample + (g * read); \
+    sig_DelayLine_write(self, toWrite); \
+    return read
+
+inline float sig_DelayLine_comb(struct sig_DelayLine* self, float sample,
+    size_t readPos, float g) {
+    sig_DelayLine_comb_IMPL(self, sample, readPos, g, sig_DelayLine_readAt);
+}
+
+inline float sig_DelayLine_linearComb(struct sig_DelayLine* self, float sample,
+    float readPos, float g) {
+    sig_DelayLine_comb_IMPL(self, sample, readPos, g,
+        sig_DelayLine_linearReadAt);
+}
+
+inline float sig_DelayLine_cubicComb(struct sig_DelayLine* self, float sample,
+    float readPos, float g) {
+    sig_DelayLine_comb_IMPL(self, sample, readPos, g,
+        sig_DelayLine_cubicReadAt);
+}
+
+#define sig_DelayLine_allpass_IMPL(self, sample, readPos, g, readFn) \
+    float read = readFn(self, readPos); \
+    float toWrite = sample + (g * read); \
+    sig_DelayLine_write(self, toWrite); \
+    return (toWrite * -g) + read \
+
+inline float sig_DelayLine_allpass(struct sig_DelayLine* self, float sample,
+    size_t readPos, float g) {
+    sig_DelayLine_allpass_IMPL(self, sample, readPos, g, sig_DelayLine_readAt);
+}
+
+inline float sig_DelayLine_linearAllpass(struct sig_DelayLine* self,
+    float sample, size_t readPos, float g) {
+    sig_DelayLine_allpass_IMPL(self, sample, readPos, g,
+        sig_DelayLine_linearReadAt);
+}
+
+inline float sig_DelayLine_cubicAllpass(struct sig_DelayLine* self,
+    float sample, float readPos, float g) {
+    sig_DelayLine_allpass_IMPL(self, sample, readPos, g,
+        sig_DelayLine_cubicReadAt);
+}
+
+void sig_DelayLine_destroy(struct sig_Allocator* allocator,
+    struct sig_DelayLine* self) {
+    sig_Buffer_destroy(allocator, self->buffer);
+    allocator->impl->free(allocator, self);
+}
+
+inline float sig_linearXFade(float left, float right, float mix) {
+    float clipped = sig_clamp(mix, -1.0f, 1.0f);
+    // At -1.0f, left gain should be 1.0 and right gain should be 0.0;
+    // at 0.0, left and right gains should be 0.5;
+    // At 1.0 left gain should be 0.0f and right gain should be 1.0.
+    float gain = clipped * 0.5f + 0.5f;
+    float sample = left + gain * (right - left);
+
+    return sample;
+}
 
 void sig_dsp_Signal_init(void* signal, struct sig_SignalContext* context,
     sig_dsp_generateFn generate) {
@@ -2790,6 +2936,251 @@ void sig_dsp_TiltEQ_generate(void* signal) {
 
 void sig_dsp_TiltEQ_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_TiltEQ* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, self);
+}
+
+
+
+struct sig_dsp_Delay* sig_dsp_Delay_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_Delay* self = sig_MALLOC(allocator, struct sig_dsp_Delay);
+    // TODO: Improve buffer management throughout Signaletic.
+    self->delayLine = sig_DelayLine_new(allocator, 0);
+    sig_dsp_Delay_init(self, context);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_dsp_Delay_init(struct sig_dsp_Delay* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_Delay_generate);
+
+    sig_CONNECT_TO_SILENCE(self, source, context);
+    sig_CONNECT_TO_SILENCE(self, delayTime, context);
+}
+
+inline void sig_dsp_Delay_read(struct sig_dsp_Delay* self, float source,
+    size_t i) {
+    float maxDelayLength = (float) self->delayLine->buffer->length;
+    float delayTime = FLOAT_ARRAY(self->inputs.delayTime)[i];
+    float readPos = (delayTime * self->signal.audioSettings->sampleRate);
+    if (readPos >= maxDelayLength) {
+        readPos = maxDelayLength - 1;
+    }
+
+    if (delayTime <= 0.0f) {
+        FLOAT_ARRAY(self->outputs.main)[i] = source;
+    } else {
+        FLOAT_ARRAY(self->outputs.main)[i] = sig_DelayLine_cubicReadAt(
+            self->delayLine, readPos);
+    }
+}
+
+void sig_dsp_Delay_generate(void* signal) {
+    struct sig_dsp_Delay* self = (struct sig_dsp_Delay*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float source = FLOAT_ARRAY(self->inputs.source)[i];
+        sig_dsp_Delay_read(self, source, i);
+        sig_DelayLine_write(self->delayLine, source);
+    }
+}
+
+void sig_dsp_Delay_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Delay* self) {
+    // Don't destroy the delay line; it isn't owned.
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, self);
+}
+
+
+
+struct sig_dsp_Delay* sig_dsp_DelayTap_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    // TODO: Copy-pasted from sig_dsp_Delay but we have a different
+    // initialization function we need to call here. Seems like it's time to
+    // decompose Signals into more function pointers!
+    struct sig_dsp_Delay* self = sig_MALLOC(allocator, struct sig_dsp_Delay);
+    // TODO: Improve buffer management throughout Signaletic.
+    self->delayLine = sig_DelayLine_new(allocator, 0);
+    sig_dsp_Delay_init(self, context);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_dsp_DelayTap_init(struct sig_dsp_Delay* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Delay_init(self, context);
+    sig_dsp_Signal_init(self, context, *sig_dsp_DelayTap_generate);
+}
+
+void sig_dsp_DelayTap_generate(void* signal) {
+    struct sig_dsp_Delay* self = (struct sig_dsp_Delay*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float source = FLOAT_ARRAY(self->inputs.source)[i];
+        sig_dsp_Delay_read(self, source, i);
+    }
+}
+
+void sig_dsp_DelayTap_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Delay* self) {
+    sig_dsp_Delay_destroy(allocator, self);
+}
+
+
+
+// TODO: Resolve duplication with sig_dsp_Delay
+struct sig_dsp_Comb* sig_dsp_Comb_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_Comb* self = sig_MALLOC(allocator, struct sig_dsp_Comb);
+     // TODO: Improve buffer management throughout Signaletic.
+    self->delayLine = sig_DelayLine_new(allocator, 0);
+    sig_dsp_Comb_init(self, context);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_dsp_Comb_init(struct sig_dsp_Comb* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_Comb_generate);
+
+    sig_CONNECT_TO_SILENCE(self, source, context);
+    sig_CONNECT_TO_SILENCE(self, delayTime, context);
+    sig_CONNECT_TO_SILENCE(self, decayTime, context);
+}
+
+void sig_dsp_Comb_generate(void* signal) {
+    struct sig_dsp_Comb* self = (struct sig_dsp_Comb*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float maxDelayLength = (float) self->delayLine->buffer->length;
+        float source = FLOAT_ARRAY(self->inputs.source)[i];
+        float decayTime = FLOAT_ARRAY(self->inputs.decayTime)[i];
+        float delayTime = FLOAT_ARRAY(self->inputs.delayTime)[i];
+        float readPos = (delayTime * self->signal.audioSettings->sampleRate);
+        if (readPos >= maxDelayLength) {
+            readPos = maxDelayLength - 1;
+        }
+
+        if (delayTime <= 0.0f || decayTime <= 0.0f) {
+            FLOAT_ARRAY(self->outputs.main)[i] = source;
+        } else {
+
+            float g = sig_DelayLine_calcCombFeedback(delayTime, decayTime);
+            FLOAT_ARRAY(self->outputs.main)[i] = sig_DelayLine_cubicComb(
+                self->delayLine, source, readPos, g);
+        }
+    }
+}
+
+void sig_dsp_Comb_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Comb* self) {
+    // Don't destroy the delay line; it isn't owned.
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, self);
+}
+
+
+
+// TODO: Resolve duplication with sig_dsp_Delay and Comb
+struct sig_dsp_Allpass* sig_dsp_Allpass_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_Allpass* self = sig_MALLOC(allocator,
+        struct sig_dsp_Allpass);
+     // TODO: Improve buffer management throughout Signaletic.
+    self->delayLine = sig_DelayLine_new(allocator, 0);
+    sig_dsp_Allpass_init(self, context);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_dsp_Allpass_init(struct sig_dsp_Allpass* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_Allpass_generate);
+
+    sig_CONNECT_TO_SILENCE(self, source, context);
+    sig_CONNECT_TO_SILENCE(self, delayTime, context);
+    sig_CONNECT_TO_SILENCE(self, g, context);
+}
+
+void sig_dsp_Allpass_generate(void* signal) {
+    struct sig_dsp_Allpass* self = (struct sig_dsp_Allpass*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float maxDelayLength = (float) self->delayLine->buffer->length;
+        float source = FLOAT_ARRAY(self->inputs.source)[i];
+        float delayTime = FLOAT_ARRAY(self->inputs.delayTime)[i];
+        float g = FLOAT_ARRAY(self->inputs.g)[i];
+        float readPos = (delayTime * self->signal.audioSettings->sampleRate);
+        if (readPos >= maxDelayLength) {
+            readPos = maxDelayLength - 1;
+        }
+
+        if (delayTime <= 0.0f || g <= 0.0f) {
+            FLOAT_ARRAY(self->outputs.main)[i] = source;
+        } else {
+            FLOAT_ARRAY(self->outputs.main)[i] = sig_DelayLine_cubicAllpass(
+                self->delayLine, source, readPos, g);
+        }
+    }
+}
+
+void sig_dsp_Allpass_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Allpass* self) {
+    // Don't destroy the delay line; it isn't owned.
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, self);
+}
+
+
+
+struct sig_dsp_LinearXFade* sig_dsp_LinearXFade_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_LinearXFade* self = sig_MALLOC(allocator,
+        struct sig_dsp_LinearXFade);
+    sig_dsp_LinearXFade_init(self, context);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_dsp_LinearXFade_init(struct sig_dsp_LinearXFade* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_LinearXFade_generate);
+
+    sig_CONNECT_TO_SILENCE(self, left, context);
+    sig_CONNECT_TO_SILENCE(self, right, context);
+    sig_CONNECT_TO_SILENCE(self, mix, context);
+}
+
+void sig_dsp_LinearXFade_generate(void* signal) {
+    struct sig_dsp_LinearXFade* self = (struct sig_dsp_LinearXFade*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float left = FLOAT_ARRAY(self->inputs.left)[i];
+        float right = FLOAT_ARRAY(self->inputs.right)[i];
+        float mix = FLOAT_ARRAY(self->inputs.mix)[i];
+        FLOAT_ARRAY(self->outputs.main)[i] = sig_linearXFade(left, right, mix);
+    }
+}
+
+void sig_dsp_LinearXFade_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_LinearXFade* self) {
     sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);

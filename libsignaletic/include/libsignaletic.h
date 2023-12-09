@@ -648,6 +648,7 @@ void sig_List_destroy(struct sig_Allocator* allocator,
     struct sig_List* self);
 
 
+
 /**
  * Allocates a new AudioSettings instance with
  * the values from sig_DEFAULT_AUDIO_SETTINGS.
@@ -821,12 +822,63 @@ float_array_ptr sig_AudioBlock_newSilent(struct sig_Allocator* allocator,
 void sig_AudioBlock_destroy(struct sig_Allocator* allocator,
     float_array_ptr self);
 
+
+/**
+ * @brief A modulatable delay line
+ * with support for comb and allpass configurations.
+ *
+ */
+struct sig_DelayLine {
+    struct sig_Buffer* buffer;
+    size_t writeIdx;
+};
+
+struct sig_DelayLine* sig_DelayLine_new(struct sig_Allocator* allocator,
+    size_t maxDelayLength);
+
+struct sig_DelayLine* sig_DelayLine_newSeconds(struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings, float maxDelaySecs);
+
+struct sig_DelayLine* sig_DelayLine_newWithTransferredBuffer(
+    struct sig_Allocator* allocator, struct sig_Buffer* buffer);
+
+void sig_DelayLine_init(struct sig_DelayLine* self);
+
+typedef void (*sig_DelayLine_readFn)(void* signal);
+
+float sig_DelayLine_readAt(struct sig_DelayLine* self, size_t readPos);
+
+float sig_DelayLine_linearReadAt(struct sig_DelayLine* self, float readPos);
+
+float sig_DelayLine_cubicReadAt(struct sig_DelayLine* self, float readPos);
+
+void sig_DelayLine_write(struct sig_DelayLine* self, float sample);
+
+float sig_DelayLine_calcCombFeedback(float delayTime, float decayTime);
+
+float sig_DelayLine_comb(struct sig_DelayLine* self, float sample,
+    size_t readPos, float g);
+
+float sig_DelayLine_cubicComb(struct sig_DelayLine* self, float sample,
+    float readPos, float g);
+
+float sig_DelayLine_allpass(struct sig_DelayLine* self, float sample,
+    size_t readPos, float g);
+
+float sig_DelayLine_cubicAllpass(struct sig_DelayLine* self, float sample,
+    float readPos, float g);
+
+void sig_DelayLine_destroy(struct sig_Allocator* allocator,
+    struct sig_DelayLine* self);
+
+float sig_linearXFade(float left, float right, float mix);
+
+
 // TODO: Should the signal argument at least be defined
 // as a struct sig_dsp_Signal*, rather than void*?
 // Either way, this is cast by the implementation to whatever
 // concrete Signal type is appropriate.
 typedef void (*sig_dsp_generateFn)(void* signal);
-
 
 struct sig_dsp_Signal {
     struct sig_AudioSettings* audioSettings;
@@ -1981,6 +2033,109 @@ void sig_dsp_TiltEQ_init(struct sig_dsp_TiltEQ* self,
 void sig_dsp_TiltEQ_generate(void* signal);
 void sig_dsp_TiltEQ_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_TiltEQ* self);
+
+
+
+struct sig_dsp_Delay_Inputs {
+    float_array_ptr source;
+    float_array_ptr delayTime;
+};
+
+struct sig_dsp_Delay {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Delay_Inputs inputs;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+
+    struct sig_DelayLine* delayLine;
+};
+
+struct sig_dsp_Delay* sig_dsp_Delay_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_Delay_init(struct sig_dsp_Delay* self,
+    struct sig_SignalContext* context);
+void sig_dsp_Delay_read(struct sig_dsp_Delay* self, float source, size_t i);
+void sig_dsp_Delay_generate(void* signal);
+void sig_dsp_Delay_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Delay* self);
+
+struct sig_dsp_Delay* sig_dsp_DelayTap_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_DelayTap_init(struct sig_dsp_Delay* self,
+    struct sig_SignalContext* context);
+void sig_dsp_DelayTap_generate(void* signal);
+void sig_dsp_DelayTap_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Delay* self);
+
+
+
+struct sig_dsp_Comb_Inputs {
+    float_array_ptr source;
+    float_array_ptr delayTime;
+    float_array_ptr decayTime;
+};
+
+struct sig_dsp_Comb {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Comb_Inputs inputs;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+
+    struct sig_DelayLine* delayLine;
+};
+
+struct sig_dsp_Comb* sig_dsp_Comb_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_Comb_init(struct sig_dsp_Comb* self,
+    struct sig_SignalContext* context);
+void sig_dsp_Comb_generate(void* signal);
+void sig_dsp_Comb_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Comb* self);
+
+
+
+struct sig_dsp_Allpass_Inputs {
+    float_array_ptr source;
+    float_array_ptr delayTime;
+    float_array_ptr g;
+};
+
+struct sig_dsp_Allpass {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Allpass_Inputs inputs;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+
+    struct sig_DelayLine* delayLine;
+};
+
+struct sig_dsp_Allpass* sig_dsp_Allpass_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_Allpass_init(struct sig_dsp_Allpass* self,
+    struct sig_SignalContext* context);
+void sig_dsp_Allpass_generate(void* signal);
+void sig_dsp_Allpass_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Allpass* self);
+
+
+
+struct sig_dsp_LinearXFade_Inputs {
+    float_array_ptr left;
+    float_array_ptr right;
+    float_array_ptr mix;
+};
+
+
+struct sig_dsp_LinearXFade {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_LinearXFade_Inputs inputs;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
+struct sig_dsp_LinearXFade* sig_dsp_LinearXFade_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_LinearXFade_init(struct sig_dsp_LinearXFade* self,
+    struct sig_SignalContext* context);
+void sig_dsp_LinearXFade_generate(void* signal);
+void sig_dsp_LinearXFade_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_LinearXFade* self);
 
 
 

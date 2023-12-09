@@ -135,6 +135,66 @@
         "type": "cortex-debug"
       },
       {
+        "name": "Remote Bluemchen Chorus",
+        "configFiles": [
+          "interface/stlink.cfg",
+          "target/stm32h7x.cfg"
+        ],
+        "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/chorus",
+        "debuggerArgs": [
+          "-d",
+          "${workspaceRoot}/hosts/daisy/examples/bluemchen/chorus"
+        ],
+        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/chorus/build/signaletic-bluemchen-chorus.elf",
+        "interface": "swd",
+        "openOCDLaunchCommands": [
+          "init",
+          "reset init"
+        ],
+        "preLaunchTask": "Debug Build Bluemchen Examples",
+        "preRestartCommands": [
+          "load",
+          "enable breakpoint",
+          "monitor reset"
+        ],
+        "request": "launch",
+        "runToEntryPoint": "main",
+        "servertype": "openocd",
+        "showDevDebugOutput": "parsed",
+        "svdFile": "${workspaceRoot}/.vscode/STM32H750x.svd",
+        "type": "cortex-debug"
+      },
+      {
+        "name": "Remote Bluemchen Reverb",
+        "configFiles": [
+          "interface/stlink.cfg",
+          "target/stm32h7x.cfg"
+        ],
+        "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/reverb",
+        "debuggerArgs": [
+          "-d",
+          "${workspaceRoot}/hosts/daisy/examples/bluemchen/reverb"
+        ],
+        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/reverb/build/signaletic-bluemchen-reverb.elf",
+        "interface": "swd",
+        "openOCDLaunchCommands": [
+          "init",
+          "reset init"
+        ],
+        "preLaunchTask": "Debug Build Bluemchen Examples",
+        "preRestartCommands": [
+          "load",
+          "enable breakpoint",
+          "monitor reset"
+        ],
+        "request": "launch",
+        "runToEntryPoint": "main",
+        "servertype": "openocd",
+        "showDevDebugOutput": "parsed",
+        "svdFile": "${workspaceRoot}/.vscode/STM32H750x.svd",
+        "type": "cortex-debug"
+      },
+      {
         "name": "Remote Bluemchen Calibrator",
         "configFiles": [
           "interface/stlink.cfg",
