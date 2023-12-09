@@ -95,6 +95,20 @@
             "type": "shell"
         },
         {
+            "label": "Debug Build Bluemchen Reverb",
+            "dependsOn": [
+                "Build libdaisy"
+            ],
+            "command": "make clean;DEBUG=1 make",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/reverb"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
             "label": "Debug Build DPT Examples",
             "dependsOn": [
                 "Build libdaisy"

@@ -8,7 +8,8 @@ using namespace daisy;
 
 FixedCapStr<20> displayStr;
 
-#define MAX_DELAY_LINE_LENGTH 12000 // 1 s
+#define MAX_DELAY_LINE_LENGTH 48000 // 1 second.
+#define DELAY_LINE_HEAP_SIZE 63*1024*1024 // Grab nearly the whole SDRAM.
 #define HEAP_SIZE 1024 * 256 // 256KB
 #define MAX_NUM_SIGNALS 32
 
@@ -17,10 +18,19 @@ struct sig_AllocatorHeap heap = {
     .length = HEAP_SIZE,
     .memory = (void*) memory
 };
-
 struct sig_Allocator allocator = {
     .impl = &sig_TLSFAllocatorImpl,
     .heap = &heap
+};
+
+uint8_t DSY_SDRAM_BSS delayLineMemory[DELAY_LINE_HEAP_SIZE];
+struct sig_AllocatorHeap delayLineHeap = {
+    .length = DELAY_LINE_HEAP_SIZE,
+    .memory = (void *) delayLineMemory
+};
+struct sig_Allocator delayLineAllocator = {
+    .impl = &sig_TLSFAllocatorImpl,
+    .heap = &delayLineHeap
 };
 
 struct sig_dsp_Signal* listStorage[MAX_NUM_SIGNALS];
@@ -95,7 +105,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     timeScaleKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
     sig_List_append(&signals, timeScaleKnob, status);
     timeScaleKnob->parameters.control = sig_daisy_Bluemchen_CV_IN_KNOB_2;
-    timeScaleKnob->parameters.scale = 2.4f;
+    timeScaleKnob->parameters.scale = 9.9f;
     timeScaleKnob->parameters.offset = 0.1f;
     // Lots of smoothing to help with the pitch shift that occurs
     // when modulating a delay line.
@@ -111,7 +121,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     ohSeven = sig_dsp_ConstantValue_new(&allocator, context, 0.7f);
     minusOhSeven = sig_dsp_ConstantValue_new(&allocator, context, -0.7f);
 
-    dl1 = sig_DelayLine_new(&allocator, MAX_DELAY_LINE_LENGTH);
+    dl1 = sig_DelayLine_new(&delayLineAllocator, MAX_DELAY_LINE_LENGTH);
     delayTime1 = sig_dsp_ConstantValue_new(&allocator, context, 0.1f);
     delayTimeScale1 = sig_dsp_Mul_new(&allocator, context);
     sig_List_append(&signals, delayTimeScale1, status);
@@ -124,7 +134,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     ap1->inputs.delayTime = delayTimeScale1->outputs.main;
     ap1->inputs.g = ohSeven->outputs.main;
 
-    dl2 = sig_DelayLine_new(&allocator, MAX_DELAY_LINE_LENGTH);
+    dl2 = sig_DelayLine_new(&delayLineAllocator, MAX_DELAY_LINE_LENGTH);
     delayTime2 = sig_dsp_ConstantValue_new(&allocator, context, 0.068f);
     delayTimeScale2 = sig_dsp_Mul_new(&allocator, context);
     sig_List_append(&signals, delayTimeScale2, status);
@@ -137,7 +147,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     ap2->inputs.delayTime = delayTimeScale2->outputs.main;
     ap2->inputs.g = minusOhSeven->outputs.main;
 
-    dl3 = sig_DelayLine_new(&allocator, MAX_DELAY_LINE_LENGTH);
+    dl3 = sig_DelayLine_new(&delayLineAllocator, MAX_DELAY_LINE_LENGTH);
     delayTime3 = sig_dsp_ConstantValue_new(&allocator, context, 0.06f);
     delayTimeScale3 = sig_dsp_Mul_new(&allocator, context);
     sig_List_append(&signals, delayTimeScale3, status);
@@ -150,7 +160,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     ap3->inputs.delayTime = delayTimeScale3->outputs.main;
     ap3->inputs.g = ohSeven->outputs.main;
 
-    dl4 = sig_DelayLine_new(&allocator, MAX_DELAY_LINE_LENGTH);
+    dl4 = sig_DelayLine_new(&delayLineAllocator, MAX_DELAY_LINE_LENGTH);
     delayTime4 = sig_dsp_ConstantValue_new(&allocator, context, 0.0197f);
     delayTimeScale4 = sig_dsp_Mul_new(&allocator, context);
     sig_List_append(&signals, delayTimeScale4, status);
@@ -163,7 +173,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     ap4->inputs.delayTime = delayTimeScale4->outputs.main;
     ap4->inputs.g = ohSeven->outputs.main;
 
-    dl5 = sig_DelayLine_new(&allocator, MAX_DELAY_LINE_LENGTH);
+    dl5 = sig_DelayLine_new(&delayLineAllocator, MAX_DELAY_LINE_LENGTH);
     delayTime5 = sig_dsp_ConstantValue_new(&allocator, context, 0.00585f);
     delayTimeScale5 = sig_dsp_Mul_new(&allocator, context);
     sig_List_append(&signals, delayTimeScale5, status);
@@ -195,7 +205,6 @@ void buildSignalGraph(struct sig_SignalContext* context,
 
 int main(void) {
     allocator.impl->init(&allocator);
-    // delayLineAllocator.impl->init(&delayLineAllocator);
 
     struct sig_AudioSettings audioSettings = {
         .sampleRate = 48000,
@@ -213,6 +222,10 @@ int main(void) {
         &bluemchen,
         (struct sig_dsp_SignalEvaluator*) evaluator);
     sig_daisy_Host_registerGlobalHost(host);
+
+    // Can't write to memory in SDRAM until after the board has
+    // been initialized.
+    delayLineAllocator.impl->init(&delayLineAllocator);
 
     struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
         &audioSettings);

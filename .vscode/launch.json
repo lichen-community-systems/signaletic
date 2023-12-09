@@ -181,7 +181,7 @@
           "init",
           "reset init"
         ],
-        "preLaunchTask": "Debug Build Bluemchen Examples",
+        "preLaunchTask": "Debug Build Bluemchen Reverb",
         "preRestartCommands": [
           "load",
           "enable breakpoint",
