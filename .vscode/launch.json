@@ -170,18 +170,18 @@
           "interface/stlink.cfg",
           "target/stm32h7x.cfg"
         ],
-        "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/reverb",
+        "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/reverb/1962b",
         "debuggerArgs": [
           "-d",
-          "${workspaceRoot}/hosts/daisy/examples/bluemchen/reverb"
+          "${workspaceRoot}/hosts/daisy/examples/bluemchen/reverb/1962b"
         ],
-        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/reverb/build/signaletic-bluemchen-reverb.elf",
+        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/reverb/1962b/build/signaletic-bluemchen-reverb.elf",
         "interface": "swd",
         "openOCDLaunchCommands": [
           "init",
           "reset init"
         ],
-        "preLaunchTask": "Debug Build Bluemchen Reverb",
+        "preLaunchTask": "Debug Build Bluemchen 1962b Reverb",
         "preRestartCommands": [
           "load",
           "enable breakpoint",

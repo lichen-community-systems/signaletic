@@ -2115,6 +2115,26 @@ void sig_dsp_Allpass_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Allpass* self);
 
 
+struct sig_dsp_Schroeder {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Allpass_Inputs inputs;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+
+    float reverberatorDelayPositions[5];
+    float reverberatorGains[5];
+    struct sig_DelayLine* reverberatorDelayLines[5];
+    struct sig_DelayLine* outerDelayLine;
+};
+
+struct sig_dsp_Schroeder* sig_dsp_Schroeder_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_Schroeder_init(struct sig_dsp_Schroeder* self,
+    struct sig_SignalContext* context);
+void sig_dsp_Schroeder_generate(void* signal);
+void sig_dsp_Schroeder_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Schroeder* self);
+
+
 
 struct sig_dsp_LinearXFade_Inputs {
     float_array_ptr left;

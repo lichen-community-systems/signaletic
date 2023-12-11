@@ -95,13 +95,13 @@
             "type": "shell"
         },
         {
-            "label": "Debug Build Bluemchen Reverb",
+            "label": "Debug Build Bluemchen 1962b Reverb",
             "dependsOn": [
                 "Build libdaisy"
             ],
             "command": "make clean;DEBUG=1 make",
             "options": {
-                "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/reverb"
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/reverb/1962b"
             },
             "problemMatcher": [
                 "$gcc"

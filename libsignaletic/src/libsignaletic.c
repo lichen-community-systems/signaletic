@@ -738,7 +738,7 @@ inline float sig_DelayLine_cubicComb(struct sig_DelayLine* self, float sample,
     float read = readFn(self, readPos); \
     float toWrite = sample + (g * read); \
     sig_DelayLine_write(self, toWrite); \
-    return (toWrite * -g) + read \
+    return read + (-g * toWrite) \
 
 inline float sig_DelayLine_allpass(struct sig_DelayLine* self, float sample,
     size_t readPos, float g) {
@@ -3032,6 +3032,8 @@ void sig_dsp_DelayTap_generate(void* signal) {
 
 void sig_dsp_DelayTap_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Delay* self) {
+    // FIXME: This leaks memory: the initial delay line
+    // that was allocated in _new is never freed!
     sig_dsp_Delay_destroy(allocator, self);
 }
 
@@ -3086,6 +3088,8 @@ void sig_dsp_Comb_generate(void* signal) {
 void sig_dsp_Comb_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Comb* self) {
     // Don't destroy the delay line; it isn't owned.
+    // FIXME: This leaks memory: the initial delay line
+    // that was allocated in _new is never freed!
     sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
@@ -3141,6 +3145,97 @@ void sig_dsp_Allpass_generate(void* signal) {
 void sig_dsp_Allpass_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Allpass* self) {
     // Don't destroy the delay line; it isn't owned.
+    // FIXME: This leaks memory: the initial delay line
+    // that was allocated in _new is never freed!
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, self);
+}
+
+
+void sig_dsp_Schroeder_allocEmptyDelayLines(struct sig_Allocator* allocator,
+    struct sig_dsp_Schroeder* self) {
+    // FIXME: Improve buffer management throughout Signaletic.
+    for (size_t i = 0; i < 5; i++) {
+        self->reverberatorDelayLines[i] = sig_DelayLine_new(allocator, 0);
+    }
+    self->outerDelayLine = sig_DelayLine_new(allocator, 0);
+}
+
+struct sig_dsp_Schroeder* sig_dsp_Schroeder_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_Schroeder* self = sig_MALLOC(allocator,
+        struct sig_dsp_Schroeder);
+    sig_dsp_Schroeder_allocEmptyDelayLines(allocator, self);
+    sig_dsp_Schroeder_init(self, context);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_dsp_Schroeder_init(struct sig_dsp_Schroeder* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_Schroeder_generate);
+
+    self->reverberatorDelayPositions[0] = 0.1f *
+        self->signal.audioSettings->sampleRate;
+    self->reverberatorDelayPositions[1] = 0.068f *
+        self->signal.audioSettings->sampleRate;
+     self->reverberatorDelayPositions[2] = 0.06f *
+        self->signal.audioSettings->sampleRate;
+    self->reverberatorDelayPositions[3] = 0.0197f *
+        self->signal.audioSettings->sampleRate;
+    self->reverberatorDelayPositions[3] = 0.00585f *
+        self->signal.audioSettings->sampleRate;
+
+    self->reverberatorGains[0] = 0.7f;
+    self->reverberatorGains[1] = -0.7f;
+    self->reverberatorGains[2] = 0.7f;
+    self->reverberatorGains[3] = 0.7f;
+    self->reverberatorGains[4] = 0.7f;
+
+
+    sig_CONNECT_TO_SILENCE(self, source, context);
+    sig_CONNECT_TO_SILENCE(self, delayTime, context);
+    sig_CONNECT_TO_SILENCE(self, g, context);
+}
+
+void sig_dsp_Schroeder_generate(void* signal) {
+    struct sig_dsp_Schroeder* self = (struct sig_dsp_Schroeder*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float maxDelayLength = (float) self->outerDelayLine->buffer->length;
+        float source = FLOAT_ARRAY(self->inputs.source)[i];
+        float delayTime = FLOAT_ARRAY(self->inputs.delayTime)[i];
+        float g = FLOAT_ARRAY(self->inputs.g)[i];
+        float readPos = (delayTime * self->signal.audioSettings->sampleRate);
+        if (readPos >= maxDelayLength) {
+            readPos = maxDelayLength - 1;
+        }
+
+        float read = delayTime > 0.0f ?
+            sig_DelayLine_cubicReadAt(self->outerDelayLine, readPos) : source;
+
+        for (size_t j = 0; j < 5; j++) {
+            read = sig_DelayLine_cubicAllpass(self->reverberatorDelayLines[j],
+                read, self->reverberatorDelayPositions[j],
+                self->reverberatorGains[j]);
+        }
+
+        float toWrite = g > 0.0f ? source + (g * read) : source;
+        float toOutput = read + (-g * toWrite);
+        FLOAT_ARRAY(self->outputs.main)[i] = toOutput;
+
+        sig_DelayLine_write(self->outerDelayLine, toWrite);
+    }
+}
+
+void sig_dsp_Schroeder_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Schroeder* self) {
+    // Don't destroy the delay lines; they aren't owned.
+    // FIXME: This leaks memory: the initial delay lines
+    // that were allocated in _new are never freed!
     sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
