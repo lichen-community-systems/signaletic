@@ -165,23 +165,23 @@
         "type": "cortex-debug"
       },
       {
-        "name": "Remote Bluemchen Reverb",
+        "name": "Remote Bluemchen 1962c Reverb",
         "configFiles": [
           "interface/stlink.cfg",
           "target/stm32h7x.cfg"
         ],
-        "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/reverb/1962b",
+        "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/reverb/1962c",
         "debuggerArgs": [
           "-d",
-          "${workspaceRoot}/hosts/daisy/examples/bluemchen/reverb/1962b"
+          "${workspaceRoot}/hosts/daisy/examples/bluemchen/reverb/1962c"
         ],
-        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/reverb/1962b/build/signaletic-bluemchen-reverb.elf",
+        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/reverb/1962c/build/signaletic-bluemchen-1962c.elf",
         "interface": "swd",
         "openOCDLaunchCommands": [
           "init",
           "reset init"
         ],
-        "preLaunchTask": "Debug Build Bluemchen 1962b Reverb",
+        "preLaunchTask": "Debug Build Bluemchen 1962c Reverb",
         "preRestartCommands": [
           "load",
           "enable breakpoint",
