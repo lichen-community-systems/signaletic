@@ -854,7 +854,9 @@ float sig_DelayLine_cubicReadAt(struct sig_DelayLine* self, float readPos);
 
 void sig_DelayLine_write(struct sig_DelayLine* self, float sample);
 
-float sig_DelayLine_calcCombFeedback(float delayTime, float decayTime);
+float sig_DelayLine_calcFeedbackGain(float delayTime, float decayTime);
+
+float sig_DelayLine_feedback(float sample, float read, float g);
 
 float sig_DelayLine_comb(struct sig_DelayLine* self, float sample,
     size_t readPos, float g);
@@ -872,6 +874,7 @@ void sig_DelayLine_destroy(struct sig_Allocator* allocator,
     struct sig_DelayLine* self);
 
 float sig_linearXFade(float left, float right, float mix);
+
 
 
 // TODO: Should the signal argument at least be defined
@@ -2066,12 +2069,32 @@ void sig_dsp_DelayTap_generate(void* signal);
 void sig_dsp_DelayTap_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Delay* self);
 
+struct sig_dsp_DelayWrite_Inputs {
+    float_array_ptr source;
+};
+
+struct sig_dsp_DelayWrite {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_DelayWrite_Inputs inputs;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+
+    struct sig_DelayLine* delayLine;
+};
+
+struct sig_dsp_DelayWrite* sig_dsp_DelayWrite_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_DelayWrite_init(struct sig_dsp_DelayWrite* self,
+    struct sig_SignalContext* context);
+void sig_dsp_DelayWrite_generate(void* signal);
+void sig_dsp_DelayWrite_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_DelayWrite* self);
 
 
 struct sig_dsp_Comb_Inputs {
     float_array_ptr source;
     float_array_ptr delayTime;
     float_array_ptr decayTime;
+    float_array_ptr lpfCoefficient;
 };
 
 struct sig_dsp_Comb {
@@ -2080,6 +2103,7 @@ struct sig_dsp_Comb {
     struct sig_dsp_Signal_SingleMonoOutput outputs;
 
     struct sig_DelayLine* delayLine;
+    float previousSample;
 };
 
 struct sig_dsp_Comb* sig_dsp_Comb_new(

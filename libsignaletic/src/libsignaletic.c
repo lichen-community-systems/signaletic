@@ -659,7 +659,7 @@ void sig_DelayLine_init(struct sig_DelayLine* self) {
 
 inline float sig_DelayLine_readAt(struct sig_DelayLine* self, size_t readPos) {
     size_t idx = (self->writeIdx + readPos) % self->buffer->length;
-    return self->buffer->samples[idx];
+    return FLOAT_ARRAY(self->buffer->samples)[idx];
 }
 
 inline float sig_DelayLine_linearReadAt(struct sig_DelayLine* self,
@@ -697,12 +697,12 @@ inline float sig_DelayLine_cubicReadAt(struct sig_DelayLine* self,
 
 inline void sig_DelayLine_write(struct sig_DelayLine* self, float sample) {
     size_t maxDelayLength = self->buffer->length;
-    self->buffer->samples[self->writeIdx] = sample;
+    FLOAT_ARRAY(self->buffer->samples)[self->writeIdx] = sample;
     self->writeIdx = (self->writeIdx - 1 + maxDelayLength) % maxDelayLength;
 }
 
-inline float sig_DelayLine_calcCombFeedback(float delayTime, float decayTime) {
-    // Convert 60dB time in secs to g coefficient
+inline float sig_DelayLine_calcFeedbackGain(float delayTime, float decayTime) {
+    // Convert 60dB time in secs to feedback gain (g) coefficient
     // (also why is the equation in Dodge and Jerse wrong?)
     if (delayTime <= 0.0f || decayTime <= 0.0f) {
         return 0.0f;
@@ -711,9 +711,13 @@ inline float sig_DelayLine_calcCombFeedback(float delayTime, float decayTime) {
     return expf(sig_LOG0_001 * delayTime / decayTime);
 }
 
+inline float sig_DelayLine_feedback(float sample, float read, float g) {
+    return sample + (g * read);
+}
+
 #define sig_DelayLine_comb_IMPL(self, sample, readPos, g, readFn) \
     float read = readFn(self, readPos); \
-    float toWrite = sample + (g * read); \
+    float toWrite = sig_DelayLine_feedback(sample, read, g); \
     sig_DelayLine_write(self, toWrite); \
     return read
 
@@ -2993,6 +2997,9 @@ void sig_dsp_Delay_generate(void* signal) {
 void sig_dsp_Delay_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Delay* self) {
     // Don't destroy the delay line; it isn't owned.
+    // FIXME: This leaks memory: the initial delay line
+    // that was allocated in _new is never freed!
+    // Don't destroy the delay line; it isn't owned.
     sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
@@ -3039,6 +3046,48 @@ void sig_dsp_DelayTap_destroy(struct sig_Allocator* allocator,
 
 
 
+struct sig_dsp_DelayWrite* sig_dsp_DelayWrite_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_DelayWrite* self = sig_MALLOC(allocator,
+        struct sig_dsp_DelayWrite);
+    // TODO: Improve buffer management throughout Signaletic.
+    self->delayLine = sig_DelayLine_new(allocator, 0);
+    sig_dsp_DelayWrite_init(self, context);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_dsp_DelayWrite_init(struct sig_dsp_DelayWrite* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_DelayWrite_generate);
+
+    sig_CONNECT_TO_SILENCE(self, source, context);
+}
+
+void sig_dsp_DelayWrite_generate(void* signal) {
+    struct sig_dsp_DelayWrite* self = (struct sig_dsp_DelayWrite*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float source = FLOAT_ARRAY(self->inputs.source)[i];
+        sig_DelayLine_write(self->delayLine, source);
+    }
+
+}
+
+void sig_dsp_DelayWrite_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_DelayWrite* self) {
+    // FIXME: This leaks memory: the initial delay line
+    // that was allocated in _new is never freed!
+    // Don't destroy the delay line; it isn't owned.
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, self);
+}
+
+
+
 // TODO: Resolve duplication with sig_dsp_Delay
 struct sig_dsp_Comb* sig_dsp_Comb_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context) {
@@ -3055,10 +3104,12 @@ struct sig_dsp_Comb* sig_dsp_Comb_new(
 void sig_dsp_Comb_init(struct sig_dsp_Comb* self,
     struct sig_SignalContext* context) {
     sig_dsp_Signal_init(self, context, *sig_dsp_Comb_generate);
+    self->previousSample = 0.0f;
 
     sig_CONNECT_TO_SILENCE(self, source, context);
     sig_CONNECT_TO_SILENCE(self, delayTime, context);
     sig_CONNECT_TO_SILENCE(self, decayTime, context);
+    sig_CONNECT_TO_SILENCE(self, lpfCoefficient, context);
 }
 
 void sig_dsp_Comb_generate(void* signal) {
@@ -3069,19 +3120,21 @@ void sig_dsp_Comb_generate(void* signal) {
         float source = FLOAT_ARRAY(self->inputs.source)[i];
         float decayTime = FLOAT_ARRAY(self->inputs.decayTime)[i];
         float delayTime = FLOAT_ARRAY(self->inputs.delayTime)[i];
+        float lpfCoefficient = FLOAT_ARRAY(self->inputs.lpfCoefficient)[i];
         float readPos = (delayTime * self->signal.audioSettings->sampleRate);
         if (readPos >= maxDelayLength) {
             readPos = maxDelayLength - 1;
         }
 
-        if (delayTime <= 0.0f || decayTime <= 0.0f) {
-            FLOAT_ARRAY(self->outputs.main)[i] = source;
-        } else {
-
-            float g = sig_DelayLine_calcCombFeedback(delayTime, decayTime);
-            FLOAT_ARRAY(self->outputs.main)[i] = sig_DelayLine_cubicComb(
-                self->delayLine, source, readPos, g);
-        }
+        delayTime = sig_fmaxf(delayTime, 0.00001); // Delay time can't be zero.
+        float read = sig_DelayLine_cubicReadAt(self->delayLine, readPos);
+        float outputSample = sig_filter_smooth(read, self->previousSample,
+            lpfCoefficient);
+        float g = sig_DelayLine_calcFeedbackGain(delayTime, decayTime);
+        float toWrite = sig_DelayLine_feedback(source, outputSample, g);
+        sig_DelayLine_write(self->delayLine, toWrite);
+        FLOAT_ARRAY(self->outputs.main)[i] = outputSample;
+        self->previousSample = outputSample;
     }
 }
 

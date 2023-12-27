@@ -43,6 +43,7 @@ struct sig_daisy_AudioIn* audioIn;
 struct sig_daisy_FilteredCVIn* delayTimeScaleKnob;
 struct sig_daisy_FilteredCVIn* decayTimeKnob;
 struct sig_dsp_ConstantValue* apGain;
+struct sig_dsp_ConstantValue* combLPFCoefficient;
 struct sig_DelayLine* dl1;
 struct sig_dsp_ConstantValue* c1DelayTime;
 struct sig_dsp_BinaryOp* c1ScaledDelayTime;
@@ -62,7 +63,7 @@ struct sig_dsp_Comb* c4;
 struct sig_dsp_BinaryOp* sum1;
 struct sig_dsp_BinaryOp* sum2;
 struct sig_dsp_BinaryOp* sum3;
-struct sig_dsp_ConstantValue* zeroPointTwoFive;
+struct sig_dsp_ConstantValue* combGain;
 struct sig_dsp_BinaryOp* combScale;
 struct sig_DelayLine* dl5;
 struct sig_dsp_ConstantValue* ap1DelayTime;
@@ -117,19 +118,20 @@ void buildSignalGraph(struct sig_SignalContext* context,
     delayTimeScaleKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
     sig_List_append(&signals, delayTimeScaleKnob, status);
     delayTimeScaleKnob->parameters.control = sig_daisy_Bluemchen_CV_IN_KNOB_1;
-    delayTimeScaleKnob->parameters.scale = 99.99f;
+    delayTimeScaleKnob->parameters.scale = 99.999f;
     delayTimeScaleKnob->parameters.offset = 0.001f;
     // Lots of smoothing to help with the pitch shift that occurs
     // when modulating a delay line.
-    delayTimeScaleKnob->parameters.time = 0.5f;
+    delayTimeScaleKnob->parameters.time = 0.25f;
 
     decayTimeKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
     sig_List_append(&signals, decayTimeKnob, status);
     decayTimeKnob->parameters.control = sig_daisy_Bluemchen_CV_IN_KNOB_2;
-    decayTimeKnob->parameters.scale = 99.99f;
-    decayTimeKnob->parameters.offset = 0.01f;
+    decayTimeKnob->parameters.scale = 99.999f;
+    decayTimeKnob->parameters.offset = 0.001f;
 
     apGain = sig_dsp_ConstantValue_new(&allocator, context, 0.7f);
+    combLPFCoefficient = sig_dsp_ConstantValue_new(&allocator, context, 0.55f);
 
     dl1 = sig_DelayLine_new(&delayLineAllocator, MAX_DELAY_LINE_LENGTH);
     c1DelayTime = sig_dsp_ConstantValue_new(&allocator, context, 0.0297f);
@@ -143,6 +145,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     c1->inputs.source = audioIn->outputs.main;
     c1->inputs.decayTime = decayTimeKnob->outputs.main;
     c1->inputs.delayTime = c1ScaledDelayTime->outputs.main;
+    c1->inputs.lpfCoefficient = combLPFCoefficient->outputs.main;
 
     dl2 = sig_DelayLine_new(&delayLineAllocator, MAX_DELAY_LINE_LENGTH);
     c2DelayTime = sig_dsp_ConstantValue_new(&allocator, context, 0.0371f);
@@ -156,6 +159,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     c2->inputs.source = audioIn->outputs.main;
     c2->inputs.decayTime = decayTimeKnob->outputs.main;
     c2->inputs.delayTime = c2ScaledDelayTime->outputs.main;
+    c2->inputs.lpfCoefficient = combLPFCoefficient->outputs.main;
 
     dl3 = sig_DelayLine_new(&delayLineAllocator, MAX_DELAY_LINE_LENGTH);
     c3DelayTime = sig_dsp_ConstantValue_new(&allocator, context, 0.0411f);
@@ -169,6 +173,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     c3->inputs.source = audioIn->outputs.main;
     c3->inputs.decayTime = decayTimeKnob->outputs.main;
     c3->inputs.delayTime = c3ScaledDelayTime->outputs.main;
+    c3->inputs.lpfCoefficient = combLPFCoefficient->outputs.main;
 
     dl4 = sig_DelayLine_new(&delayLineAllocator, MAX_DELAY_LINE_LENGTH);
     c4DelayTime = sig_dsp_ConstantValue_new(&allocator, context, 0.0437f);
@@ -182,6 +187,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     c4->inputs.source = audioIn->outputs.main;
     c4->inputs.decayTime = decayTimeKnob->outputs.main;
     c4->inputs.delayTime = c4ScaledDelayTime->outputs.main;
+    c4->inputs.lpfCoefficient = combLPFCoefficient->outputs.main;
 
     sum1 = sig_dsp_Add_new(&allocator, context);
     sig_List_append(&signals, sum1, status);
@@ -198,11 +204,11 @@ void buildSignalGraph(struct sig_SignalContext* context,
     sum3->inputs.left = sum2->outputs.main;
     sum3->inputs.right = c4->outputs.main;
 
-    zeroPointTwoFive = sig_dsp_ConstantValue_new(&allocator, context, 0.25f);
+    combGain = sig_dsp_ConstantValue_new(&allocator, context, 0.2f);
     combScale = sig_dsp_Mul_new(&allocator, context);
     sig_List_append(&signals, combScale, status);
     combScale->inputs.left = sum3->outputs.main;
-    combScale->inputs.right = zeroPointTwoFive->outputs.main;
+    combScale->inputs.right = combGain->outputs.main;
 
     ap1DelayTime = sig_dsp_ConstantValue_new(&allocator, context, 0.09683f);
     dl5 = sig_DelayLine_new(&delayLineAllocator, MAX_DELAY_LINE_LENGTH);
