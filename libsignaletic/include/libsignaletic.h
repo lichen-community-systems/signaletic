@@ -673,6 +673,7 @@ void sig_AudioSettings_destroy(struct sig_Allocator* allocator,
 struct sig_SignalContext {
     struct sig_AudioSettings* audioSettings;
     struct sig_Buffer* emptyBuffer;
+    struct sig_DelayLine* oneSampleDelayLine;
     struct sig_dsp_ConstantValue* silence;
     struct sig_dsp_ConstantValue* unity;
 };
@@ -2137,26 +2138,6 @@ void sig_dsp_Allpass_init(struct sig_dsp_Allpass* self,
 void sig_dsp_Allpass_generate(void* signal);
 void sig_dsp_Allpass_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Allpass* self);
-
-
-struct sig_dsp_Schroeder {
-    struct sig_dsp_Signal signal;
-    struct sig_dsp_Allpass_Inputs inputs;
-    struct sig_dsp_Signal_SingleMonoOutput outputs;
-
-    float reverberatorDelayPositions[5];
-    float reverberatorGains[5];
-    struct sig_DelayLine* reverberatorDelayLines[5];
-    struct sig_DelayLine* outerDelayLine;
-};
-
-struct sig_dsp_Schroeder* sig_dsp_Schroeder_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context);
-void sig_dsp_Schroeder_init(struct sig_dsp_Schroeder* self,
-    struct sig_SignalContext* context);
-void sig_dsp_Schroeder_generate(void* signal);
-void sig_dsp_Schroeder_destroy(struct sig_Allocator* allocator,
-    struct sig_dsp_Schroeder* self);
 
 
 
