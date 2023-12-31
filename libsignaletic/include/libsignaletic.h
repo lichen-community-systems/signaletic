@@ -853,6 +853,27 @@ float sig_DelayLine_linearReadAt(struct sig_DelayLine* self, float readPos);
 
 float sig_DelayLine_cubicReadAt(struct sig_DelayLine* self, float readPos);
 
+float sig_DelayLine_readAtTime(struct sig_DelayLine* self, float source,
+    float tapTime, float sampleRate);
+
+float sig_DelayLine_linearReadAtTime(struct sig_DelayLine* self, float source,
+    float tapTime, float sampleRate);
+
+float sig_DelayLine_cubicReadAtTime(struct sig_DelayLine* self, float source,
+    float tapTime, float sampleRate);
+
+float sig_DelayLine_readAtTimes(struct sig_DelayLine* self, float source,
+    float* tapTimes, float* tapGains, size_t numTaps,
+    float sampleRate, float timeScale);
+
+float sig_DelayLine_linearReadAtTimes(struct sig_DelayLine* self,
+    float source, float* tapTimes, float* tapGains, size_t numTaps,
+    float sampleRate, float timeScale);
+
+float sig_DelayLine_cubicReadAtTimes(struct sig_DelayLine* self,
+    float source, float* tapTimes, float* tapGains, size_t numTaps,
+    float sampleRate, float timeScale);
+
 void sig_DelayLine_write(struct sig_DelayLine* self, float sample);
 
 float sig_DelayLine_calcFeedbackGain(float delayTime, float decayTime);
@@ -2057,7 +2078,8 @@ struct sig_dsp_Delay* sig_dsp_Delay_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context);
 void sig_dsp_Delay_init(struct sig_dsp_Delay* self,
     struct sig_SignalContext* context);
-void sig_dsp_Delay_read(struct sig_dsp_Delay* self, float source, size_t i);
+void sig_dsp_Delay_read(struct sig_dsp_Delay* self, float source,
+    size_t i);
 void sig_dsp_Delay_generate(void* signal);
 void sig_dsp_Delay_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Delay* self);
@@ -2094,7 +2116,7 @@ void sig_dsp_DelayWrite_destroy(struct sig_Allocator* allocator,
 struct sig_dsp_Comb_Inputs {
     float_array_ptr source;
     float_array_ptr delayTime;
-    float_array_ptr decayTime;
+    float_array_ptr feedbackGain;
     float_array_ptr lpfCoefficient;
 };
 

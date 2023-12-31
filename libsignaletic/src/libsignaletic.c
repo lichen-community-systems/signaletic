@@ -566,6 +566,7 @@ void sig_Buffer_fillWithValue(struct sig_Buffer* self, float value) {
     sig_fillWithValue(self->samples, self->length, value);
 }
 
+
 void sig_Buffer_fillWithSilence(struct sig_Buffer* self) {
     sig_fillWithSilence(self->samples, self->length);
 }
@@ -698,6 +699,82 @@ inline float sig_DelayLine_cubicReadAt(struct sig_DelayLine* self,
     float bNeg = w + a;
 
     return (((a * frac) - bNeg) * frac + c) * frac + x0;
+}
+
+#define sig_DelayLine_readAtTime_IMPL(self, source, tapTime, sampleRate,\
+    readFn)\
+    float sample;\
+    if (tapTime <= 0.0f) {\
+        sample = source;\
+    } else {\
+        float readPos = tapTime * sampleRate;\
+        float maxDelayLength = (float) self->buffer->length;\
+        if (readPos >= maxDelayLength) {\
+            readPos = maxDelayLength - 1;\
+        }\
+        sample = readFn(self, readPos);\
+    }\
+    return sample
+
+inline float sig_DelayLine_readAtTime(struct sig_DelayLine* self, float source,
+    float tapTime, float sampleRate) {
+    sig_DelayLine_readAtTime_IMPL(self, source, tapTime, sampleRate,
+        sig_DelayLine_readAt);
+}
+
+inline float sig_DelayLine_linearReadAtTime(struct sig_DelayLine* self,
+    float source, float tapTime, float sampleRate) {
+    sig_DelayLine_readAtTime_IMPL(self, source, tapTime, sampleRate,
+        sig_DelayLine_linearReadAt);
+}
+
+inline float sig_DelayLine_cubicReadAtTime(struct sig_DelayLine* self,
+    float source, float tapTime, float sampleRate) {
+    sig_DelayLine_readAtTime_IMPL(self, source, tapTime, sampleRate,
+        sig_DelayLine_cubicReadAt);
+}
+
+#define sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes, tapGains,\
+    numTaps, sampleRate, timeScale, readFn)\
+    float tapSum = 0;\
+    for (size_t i = 0; i < numTaps; i++) {\
+        float tapTime = FLOAT_ARRAY(tapTimes)[i];\
+        float scaledTapTime = tapTime * timeScale;\
+        float gain = FLOAT_ARRAY(tapGains)[i];\
+        float sample;\
+        if (tapTime <= 0.0f) {\
+            sample = source;\
+        } else {\
+            float readPos = scaledTapTime * sampleRate;\
+            float maxDelayLength = (float) self->buffer->length;\
+            if (readPos >= maxDelayLength) {\
+                readPos = maxDelayLength - 1;\
+            }\
+            sample = readFn(self, readPos);\
+        }\
+        tapSum += sample * gain;\
+    }\
+    return tapSum
+
+inline float sig_DelayLine_readAtTimes(struct sig_DelayLine* self,
+    float source, float* tapTimes, float* tapGains, size_t numTaps,
+    float sampleRate, float timeScale) {
+    sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,
+        tapGains, numTaps, sampleRate, timeScale, sig_DelayLine_readAt);
+}
+
+inline float sig_DelayLine_linearReadAtTimes(struct sig_DelayLine* self,
+    float source, float* tapTimes, float* tapGains, size_t numTaps,
+    float sampleRate, float timeScale) {
+    sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,
+        tapGains, numTaps, sampleRate, timeScale, sig_DelayLine_linearReadAt);
+}
+
+inline float sig_DelayLine_cubicReadAtTimes(struct sig_DelayLine* self,
+    float source, float* tapTimes, float* tapGains, size_t numTaps,
+    float sampleRate, float timeScale) {
+    sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,
+        tapGains,numTaps, sampleRate, timeScale, sig_DelayLine_cubicReadAt);
 }
 
 inline void sig_DelayLine_write(struct sig_DelayLine* self, float sample) {
@@ -971,6 +1048,13 @@ struct sig_dsp_ScaleOffset* sig_dsp_ScaleOffset_new(
 void sig_dsp_ScaleOffset_init(struct sig_dsp_ScaleOffset* self,
     struct sig_SignalContext* context) {
     sig_dsp_Signal_init(self, context, *sig_dsp_ScaleOffset_generate);
+
+    struct sig_dsp_ScaleOffset_Parameters parameters = {
+        .scale = 1.0,
+        .offset= 0.0f
+    };
+    self->parameters = parameters;
+
     sig_CONNECT_TO_SILENCE(self, source, context);
 }
 
@@ -2974,19 +3058,13 @@ void sig_dsp_Delay_init(struct sig_dsp_Delay* self,
 
 inline void sig_dsp_Delay_read(struct sig_dsp_Delay* self, float source,
     size_t i) {
-    float maxDelayLength = (float) self->delayLine->buffer->length;
     float delayTime = FLOAT_ARRAY(self->inputs.delayTime)[i];
-    float readPos = (delayTime * self->signal.audioSettings->sampleRate);
-    if (readPos >= maxDelayLength) {
-        readPos = maxDelayLength - 1;
-    }
 
-    if (delayTime <= 0.0f) {
-        FLOAT_ARRAY(self->outputs.main)[i] = source;
-    } else {
-        FLOAT_ARRAY(self->outputs.main)[i] = sig_DelayLine_cubicReadAt(
-            self->delayLine, readPos);
-    }
+    FLOAT_ARRAY(self->outputs.main)[i] = sig_DelayLine_cubicReadAtTime(
+        self->delayLine,
+        source,
+        delayTime,
+        self->signal.audioSettings->sampleRate);
 }
 
 void sig_dsp_Delay_generate(void* signal) {
@@ -3110,7 +3188,7 @@ void sig_dsp_Comb_init(struct sig_dsp_Comb* self,
 
     sig_CONNECT_TO_SILENCE(self, source, context);
     sig_CONNECT_TO_SILENCE(self, delayTime, context);
-    sig_CONNECT_TO_SILENCE(self, decayTime, context);
+    sig_CONNECT_TO_SILENCE(self, feedbackGain, context);
     sig_CONNECT_TO_SILENCE(self, lpfCoefficient, context);
 }
 
@@ -3120,7 +3198,7 @@ void sig_dsp_Comb_generate(void* signal) {
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
         float maxDelayLength = (float) self->delayLine->buffer->length;
         float source = FLOAT_ARRAY(self->inputs.source)[i];
-        float decayTime = FLOAT_ARRAY(self->inputs.decayTime)[i];
+        float feedbackGain = FLOAT_ARRAY(self->inputs.feedbackGain)[i];
         float delayTime = FLOAT_ARRAY(self->inputs.delayTime)[i];
         float lpfCoefficient = FLOAT_ARRAY(self->inputs.lpfCoefficient)[i];
         float readPos = (delayTime * self->signal.audioSettings->sampleRate);
@@ -3132,8 +3210,8 @@ void sig_dsp_Comb_generate(void* signal) {
         float read = sig_DelayLine_cubicReadAt(self->delayLine, readPos);
         float outputSample = sig_filter_smooth(read, self->previousSample,
             lpfCoefficient);
-        float g = sig_DelayLine_calcFeedbackGain(delayTime, decayTime);
-        float toWrite = sig_DelayLine_feedback(source, outputSample, g);
+        float toWrite = sig_DelayLine_feedback(source, outputSample,
+            feedbackGain);
         sig_DelayLine_write(self->delayLine, toWrite);
         FLOAT_ARRAY(self->outputs.main)[i] = outputSample;
         self->previousSample = outputSample;

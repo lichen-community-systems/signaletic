@@ -41,7 +41,7 @@ Bluemchen bluemchen;
 struct sig_daisy_Host* host;
 struct sig_daisy_AudioIn* audioIn;
 struct sig_daisy_FilteredCVIn* delayTimeScaleKnob;
-struct sig_daisy_FilteredCVIn* decayTimeKnob;
+struct sig_daisy_FilteredCVIn* feedbackGainKnob;
 struct sig_dsp_ConstantValue* apGain;
 struct sig_dsp_ConstantValue* combLPFCoefficient;
 struct sig_DelayLine* dl1;
@@ -91,7 +91,7 @@ void UpdateOled() {
 
     displayStr.Clear();
     displayStr.Append("Dec ");
-    displayStr.AppendFloat(decayTimeKnob->outputs.main[0], 2);
+    displayStr.AppendFloat(feedbackGainKnob->outputs.main[0], 2);
     bluemchen.display.SetCursor(0, 16);
     bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
     bluemchen.display.Update();
@@ -124,11 +124,11 @@ void buildSignalGraph(struct sig_SignalContext* context,
     // when modulating a delay line.
     delayTimeScaleKnob->parameters.time = 0.25f;
 
-    decayTimeKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
-    sig_List_append(&signals, decayTimeKnob, status);
-    decayTimeKnob->parameters.control = sig_daisy_Bluemchen_CV_IN_KNOB_2;
-    decayTimeKnob->parameters.scale = 99.999f;
-    decayTimeKnob->parameters.offset = 0.001f;
+    feedbackGainKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    sig_List_append(&signals, feedbackGainKnob, status);
+    feedbackGainKnob->parameters.control = sig_daisy_Bluemchen_CV_IN_KNOB_2;
+    feedbackGainKnob->parameters.scale = 0.999f;
+    feedbackGainKnob->parameters.offset = 0.001f;
 
     apGain = sig_dsp_ConstantValue_new(&allocator, context, 0.7f);
     combLPFCoefficient = sig_dsp_ConstantValue_new(&allocator, context, 0.55f);
@@ -143,7 +143,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     sig_List_append(&signals, c1, status);
     c1->delayLine = dl1;
     c1->inputs.source = audioIn->outputs.main;
-    c1->inputs.decayTime = decayTimeKnob->outputs.main;
+    c1->inputs.feedbackGain = feedbackGainKnob->outputs.main;
     c1->inputs.delayTime = c1ScaledDelayTime->outputs.main;
     c1->inputs.lpfCoefficient = combLPFCoefficient->outputs.main;
 
@@ -157,7 +157,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     sig_List_append(&signals, c2, status);
     c2->delayLine = dl2;
     c2->inputs.source = audioIn->outputs.main;
-    c2->inputs.decayTime = decayTimeKnob->outputs.main;
+    c2->inputs.feedbackGain = feedbackGainKnob->outputs.main;
     c2->inputs.delayTime = c2ScaledDelayTime->outputs.main;
     c2->inputs.lpfCoefficient = combLPFCoefficient->outputs.main;
 
@@ -171,7 +171,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     sig_List_append(&signals, c3, status);
     c3->delayLine = dl3;
     c3->inputs.source = audioIn->outputs.main;
-    c3->inputs.decayTime = decayTimeKnob->outputs.main;
+    c3->inputs.feedbackGain = feedbackGainKnob->outputs.main;
     c3->inputs.delayTime = c3ScaledDelayTime->outputs.main;
     c3->inputs.lpfCoefficient = combLPFCoefficient->outputs.main;
 
@@ -185,7 +185,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     sig_List_append(&signals, c4, status);
     c4->delayLine = dl4;
     c4->inputs.source = audioIn->outputs.main;
-    c4->inputs.decayTime = decayTimeKnob->outputs.main;
+    c4->inputs.feedbackGain = feedbackGainKnob->outputs.main;
     c4->inputs.delayTime = c4ScaledDelayTime->outputs.main;
     c4->inputs.lpfCoefficient = combLPFCoefficient->outputs.main;
 
@@ -249,7 +249,7 @@ int main(void) {
     struct sig_AudioSettings audioSettings = {
         .sampleRate = 96000,
         .numChannels = 2,
-        .blockSize = 4
+        .blockSize = 96
     };
 
     struct sig_Status status;

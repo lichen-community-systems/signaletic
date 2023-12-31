@@ -225,6 +225,36 @@
         "type": "cortex-debug"
       },
       {
+        "name": "Remote Bluemchen Moorer Reverb",
+        "configFiles": [
+          "interface/stlink.cfg",
+          "target/stm32h7x.cfg"
+        ],
+        "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/reverb/moorer",
+        "debuggerArgs": [
+          "-d",
+          "${workspaceRoot}/hosts/daisy/examples/bluemchen/reverb/moorer"
+        ],
+        "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/reverb/moorer/build/signaletic-bluemchen-moorer.elf",
+        "interface": "swd",
+        "openOCDLaunchCommands": [
+          "init",
+          "reset init"
+        ],
+        "preLaunchTask": "Debug Build Bluemchen Moorer Reverb",
+        "preRestartCommands": [
+          "load",
+          "enable breakpoint",
+          "monitor reset"
+        ],
+        "request": "launch",
+        "runToEntryPoint": "main",
+        "servertype": "openocd",
+        "showDevDebugOutput": "parsed",
+        "svdFile": "${workspaceRoot}/.vscode/STM32H750x.svd",
+        "type": "cortex-debug"
+      },
+      {
         "name": "Remote Bluemchen Calibrator",
         "configFiles": [
           "interface/stlink.cfg",

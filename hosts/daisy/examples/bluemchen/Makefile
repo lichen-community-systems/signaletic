@@ -8,6 +8,7 @@ all:
 	$(MAKE) -C reverb/1962a
 	$(MAKE) -C reverb/1962b
 	$(MAKE) -C reverb/1962c
+	$(MAKE) -C reverb/moorer
 
 clean:
 	$(MAKE) -C calibrator clean
@@ -19,3 +20,4 @@ clean:
 	$(MAKE) -C reverb/1962a clean
 	$(MAKE) -C reverb/1962b clean
 	$(MAKE) -C reverb/1962c clean
+	$(MAKE) -C reverb/moorer clean
