@@ -134,7 +134,7 @@ struct sig_dsp_BinaryOp* sum4;
 struct sig_dsp_BinaryOp* sum5;
 
 struct sig_dsp_ConstantValue* combMixGain;
-struct sig_dsp_BinaryOp* combScale;
+struct sig_dsp_BinaryOp* scaledCombMix;
 
 struct sig_DelayLine* dl7;
 struct sig_dsp_ConstantValue* apDelayTime;
@@ -388,19 +388,22 @@ void buildSignalGraph(struct sig_SignalContext* context,
     sum5->inputs.right = c6->outputs.main;
 
     combMixGain = sig_dsp_ConstantValue_new(&allocator, context, 0.2f);
-    combScale = sig_dsp_Mul_new(&allocator, context);
-    sig_List_append(&signals, combScale, status);
-    combScale->inputs.left = sum5->outputs.main;
-    combScale->inputs.right = combMixGain->outputs.main;
+    scaledCombMix = sig_dsp_Mul_new(&allocator, context);
+    sig_List_append(&signals, scaledCombMix, status);
+    scaledCombMix->inputs.left = sum5->outputs.main;
+    scaledCombMix->inputs.right = combMixGain->outputs.main;
 
     /** All Pass **/
+    // Note: I don't scale the all pass delay time with the delay time knob,
+    // because I think it sounds better tuned as is (Moorer has a comment about
+    // needed to keep the delay time of the all pass short).
     apDelayTime = sig_dsp_ConstantValue_new(&allocator, context, 0.005f);
     apGain = sig_dsp_ConstantValue_new(&allocator, context, 0.7f);
     dl7 = sig_DelayLine_new(&delayLineAllocator, MAX_DELAY_LINE_LENGTH);
     ap = sig_dsp_Allpass_new(&allocator, context);
     sig_List_append(&signals, ap, status);
     ap->delayLine = dl7;
-    ap->inputs.source = combScale->outputs.main;
+    ap->inputs.source = scaledCombMix->outputs.main;
     ap->inputs.delayTime = apDelayTime->outputs.main;
     ap->inputs.g = apGain->outputs.main;
 

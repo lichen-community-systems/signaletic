@@ -88,7 +88,7 @@ struct sig_dsp_BinaryOp* sum1;
 struct sig_dsp_BinaryOp* sum2;
 struct sig_dsp_BinaryOp* sum3;
 struct sig_dsp_ConstantValue* combGain;
-struct sig_dsp_BinaryOp* combScale;
+struct sig_dsp_BinaryOp* scaledCombMix;
 
 struct sig_DelayLine* d1DL;
 struct sig_dsp_ConstantValue* d1DelayTime;
@@ -308,10 +308,10 @@ void buildSignalGraph(struct sig_SignalContext* context,
     sum3->inputs.right = c4->outputs.main;
 
     combGain = sig_dsp_ConstantValue_new(&allocator, context, 0.2f);
-    combScale = sig_dsp_Mul_new(&allocator, context);
-    sig_List_append(&signals, combScale, status);
-    combScale->inputs.left = sum3->outputs.main;
-    combScale->inputs.right = combGain->outputs.main;
+    scaledCombMix = sig_dsp_Mul_new(&allocator, context);
+    sig_List_append(&signals, scaledCombMix, status);
+    scaledCombMix->inputs.left = sum3->outputs.main;
+    scaledCombMix->inputs.right = combGain->outputs.main;
 
     /** Decorrelation Delays **/
     d1DL = sig_DelayLine_new(&delayLineAllocator, MAX_DELAY_LINE_LENGTH);
@@ -319,7 +319,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     d1 = sig_dsp_Delay_new(&allocator, context);
     sig_List_append(&signals, d1, status);
     d1->delayLine = d1DL;
-    d1->inputs.source = combScale->outputs.main;
+    d1->inputs.source = scaledCombMix->outputs.main;
     d1->inputs.delayTime = d1DelayTime->outputs.main;
 
     d2DL = sig_DelayLine_new(&delayLineAllocator, MAX_DELAY_LINE_LENGTH);
@@ -327,7 +327,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     d2 = sig_dsp_Delay_new(&allocator, context);
     sig_List_append(&signals, d2, status);
     d2->delayLine = d2DL;
-    d2->inputs.source = combScale->outputs.main;
+    d2->inputs.source = scaledCombMix->outputs.main;
     d2->inputs.delayTime = d2DelayTime->outputs.main;
 
     leftOut = sig_daisy_AudioOut_new(&allocator, context, host);

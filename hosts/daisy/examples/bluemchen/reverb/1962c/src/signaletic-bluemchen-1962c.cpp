@@ -64,7 +64,7 @@ struct sig_dsp_BinaryOp* sum1;
 struct sig_dsp_BinaryOp* sum2;
 struct sig_dsp_BinaryOp* sum3;
 struct sig_dsp_ConstantValue* combGain;
-struct sig_dsp_BinaryOp* combScale;
+struct sig_dsp_BinaryOp* scaledCombMix;
 struct sig_DelayLine* dl5;
 struct sig_dsp_ConstantValue* ap1DelayTime;
 struct sig_dsp_Allpass* ap1;
@@ -90,7 +90,7 @@ void UpdateOled() {
     bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     displayStr.Clear();
-    displayStr.Append("Dec ");
+    displayStr.Append("g ");
     displayStr.AppendFloat(feedbackGainScaleKnob->outputs.main[0], 2);
     bluemchen.display.SetCursor(0, 16);
     bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
@@ -205,17 +205,17 @@ void buildSignalGraph(struct sig_SignalContext* context,
     sum3->inputs.right = c4->outputs.main;
 
     combGain = sig_dsp_ConstantValue_new(&allocator, context, 0.2f);
-    combScale = sig_dsp_Mul_new(&allocator, context);
-    sig_List_append(&signals, combScale, status);
-    combScale->inputs.left = sum3->outputs.main;
-    combScale->inputs.right = combGain->outputs.main;
+    scaledCombMix = sig_dsp_Mul_new(&allocator, context);
+    sig_List_append(&signals, scaledCombMix, status);
+    scaledCombMix->inputs.left = sum3->outputs.main;
+    scaledCombMix->inputs.right = combGain->outputs.main;
 
     ap1DelayTime = sig_dsp_ConstantValue_new(&allocator, context, 0.09683f);
     dl5 = sig_DelayLine_new(&delayLineAllocator, MAX_DELAY_LINE_LENGTH);
     ap1 = sig_dsp_Allpass_new(&allocator, context);
     sig_List_append(&signals, ap1, status);
     ap1->delayLine = dl5;
-    ap1->inputs.source = combScale->outputs.main;
+    ap1->inputs.source = scaledCombMix->outputs.main;
     ap1->inputs.delayTime = ap1DelayTime->outputs.main;
     ap1->inputs.g = apGain->outputs.main;
 
