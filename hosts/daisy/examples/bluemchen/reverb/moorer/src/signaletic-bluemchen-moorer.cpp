@@ -8,7 +8,8 @@ using namespace daisy;
 
 FixedCapStr<20> displayStr;
 
-#define MAX_DELAY_LINE_LENGTH 48000*5 // Five seconds
+#define SAMPLERATE 48000
+#define MAX_DELAY_LINE_LENGTH SAMPLERATE // One second
 #define DELAY_LINE_HEAP_SIZE 63*1024*1024 // Grab nearly the whole SDRAM.
 #define HEAP_SIZE 1024 * 256 // 256KB
 #define MAX_NUM_SIGNALS 64
@@ -171,10 +172,10 @@ void UpdateOled() {
 void buildSignalGraph(struct sig_SignalContext* context,
      struct sig_Status* status) {
     // Parameters are from Moorer (1979) "About This Reverberation Business."
-    // g1 values are interpolated from Moorer's tables at 48KHz.
     // Unit     Delay Time      g1      g2
     // Six parallel comb filters:
-    // TODO: The gain values listed here are for 50 KHz sampling rate.
+    // The gain (g1) values listed here are interpolated to 48KHz from
+    // Moorer's tables, which listed values at 25 and 50 KHz.
     // c1       0.05            0.44    "all the g2 terms set to a constant
     //                                  number g times (1 - g1)...
     //                                  each comb will have a different value
@@ -211,6 +212,8 @@ void buildSignalGraph(struct sig_SignalContext* context,
     audioIn->parameters.channel = sig_daisy_AUDIO_IN_1;
 
     /** Early Echoes **/
+    // TODO: Add support for scaling the delay taps,
+    // which will allow the user to change the room size.
     earlyEchoDL = sig_DelayLine_new(&delayLineAllocator, MAX_DELAY_LINE_LENGTH);
     earlyEchoes = sig_dsp_MultiTapDelay_new(&allocator, context);
     sig_List_append(&signals, earlyEchoes, status);
@@ -396,7 +399,8 @@ void buildSignalGraph(struct sig_SignalContext* context,
     /** All Pass **/
     // Note: I don't scale the all pass delay time with the delay time knob,
     // because I think it sounds better tuned as is (Moorer has a comment about
-    // needed to keep the delay time of the all pass short).
+    // needing to keep the delay time of the all pass short but
+    // not too short on p19).
     apDelayTime = sig_dsp_ConstantValue_new(&allocator, context, 0.005f);
     apGain = sig_dsp_ConstantValue_new(&allocator, context, 0.7f);
     dl7 = sig_DelayLine_new(&delayLineAllocator, MAX_DELAY_LINE_LENGTH);
@@ -408,7 +412,15 @@ void buildSignalGraph(struct sig_SignalContext* context,
     ap->inputs.g = apGain->outputs.main;
 
     reverberatorDelayTime = sig_dsp_ConstantValue_new(&allocator, context,
-        0.025f); // FIXME: Probably incorrect!
+        0.0247); // FIXME: This has to be responsive to delay time scale.
+                 // Moorer says "the delays D1 and D2 are set such that the
+                 // first echo from the reverberator [0.055] coincides
+                 // with the end of the last echo from the early
+                 // response [0.0797]. This means either
+                 // D1 [the early echo delay] or D2 [the reverberator delay]
+                 // will be zero, depending on whether the total delay of
+                 // the early echo is longer or
+                 // shorter than the shortest delay in the reverberator."
     reverberatorDelayTimeScale = sig_dsp_Mul_new(&allocator, context);
     sig_List_append(&signals, reverberatorDelayTimeScale, status);
     reverberatorDelayTimeScale->inputs.left =
@@ -434,6 +446,8 @@ void buildSignalGraph(struct sig_SignalContext* context,
     earlyEchoesReverberatorMix->inputs.right =
         reverberatorMixScale->outputs.main;
 
+    // TODO: Add wet/dry mix
+
     leftOut = sig_daisy_AudioOut_new(&allocator, context, host);
     sig_List_append(&signals, leftOut, status);
     leftOut->parameters.channel = sig_daisy_AUDIO_OUT_1;
@@ -449,9 +463,9 @@ int main(void) {
     allocator.impl->init(&allocator);
 
     struct sig_AudioSettings audioSettings = {
-        .sampleRate = 48000,
+        .sampleRate = SAMPLERATE,
         .numChannels = 2,
-        .blockSize = 96
+        .blockSize = 2
     };
 
     struct sig_Status status;

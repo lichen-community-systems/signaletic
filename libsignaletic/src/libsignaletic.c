@@ -306,6 +306,33 @@ float sig_waveform_triangle(float phase) {
     return 2.0f * (val - 0.5f);
 }
 
+
+
+void sig_osc_FastLFSine_init(struct sig_osc_FastLFSine* self,
+    float sampleRate) {
+    self->sampleRate = sampleRate;
+    self->sinZ = 0.0f;
+    self->cosZ = 1.0f;
+    sig_osc_FastLFSine_setFrequency(self, 1.0f);
+}
+
+inline void sig_osc_FastLFSine_setFrequency(struct sig_osc_FastLFSine* self,
+    float frequency) {
+    self->f = 2.0f * sinf(sig_PI * frequency / self->sampleRate);
+}
+
+inline void sig_osc_FastLFSine_setFrequencyFast(struct sig_osc_FastLFSine* self,
+    float frequency) {
+    self->f = sig_TWOPI * frequency / self->sampleRate;
+}
+
+inline void sig_osc_FastLFSine_generate(struct sig_osc_FastLFSine* self) {
+    self->sinZ = self->sinZ + self->f * self->cosZ;
+    self->cosZ = self->cosZ - self->f * self->sinZ;
+}
+
+
+
 // TODO: Implement enough test coverage for sig_Allocator
 // to support a switch from TLSF to another memory allocator
 // implementation sometime in the future (gh-26).
@@ -701,6 +728,19 @@ inline float sig_DelayLine_cubicReadAt(struct sig_DelayLine* self,
     return (((a * frac) - bNeg) * frac + c) * frac + x0;
 }
 
+inline float sig_DelayLine_allpassReadAt(struct sig_DelayLine* self,
+    float readPos, float previousSample) {
+    size_t maxDelayLength = self->buffer->length;
+    float* delayLineSamples = self->buffer->samples;
+    int32_t integ = (int32_t) readPos;
+    float frac = readPos - (float) integ;
+    float invFrac = 1.0f - frac;
+    float a = delayLineSamples[(self->writeIdx + integ) % maxDelayLength];
+    float b = delayLineSamples[(self->writeIdx + integ + 1) % maxDelayLength];
+
+    return b + invFrac * a - invFrac * previousSample;
+}
+
 #define sig_DelayLine_readAtTime_IMPL(self, source, tapTime, sampleRate,\
     readFn)\
     float sample;\
@@ -732,6 +772,24 @@ inline float sig_DelayLine_cubicReadAtTime(struct sig_DelayLine* self,
     float source, float tapTime, float sampleRate) {
     sig_DelayLine_readAtTime_IMPL(self, source, tapTime, sampleRate,
         sig_DelayLine_cubicReadAt);
+}
+
+inline float sig_DelayLine_allpassReadAtTime(struct sig_DelayLine* self,
+    float source, float tapTime, float sampleRate, float previousSample) {
+    // TODO: Cut and pasted from the sig_DelayLine_readAtTime_IMPL macro above.
+    float sample;
+    if (tapTime <= 0.0f) {
+        sample = source;
+    } else {
+        float readPos = tapTime * sampleRate;
+        float maxDelayLength = (float) self->buffer->length;
+        if (readPos >= maxDelayLength) {
+            readPos = maxDelayLength - 1;
+        }
+        sample = sig_DelayLine_allpassReadAt(self, readPos, previousSample);
+    }
+
+    return sample;
 }
 
 #define sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes, tapGains,\
@@ -824,7 +882,7 @@ inline float sig_DelayLine_cubicComb(struct sig_DelayLine* self, float sample,
     float read = readFn(self, readPos); \
     float toWrite = sample + (g * read); \
     sig_DelayLine_write(self, toWrite); \
-    return read + (-g * toWrite) \
+    return read - (g * toWrite) \
 
 inline float sig_DelayLine_allpass(struct sig_DelayLine* self, float sample,
     size_t readPos, float g) {
@@ -3207,7 +3265,7 @@ void sig_dsp_Comb_generate(void* signal) {
         }
 
         delayTime = sig_fmaxf(delayTime, 0.00001); // Delay time can't be zero.
-        float read = sig_DelayLine_cubicReadAt(self->delayLine, readPos);
+        float read = sig_DelayLine_linearReadAt(self->delayLine, readPos);
         float outputSample = sig_filter_smooth(read, self->previousSample,
             lpfCoefficient);
         float toWrite = sig_DelayLine_feedback(source, outputSample,
@@ -3268,7 +3326,7 @@ void sig_dsp_Allpass_generate(void* signal) {
         if (delayTime <= 0.0f || g <= 0.0f) {
             FLOAT_ARRAY(self->outputs.main)[i] = source;
         } else {
-            FLOAT_ARRAY(self->outputs.main)[i] = sig_DelayLine_cubicAllpass(
+            FLOAT_ARRAY(self->outputs.main)[i] = sig_DelayLine_linearAllpass(
                 self->delayLine, source, readPos, g);
         }
     }
@@ -3279,6 +3337,103 @@ void sig_dsp_Allpass_destroy(struct sig_Allocator* allocator,
     // Don't destroy the delay line; it isn't owned.
     sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
         &self->outputs);
+    sig_dsp_Signal_destroy(allocator, self);
+}
+
+
+void sig_dsp_Chorus_Outputs_newAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_dsp_Chorus_Outputs* outputs) {
+    outputs->main = sig_AudioBlock_newSilent(allocator, audioSettings);
+    outputs->modulator = sig_AudioBlock_newSilent(allocator, audioSettings);
+}
+
+void sig_dsp_Chorus_Outputs_destroyAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_dsp_Chorus_Outputs* outputs) {
+    sig_AudioBlock_destroy(allocator, outputs->main);
+    sig_AudioBlock_destroy(allocator, outputs->modulator);
+}
+
+struct sig_dsp_Chorus* sig_dsp_Chorus_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_Chorus* self = sig_MALLOC(allocator,
+        struct sig_dsp_Chorus);
+     // TODO: Improve buffer management throughout Signaletic.
+    self->delayLine = context->oneSampleDelayLine;
+
+    sig_dsp_Chorus_init(self, context);
+    sig_dsp_Chorus_Outputs_newAudioBlocks(allocator, context->audioSettings,
+        &self->outputs);
+
+    return self;
+}
+
+void sig_dsp_Chorus_init(struct sig_dsp_Chorus* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_Chorus_generate);
+
+    sig_osc_FastLFSine_init(&self->modulator,
+        self->signal.audioSettings->sampleRate);
+
+    self->previousFixedOutput = 0.0f;
+    self->previousModulatedOutput = 0.0f;
+
+    sig_CONNECT_TO_SILENCE(self, source, context);
+    sig_CONNECT_TO_SILENCE(self, delayTime, context);
+    sig_CONNECT_TO_SILENCE(self, speed, context);
+    sig_CONNECT_TO_SILENCE(self, width, context);
+    sig_CONNECT_TO_SILENCE(self, feedbackGain, context);
+    sig_CONNECT_TO_SILENCE(self, feedforwardGain, context);
+    sig_CONNECT_TO_SILENCE(self, blend, context);
+}
+
+void sig_dsp_Chorus_generate(void* signal) {
+    struct sig_dsp_Chorus* self = (struct sig_dsp_Chorus*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float source = FLOAT_ARRAY(self->inputs.source)[i];
+        float delayTime = FLOAT_ARRAY(self->inputs.delayTime)[i];
+        float speed = FLOAT_ARRAY(self->inputs.speed)[i];
+        float width = FLOAT_ARRAY(self->inputs.width)[i];
+        float feedbackGain = FLOAT_ARRAY(self->inputs.feedbackGain)[i];
+        float feedforwardGain = FLOAT_ARRAY(self->inputs.feedforwardGain)[i];
+        float blend = FLOAT_ARRAY(self->inputs.blend)[i];
+
+        sig_osc_FastLFSine_setFrequencyFast(&self->modulator, speed);
+        sig_osc_FastLFSine_generate(&self->modulator);
+        FLOAT_ARRAY(self->outputs.modulator)[i] = self->modulator.sinZ;
+
+        // TODO: Add one pole low pass filters in both the feedback and
+        // feedforward lines to support echo.
+
+        float fixedRead = sig_DelayLine_allpassReadAtTime(self->delayLine,
+            source, delayTime, self->signal.audioSettings->sampleRate,
+            self->previousFixedOutput);
+        self->previousFixedOutput = fixedRead;
+        float toWrite = source - (fixedRead * feedbackGain);
+        sig_DelayLine_write(self->delayLine, toWrite);
+
+        float modulatedDelayTime = self->modulator.sinZ * width + delayTime;
+        float modulatedRead = sig_DelayLine_allpassReadAtTime(self->delayLine,
+            source, modulatedDelayTime, self->signal.audioSettings->sampleRate,
+            self->previousModulatedOutput);
+        self->previousModulatedOutput = modulatedRead;
+        float feedforwardSample = modulatedRead * feedforwardGain;
+        float output = (toWrite * blend) + feedforwardSample;
+
+        // TODO: What kind of gain staging should we do here?
+        // It seems likely that we can have up to 3x gain depending on
+        // the values of feedbackGain, feedforwardGain, and blend.
+        FLOAT_ARRAY(self->outputs.main)[i] = sig_fastTanhf(output / 3.0f);
+    }
+}
+
+void sig_dsp_Chorus_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Chorus* self) {
+    // Don't destroy the delay line; it isn't owned.
+    sig_dsp_Chorus_Outputs_destroyAudioBlocks(allocator, &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
 }
 

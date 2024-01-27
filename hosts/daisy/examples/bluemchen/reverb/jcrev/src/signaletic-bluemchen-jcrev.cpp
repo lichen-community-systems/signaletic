@@ -130,10 +130,11 @@ void buildSignalGraph(struct sig_SignalContext* context,
     // Note that there are two different versions of JCRev topology
     // documented by JOS. One uses decorrelation delays at the end,
     // the other does not.
-    // Both of which seem to come from the CLM source code:
+    // Both seem to come from the CLM source code:
     // https://github.com/radiganm/clm/blob/master/jcrev.ins
-    // My best guess is that delay times specified in the JOS link above are at
-    // at 44.1KHz, whereas those documented at the link below are at 12.8KHz:
+    // My best guess is that the delay times specified in the JOS link
+    // above are at 44.1KHz, whereas those documented at the link below
+    // are at 12.8KHz:
     // https://ccrma.stanford.edu/~jos/pasp/Schroeder_Reverberators.html
     // Node     Delay Time      G
     // ap1      0.02383 sec     0.7

@@ -61,7 +61,7 @@ void sig_dsp_MultiTapDelay_generate(void* signal) {
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
         float source = FLOAT_ARRAY(self->inputs.source)[i];
         float timeScale = FLOAT_ARRAY(self->inputs.timeScale)[i];
-        float tapSum = sig_DelayLine_cubicReadAtTimes(
+        float tapSum = sig_DelayLine_linearReadAtTimes(
             self->delayLine,
             source,
             self->tapTimes->samples,

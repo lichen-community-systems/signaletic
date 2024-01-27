@@ -141,7 +141,7 @@
             "dependsOn": [
                 "Build libdaisy"
             ],
-            "command": "make clean;DEBUG=1 make",
+            "command": "make clean;DEBUG=1 OPT=-Og make",
             "options": {
                 "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/reverb/moorer"
             },
@@ -155,7 +155,7 @@
             "dependsOn": [
                 "Build libdaisy"
             ],
-            "command": "make clean;DEBUG=1 make",
+            "command": "make clean;DEBUG=1 OPT=-Og make",
             "options": {
                 "cwd": "${workspaceFolder}/hosts/daisy/examples/dpt"
             },
@@ -169,7 +169,7 @@
             "dependsOn": [
                 "Build libdaisy"
             ],
-            "command": "make clean;DEBUG=1 make",
+            "command": "make clean;DEBUG=1 OPT=-Og make",
             "options": {
                 "cwd": "${workspaceFolder}/hosts/daisy/examples/patch_init"
             },
@@ -183,7 +183,7 @@
             "dependsOn": [
                 "Build libdaisy"
             ],
-            "command": "make clean;DEBUG=1 make",
+            "command": "make clean;DEBUG=1 OPT=-Og make",
             "options": {
                 "cwd": "${workspaceFolder}/hosts/daisy/examples/versio"
             },

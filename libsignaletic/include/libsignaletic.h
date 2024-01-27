@@ -457,6 +457,61 @@ float sig_waveform_triangle(float phase);
 
 
 /**
+ * @brief A fast sine approximation implemented using a Chamberlin SVF.
+ * This approximation is good up to about 1/6 the sampleRate.
+ *
+ * For details, see Dattoro "Effect Design Part 3" and
+ * https://www.earlevel.com/main/2003/03/02/the-digital-state-variable-filter/
+ */
+struct sig_osc_FastLFSine {
+    float sampleRate;
+    float f;
+    float sinZ;
+    float cosZ;
+};
+
+/**
+ * @brief Initializes a FastLFSine oscillator.
+ * The default frequency is 1 Hz.
+ *
+ * @param self the oscillator to initialize
+ */
+void sig_osc_FastLFSine_init(struct sig_osc_FastLFSine* self,
+    float sampleRate);
+
+/**
+ * @brief Updates the frequency coefficient for the specified frequency.
+ *
+ * @param self the oscillator instance
+ * @param frequency the frequency
+ * @param sampleRate the current sample rate
+ */
+void sig_osc_FastLFSine_setFrequency(struct sig_osc_FastLFSine* self,
+    float frequency);
+
+/**
+ * @brief Updates the frequency coefficient using an approximation
+ * that is suitable for low frequencies.
+ *
+ * @param self the oscillator instance
+ * @param frequency the frequency
+ * @param sampleRate the current sample rate
+ */
+void sig_osc_FastLFSine_setFrequencyFast(struct sig_osc_FastLFSine* self,
+    float frequency);
+
+/**
+ * @brief Generates new values for the sinZ and cosZ delays,
+ * which provide the output of the system. cosZ is 90 degrees offset from sinZ.
+ *
+ * See:
+ * https://www.earlevel.com/DigitalAudio/images/StateVarLfoBlock.gif
+ *
+ * @param self the oscillator instance
+ */
+void sig_osc_FastLFSine_generate(struct sig_osc_FastLFSine* self);
+
+/**
  * An AudioSettings structure holds key information
  * about the current configuration of the audio system,
  * including sample rate, number of channels, and the
@@ -847,20 +902,100 @@ void sig_DelayLine_init(struct sig_DelayLine* self);
 
 typedef void (*sig_DelayLine_readFn)(void* signal);
 
+/**
+ * @brief Reads from the delay line without interpolation.
+ * This function does not support fractional delay times.
+ *
+ * @param self the delay line to read from
+ * @param readPos the position (in samples) at which to read from the delay
+ * @return float the output of the delay line
+ */
 float sig_DelayLine_readAt(struct sig_DelayLine* self, size_t readPos);
 
+/**
+ * @brief Reads from the delay line using linear interpolation.
+ * This function supports fractional delay times.
+ *
+ * @param self the delay line to read from
+ * @param readPos the position (in samples) at which to read from the delay
+ * @return float the output of the delay line
+ */
 float sig_DelayLine_linearReadAt(struct sig_DelayLine* self, float readPos);
 
+/**
+ * @brief Reads from the delay line using cubic interpolation.
+ * This function supports fractional delay times.
+ *
+ * @param self the delay line to read from
+ * @param readPos the position (in samples) at which to read from the delay
+ * @return float the output of the delay line
+ */
 float sig_DelayLine_cubicReadAt(struct sig_DelayLine* self, float readPos);
 
+/**
+ * @brief Reads from the delay line using allpass interpolation.
+ * This function supports fractional delay times.
+ *
+ * @param self the delay line to read from
+ * @param readPos the position (in samples) to read from the delay at
+ * @param previousSample the previous interpolated sample from the delay line
+ * @return float the output of the delay line
+ */
+float sig_DelayLine_allpassReadAt(struct sig_DelayLine* self,
+    float readPos, float previousSample);
+
+/**
+ * @brief Reads from the delay line without interpolation.
+ * This function does not support fractional delay times, and will truncate
+ * the delay time tap down to the nearest sample.
+ *
+ * @param self the delay line to read from
+ * @param tapTime the time (in seconds) at which to read from the delay
+ * @param sampleRate the current sample rate
+ * @return float the output of the delay line
+ */
 float sig_DelayLine_readAtTime(struct sig_DelayLine* self, float source,
     float tapTime, float sampleRate);
 
+/**
+ * @brief Reads from the delay line at the specified time
+ * (in seconds) using linear interpolation.
+ * This function supports fractional delay times.
+ *
+ * @param self the delay line to read from
+ * @param tapTime the time (in seconds) at which to read from the delay
+ * @param sampleRate the current sample rate
+ * @return float the output of the delay line
+ */
 float sig_DelayLine_linearReadAtTime(struct sig_DelayLine* self, float source,
     float tapTime, float sampleRate);
 
+/**
+ * @brief Reads from the delay line at the specified time
+ * (in seconds) using cubic interpolation.
+ * This function supports fractional delay times.
+ *
+ * @param self the delay line to read from
+ * @param tapTime the time (in seconds) at which to read from the delay
+ * @param sampleRate the current sample rate
+ * @return float the output of the delay line
+ */
 float sig_DelayLine_cubicReadAtTime(struct sig_DelayLine* self, float source,
     float tapTime, float sampleRate);
+
+/**
+ * @brief Reads from the delay line at the specified time
+ * (in seconds) using allpass interpolation.
+ * This function supports fractional delay times.
+ *
+ * @param self the delay line to read from
+ * @param tapTime the time (in seconds) at which to read from the delay
+ * @param sampleRate the current sample rate
+ * @param previousSample the previous interpolated sample from the delay line
+ * @return float the output of the delay line
+ */
+float sig_DelayLine_allpassReadAtTime(struct sig_DelayLine* self,
+    float source, float tapTime, float sampleRate, float previousSample);
 
 float sig_DelayLine_readAtTimes(struct sig_DelayLine* self, float source,
     float* tapTimes, float* tapGains, size_t numTaps,
@@ -888,6 +1023,9 @@ float sig_DelayLine_cubicComb(struct sig_DelayLine* self, float sample,
 
 float sig_DelayLine_allpass(struct sig_DelayLine* self, float sample,
     size_t readPos, float g);
+
+float sig_DelayLine_linearAllpass(struct sig_DelayLine* self,
+    float sample, size_t readPos, float g);
 
 float sig_DelayLine_cubicAllpass(struct sig_DelayLine* self, float sample,
     float readPos, float g);
@@ -2163,12 +2301,47 @@ void sig_dsp_Allpass_destroy(struct sig_Allocator* allocator,
 
 
 
+struct sig_dsp_Chorus_Inputs {
+    float_array_ptr source;
+    float_array_ptr delayTime;
+    float_array_ptr speed;
+    float_array_ptr width;
+    float_array_ptr feedbackGain;
+    float_array_ptr feedforwardGain;
+    float_array_ptr blend;
+};
+
+struct sig_dsp_Chorus_Outputs {
+    float_array_ptr main;
+    float_array_ptr modulator;
+};
+
+struct sig_dsp_Chorus {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Chorus_Inputs inputs;
+    struct sig_dsp_Chorus_Outputs outputs;
+
+    struct sig_DelayLine* delayLine;
+    struct sig_osc_FastLFSine modulator;
+    float previousFixedOutput;
+    float previousModulatedOutput;
+};
+
+struct sig_dsp_Chorus* sig_dsp_Chorus_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_Chorus_init(struct sig_dsp_Chorus* self,
+    struct sig_SignalContext* context);
+void sig_dsp_Chorus_generate(void* signal);
+void sig_dsp_Chorus_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Chorus* self);
+
+
+
 struct sig_dsp_LinearXFade_Inputs {
     float_array_ptr left;
     float_array_ptr right;
     float_array_ptr mix;
 };
-
 
 struct sig_dsp_LinearXFade {
     struct sig_dsp_Signal signal;
