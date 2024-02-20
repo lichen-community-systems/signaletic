@@ -405,6 +405,36 @@
         "type": "cortex-debug"
       },
       {
+        "name": "Remote Lichen Medium Bare Board Test",
+        "configFiles": [
+          "interface/stlink.cfg",
+          "target/stm32h7x.cfg"
+        ],
+        "cwd": "${workspaceFolder}/hosts/daisy/examples/lichen-medium/bare-board-test",
+        "debuggerArgs": [
+          "-d",
+          "${workspaceRoot}/hosts/daisy/examples/lichen-medium/bare-board-test"
+        ],
+        "executable": "${workspaceRoot}/hosts/daisy/examples/lichen-medium/bare-board-test/build/lichen-medium-bare-board-test.elf",
+        "interface": "swd",
+        "openOCDLaunchCommands": [
+          "init",
+          "reset init"
+        ],
+        "preLaunchTask": "Debug Build Lichen Medium Examples",
+        "preRestartCommands": [
+          "load",
+          "enable breakpoint",
+          "monitor reset"
+        ],
+        "request": "launch",
+        "runToEntryPoint": "main",
+        "servertype": "openocd",
+        "showDevDebugOutput": "parsed",
+        "svdFile": "${workspaceRoot}/.vscode/STM32H750x.svd",
+        "type": "cortex-debug"
+      },
+      {
         "name": "Remote Versio Filter",
         "configFiles": [
           "interface/stlink.cfg",

@@ -193,6 +193,20 @@
             "type": "shell"
         },
         {
+            "label": "Debug Build Lichen Medium Examples",
+            "dependsOn": [
+                "Build libdaisy"
+            ],
+            "command": "make clean;DEBUG=1 OPT=-Og make",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/lichen-medium"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
             "label": "Build Bluemchen Examples",
             "dependsOn": [
                 "Build libdaisy"

@@ -9,6 +9,7 @@
         "string": "c",
         "string_view": "c",
         "ios": "cpp",
-        "istream": "c"
+        "istream": "c",
+        "vector": "cpp"
     }
 }

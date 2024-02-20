@@ -187,6 +187,9 @@ float sig_daisy_HostImpl_getEncoderIncrement(struct sig_daisy_Host* host,
     return increment;
 }
 
+// TODO: Encoders have an underlying daisy::Switch object, so we could
+// remove this in favour of the getSwitchValue impl if we had some way of
+// indexing an encoder within the switch array.
 float sig_daisy_HostImpl_processEncoderButtonValue(struct sig_daisy_Host* host,
     int control) {
     bool isPressed = false;
