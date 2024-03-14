@@ -18,8 +18,6 @@ namespace libdaisy {
             dsy_gpio userLED;
             float callbackRate;
 
-            virtual void Init(size_t blockSize, float sampleRate) = 0;
-
             SaiHandle::Config::SampleRate sampleRateFromFloat(float sr) {
                 SaiHandle::Config::SampleRate sai_sr;
                 switch(int(sr)) {
@@ -53,6 +51,15 @@ namespace libdaisy {
                     audio.GetConfig().blocksize;
             }
 
+            void InitADC(dsy_gpio_pin* pins, size_t numADCPins) {
+                AdcChannelConfig adcConfigs[numADCPins];
+
+                for (size_t i = 0; i < numADCPins; i++) {
+                    adcConfigs[i].InitSingle(pins[i]);
+                }
+
+                adc.Init(adcConfigs, numADCPins);
+            }
     };
 };
 };

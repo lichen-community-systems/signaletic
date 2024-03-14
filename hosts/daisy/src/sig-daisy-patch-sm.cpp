@@ -6,6 +6,67 @@ using namespace daisy;
 uint16_t DMA_BUFFER_MEM_SECTION sig_daisy_patch_sm_dac_buffer[2][48];
 uint16_t sig_daisy_patch_sm_dac_output[2];
 
+// TODO: If the Daisy toolchain ever upgrades to C++17,
+// these definitions shouldn't be needed.
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_NONE;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_A1;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_A2;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_A3;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_A4;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_A5;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_A6;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_A7;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_A8;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_A9;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_A10;
+
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_B1;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_B2;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_B3;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_B4;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_B5;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_B6;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_B7;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_B8;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_B9;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_B10;
+
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_C1;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_C2;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_C3;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_C4;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_C5;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_C6;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_C7;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_C8;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_C9;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_C10;
+
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_D1;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_D2;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_D3;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_D4;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_D5;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_D6;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_D7;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_D8;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_D9;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_D10;
+
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_CV_1;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_CV_2;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_CV_3;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_CV_4;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_CV_5;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_CV_6;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_CV_7;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_CV_8;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_ADC_9;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_ADC_10;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_ADC_11;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_ADC_12;
+constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_USER_LED;
+
 void sig::libdaisy::PatchSM::Init(size_t blockSize, float sampleRate) {
     dac_running_ = false;
     dac_buffer_size_ = 48;
@@ -77,41 +138,16 @@ void sig::libdaisy::PatchSM::Init(size_t blockSize, float sampleRate) {
     audio.Init(audio_config, sai_1_handle);
     callbackRate = audio.GetSampleRate() / audio.GetConfig().blocksize;
 
-    /** ADC Init */
-    AdcChannelConfig adc_config[PATCH_SM_ADC_LAST];
-    /** Order of pins to match enum expectations */
-    dsy_gpio_pin adc_pins[] = {
-        PATCH_SM_PIN_ADC_CTRL_1,
-        PATCH_SM_PIN_ADC_CTRL_2,
-        PATCH_SM_PIN_ADC_CTRL_3,
-        PATCH_SM_PIN_ADC_CTRL_4,
-        PATCH_SM_PIN_ADC_CTRL_8,
-        PATCH_SM_PIN_ADC_CTRL_7,
-        PATCH_SM_PIN_ADC_CTRL_5,
-        PATCH_SM_PIN_ADC_CTRL_6,
-        PATCH_SM_PIN_ADC_CTRL_9,
-        PATCH_SM_PIN_ADC_CTRL_10,
-        PATCH_SM_PIN_ADC_CTRL_11,
-        PATCH_SM_PIN_ADC_CTRL_12
-    };
-
-    for (int i = 0; i < PATCH_SM_ADC_LAST; i++) {
-        adc_config[i].InitSingle(adc_pins[i]);
-    }
-    adc.Init(adc_config, PATCH_SM_ADC_LAST);
-
     /** Fixed-function Digital I/O */
     userLED.mode = DSY_GPIO_MODE_OUTPUT_PP;
     userLED.pull = DSY_GPIO_NOPULL;
-    // userLED.pin = PIN_USER_LED;
-    userLED.pin = {DSY_GPIOC, 7}; // FIXME: Why does the linker fail to
-                                  // resolve PIN_USER_LED?
+    userLED.pin = PIN_USER_LED;
     dsy_gpio_init(&userLED);
 
     InitDac();
-    adc.Start();
     StartDac();
 }
+
 
 void sig::libdaisy::PatchSM::InitDac() {
     DacHandle::Config dac_config;
