@@ -6,68 +6,7 @@ using namespace daisy;
 uint16_t DMA_BUFFER_MEM_SECTION sig_daisy_patch_sm_dac_buffer[2][48];
 uint16_t sig_daisy_patch_sm_dac_output[2];
 
-// TODO: If the Daisy toolchain ever upgrades to C++17,
-// these definitions shouldn't be needed.
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_NONE;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_A1;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_A2;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_A3;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_A4;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_A5;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_A6;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_A7;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_A8;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_A9;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_A10;
-
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_B1;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_B2;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_B3;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_B4;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_B5;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_B6;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_B7;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_B8;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_B9;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_B10;
-
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_C1;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_C2;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_C3;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_C4;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_C5;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_C6;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_C7;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_C8;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_C9;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_C10;
-
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_D1;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_D2;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_D3;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_D4;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_D5;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_D6;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_D7;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_D8;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_D9;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_D10;
-
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_CV_1;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_CV_2;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_CV_3;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_CV_4;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_CV_5;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_CV_6;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_CV_7;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_CV_8;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_ADC_9;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_ADC_10;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_ADC_11;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_ADC_12;
-constexpr dsy_gpio_pin sig::libdaisy::PatchSM::PIN_USER_LED;
-
-void sig::libdaisy::PatchSM::Init(size_t blockSize, float sampleRate) {
+void sig::libdaisy::patchsm::PatchSMBoard::Init(size_t blockSize, float sampleRate) {
     dac_running_ = false;
     dac_buffer_size_ = 48;
     sig_daisy_patch_sm_dac_output[0] = 0;
@@ -149,7 +88,7 @@ void sig::libdaisy::PatchSM::Init(size_t blockSize, float sampleRate) {
 }
 
 
-void sig::libdaisy::PatchSM::InitDac() {
+void sig::libdaisy::patchsm::PatchSMBoard::InitDac() {
     DacHandle::Config dac_config;
     dac_config.mode = DacHandle::Mode::DMA;
     dac_config.bitdepth = DacHandle::BitDepth::
@@ -160,19 +99,20 @@ void sig::libdaisy::PatchSM::InitDac() {
     dac.Init(dac_config);
 }
 
-void sig::libdaisy::PatchSM::StartDac(DacHandle::DacCallback callback) {
+void sig::libdaisy::patchsm::PatchSMBoard::StartDac(DacHandle::DacCallback callback) {
     if (dac_running_) {
         dac.Stop();
     }
 
-    dac.Start(dacBuffer[0],
+    dac.Start(
+        dacBuffer[0],
         dacBuffer[1],
         dac_buffer_size_,
         callback == nullptr ? DefaultDacCallback : callback);
     dac_running_ = true;
 }
 
-void sig::libdaisy::PatchSM::DefaultDacCallback(uint16_t **output,
+void sig::libdaisy::patchsm::PatchSMBoard::DefaultDacCallback(uint16_t **output,
     size_t size) {
     for (size_t i = 0; i < size; i++) {
         output[0][i] = sig_daisy_patch_sm_dac_output[0];

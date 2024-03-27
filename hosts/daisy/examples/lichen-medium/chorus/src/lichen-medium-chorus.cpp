@@ -1,7 +1,6 @@
 #include "daisy.h"
 #include <libsignaletic.h>
-#include "../../../../include/daisy-patch-sm-host.h"
-#include "../../../../include/lichen-medium-host.h"
+#include "../../../../include/lichen-medium-module.h"
 
 #define SAMPLERATE 96000
 #define DELAY_LINE_LENGTH SAMPLERATE

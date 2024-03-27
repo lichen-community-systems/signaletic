@@ -1,10 +1,12 @@
 #include <string>
 #include <tlsf.h>
 #include <libsignaletic.h>
-#include "../../../../include/daisy-bluemchen-host.h"
+#include "../../../../include/signaletic-daisy-host.h"
+#include "../../../../include/kxmx-bluemchen-device.hpp"
 
-using namespace kxmx;
+using namespace kxmx::bluemchen;
 using namespace daisy;
+using namespace sig::libdaisy;
 
 FixedCapStr<20> displayStr;
 
@@ -26,41 +28,40 @@ struct sig_dsp_Signal* listStorage[MAX_NUM_SIGNALS];
 struct sig_List signals;
 struct sig_dsp_SignalListEvaluator* evaluator;
 
-Bluemchen bluemchen;
-struct sig_daisy_Host* host;
+DaisyHost<BluemchenDevice> host;
 
-struct sig_daisy_FilteredCVIn* coarseFreqKnob;
-struct sig_daisy_FilteredCVIn* fineFreqKnob;
-struct sig_daisy_CVIn* vOctCVIn;
+struct sig_host_FilteredCVIn* coarseFreqKnob;
+struct sig_host_FilteredCVIn* fineFreqKnob;
+struct sig_host_CVIn* vOctCVIn;
 struct sig_dsp_BinaryOp* coarsePlusVOct;
 struct sig_dsp_BinaryOp* coarseVOctPlusFine;
 struct sig_dsp_LinearToFreq* frequency;
 struct sig_dsp_Oscillator* osc;
 struct sig_dsp_ConstantValue* gainLevel;
 struct sig_dsp_BinaryOp* gain;
-struct sig_daisy_AudioOut* leftOut;
-struct sig_daisy_AudioOut* rightOut;
+struct sig_host_AudioOut* leftOut;
+struct sig_host_AudioOut* rightOut;
 
 
 void UpdateOled() {
-    bluemchen.display.Fill(false);
+    host.device.display.Fill(false);
 
     displayStr.Clear();
     displayStr.Append("Starscill");
-    bluemchen.display.SetCursor(0, 0);
-    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+    host.device.display.SetCursor(0, 0);
+    host.device.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     displayStr.Clear();
     displayStr.AppendFloat(frequency->outputs.main[0], 1);
-    bluemchen.display.SetCursor(0, 8);
-    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+    host.device.display.SetCursor(0, 8);
+    host.device.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     displayStr.Clear();
     displayStr.Append(" Hz");
-    bluemchen.display.SetCursor(46, 8);
-    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+    host.device.display.SetCursor(46, 8);
+    host.device.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
-    bluemchen.display.Update();
+    host.device.display.Update();
 }
 
 void buildSignalGraph(struct sig_SignalContext* context,
@@ -68,22 +69,26 @@ void buildSignalGraph(struct sig_SignalContext* context,
     /** Frequency controls **/
     // Bluemchen AnalogControls are all unipolar,
     // so they need to be scaled to bipolar values.
-    coarseFreqKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    // FIXME: this is no longer true.
+    coarseFreqKnob = sig_host_FilteredCVIn_new(&allocator, context);
+    coarseFreqKnob->hardware = &host.device.hardware;
     sig_List_append(&signals, coarseFreqKnob, status);
-    coarseFreqKnob->parameters.control = bluemchen.CTRL_1;
+    coarseFreqKnob->parameters.control = sig_host_KNOB_1;
     coarseFreqKnob->parameters.scale = 10.0f;
     coarseFreqKnob->parameters.offset = -5.0f;
     coarseFreqKnob->parameters.time = 0.01f;
 
-    fineFreqKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    fineFreqKnob = sig_host_FilteredCVIn_new(&allocator, context);
+    fineFreqKnob->hardware = &host.device.hardware;
     sig_List_append(&signals, fineFreqKnob, status);
-    fineFreqKnob->parameters.control = bluemchen.CTRL_2;
+    fineFreqKnob->parameters.control = sig_host_KNOB_1;
     fineFreqKnob->parameters.offset = -0.5f;
     fineFreqKnob->parameters.time = 0.01f;
 
-    vOctCVIn = sig_daisy_CVIn_new(&allocator, context, host);
+    vOctCVIn = sig_host_CVIn_new(&allocator, context);
+    vOctCVIn->hardware = &host.device.hardware;
     sig_List_append(&signals, vOctCVIn, status);
-    vOctCVIn->parameters.control = bluemchen.CTRL_4;
+    vOctCVIn->parameters.control = sig_host_CV_IN_1;
     vOctCVIn->parameters.scale = 10.0f;
     vOctCVIn->parameters.offset = -5.0f;
 
@@ -120,13 +125,15 @@ void buildSignalGraph(struct sig_SignalContext* context,
     gain->inputs.right = gainLevel->outputs.main;
     sig_List_append(&signals, gain, status);
 
-    leftOut = sig_daisy_AudioOut_new(&allocator, context, host);
-    leftOut->parameters.channel = 0;
+    leftOut = sig_host_AudioOut_new(&allocator, context);
+    leftOut->hardware = &host.device.hardware;
+    leftOut->parameters.channel = sig_host_AUDIO_OUT_1;
     leftOut->inputs.source = gain->outputs.main;
     sig_List_append(&signals, leftOut, status);
 
-    rightOut = sig_daisy_AudioOut_new(&allocator, context, host);
-    rightOut->parameters.channel = 1;
+    rightOut = sig_host_AudioOut_new(&allocator, context);
+    rightOut->hardware = &host.device.hardware;
+    rightOut->parameters.channel = sig_host_AUDIO_OUT_2;
     rightOut->inputs.source = gain->outputs.main;
     sig_List_append(&signals, rightOut, status);
 }
@@ -145,16 +152,12 @@ int main(void) {
     sig_List_init(&signals, (void**) &listStorage, MAX_NUM_SIGNALS);
 
     evaluator = sig_dsp_SignalListEvaluator_new(&allocator, &signals);
-    host = sig_daisy_BluemchenHost_new(&allocator,
-        &audioSettings,
-        &bluemchen,
-        (struct sig_dsp_SignalEvaluator*) evaluator);
-    sig_daisy_Host_registerGlobalHost(host);
+    host.Init(&audioSettings, (struct sig_dsp_SignalEvaluator*) evaluator);
 
     struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
         &audioSettings);
     buildSignalGraph(context, &status);
-    host->impl->start(host);
+    host.Start();
 
     while (1) {
         UpdateOled();

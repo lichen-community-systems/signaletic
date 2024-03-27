@@ -8,7 +8,7 @@ OPT = -O0
 C_SOURCES += ../../../../../libsignaletic/vendor/tlsf/tlsf.c ../../../../../libsignaletic/src/libsignaletic.c
 C_INCLUDES += -I../../../../../libsignaletic/vendor/tlsf -I../../../../../libsignaletic/include
 
-CPP_INCLUDES += -I../vendor/lib -I../../../vendor/lib/dev -I../../../include
+CPP_INCLUDES += -I../vendor/lib -I../../../vendor/lib/dev -I../../../include -I/include
 CPP_SOURCES = src/${TARGET}.cpp ../../../src/sig-daisy-seed.cpp
 
 USE_FATFS = 0

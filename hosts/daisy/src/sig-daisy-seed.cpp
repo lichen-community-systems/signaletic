@@ -6,7 +6,7 @@ extern "C" {
 
 using namespace daisy;
 
-void sig::libdaisy::Seed::Init(size_t blockSize, float sampleRate) {
+void sig::libdaisy::seed::SeedBoard::Init(size_t blockSize, float sampleRate) {
     System::Config syscfg;
     syscfg.Boost();
 
@@ -22,7 +22,7 @@ void sig::libdaisy::Seed::Init(size_t blockSize, float sampleRate) {
     qspi_config.pin_config.ncs = dsy_pin(DSY_GPIOG, 6);
 
     // Configure the built-in GPIOs.
-    userLED.pin = SEED_PIN_USER_LED;
+    userLED.pin = PIN_USER_LED;
     userLED.mode = DSY_GPIO_MODE_OUTPUT_PP;
 
     auto memory = System::GetProgramMemoryRegion();
@@ -45,7 +45,8 @@ void sig::libdaisy::Seed::Init(size_t blockSize, float sampleRate) {
     InitAudio(blockSize, sampleRate);
 }
 
-void sig::libdaisy::Seed::InitAudio(size_t blockSize, float sampleRate) {
+void sig::libdaisy::seed::SeedBoard::InitAudio(size_t blockSize,
+    float sampleRate) {
     // SAI1 -- Peripheral
     // Configure
     SaiHandle::Config sai_config;
@@ -109,7 +110,8 @@ void sig::libdaisy::Seed::InitAudio(size_t blockSize, float sampleRate) {
     callbackRate = audio.GetSampleRate() / audio.GetConfig().blocksize;
 }
 
-void sig::libdaisy::Seed::InitDAC(daisy::DacHandle::Channel channel) {
+void sig::libdaisy::seed::SeedBoard::InitDAC(
+    daisy::DacHandle::Channel channel) {
     // TODO: This is sourced from the kxmx_Bluemchen.
     // Is DMA-based DAC access an option instead of polling?
     daisy::DacHandle::Config cfg;
@@ -121,7 +123,8 @@ void sig::libdaisy::Seed::InitDAC(daisy::DacHandle::Channel channel) {
     dac.WriteValue(daisy::DacHandle::Channel::BOTH, 0);
 }
 
-sig::libdaisy::Seed::BoardVersion sig::libdaisy::Seed::CheckBoardVersion() {
+sig::libdaisy::seed::SeedBoard::BoardVersion
+    sig::libdaisy::seed::SeedBoard::CheckBoardVersion() {
     /** Version Checks:
      *  * Fall through is Daisy Seed v1 (aka Daisy Seed rev4)
      *  * PD3 tied to gnd is Daisy Seed v1.1 (aka Daisy Seed rev5)

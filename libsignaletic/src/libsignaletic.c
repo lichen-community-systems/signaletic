@@ -83,17 +83,34 @@ inline float sig_linearMap(float value,
     return (value - fromMin) * (toMax - toMin) / (fromMax - fromMin) + toMin;
 }
 
-uint16_t sig_unipolarToUint12(float sample) {
+inline uint16_t sig_unipolarToUint12(float sample) {
     return (uint16_t) (sample * 4095.0f);
 }
 
-uint16_t sig_bipolarToUint12(float sample) {
+inline uint16_t sig_bipolarToUint12(float sample) {
     float normalized = sample * 0.5 + 0.5;
     return (uint16_t) (normalized * 4095.0f);
 }
 
-uint16_t sig_bipolarToInvUint12(float sample) {
+inline uint16_t sig_bipolarToInvUint12(float sample) {
     return sig_bipolarToUint12(-sample);
+}
+
+inline float sig_uint16ToBipolar(uint16_t sample) {
+    float normalized = (float) (sample / 65536.0f);
+    float scaled = normalized * 2.0f - 1.0f;
+
+    return scaled;
+}
+
+inline float sig_uint16ToUnipolar(uint16_t sample) {
+    float normalized = (float) (sample / 65536.0f);
+
+    return normalized;
+}
+
+inline float sig_invUint16ToBipolar(uint16_t sample) {
+    return -sig_uint16ToBipolar(sample);
 }
 
 float sig_midiToFreq(float midiNum) {
@@ -274,6 +291,20 @@ inline float sig_filter_smooth(float current, float previous, float coeff) {
 inline float sig_filter_smooth_calculateCoefficient(float time,
     float sampleRate) {
     return expf(sig_LOG0_001 / (time * sampleRate));
+}
+
+
+void sig_filter_Smooth_init(struct sig_filter_Smooth* self, float coeff) {
+    self->coeff = coeff;
+    self->previous = 0;
+}
+
+inline float sig_filter_Smooth_generate(struct sig_filter_Smooth* self,
+    float value) {
+    float smoothed = sig_filter_smooth(value, self->previous, self->coeff);
+    self->previous = smoothed;
+
+    return smoothed;
 }
 
 // TODO: Unit tests.

@@ -23,19 +23,14 @@ struct sig_dsp_Signal* listStorage[MAX_NUM_SIGNALS];
 struct sig_List signals;
 struct sig_dsp_SignalListEvaluator* evaluator;
 
-sig::libdaisy::Module<sig::libdaisy::PatchSM, 12> medium;
-struct sig_daisy_Host* host;
-sig::libdaisy::AnalogInput* knob1;
+lichen::medium::MediumDevice medium;
 struct sig_dsp_Value* freq;
-sig::libdaisy::GateInput gateIn;
 struct sig_dsp_Value* gain;
 struct sig_dsp_Oscillator* sine;
 struct sig_dsp_Value* switchValue;
 struct sig_dsp_ScaleOffset* switchValueScale;
 struct sig_dsp_BinaryOp* harmonizerFreqScale;
 struct sig_dsp_Oscillator* harmonizer;
-sig::libdaisy::TriSwitch threeway;
-sig::libdaisy::Toggle button;
 struct sig_dsp_Value* buttonValue;
 struct sig_dsp_BinaryOp* mixer;
 struct sig_dsp_BinaryOp* attenuator;
@@ -95,9 +90,12 @@ void buildSignalGraph(struct sig_Allocator* allocator,
 
 void AudioCallback(daisy::AudioHandle::InputBuffer in,
     daisy::AudioHandle::OutputBuffer out, size_t size) {
-    freq->parameters.value = 1760.0f * knob1->Value();
-    buttonValue->parameters.value = button.Value();
-    switchValue->parameters.value = threeway.Value();
+    medium.Read();
+
+    freq->parameters.value = 1760.0f *
+        medium.adcController.channelBank.values[0];
+    buttonValue->parameters.value = medium.buttonBank.values[0];
+    switchValue->parameters.value = medium.switchBank.values[0];
 
     evaluator->evaluate((struct sig_dsp_SignalEvaluator*) evaluator);
 
@@ -106,8 +104,8 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
         out[0][i] = sig;
         out[1][i] = sig;
 
-        medium.board.dacBuffer[0][i] = sig_bipolarToUint12(
-            gateIn.Value() - 0.75f);
+        medium.dacChannelBank.values[0] = medium.gateBank.values[0] - 0.75f;
+        medium.Write();
     }
 }
 
@@ -125,18 +123,12 @@ int main(void) {
     sig_List_init(&signals, (void**) &listStorage, MAX_NUM_SIGNALS);
 
     evaluator = sig_dsp_SignalListEvaluator_new(&allocator, &signals);
-    medium.Init(lichen::medium::MediumDefinition, audioSettings);
+    medium.Init(&audioSettings);
 
     struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
         &audioSettings);
     buildSignalGraph(&allocator, context, &signals, &audioSettings, &status);
-
-    knob1 = &medium.adcController.inputs[0];
-    gateIn.Init(sig::libdaisy::PatchSM::PIN_B10);
-    threeway.Init(sig::libdaisy::PatchSM::PIN_B7,
-        sig::libdaisy::PatchSM::PIN_B8);
-    button.Init(sig::libdaisy::PatchSM::PIN_D1);
-
+    medium.Start();
     medium.board.audio.Start(AudioCallback);
 
     while (1) {

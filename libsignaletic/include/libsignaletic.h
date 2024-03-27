@@ -172,6 +172,39 @@ uint16_t sig_bipolarToUint12(float sample);
 uint16_t sig_bipolarToInvUint12(float sample);
 
 /**
+ * Converts an unsigned 16-bit integer in the range 0-65536 to a
+ * bipolar floating point sample in the range -1.0 to 1.0.
+ *
+ * This function does not clamp the sample.
+ *
+ * @param sample the unsigned 16-bit sample to convert
+ * @return the sample converted to normalized floating point
+ */
+float sig_uint16ToBipolar(uint16_t sample);
+
+/**
+ * Converts an unsigned 16-bit integer in the range 0-65536 to a
+ * unipolar floating point sample in the range 0.0 to 1.0.
+ *
+ * This function does not clamp the sample.
+ *
+ * @param sample the unsigned 16-bit sample to convert
+ * @return the sample converted to normalized unipolar floating point
+ */
+float sig_uint16ToUnipolar(uint16_t sample);
+
+/**
+ * Converts an unsigned 16-bit integer in the range 65536-0 to a
+ * bipolar floating point sample in the range -1.0 to 1.0.
+ *
+ * This function does not clamp the sample.
+ *
+ * @param sample the inverted unsigned 16-bit sample to convert
+ * @return the sample converted to normalized floating point
+ */
+float sig_invUint16ToBipolar(uint16_t sample);
+
+/**
  * Converts MIDI note numbers into frequencies in hertz.
  * This algorithm assumes A4 = 440 Hz = MIDI note #69.
  *
@@ -406,6 +439,16 @@ float sig_filter_smooth(float current, float previous, float coeff);
  */
 float sig_filter_smooth_calculateCoefficient(float timeSecs,
     float sampleRate);
+
+// TODO: Documentation!
+struct sig_filter_Smooth {
+    float coeff;
+    float previous;
+};
+
+void sig_filter_Smooth_init(struct sig_filter_Smooth* self, float coeff);
+
+float sig_filter_Smooth_generate(struct sig_filter_Smooth* self, float value);
 
 /**
  * Type definition for a waveform generator function.
