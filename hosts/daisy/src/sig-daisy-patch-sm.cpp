@@ -7,7 +7,7 @@ uint16_t DMA_BUFFER_MEM_SECTION sig_daisy_patch_sm_dac_buffer[2][48];
 // TODO: I think this should be a block-sized ring buffer,
 // so that we're maximizing throughput between the audio callback
 // and the DMA callback.
-uint16_t sig_daisy_patch_sm_dac_outputValues[2];
+static uint16_t sig_daisy_patch_sm_dac_outputValues[2];
 
 void sig::libdaisy::patchsm::PatchSMBoard::Init(size_t blockSize, float sampleRate) {
     dac_running_ = false;

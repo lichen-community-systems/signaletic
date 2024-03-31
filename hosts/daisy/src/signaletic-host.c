@@ -1,5 +1,16 @@
 #include "../include/signaletic-host.h"
 
+static struct sig_host_HardwareInterface* sig_host_globalHardwareInterface;
+
+void sig_host_registerGlobalHardwareInterface(
+    struct sig_host_HardwareInterface* hardware) {
+    sig_host_globalHardwareInterface = hardware;
+}
+
+struct sig_host_HardwareInterface* sig_host_getGlobalHardwareInterface() {
+    return sig_host_globalHardwareInterface;
+}
+
 void sig_host_noOpAudioEventCallback(size_t size,
     struct sig_host_HardwareInterface* hardware) {};
 

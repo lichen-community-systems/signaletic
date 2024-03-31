@@ -218,7 +218,7 @@ class TriSwitch {
 };
 
 
-void sig_daisy_Host_audioCallback(daisy::AudioHandle::InputBuffer in,
+void DaisyHostAudioCallback(daisy::AudioHandle::InputBuffer in,
     daisy::AudioHandle::OutputBuffer out, size_t size);
 
 template<typename T> class DaisyHost {
@@ -229,12 +229,12 @@ template<typename T> class DaisyHost {
         void Init(struct sig_AudioSettings* inAudioSettings,
             struct sig_dsp_SignalEvaluator* evaluator) {
             audioSettings = inAudioSettings;
-            device.Init(audioSettings);
+            device.Init(audioSettings, evaluator);
+            sig_host_registerGlobalHardwareInterface(&device.hardware);
         }
 
         void Start() {
-            device.Start();
-            device.board.audio.Start(sig_daisy_Host_audioCallback);
+            device.Start(DaisyHostAudioCallback);
         }
 
         void Stop() {

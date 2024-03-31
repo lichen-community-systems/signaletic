@@ -7,7 +7,7 @@
 using namespace sig::libdaisy;
 
 enum {
-    sig_host_KNOB_1 = 6,
+    sig_host_KNOB_1 = 0,
     sig_host_KNOB_2,
     sig_host_KNOB_3,
     sig_host_KNOB_4,
@@ -16,12 +16,16 @@ enum {
 };
 
 enum {
-    sig_host_CV_IN_1 = 0,
+    sig_host_CV_IN_1 = 6,
     sig_host_CV_IN_2,
     sig_host_CV_IN_3,
     sig_host_CV_IN_4,
     sig_host_CV_IN_5,
     sig_host_CV_IN_6
+};
+
+enum {
+    sig_host_CV_OUT_1 = 0
 };
 
 enum {
@@ -77,12 +81,6 @@ namespace medium {
 
     static const size_t NUM_DAC_CHANNELS = 1;
 
-    void onEvaluateSignals(size_t size,
-        struct sig_host_HardwareInterface* hardware);
-
-    void afterEvaluateSignals(size_t size,
-        struct sig_host_HardwareInterface* hardware);
-
     class MediumDevice {
         public:
             patchsm::PatchSMBoard board;
@@ -97,7 +95,20 @@ namespace medium {
             OutputBank<AnalogOutput, NUM_DAC_CHANNELS> dacOutputBank;
             struct sig_host_HardwareInterface hardware;
 
-            void Init(struct sig_AudioSettings* audioSettings) {
+            static void onEvaluateSignals(size_t size,
+                struct sig_host_HardwareInterface* hardware) {
+                MediumDevice* self = static_cast<MediumDevice*> (hardware->userData);
+                self->Read();
+            }
+
+            static void afterEvaluateSignals(size_t size,
+                struct sig_host_HardwareInterface* hardware) {
+                MediumDevice* self = static_cast<MediumDevice*> (hardware->userData);
+                self->Write();
+            }
+
+            void Init(struct sig_AudioSettings* audioSettings,
+                struct sig_dsp_SignalEvaluator* evaluator) {
                 board.Init(audioSettings->blockSize, audioSettings->sampleRate);
                 // The DAC and ADC have to be initialized after the board.
                 InitADCController();
@@ -105,7 +116,7 @@ namespace medium {
                 InitControls();
 
                 hardware = {
-                    .evaluator = NULL,
+                    .evaluator = evaluator,
                     .onEvaluateSignals = onEvaluateSignals,
                     .afterEvaluateSignals = afterEvaluateSignals,
                     .userData = this,
@@ -126,7 +137,6 @@ namespace medium {
                     .numTriSwitches = NUM_TRISWITCHES,
                     .triSwitches = switchBank.values
                 };
-
             }
 
             void InitADCController() {
@@ -173,18 +183,5 @@ namespace medium {
                 dacOutputBank.Write();
             }
     };
-
-
-    void onEvaluateSignals(size_t size,
-        struct sig_host_HardwareInterface* hardware) {
-        MediumDevice* self = static_cast<MediumDevice*> (hardware->userData);
-        self->Read();
-    }
-
-    void afterEvaluateSignals(size_t size,
-        struct sig_host_HardwareInterface* hardware) {
-        MediumDevice* self = static_cast<MediumDevice*> (hardware->userData);
-        self->Read();
-    }
 };
 };

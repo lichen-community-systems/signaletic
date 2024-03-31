@@ -1,9 +1,9 @@
 #include "../include/signaletic-daisy-host.h"
 
-void sig_daisy_Host_audioCallback(daisy::AudioHandle::InputBuffer in,
+void sig::libdaisy::DaisyHostAudioCallback(daisy::AudioHandle::InputBuffer in,
     daisy::AudioHandle::OutputBuffer out, size_t size) {
     struct sig_host_HardwareInterface* hardware =
-        sig_host_globalHardwareInstance;
+        sig_host_getGlobalHardwareInterface();
     hardware->audioInputChannels = (float**) in;
     hardware->audioOutputChannels = (float**) out;
 

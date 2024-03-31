@@ -55,10 +55,10 @@ struct sig_host_HardwareInterface {
     float* triSwitches;
 };
 
-// FIXME: Compiler thinks this variable is unused.
-// Maybe because this source file is compiled as C
-// and it is used in C++-compiled code?
-static struct sig_host_HardwareInterface* sig_host_globalHardwareInstance;
+void sig_host_registerGlobalHardwareInterface(
+    struct sig_host_HardwareInterface* hardware);
+
+struct sig_host_HardwareInterface* sig_host_getGlobalHardwareInterface();
 
 struct sig_host_CV_Parameters {
     float scale;

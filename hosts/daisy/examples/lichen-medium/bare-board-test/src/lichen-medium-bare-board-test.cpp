@@ -122,7 +122,7 @@ int main(void) {
     sig_List_init(&signals, (void**) &listStorage, MAX_NUM_SIGNALS);
 
     evaluator = sig_dsp_SignalListEvaluator_new(&allocator, &signals);
-    medium.Init(&audioSettings);
+    medium.Init(&audioSettings, (struct sig_dsp_SignalEvaluator*) evaluator);
 
     struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
         &audioSettings);

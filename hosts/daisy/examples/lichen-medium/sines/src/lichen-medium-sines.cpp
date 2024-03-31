@@ -36,7 +36,7 @@ void buildGraph(struct sig_SignalContext* context, struct sig_Status* status) {
     knobIn = sig_host_CVIn_new(&allocator, context);
     knobIn->hardware = &host.device.hardware;
     sig_List_append(&signals, knobIn, status);
-    knobIn->parameters.control = sig_host_KNOB_6;
+    knobIn->parameters.control = sig_host_KNOB_1;
     knobIn->parameters.scale = 5.0f;
 
     vOct = sig_dsp_LinearToFreq_new(&allocator, context);
