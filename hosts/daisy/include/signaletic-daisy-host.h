@@ -119,15 +119,16 @@ template<typename T, size_t numChannels> class ADCController {
 
 class AnalogOutput {
     public:
-        uint16_t* dacBuffer;
+        uint16_t* dacOutputs;
         size_t channel;
 
-        void Init(uint16_t* inDACBuffer) {
-            dacBuffer = inDACBuffer;
+        void Init(uint16_t* inDACOutputs, size_t inChannel) {
+            dacOutputs = inDACOutputs;
+            channel = inChannel;
         }
 
         inline void Write(float value) {
-            *dacBuffer = sig_bipolarToUint12(value);
+            dacOutputs[channel] = sig_unipolarToUint12(value);
         }
 };
 
@@ -200,6 +201,11 @@ class TriSwitch {
     public:
         Toggle switchA;
         Toggle switchB;
+
+        void Init(dsy_gpio_pin pins[2]) {
+            switchA.Init(pins[0]);
+            switchB.Init(pins[1]);
+        }
 
         void Init(dsy_gpio_pin pinA, dsy_gpio_pin pinB) {
             switchA.Init(pinA);

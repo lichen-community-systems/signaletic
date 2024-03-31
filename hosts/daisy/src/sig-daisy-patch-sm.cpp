@@ -4,13 +4,17 @@ using namespace daisy;
 
 /** outside of class static buffer(s) for DMA and DAC access */
 uint16_t DMA_BUFFER_MEM_SECTION sig_daisy_patch_sm_dac_buffer[2][48];
-uint16_t sig_daisy_patch_sm_dac_output[2];
+// TODO: I think this should be a block-sized ring buffer,
+// so that we're maximizing throughput between the audio callback
+// and the DMA callback.
+uint16_t sig_daisy_patch_sm_dac_outputValues[2];
 
 void sig::libdaisy::patchsm::PatchSMBoard::Init(size_t blockSize, float sampleRate) {
     dac_running_ = false;
     dac_buffer_size_ = 48;
-    sig_daisy_patch_sm_dac_output[0] = 0;
-    sig_daisy_patch_sm_dac_output[1] = 0;
+    sig_daisy_patch_sm_dac_outputValues[0] = 0;
+    sig_daisy_patch_sm_dac_outputValues[1] = 0;
+    dacOutputValues = sig_daisy_patch_sm_dac_outputValues;
     dacBuffer[0] = sig_daisy_patch_sm_dac_buffer[0];
     dacBuffer[1] = sig_daisy_patch_sm_dac_buffer[1];
 
@@ -84,7 +88,6 @@ void sig::libdaisy::patchsm::PatchSMBoard::Init(size_t blockSize, float sampleRa
     dsy_gpio_init(&userLED);
 
     InitDac();
-    StartDac();
 }
 
 
@@ -99,7 +102,8 @@ void sig::libdaisy::patchsm::PatchSMBoard::InitDac() {
     dac.Init(dac_config);
 }
 
-void sig::libdaisy::patchsm::PatchSMBoard::StartDac(DacHandle::DacCallback callback) {
+void sig::libdaisy::patchsm::PatchSMBoard::StartDac(
+    DacHandle::DacCallback callback) {
     if (dac_running_) {
         dac.Stop();
     }
@@ -112,10 +116,12 @@ void sig::libdaisy::patchsm::PatchSMBoard::StartDac(DacHandle::DacCallback callb
     dac_running_ = true;
 }
 
+// TODO: Implement more generic DMA DAC support
+// that can support arbitrary channels.
 void sig::libdaisy::patchsm::PatchSMBoard::DefaultDacCallback(uint16_t **output,
     size_t size) {
     for (size_t i = 0; i < size; i++) {
-        output[0][i] = sig_daisy_patch_sm_dac_output[0];
-        output[1][i] = sig_daisy_patch_sm_dac_output[1];
+        output[0][i] = sig_daisy_patch_sm_dac_outputValues[0];
+        output[1][i] = sig_daisy_patch_sm_dac_outputValues[1];
     }
 }

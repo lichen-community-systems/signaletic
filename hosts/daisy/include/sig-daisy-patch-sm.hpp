@@ -68,7 +68,7 @@ namespace patchsm {
             daisy::Pcm3060 codec;
             size_t dac_buffer_size_;
             uint16_t* dacBuffer[2];
-            uint16_t dacOutput[2];
+            uint16_t* dacOutputValues;
             bool dac_running_;
 
             void Init(size_t blockSize, float sampleRate);

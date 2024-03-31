@@ -94,12 +94,14 @@ namespace medium {
             Toggle buttons[NUM_BUTTONS];
             InputBank<Toggle, NUM_BUTTONS> buttonBank;
             AnalogOutput dacChannels[NUM_DAC_CHANNELS];
-            OutputBank<AnalogOutput, NUM_DAC_CHANNELS> dacChannelBank;
+            OutputBank<AnalogOutput, NUM_DAC_CHANNELS> dacOutputBank;
             struct sig_host_HardwareInterface hardware;
 
             void Init(struct sig_AudioSettings* audioSettings) {
                 board.Init(audioSettings->blockSize, audioSettings->sampleRate);
+                // The DAC and ADC have to be initialized after the board.
                 InitADCController();
+                InitDAC();
                 InitControls();
 
                 hardware = {
@@ -114,7 +116,7 @@ namespace medium {
                     .numADCChannels = NUM_ADC_CHANNELS,
                     .adcChannels = adcController.channelBank.values,
                     .numDACChannels = NUM_DAC_CHANNELS,
-                    .dacChannels = dacChannelBank.values,
+                    .dacChannels = dacOutputBank.values,
                     .numGateInputs = NUM_GATES,
                     .gateInputs = gateBank.values,
                     .numGPIOOutputs = 0,
@@ -124,6 +126,7 @@ namespace medium {
                     .numTriSwitches = NUM_TRISWITCHES,
                     .triSwitches = switchBank.values
                 };
+
             }
 
             void InitADCController() {
@@ -131,25 +134,32 @@ namespace medium {
             }
 
             void InitDAC() {
-                dacChannels[0].Init(
-                    &patchsm::sig_daisy_patch_sm_dac_output[0]);
+                for (size_t i = 0; i < NUM_DAC_CHANNELS; i++) {
+                    dacChannels[i].Init(board.dacOutputValues, i);
+                }
+
+                dacOutputBank.outputs = dacChannels;
             }
 
             void InitControls() {
                 gates[0].Init(GATE_PINS[0]);
                 gateBank.inputs = gates;
-                triSwitches[0].Init(TRISWITCH_PINS[0][1], TRISWITCH_PINS[0][2]);
+                triSwitches[0].Init(TRISWITCH_PINS[0]);
                 switchBank.inputs = triSwitches;
                 buttons[0].Init(BUTTON_PINS[0]);
                 buttonBank.inputs = buttons;
             }
 
-            void Start() {
+            void Start(daisy::AudioHandle::AudioCallback callback) {
                 adcController.Start();
+                board.StartDac();
+                board.audio.Start(callback);
             }
 
             void Stop () {
                 adcController.Stop();
+                board.dac.Stop();
+                board.audio.Stop();
             }
 
             inline void Read() {
@@ -160,7 +170,7 @@ namespace medium {
             }
 
             inline void Write() {
-                dacChannelBank.Write();
+                dacOutputBank.Write();
             }
     };
 

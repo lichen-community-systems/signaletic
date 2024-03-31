@@ -1,7 +1,5 @@
 #include "daisy.h"
 #include <libsignaletic.h>
-#include "../../../../include/signaletic-daisy-host.h"
-#include "../../../../include/sig-daisy-patch-sm.hpp"
 #include "../../../../include/lichen-medium-module.h"
 
 #define SAMPLERATE 48000
@@ -93,7 +91,8 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
     medium.Read();
 
     freq->parameters.value = 1760.0f *
-        medium.adcController.channelBank.values[0];
+        (medium.adcController.channelBank.values[0] +
+        medium.adcController.channelBank.values[6]);
     buttonValue->parameters.value = medium.buttonBank.values[0];
     switchValue->parameters.value = medium.switchBank.values[0];
 
@@ -104,7 +103,7 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
         out[0][i] = sig;
         out[1][i] = sig;
 
-        medium.dacChannelBank.values[0] = medium.gateBank.values[0] - 0.75f;
+        medium.dacOutputBank.values[0] = medium.gateBank.values[0] * 0.5f;
         medium.Write();
     }
 }
@@ -128,8 +127,8 @@ int main(void) {
     struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
         &audioSettings);
     buildSignalGraph(&allocator, context, &signals, &audioSettings, &status);
-    medium.Start();
-    medium.board.audio.Start(AudioCallback);
+
+    medium.Start(AudioCallback);
 
     while (1) {
 
