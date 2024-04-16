@@ -465,7 +465,67 @@
         "type": "cortex-debug"
       },
       {
-        "name": "Remote Lichen Sines",
+        "name": "Remote Lichen Bifocals Sine Oscillator",
+        "configFiles": [
+          "interface/stlink.cfg",
+          "target/stm32h7x.cfg"
+        ],
+        "cwd": "${workspaceFolder}/hosts/daisy/examples/lichen-bifocals/sine-oscillator",
+        "debuggerArgs": [
+          "-d",
+          "${workspaceRoot}/hosts/daisy/examples/lichen-bifocals/sine-oscillator"
+        ],
+        "executable": "${workspaceRoot}/hosts/daisy/examples/lichen-bifocals/sine-oscillator/build/lichen-bifocals-sine-oscillator.elf",
+        "interface": "swd",
+        "openOCDLaunchCommands": [
+          "init",
+          "reset init"
+        ],
+        "preLaunchTask": "Debug Build Lichen Bifocals Examples",
+        "preRestartCommands": [
+          "load",
+          "enable breakpoint",
+          "monitor reset"
+        ],
+        "request": "launch",
+        "runToEntryPoint": "main",
+        "servertype": "openocd",
+        "showDevDebugOutput": "parsed",
+        "svdFile": "${workspaceRoot}/.vscode/STM32H750x.svd",
+        "type": "cortex-debug"
+      },
+      {
+        "name": "Remote Lichen Bifocals Filter",
+        "configFiles": [
+          "interface/stlink.cfg",
+          "target/stm32h7x.cfg"
+        ],
+        "cwd": "${workspaceFolder}/hosts/daisy/examples/lichen-bifocals/filter",
+        "debuggerArgs": [
+          "-d",
+          "${workspaceRoot}/hosts/daisy/examples/lichen-bifocals/filter"
+        ],
+        "executable": "${workspaceRoot}/hosts/daisy/examples/lichen-bifocals/filter/build/lichen-bifocals-filter.elf",
+        "interface": "swd",
+        "openOCDLaunchCommands": [
+          "init",
+          "reset init"
+        ],
+        "preLaunchTask": "Debug Build Lichen Bifocals Examples",
+        "preRestartCommands": [
+          "load",
+          "enable breakpoint",
+          "monitor reset"
+        ],
+        "request": "launch",
+        "runToEntryPoint": "main",
+        "servertype": "openocd",
+        "showDevDebugOutput": "parsed",
+        "svdFile": "${workspaceRoot}/.vscode/STM32H750x.svd",
+        "type": "cortex-debug"
+      },
+      {
+        "name": "Remote Lichen Medium Sines",
         "configFiles": [
           "interface/stlink.cfg",
           "target/stm32h7x.cfg"
@@ -495,7 +555,7 @@
         "type": "cortex-debug"
       },
       {
-        "name": "Remote Lichen Chorus",
+        "name": "Remote Lichen Medium Chorus",
         "configFiles": [
           "interface/stlink.cfg",
           "target/stm32h7x.cfg"

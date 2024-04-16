@@ -7,6 +7,45 @@
 namespace sig {
 namespace libdaisy {
 
+struct Normalization {
+    float scale;
+    float offset;
+};
+
+static constexpr struct Normalization NO_NORMALIZATION = {
+    .scale = 1.0f,
+    .offset = 0.0f
+};
+
+static constexpr struct Normalization UNI_TO_BIPOLAR = {
+    .scale = 2.0f,
+    .offset = -1.0f
+};
+
+static constexpr struct Normalization BI_TO_UNIPOLAR = {
+    .scale = 0.5f,
+    .offset = 0.5f
+};
+
+static constexpr struct Normalization INVERT = {
+    .scale = -1.0f
+};
+
+static constexpr struct Normalization INV_UNI_TO_BIPOLAR = {
+    .scale = -2.0f,
+    .offset = 1.0f
+};
+
+static constexpr struct Normalization INV_BI_TO_UNIPOLAR = {
+    .scale = -0.5f,
+    .offset = 0.5f
+};
+
+struct ADCChannelSpec {
+    dsy_gpio_pin pin;
+    struct Normalization normalization;
+};
+
 template<typename T, size_t size> class InputBank {
     public:
         T* inputs;
@@ -33,9 +72,13 @@ template<typename T, size_t size> class OutputBank {
 class BaseAnalogInput {
     public:
         uint16_t* adcPtr;
+        float scale = 1.0f;
+        float offset = 0.0f;
 
-        void Init(daisy::AdcHandle* adc, int adcChannel) {
+        void Init(daisy::AdcHandle* adc, ADCChannelSpec spec, int adcChannel) {
             adcPtr = adc->GetPtr(adcChannel);
+            scale = spec.normalization.scale;
+            offset = spec.normalization.offset;
         }
 };
 
@@ -49,7 +92,8 @@ class AnalogInput : public BaseAnalogInput {
          */
         inline float Value() {
             float converted = sig_uint16ToBipolar(*adcPtr);
-            return converted;
+            float normalized =  converted * scale + offset;
+            return normalized;
         }
 };
 
@@ -66,8 +110,6 @@ class UnipolarAnalogInput : public BaseAnalogInput {
         }
 };
 
-// FIXME: At least on the Bluemchen, this (and the other AnalogInputs?)
-// is returning values in the range -0.9..+1.0
 class InvertedAnalogInput : public AnalogInput {
     public:
         /**
@@ -77,7 +119,8 @@ class InvertedAnalogInput : public AnalogInput {
          * @return float the ADC channel's current value
          */
         inline float Value() {
-            return sig_invUint16ToBipolar(*adcPtr);
+            float converted = sig_invUint16ToBipolar(*adcPtr);
+            return converted;
         }
 };
 
@@ -87,18 +130,18 @@ template<typename T, size_t numChannels> class ADCController {
         T inputs[numChannels];
         InputBank<T, numChannels> channelBank;
 
-        void Init(daisy::AdcHandle* inAdcHandle, dsy_gpio_pin* pins) {
+        void Init(daisy::AdcHandle* inAdcHandle, ADCChannelSpec* channelSpecs) {
             adcHandle = inAdcHandle;
 
             daisy::AdcChannelConfig adcConfigs[numChannels];
             for (size_t i = 0; i < numChannels; i++) {
-                adcConfigs[i].InitSingle(pins[i]);
+                adcConfigs[i].InitSingle(channelSpecs[i].pin);
             }
 
             adcHandle->Init(adcConfigs, numChannels);
 
             for (size_t i = 0; i < numChannels; i++) {
-                inputs[i].Init(adcHandle, i);
+                inputs[i].Init(adcHandle, channelSpecs[i], i);
             }
 
             channelBank.inputs = inputs;

@@ -1966,6 +1966,7 @@ void sig_dsp_List_Outputs_destroyAudioBlocks(struct sig_Allocator* allocator,
 struct sig_dsp_List_Parameters {
     float wrap;
     float normalizeIndex;
+    float interpolate;
 };
 
 struct sig_dsp_List {
@@ -2145,12 +2146,6 @@ struct sig_dsp_Ladder_Parameters {
      * higher values will amplify the lower frequencies when resonance is high.
      */
     float passbandGain;
-
-    /**
-     * @brief Input gain applied prior to the filter,
-     * allowing for greater saturation levels (best between 0.0-4.0)
-     */
-    float overdrive;
 };
 
 /**

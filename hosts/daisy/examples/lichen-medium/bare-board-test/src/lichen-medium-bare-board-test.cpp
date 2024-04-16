@@ -1,6 +1,6 @@
 #include "daisy.h"
 #include <libsignaletic.h>
-#include "../../../../include/lichen-medium-module.h"
+#include "../../../../include/lichen-medium-device.hpp"
 
 #define SAMPLERATE 48000
 #define HEAP_SIZE 1024 * 384 // 384 KB

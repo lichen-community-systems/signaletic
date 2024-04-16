@@ -1,6 +1,5 @@
-#include "daisy.h"
 #include <libsignaletic.h>
-#include "../../../../include/lichen-medium-module.h"
+#include "../../../../include/lichen-medium-device.hpp"
 
 #define SAMPLERATE 96000
 #define DELAY_LINE_LENGTH SAMPLERATE

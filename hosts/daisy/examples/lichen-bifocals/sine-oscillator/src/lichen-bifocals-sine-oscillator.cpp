@@ -1,7 +1,7 @@
 #include <libsignaletic.h>
-#include "../../../../include/lichen-medium-device.hpp"
+#include "../../../../include/lichen-bifocals-device.hpp"
 
-using namespace lichen::medium;
+using namespace lichen::bifocals;
 using namespace sig::libdaisy;
 
 #define SAMPLERATE 96000
@@ -22,7 +22,7 @@ struct sig_Allocator allocator = {
 struct sig_dsp_Signal* listStorage[MAX_NUM_SIGNALS];
 struct sig_List signals;
 struct sig_dsp_SignalListEvaluator* evaluator;
-DaisyHost<MediumDevice> host;
+DaisyHost<BifocalsDevice> host;
 
 struct sig_host_FilteredCVIn* freqKnob;
 struct sig_host_CVIn* freqCV;
@@ -30,6 +30,8 @@ struct sig_dsp_BinaryOp* freqSum;
 struct sig_dsp_Oscillator* osc;
 struct sig_host_AudioOut* leftOut;
 struct sig_host_AudioOut* rightOut;
+
+FixedCapStr<6> formattedValue;
 
 void buildSignalGraph(struct sig_SignalContext* context,
     struct sig_Status* status) {
@@ -42,7 +44,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     freqCV = sig_host_CVIn_new(&allocator, context);
     freqCV->hardware = &host.device.hardware;
     sig_List_append(&signals, freqCV, status);
-    freqCV->parameters.control = sig_host_CV_IN_1;
+    freqCV->parameters.control = sig_host_CV_IN_2;
     freqCV->parameters.scale = 440.0f;
 
     freqSum = sig_dsp_Add_new(&allocator, context);
@@ -89,5 +91,19 @@ int main(void) {
 
     host.Start();
 
-    while (1) {}
+    daisy::Logger<LOGGER_INTERNAL>::StartLog(true);
+
+    uint32_t then = System::GetNow();
+    while (1) {
+        uint32_t now = System::GetNow();
+        if (now - then >= 1000) {
+            float value = host.device.adcController.channelBank.values[5];
+            formattedValue.Clear();
+            formattedValue.AppendFloat(value, 3);
+            daisy::Logger<LOGGER_INTERNAL>::PrintLine("Value: %s",
+                formattedValue.Cstr());
+
+            then = now;
+        }
+    }
 }

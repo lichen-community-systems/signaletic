@@ -97,14 +97,14 @@ inline uint16_t sig_bipolarToInvUint12(float sample) {
 }
 
 inline float sig_uint16ToBipolar(uint16_t sample) {
-    float normalized = (float) (sample / 65536.0f);
+    float normalized = (float) (sample / 65535.0f);
     float scaled = normalized * 2.0f - 1.0f;
 
     return scaled;
 }
 
 inline float sig_uint16ToUnipolar(uint16_t sample) {
-    float normalized = (float) (sample / 65536.0f);
+    float normalized = (float) (sample / 65535.0f);
 
     return normalized;
 }
@@ -2615,6 +2615,7 @@ void sig_dsp_List_init(struct sig_dsp_List* self,
     sig_dsp_Signal_init(self, context, *sig_dsp_List_generate);
     self->parameters.wrap = 1.0f;
     self->parameters.normalizeIndex = 1.0f;
+    self->parameters.interpolate = 0.0f;
     sig_CONNECT_TO_SILENCE(self, index, context);
 }
 
@@ -2631,6 +2632,7 @@ void sig_dsp_List_generate(void* signal) {
     size_t lastIndex = listLength - 1;
     float lastIndexF = (float) lastIndex;
     bool shouldWrap = self->parameters.wrap > 0.0f;
+    bool shouldInterpolate = self->parameters.interpolate > 0.0f;
 
     if (listLength < 1) {
         // There's nothing in the list; just output silence.
@@ -2644,12 +2646,23 @@ void sig_dsp_List_generate(void* signal) {
             float index = FLOAT_ARRAY(self->inputs.index)[i];
             float scaledIndex = self->parameters.normalizeIndex > 0.0f ?
                 index * lastIndexF : index;
-            float roundedIndex = roundf(scaledIndex);
-            float wrappedIndex = shouldWrap ?
-                sig_flooredfmodf(roundedIndex, listLengthF) :
-                sig_clamp(roundedIndex, 0.0f, lastIndexF);
+            float wrappedIndex = 0.0f;
+            float sample = 0.0f;
 
-            float sample = FLOAT_ARRAY(list->samples)[(size_t) wrappedIndex];
+            if (shouldInterpolate) {
+                wrappedIndex = shouldWrap ?
+                    sig_flooredfmodf(scaledIndex, listLengthF) :
+                    sig_clamp(scaledIndex, 0.0f, lastIndexF);
+                sample = sig_interpolate_linear(
+                    wrappedIndex, list->samples, listLength);
+            } else {
+                float roundedIndex = roundf(scaledIndex);
+                wrappedIndex = shouldWrap ?
+                    sig_flooredfmodf(roundedIndex, listLengthF) :
+                    sig_clamp(roundedIndex, 0.0f, lastIndexF);
+                sample = FLOAT_ARRAY(list->samples)[(size_t) wrappedIndex];
+            }
+
             FLOAT_ARRAY(self->outputs.main)[i] = sample;
             FLOAT_ARRAY(self->outputs.index)[i] = wrappedIndex;
             FLOAT_ARRAY(self->outputs.length)[i] = listLengthF;
@@ -2948,8 +2961,7 @@ void sig_dsp_Ladder_init(
     sig_dsp_Signal_init(self, context, *sig_dsp_Ladder_generate);
 
     struct sig_dsp_Ladder_Parameters parameters = {
-        .passbandGain = 0.5f,
-        .overdrive = 1.0f
+        .passbandGain = 0.5f
     };
     self->parameters = parameters;
 
@@ -3002,8 +3014,7 @@ void sig_dsp_Ladder_generate(void* signal) {
     float interpolationRecip = self->interpolationRecip;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float input = FLOAT_ARRAY(self->inputs.source)[i] *
-            self->parameters.overdrive;
+        float input = FLOAT_ARRAY(self->inputs.source)[i];
         float frequency = FLOAT_ARRAY(self->inputs.frequency)[i];
         float resonance = FLOAT_ARRAY(self->inputs.resonance)[i];
         float totals[4] = {0.0f, 0.0f, 0.0f, 0.0f};

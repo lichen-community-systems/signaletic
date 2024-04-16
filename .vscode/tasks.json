@@ -207,6 +207,20 @@
             "type": "shell"
         },
         {
+            "label": "Debug Build Lichen Bifocals Examples",
+            "dependsOn": [
+                "Build libdaisy"
+            ],
+            "command": "make clean;DEBUG=1 OPT=-Og make",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/lichen-bifocals"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
             "label": "Debug Build Lichen Freddie Examples",
             "dependsOn": [
                 "Build libdaisy"
