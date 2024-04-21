@@ -738,7 +738,7 @@ struct sig_test_BufferPlayer* WaveformPlayer_new(
     sig_waveform_generator waveform,
     float sampleRate, float freq, float duration) {
     struct sig_Buffer* waveformBuffer = sig_Buffer_new(&allocator,
-        (size_t) audioSettings->sampleRate * duration);
+        (size_t) (audioSettings->sampleRate * duration));
 
     sig_Buffer_fillWithWaveform(waveformBuffer, waveform,
         sampleRate, 0.0f, freq);
@@ -799,7 +799,7 @@ void test_sig_dsp_ClockDetector_sine() {
 
 void test_sig_dsp_ClockDetector_slowDown() {
     float bufferDuration = 2.0f;
-    size_t bufferLen = (size_t) audioSettings->sampleRate * bufferDuration;
+    size_t bufferLen = (size_t) (audioSettings->sampleRate * bufferDuration);
     size_t halfBufferLen = bufferLen / 2;
     float fastSpeed = 10.0f;
     float slowSpeed = 2.0f;
@@ -830,8 +830,9 @@ void test_sig_dsp_ClockDetector_slowDown() {
 void test_sig_dsp_ClockDetector_stop() {
     float bufferDuration = 122.0f;
     float clockDuration = 1.0f;
-    size_t bufferLen = (size_t) audioSettings->sampleRate * bufferDuration;
-    size_t clockSectionLen = (size_t) audioSettings->sampleRate * clockDuration;
+    size_t bufferLen = (size_t) (audioSettings->sampleRate * bufferDuration);
+    size_t clockSectionLen = (size_t)
+        (audioSettings->sampleRate * clockDuration);
     size_t silentSectionLen = (size_t)
         audioSettings->sampleRate * (bufferDuration - clockDuration);
     float clockFreq = 10.0f;

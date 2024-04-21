@@ -421,7 +421,8 @@ void sig_List_insert(struct sig_List* self,
     }
 
     if (index == self->length) {
-        return sig_List_append(self, item, status);
+        sig_List_append(self, item, status);
+        return;
     }
 
     if (self->length >= self->capacity) {
@@ -1439,8 +1440,8 @@ void sig_dsp_GatedTimer_generate(void* signal) {
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
         // TODO: MSVC compiler warning loss of precision.
         unsigned long durationSamps = (unsigned long)
-            FLOAT_ARRAY(self->inputs.duration)[i] *
-            self->signal.audioSettings->sampleRate;
+            (FLOAT_ARRAY(self->inputs.duration)[i] *
+            self->signal.audioSettings->sampleRate);
         float gate = FLOAT_ARRAY(self->inputs.gate)[i];
 
         if (gate > 0.0f) {
@@ -2417,7 +2418,8 @@ void sig_dsp_ClockDetector_init(struct sig_dsp_ClockDetector* self,
     self->previousTrigger = 0.0f;
     self->isRisingEdge = false;
     self->numPulsesDetected = 0;
-    self->samplesSinceLastPulse = self->signal.audioSettings->sampleRate;
+    self->samplesSinceLastPulse = (uint32_t)
+        self->signal.audioSettings->sampleRate;
     self->clockFreq = 0.0f;
     self->pulseDurSamples = 0;
 

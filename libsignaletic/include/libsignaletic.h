@@ -37,8 +37,8 @@ static const float sig_PI = 3.14159265358979323846f;
 static const float sig_TWOPI = 6.283185307179586f;
 static const float sig_RECIP_TWOPI = 0.159154943091895f;
 static const float sig_LOG0_001 = -6.907755278982137f;
-static const float sig_LOG2 = 0.6931471805599453;
-static const float sig_FREQ_C4 = 261.6256;
+static const float sig_LOG2 = 0.6931471805599453f;
+static const float sig_FREQ_C4 = 261.6256f;
 
 enum sig_Result {
     SIG_RESULT_NONE,
