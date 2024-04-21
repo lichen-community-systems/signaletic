@@ -2008,6 +2008,8 @@ struct sig_dsp_LinearMap* sig_dsp_LinearMap_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context);
 void sig_dsp_LinearMap_init(struct sig_dsp_LinearMap* self,
     struct sig_SignalContext* context);
+float sig_dsp_List_constrain(bool shouldWrap, float index,
+    float lastIndex, float listLength);
 void sig_dsp_LinearMap_generate(void* signal);
 void sig_dsp_LinearMap_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_LinearMap* self);

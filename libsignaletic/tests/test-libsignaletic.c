@@ -1063,6 +1063,9 @@ void test_sig_dsp_List_wrapping(void) {
     // Fractional indexes >= half should be rounded up.
     generateAndTestListIndex(idx, 0.125f, list, 2.0f);
 
+    // Fractional indexes >= half should be rounded up.
+    generateAndTestListIndex(idx, 0.25f, list, 2.0f);
+
     // Another even index.
     generateAndTestListIndex(idx, 0.5f, list, 3.0f);
 
@@ -1078,15 +1081,14 @@ void test_sig_dsp_List_wrapping(void) {
     // A slightly out of bounds index should round down to the last index.
     generateAndTestListIndex(idx, 1.1f, list, 5.0f);
 
-    // But a larger index should round up and
-    // wrap around to return the first value.
-    generateAndTestListIndex(idx, 1.25f, list, 1.0f);
+    // But a larger index should wrap and round up.
+    generateAndTestListIndex(idx, 1.25f, list, 2.0f);
 
     // Larger indices should wrap around past the beginning.
-    generateAndTestListIndex(idx, 1.5f, list, 2.0f);
+    generateAndTestListIndex(idx, 1.5f, list, 3.0f);
 
-    // Very large indices should wrap around the beginning again.
-    generateAndTestListIndex(idx, 3.0f, list, 3.0f);
+    // Very large indices should wrap around several times.
+    generateAndTestListIndex(idx, 3.0f, list, 5.0f);
 
     // Negative indices should wrap around the end.
     // Note the index "shift" here: -0.25 should point
@@ -1122,6 +1124,46 @@ void test_sig_dsp_List_wrapping(void) {
     generateAndTestListIndex(idx, -1.15f, list, 1.0f);
 }
 
+void test_sig_dsp_List_noNormalization(void) {
+    struct sig_dsp_Value* idx = sig_dsp_Value_new(&allocator,
+        context);
+
+    float listItems[5] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
+    struct sig_Buffer listBuffer = {
+        .length = 5,
+        .samples = listItems
+    };
+
+    struct sig_dsp_List* list = sig_dsp_List_new(&allocator, context);
+    list->parameters.normalizeIndex = 0.0f;
+    list->list = &listBuffer;
+    list->inputs.index = idx->outputs.main;
+
+    // No interpolation.
+
+    // Exactly the first index.
+    generateAndTestListIndex(idx, 0.0f, list, 1.0f);
+
+    // Exactly the last index.
+    generateAndTestListIndex(idx, 4.0f, list, 5.0f);
+
+    // Wrap around.
+    generateAndTestListIndex(idx, 5.0f, list, 2.0f);
+
+    // Fractional index, round down.
+    generateAndTestListIndex(idx, 5.1f, list, 2.0f);
+
+    // Fractional index, round up.
+    generateAndTestListIndex(idx, 1.8f, list, 3.0f);
+
+    // Interpolation
+    list->parameters.interpolate = 1.0f;
+    generateAndTestListIndex(idx, 5.1f, list, 2.1f);
+
+    // Wrap around, interpolation.
+    generateAndTestListIndex(idx, -2.5f, list, 3.5f);
+}
+
 void test_sig_dsp_List_clamping(void) {
     struct sig_dsp_Value* idx = sig_dsp_Value_new(&allocator,
         context);
@@ -1148,6 +1190,45 @@ void test_sig_dsp_List_clamping(void) {
     generateAndTestListIndex(idx, -0.00001f, list, 1.0f);
     generateAndTestListIndex(idx, -0.99f, list, 1.0f);
     generateAndTestListIndex(idx, -1.5f, list, 1.0f);
+}
+
+void test_sig_dsp_List_interpolation(void) {
+    struct sig_dsp_Value* idx = sig_dsp_Value_new(&allocator,
+        context);
+
+    float listItems[5] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
+    struct sig_Buffer listBuffer = {
+        .length = 5,
+        .samples = listItems
+    };
+
+    struct sig_dsp_List* list = sig_dsp_List_new(&allocator, context);
+    list->parameters.wrap = 1.0f;
+    list->parameters.interpolate = 1.0f;
+    list->parameters.normalizeIndex = 1.0f;
+    list->list = &listBuffer;
+    list->inputs.index = idx->outputs.main;
+
+    // Start
+    generateAndTestListIndex(idx, 0.0f, list, 1.0f);
+
+    // Interpolated
+    generateAndTestListIndex(idx, 0.1f, list, 1.4f);
+
+    // Halfway
+    generateAndTestListIndex(idx, 0.5f, list, 3.0f);
+
+    // Interpolated
+    generateAndTestListIndex(idx, 0.6f, list, 3.4f);
+
+    // End
+    generateAndTestListIndex(idx, 1.0f, list, 5.0f);
+
+    // Almost end.
+    generateAndTestListIndex(idx, 0.99999999999f, list, 5.0f);
+
+    // Wrap around and interpolate. 1.1f should be the same as 0.1f
+    generateAndTestListIndex(idx, 1.1f, list, 1.4f);
 }
 
 void test_sig_dsp_List_noList(void) {
@@ -1216,7 +1297,9 @@ int main(void) {
     RUN_TEST(test_sig_dsp_TimedGate_resetOnTrigger);
     RUN_TEST(test_sig_dsp_TimedGate_bipolar);
     RUN_TEST(test_sig_dsp_List_wrapping);
+    RUN_TEST(test_sig_dsp_List_noNormalization);
     RUN_TEST(test_sig_dsp_List_clamping);
+    RUN_TEST(test_sig_dsp_List_interpolation);
     RUN_TEST(test_sig_dsp_List_noList);
 
     return UNITY_END();

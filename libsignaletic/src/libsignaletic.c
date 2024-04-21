@@ -2619,6 +2619,23 @@ void sig_dsp_List_init(struct sig_dsp_List* self,
     sig_CONNECT_TO_SILENCE(self, index, context);
 }
 
+inline float sig_dsp_List_constrain(bool shouldWrap, float index,
+    float lastIndex, float listLength) {
+    if (shouldWrap) {
+        while (index < 0.0f) {
+            index = listLength + index;
+        }
+
+        while (index > lastIndex) {
+            index -= lastIndex;
+        }
+    } else {
+        index = sig_clamp(index, 0.0f, lastIndex);
+    }
+
+    return index;
+}
+
 void sig_dsp_List_generate(void* signal) {
     struct sig_dsp_List* self = (struct sig_dsp_List*) signal;
     struct sig_Buffer* list = self->list;
@@ -2633,6 +2650,7 @@ void sig_dsp_List_generate(void* signal) {
     float lastIndexF = (float) lastIndex;
     bool shouldWrap = self->parameters.wrap > 0.0f;
     bool shouldInterpolate = self->parameters.interpolate > 0.0f;
+    bool shouldNormalize = self->parameters.normalizeIndex > 0.0f;
 
     if (listLength < 1) {
         // There's nothing in the list; just output silence.
@@ -2644,27 +2662,26 @@ void sig_dsp_List_generate(void* signal) {
     } else {
         for (size_t i = 0; i < blockSize; i++) {
             float index = FLOAT_ARRAY(self->inputs.index)[i];
-            float scaledIndex = self->parameters.normalizeIndex > 0.0f ?
-                index * lastIndexF : index;
-            float wrappedIndex = 0.0f;
             float sample = 0.0f;
 
+            if (shouldNormalize) {
+                index = index * lastIndexF;
+            }
+
             if (shouldInterpolate) {
-                wrappedIndex = shouldWrap ?
-                    sig_flooredfmodf(scaledIndex, listLengthF) :
-                    sig_clamp(scaledIndex, 0.0f, lastIndexF);
-                sample = sig_interpolate_linear(
-                    wrappedIndex, list->samples, listLength);
+                index = sig_dsp_List_constrain(shouldWrap, index, lastIndexF,
+                    listLengthF);
+                sample = sig_interpolate_linear(index, list->samples,
+                    listLength);
             } else {
-                float roundedIndex = roundf(scaledIndex);
-                wrappedIndex = shouldWrap ?
-                    sig_flooredfmodf(roundedIndex, listLengthF) :
-                    sig_clamp(roundedIndex, 0.0f, lastIndexF);
-                sample = FLOAT_ARRAY(list->samples)[(size_t) wrappedIndex];
+                index = roundf(index);
+                index = sig_dsp_List_constrain(shouldWrap, index, lastIndexF,
+                    listLengthF);
+                sample = FLOAT_ARRAY(list->samples)[(size_t) index];
             }
 
             FLOAT_ARRAY(self->outputs.main)[i] = sample;
-            FLOAT_ARRAY(self->outputs.index)[i] = wrappedIndex;
+            FLOAT_ARRAY(self->outputs.index)[i] = index;
             FLOAT_ARRAY(self->outputs.length)[i] = listLengthF;
         }
     }
