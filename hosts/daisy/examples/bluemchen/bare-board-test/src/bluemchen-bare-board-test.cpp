@@ -1,6 +1,6 @@
 #include "daisy.h"
 #include <libsignaletic.h>
-#include "../../../../include/signaletic-daisy-host.h"
+#include "../../../../include/signaletic-daisy-host.hpp"
 #include "../../../../include/sig-daisy-seed.hpp"
 #include "dev/oled_ssd130x.h"
 
@@ -31,9 +31,9 @@ sig::libdaisy::AnalogInput knob1;
 float knob1RawValue = 0.0f;
 sig::libdaisy::AnalogInput knob2;
 float knob2RawValue = 0.0f;
-sig::libdaisy::InvertedAnalogInput cv1;
+sig::libdaisy::AnalogInput cv1;
 float cv1RawValue = 0.0f;
-sig::libdaisy::InvertedAnalogInput cv2;
+sig::libdaisy::AnalogInput cv2;
 float cv2RawValue = 0.0f;
 struct sig_dsp_Value* freq;
 sig::libdaisy::GateInput gateIn;
@@ -184,10 +184,30 @@ int main(void) {
         &audioSettings);
     buildSignalGraph(&allocator, context, &signals, &audioSettings, &status);
 
-    knob1.Init(&board.adc, 0);
-    knob2.Init(&board.adc, 1);
-    cv1.Init(&board.adc, 2);
-    cv2.Init(&board.adc, 3);
+    sig::libdaisy::ADCChannelSpec knob1Spec = {
+        .pin = adcPins[0],
+        .normalization = sig::libdaisy::BI_TO_UNIPOLAR
+    };
+    knob1.Init(&board.adc, knob1Spec, 0);
+
+    sig::libdaisy::ADCChannelSpec knob2Spec = {
+        .pin = adcPins[1],
+        .normalization = sig::libdaisy::BI_TO_UNIPOLAR
+    };
+    knob2.Init(&board.adc, knob2Spec, 1);
+
+    sig::libdaisy::ADCChannelSpec cv1Spec = {
+        .pin = adcPins[2],
+        .normalization = sig::libdaisy::INVERT
+    };
+    cv1.Init(&board.adc, cv1Spec, 2);
+
+    sig::libdaisy::ADCChannelSpec cv2Spec = {
+        .pin = adcPins[3],
+        .normalization = sig::libdaisy::INVERT
+    };
+    cv2.Init(&board.adc, cv2Spec, 3);
+
     button.Init(sig::libdaisy::seed::PIN_D28); // Encoder button.
 
     board.audio.Start(AudioCallback);

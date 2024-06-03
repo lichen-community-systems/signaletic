@@ -97,6 +97,8 @@ void sig::libdaisy::patchsm::PatchSMBoard::InitDac() {
     dac_config.bitdepth = DacHandle::BitDepth::
         BITS_12; /**< Sets the output value to 0-4095 */
     dac_config.chn = DacHandle::Channel::BOTH;
+    // TODO: Apparently this can be removed to ensure that that the CV outputs
+    // actually reach 0V.
     dac_config.buff_state = DacHandle::BufferState::ENABLED;
     dac_config.target_samplerate = 48000;
     dac.Init(dac_config);

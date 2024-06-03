@@ -1,7 +1,7 @@
 #pragma once
 
 #include "signaletic-host.h"
-#include "signaletic-daisy-host.h"
+#include "signaletic-daisy-host.hpp"
 #include "sig-daisy-seed.hpp"
 
 using namespace sig::libdaisy;
@@ -21,15 +21,15 @@ namespace lichen {
 namespace freddie {
     static const size_t NUM_CONTROLS = 8;
 
-    static dsy_gpio_pin ADC_PINS[NUM_CONTROLS] = {
-        seed::PIN_ADC_0,
-        seed::PIN_ADC_1,
-        seed::PIN_ADC_2,
-        seed::PIN_ADC_3,
-        seed::PIN_ADC_4,
-        seed::PIN_ADC_5,
-        seed::PIN_ADC_6,
-        seed::PIN_ADC_7
+    static ADCChannelSpec ADC_CHANNEL_SPECS[NUM_CONTROLS] = {
+        {seed::PIN_ADC_0, INVERT},
+        {seed::PIN_ADC_1, INVERT},
+        {seed::PIN_ADC_2, INVERT},
+        {seed::PIN_ADC_3, INVERT},
+        {seed::PIN_ADC_4, INVERT},
+        {seed::PIN_ADC_5, INVERT},
+        {seed::PIN_ADC_6, INVERT},
+        {seed::PIN_ADC_7, INVERT}
     };
 
     static dsy_gpio_pin BUTTON_PINS[NUM_CONTROLS] = {
@@ -91,7 +91,7 @@ namespace freddie {
         }
 
         void InitADCController() {
-            adcController.Init(&board.adc, ADC_PINS);
+            adcController.Init(&board.adc, ADC_CHANNEL_SPECS);
         }
 
         void InitButtons() {

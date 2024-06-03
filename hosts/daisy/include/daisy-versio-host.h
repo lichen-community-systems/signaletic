@@ -1,7 +1,7 @@
 #ifndef SIGNALETIC_DAISY_VERSIO_H
 #define SIGNALETIC_DAISY_VERSIO_H
 
-#include "./signaletic-daisy-host.h"
+#include "./signaletic-daisy-host.hpp"
 #include "../vendor/libDaisy/src/daisy_versio.h"
 
 enum {

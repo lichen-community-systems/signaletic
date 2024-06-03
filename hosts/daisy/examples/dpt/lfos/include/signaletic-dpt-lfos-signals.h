@@ -1,5 +1,5 @@
 #include <libsignaletic.h>
-#include "../../../../include/signaletic-daisy-host.h"
+#include "../../../../include/signaletic-daisy-host.hpp"
 
 struct sig_daisy_ClockedLFO_Inputs {
     float_array_ptr clockFreq;

@@ -1,7 +1,7 @@
 #include "daisy.h"
 #include <libsignaletic.h>
 #include <array>
-#include "../../../../include/signaletic-daisy-host.h"
+#include "../../../../include/signaletic-daisy-host.hpp"
 #include "../../../../include/lichen-freddie-device.hpp"
 #include "../include/ring-buffer.hpp"
 
@@ -15,6 +15,8 @@
 
 const uint8_t sliderToCC[NUM_CONTROLS] = {0, 1, 2, 3, 4, 5, 6, 7};
 const uint8_t buttonToCC[NUM_CONTROLS] = {48, 49, 50, 51, 52, 53, 54, 55};
+// MIDI notes corresponding to the first 8 pads of MPC.
+const uint8_t buttonToNote[NUM_CONTROLS] = {37, 36, 42, 82, 40, 38, 46, 44};
 
 uint8_t memory[HEAP_SIZE];
 struct sig_AllocatorHeap heap = {
@@ -89,19 +91,43 @@ inline void processLEDs(size_t control) {
             buttonState[control]);
 }
 
-inline void processButtons(size_t control) {
-    // Read button presses.
-    float buttonValue = device.hardware.toggles[control];
-    float previousButtonValue = previousButtonValues[control];
+inline void buttonCCLatchingLED(size_t control, float buttonValue,
+    float previousButtonValue) {
     if (buttonValue != previousButtonValue) {
         // The button's state has changed (either pressed or released).
         if (buttonValue > 0.0f && previousButtonValue <= 0.0f) {
             // The button has been pressed. Toggle the LED.
             buttonState[control] = !buttonState[control];
         }
-
         midiCCEvent(buttonToCC[control], buttonValue <= 0 ? 0 : 127);
     }
+}
+
+inline void buttonNoteLatching(size_t control, float buttonValue,
+    float previousButtonValue) {
+    if (buttonValue != previousButtonValue) {
+        // The button's state has changed (either pressed or released).
+        if (buttonValue > 0.0f && previousButtonValue <= 0.0f) {
+            // The button has been pressed.
+            // Toggle the LED and the note.
+            buttonState[control] = !buttonState[control];
+
+            if (buttonState[control]) {
+                midiNoteEvent(true, buttonToNote[control], 127, 0);
+            } else {
+                midiNoteEvent(false, buttonToNote[control], 0, 0);
+            }
+        }
+    }
+}
+
+inline void processButtons(size_t control) {
+    // Read button presses.
+    float buttonValue = device.hardware.toggles[control];
+    float previousButtonValue = previousButtonValues[control];
+
+    buttonNoteLatching(control, buttonValue, previousButtonValue);
+
     previousButtonValues[control] = buttonValue;
 }
 

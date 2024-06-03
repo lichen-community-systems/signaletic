@@ -1,4 +1,4 @@
-#include "../include/signaletic-daisy-host.h"
+#include "../include/signaletic-daisy-host.hpp"
 
 void sig::libdaisy::DaisyHostAudioCallback(daisy::AudioHandle::InputBuffer in,
     daisy::AudioHandle::OutputBuffer out, size_t size) {

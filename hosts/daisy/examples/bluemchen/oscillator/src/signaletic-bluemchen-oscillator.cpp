@@ -1,7 +1,7 @@
 #include <string>
 #include <tlsf.h>
 #include <libsignaletic.h>
-#include "../../../../include/signaletic-daisy-host.h"
+#include "../../../../include/signaletic-daisy-host.hpp"
 #include "../../../../include/kxmx-bluemchen-device.hpp"
 
 using namespace kxmx::bluemchen;
@@ -42,7 +42,6 @@ struct sig_dsp_BinaryOp* gain;
 struct sig_host_AudioOut* leftOut;
 struct sig_host_AudioOut* rightOut;
 
-
 void UpdateOled() {
     host.device.display.Fill(false);
 
@@ -67,30 +66,28 @@ void UpdateOled() {
 void buildSignalGraph(struct sig_SignalContext* context,
      struct sig_Status* status) {
     /** Frequency controls **/
-    // Bluemchen AnalogControls are all unipolar,
-    // so they need to be scaled to bipolar values.
-    // FIXME: this is no longer true.
     coarseFreqKnob = sig_host_FilteredCVIn_new(&allocator, context);
     coarseFreqKnob->hardware = &host.device.hardware;
     sig_List_append(&signals, coarseFreqKnob, status);
     coarseFreqKnob->parameters.control = sig_host_KNOB_1;
-    coarseFreqKnob->parameters.scale = 10.0f;
-    coarseFreqKnob->parameters.offset = -5.0f;
+    coarseFreqKnob->parameters.scale = 17.27f; // Nearly 20 KHz
+    coarseFreqKnob->parameters.offset = -11.0f; // 0.1 Hz
     coarseFreqKnob->parameters.time = 0.01f;
 
     fineFreqKnob = sig_host_FilteredCVIn_new(&allocator, context);
     fineFreqKnob->hardware = &host.device.hardware;
     sig_List_append(&signals, fineFreqKnob, status);
-    fineFreqKnob->parameters.control = sig_host_KNOB_1;
-    fineFreqKnob->parameters.offset = -0.5f;
+    fineFreqKnob->parameters.control = sig_host_KNOB_2;
+    // Fine frequency knob range is scaled to +/- 1 semitone
+    fineFreqKnob->parameters.scale = 2.0f/12.0f;
+    fineFreqKnob->parameters.offset = -(1.0f/12.0f);
     fineFreqKnob->parameters.time = 0.01f;
 
     vOctCVIn = sig_host_CVIn_new(&allocator, context);
     vOctCVIn->hardware = &host.device.hardware;
     sig_List_append(&signals, vOctCVIn, status);
     vOctCVIn->parameters.control = sig_host_CV_IN_1;
-    vOctCVIn->parameters.scale = 10.0f;
-    vOctCVIn->parameters.offset = -5.0f;
+    vOctCVIn->parameters.scale = 5.0f;
 
     coarsePlusVOct = sig_dsp_Add_new(&allocator, context);
     sig_List_append(&signals, coarsePlusVOct, status);

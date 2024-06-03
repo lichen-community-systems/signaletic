@@ -1,7 +1,7 @@
 #ifndef SIGNALETIC_DAISY_DPT_H
 #define SIGNALETIC_DAISY_DPT_H
 
-#include "./signaletic-daisy-host.h"
+#include "./signaletic-daisy-host.hpp"
 #include "../vendor/dpt/lib/daisy_dpt.h"
 
 enum {

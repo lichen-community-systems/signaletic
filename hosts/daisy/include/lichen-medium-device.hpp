@@ -1,7 +1,7 @@
 #pragma once
 
 #include "signaletic-host.h"
-#include "signaletic-daisy-host.h"
+#include "signaletic-daisy-host.hpp"
 #include "sig-daisy-patch-sm.hpp"
 
 using namespace sig::libdaisy;

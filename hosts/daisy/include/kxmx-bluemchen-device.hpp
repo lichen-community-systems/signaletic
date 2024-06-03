@@ -1,7 +1,7 @@
 #pragma once
 
 #include "signaletic-host.h"
-#include "signaletic-daisy-host.h"
+#include "signaletic-daisy-host.hpp"
 #include "sig-daisy-seed.hpp"
 #include "dev/oled_ssd130x.h"
 
@@ -13,7 +13,7 @@ enum {
 };
 
 enum {
-    sig_host_CV_IN_1 = 0,
+    sig_host_CV_IN_1 = 2,
     sig_host_CV_IN_2
 };
 
@@ -31,11 +31,11 @@ namespace kxmx {
 namespace bluemchen {
     static const size_t NUM_ADC_CHANNELS = 4;
 
-    static dsy_gpio_pin ADC_PINS[NUM_ADC_CHANNELS] = {
-        seed::PIN_D16,
-        seed::PIN_D15,
-        seed::PIN_D21,
-        seed::PIN_D18
+    static ADCChannelSpec ADC_CHANNEL_SPECS[NUM_ADC_CHANNELS] = {
+        {seed::PIN_D16, BI_TO_UNIPOLAR},
+        {seed::PIN_D15, BI_TO_UNIPOLAR},
+        {seed::PIN_D21, INVERT},
+        {seed::PIN_D18, INVERT}
     };
 
     class BluemchenDevice {
@@ -47,11 +47,17 @@ namespace bluemchen {
             daisy::MidiUartHandler midi;
             struct sig_host_HardwareInterface hardware;
 
-        void Init(struct sig_AudioSettings* audioSettings) {
+        void Init(struct sig_AudioSettings* audioSettings,
+            struct sig_dsp_SignalEvaluator* evaluator) {
             board.Init(audioSettings->blockSize, audioSettings->sampleRate);
             InitADCController();
 
+            // TODO: Implement support for the encoder.
             hardware = {
+                .evaluator = evaluator,
+                .onEvaluateSignals = onEvaluateSignals,
+                .afterEvaluateSignals = afterEvaluateSignals,
+                .userData = this,
                 .numAudioInputChannels = 2,
                 .audioInputChannels = NULL, // Supplied by audio callback
                 .numAudioOutputChannels = 2,
@@ -69,10 +75,13 @@ namespace bluemchen {
                 .numTriSwitches = 0,
                 .triSwitches = NULL
             };
+
+            InitDisplay();
+            InitMidi();
         }
 
         void InitADCController() {
-            adcController.Init(&board.adc, ADC_PINS);
+            adcController.Init(&board.adc, ADC_CHANNEL_SPECS);
         }
 
         void InitDisplay() {
@@ -86,19 +95,37 @@ namespace bluemchen {
             midi.Init(config);
         }
 
-        void Start() {
+        void Start(daisy::AudioHandle::AudioCallback callback) {
             adcController.Start();
+            board.audio.Start(callback);
         }
 
         void Stop () {
             adcController.Stop();
+            board.audio.Stop();
         }
 
         inline void Read() {
             adcController.Read();
         }
 
-        inline void Write() {}
+        inline void Write() {
+
+        }
+
+        static void onEvaluateSignals(size_t size,
+            struct sig_host_HardwareInterface* hardware) {
+            BluemchenDevice* self = static_cast<BluemchenDevice*>(
+                hardware->userData);
+            self->Read();
+        }
+
+        static void afterEvaluateSignals(size_t size,
+            struct sig_host_HardwareInterface* hardware) {
+            BluemchenDevice* self = static_cast<BluemchenDevice*>(
+                hardware->userData);
+            self->Write();
+        }
     };
 };
 };
