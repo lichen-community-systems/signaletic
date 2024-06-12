@@ -457,3 +457,73 @@ void sig_host_TriSwitchIn_destroy(struct sig_Allocator* allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
 }
+
+
+
+void sig_host_EncoderIn_Outputs_newAudioBlocks(struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_host_EncoderIn_Outputs* outputs) {
+    outputs->main = sig_AudioBlock_newSilent(allocator, audioSettings);
+    outputs->increment = sig_AudioBlock_newSilent(allocator, audioSettings);
+    outputs->button = sig_AudioBlock_newSilent(allocator, audioSettings);
+}
+
+void sig_host_EncoderIn_Outputs_destroyAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_host_EncoderIn_Outputs* outputs) {
+    sig_AudioBlock_destroy(allocator, outputs->main);
+    sig_AudioBlock_destroy(allocator, outputs->increment);
+    sig_AudioBlock_destroy(allocator, outputs->button);
+}
+
+struct sig_host_EncoderIn* sig_host_EncoderIn_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_host_EncoderIn* self = sig_MALLOC(allocator,
+        struct sig_host_EncoderIn);
+    sig_host_EncoderIn_init(self, context);
+    sig_host_EncoderIn_Outputs_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_host_EncoderIn_init(struct sig_host_EncoderIn* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_host_EncoderIn_generate);
+    self->parameters.scale = 1.0f;
+    self->parameters.offset = 0.0f;
+    self->parameters.turnControl = 0;
+    self->parameters.buttonControl = 0;
+
+    self->accumulator = 0.0f;
+}
+
+void sig_host_EncoderIn_generate(void* signal) {
+    struct sig_host_EncoderIn* self = (struct sig_host_EncoderIn*) signal;
+    struct sig_host_HardwareInterface* hardware = self->hardware;
+    float scale = self->parameters.scale;
+    float offset = self->parameters.offset;
+    int turnControl = self->parameters.turnControl;
+    int buttonControl = self->parameters.buttonControl;
+
+    float increment = (hardware->numEncoders > turnControl) ?
+        hardware->encoders[turnControl] : 0.0f;
+    float button = (hardware->numToggles > buttonControl) ?
+        hardware->toggles[buttonControl] : 0.0f;
+
+    self->accumulator += increment;
+    float scaledAccumulation = self->accumulator * scale + offset;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        FLOAT_ARRAY(self->outputs.main)[i] = scaledAccumulation;
+        FLOAT_ARRAY(self->outputs.increment)[i] = increment;
+        FLOAT_ARRAY(self->outputs.button)[i] = button;
+    }
+}
+
+void sig_host_EncoderIn_destroy(struct sig_Allocator* allocator,
+    struct sig_host_EncoderIn* self) {
+    sig_host_EncoderIn_Outputs_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
+}

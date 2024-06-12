@@ -46,6 +46,9 @@ struct sig_dsp_Oscillator* harmonizer;
 sig::libdaisy::Toggle button;
 struct sig_dsp_Value* buttonValue;
 float buttonRawValue = 0.0f;
+sig::libdaisy::Encoder encoder;
+struct sig_dsp_Value* encoderValue;
+float encoderRawValue = 0.0f;
 struct sig_dsp_BinaryOp* mixer;
 struct sig_dsp_BinaryOp* attenuator;
 
@@ -115,8 +118,10 @@ void AudioCallback(daisy::AudioHandle::InputBuffer in,
     cv1RawValue = cv1.Value();
     cv2RawValue = cv2.Value();
     buttonRawValue = button.Value();
+    encoderRawValue += encoder.Value();
     freq->parameters.value = 1760.0f * knob1RawValue;
     buttonValue->parameters.value = buttonRawValue;
+    encoderValue->parameters.value = encoderRawValue;
 
     evaluator->evaluate((struct sig_dsp_SignalEvaluator*) evaluator);
 
@@ -137,17 +142,23 @@ void updateOLED() {
     display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     displayStr.Clear();
+    displayStr.Append("Enc ");
+    displayStr.AppendFloat(encoderRawValue, 1);
+    display.SetCursor(0, 8);
+    display.WriteString(displayStr.Cstr(), Font_6x8, true);
+
+    displayStr.Clear();
     displayStr.AppendFloat(knob1RawValue, 2);
     displayStr.Append(" ");
     displayStr.AppendFloat(knob2RawValue, 2);
-    display.SetCursor(0, 8);
+    display.SetCursor(0, 16);
     display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     displayStr.Clear();
     displayStr.AppendFloat(cv1RawValue, 2);
     displayStr.Append(" ");
     displayStr.AppendFloat(cv2RawValue, 2);
-    display.SetCursor(0, 16);
+    display.SetCursor(0, 24);
     display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     display.Update();
@@ -208,7 +219,9 @@ int main(void) {
     };
     cv2.Init(&board.adc, cv2Spec, 3);
 
-    button.Init(sig::libdaisy::seed::PIN_D28); // Encoder button.
+    // Encoder button and rotation.
+    button.Init(sig::libdaisy::seed::PIN_D28);
+    encoder.Init(sig::libdaisy::seed::PIN_D27, sig::libdaisy::seed::PIN_D26);
 
     board.audio.Start(AudioCallback);
 

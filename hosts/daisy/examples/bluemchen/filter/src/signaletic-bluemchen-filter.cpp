@@ -1,48 +1,30 @@
-#include <string>
-#include <tlsf.h>
 #include <libsignaletic.h>
-#include "../../../../include/daisy-bluemchen-host.h"
+#include "../../../../include/kxmx-bluemchen-device.hpp"
 
 using namespace kxmx;
 using namespace daisy;
 
 FixedCapStr<20> displayStr;
 
-#define HEAP_SIZE 1024 * 256 // 256KB
-#define MAX_NUM_SIGNALS 32
+#define SAMPLERATE 96000
+#define HEAP_SIZE 1024 * 384 // 384 KB
+#define MAX_NUM_SIGNALS 64
 
-uint8_t memory[HEAP_SIZE];
-struct sig_AllocatorHeap heap = {
-    .length = HEAP_SIZE,
-    .memory = (void*) memory
-};
-
-struct sig_Allocator allocator = {
-    .impl = &sig_TLSFAllocatorImpl,
-    .heap = &heap
-};
-
-struct sig_dsp_Signal* listStorage[MAX_NUM_SIGNALS];
-struct sig_List signals;
-struct sig_dsp_SignalListEvaluator* evaluator;
-
-Bluemchen bluemchen;
-struct sig_daisy_Host* host;
-
-#define NUM_FILTER_MODES 8
+// The best, with band passes
+#define NUM_FILTER_MODES 9
 #define NUM_FILTER_STAGES 5
-
 float mixingCoefficients[NUM_FILTER_STAGES][NUM_FILTER_MODES] = {
-    // 4LP, 3LP, 2LP, 2BP, 4BP, 4HP, 2HP, 4APP.
-    {  0,   0,   0,   0,   0,   1,   1,   1}, // Input gain (A)
-    {  0,   0,   0,  -1,   0,  -4,  -2,  -4}, // Pole 1 (B)
-    {  0,   0,   1,   1,   1,   6,   1,  12}, // Pole 2 (C)
-    {  0,  -1,   0,   0,  -2,  -4,   0, -16}, // Pole 3 (D)
-    {  1,   0,   0,   0,   1,   1,   0,   8}  // Pole 4 (E)
+    // 4LP, 2LP, 2BP, 4-1LP, ??, 4APP, 2HP, 3HP, 4HP
+    {  0,   0,   0,    0,    0,   1,   1,   1,   1  },
+    {  0,   0,  -1,   -1,   -2,  -4,  -2,  -3,  -4  },
+    {  0,   1,   1,    0,    2,  12,   1,   3,   6  },
+    {  0,   0,   0,    0,   -4, -16,   0,  -1,  -4  },
+    {  1,   0,   0,    1,    4,   8,   0,   0,   1  }
 };
 
-const char filterModeStrings[NUM_FILTER_MODES][4] = {
-    "4LP", "3LP", "2LP", "2BP", "4BP", "4HP", "2HP", "PHA"
+// TODO: Better names for these modes.
+const char filterModeStrings[NUM_FILTER_MODES][5] = {
+    "4LP", "2LP", "2BP", "41LP", "??", "4APP", "2HP", "3HP", "4HP"
 };
 
 struct sig_Buffer aCoefficientBuffer = {
@@ -70,7 +52,23 @@ struct sig_Buffer eCoefficientBuffer = {
     .samples = mixingCoefficients[4]
 };
 
-struct sig_daisy_EncoderIn* encoderIn;
+uint8_t memory[HEAP_SIZE];
+struct sig_AllocatorHeap heap = {
+    .length = HEAP_SIZE,
+    .memory = (void*) memory
+};
+
+struct sig_Allocator allocator = {
+    .impl = &sig_TLSFAllocatorImpl,
+    .heap = &heap
+};
+
+struct sig_dsp_Signal* listStorage[MAX_NUM_SIGNALS];
+struct sig_List signals;
+struct sig_dsp_SignalListEvaluator* evaluator;
+sig::libdaisy::DaisyHost<kxmx::bluemchen::BluemchenDevice> host;
+
+struct sig_host_EncoderIn* encoderIn;
 struct sig_dsp_List* aList;
 struct sig_dsp_Smooth* aSmooth;
 struct sig_dsp_List* bList;
@@ -81,11 +79,11 @@ struct sig_dsp_List* dList;
 struct sig_dsp_Smooth* dSmooth;
 struct sig_dsp_List* eList;
 struct sig_dsp_Smooth* eSmooth;
-struct sig_daisy_FilteredCVIn* frequencyKnob;
-struct sig_daisy_FilteredCVIn* resonanceKnob;
-struct sig_daisy_CVIn* vOctCVIn;
+struct sig_host_FilteredCVIn* frequencyKnob;
+struct sig_host_FilteredCVIn* resonanceKnob;
+struct sig_host_CVIn* vOctCVIn;
 struct sig_dsp_Calibrator* vOctCalibrator;
-struct sig_daisy_FilteredCVIn* frequencySkewCV;
+struct sig_host_FilteredCVIn* skewCV;
 struct sig_dsp_Abs* rectifiedSkew;
 struct sig_dsp_BinaryOp* frequencyCVSkewAdder;
 struct sig_dsp_BinaryOp* frequencyKnobPlusVOct;
@@ -93,53 +91,55 @@ struct sig_dsp_Branch* leftFrequencyCVSkewed;
 struct sig_dsp_LinearToFreq* leftFrequency;
 struct sig_dsp_Branch* rightFrequencyCVSkewed;
 struct sig_dsp_LinearToFreq* rightFrequency;
-struct sig_daisy_AudioIn* leftIn;
-struct sig_daisy_AudioIn* rightIn;
+struct sig_host_AudioIn* leftIn;
+struct sig_host_AudioIn* rightIn;
 struct sig_dsp_Ladder* leftFilter;
 struct sig_dsp_Ladder* rightFilter;
 struct sig_dsp_Tanh* leftSaturation;
 struct sig_dsp_Tanh* rightSaturation;
-struct sig_daisy_AudioOut* leftOut;
-struct sig_daisy_AudioOut* rightOut;
+struct sig_host_AudioOut* leftOut;
+struct sig_host_AudioOut* rightOut;
 
 void UpdateOled() {
-    bluemchen.display.Fill(false);
+    host.device.display.Fill(false);
 
     displayStr.Clear();
     displayStr.Append(" Bifocals");
-    bluemchen.display.SetCursor(0, 0);
-    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+    host.device.display.SetCursor(0, 0);
+    host.device.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     displayStr.Clear();
     displayStr.Append("F: ");
     displayStr.AppendFloat(leftFrequency->outputs.main[0], 0);
-    bluemchen.display.SetCursor(0, 8);
-    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+    host.device.display.SetCursor(0, 8);
+    host.device.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     displayStr.Clear();
     displayStr.Append("Hz");
-    bluemchen.display.SetCursor(47, 8);
-    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+    host.device.display.SetCursor(47, 8);
+    host.device.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     displayStr.Clear();
     displayStr.Append("R: ");
     displayStr.AppendFloat(resonanceKnob->outputs.main[0], 2);
-    bluemchen.display.SetCursor(0, 16);
-    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+    host.device.display.SetCursor(0, 16);
+    host.device.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     displayStr.Clear();
     displayStr.Append(filterModeStrings[(size_t) aList->outputs.index[0]]);
-    bluemchen.display.SetCursor(0, 24);
-    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+    host.device.display.SetCursor(0, 24);
+    host.device.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
-    bluemchen.display.Update();
+    host.device.display.Update();
 }
 
 void buildSignalGraph(struct sig_SignalContext* context,
      struct sig_Status* status) {
-    encoderIn = sig_daisy_EncoderIn_new(&allocator, context, host);
+    encoderIn = sig_host_EncoderIn_new(&allocator, context);
+    encoderIn->hardware = &host.device.hardware;
     sig_List_append(&signals, encoderIn, status);
-    encoderIn->parameters.control = 0;
+    encoderIn->parameters.turnControl = sig_host_ENCODER_1;
+    encoderIn->parameters.buttonControl = sig_host_BUTTON_1;
 
     aList = sig_dsp_List_new(&allocator, context);
     sig_List_append(&signals, aList, status);
@@ -203,18 +203,19 @@ void buildSignalGraph(struct sig_SignalContext* context,
 
     // Bluemchen AnalogControls are all unipolar,
     // so they need to be scaled to bipolar values.
-    frequencyKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    frequencyKnob = sig_host_FilteredCVIn_new(&allocator, context);
+    frequencyKnob->hardware = &host.device.hardware;
     sig_List_append(&signals, frequencyKnob, status);
-    frequencyKnob->parameters.control = sig_daisy_Bluemchen_CV_IN_KNOB_1;
+    frequencyKnob->parameters.control = sig_host_KNOB_1;
     frequencyKnob->parameters.scale = 10.0f;
     frequencyKnob->parameters.offset = -5.0f;
     frequencyKnob->parameters.time = 0.1f;
 
-    vOctCVIn = sig_daisy_CVIn_new(&allocator, context, host);
+    vOctCVIn = sig_host_CVIn_new(&allocator, context);
+    vOctCVIn->hardware = &host.device.hardware;
     sig_List_append(&signals, vOctCVIn, status);
-    vOctCVIn->parameters.control =  sig_daisy_Bluemchen_CV_IN_CV1;
-    vOctCVIn->parameters.scale = 10.0f;
-    vOctCVIn->parameters.offset = -5.0f;
+    vOctCVIn->parameters.control =  sig_host_CV_IN_1;
+    vOctCVIn->parameters.scale = 5.0f;
 
     vOctCalibrator = sig_dsp_Calibrator_new(&allocator, context);
     sig_List_append(&signals, vOctCalibrator, status);
@@ -226,16 +227,16 @@ void buildSignalGraph(struct sig_SignalContext* context,
     frequencyKnobPlusVOct->inputs.left = frequencyKnob->outputs.main;
     frequencyKnobPlusVOct->inputs.right = vOctCalibrator->outputs.main;
 
-    frequencySkewCV = sig_daisy_FilteredCVIn_new(&allocator, context, host);
-    sig_List_append(&signals, frequencySkewCV, status);
-    frequencySkewCV->parameters.control = sig_daisy_Bluemchen_CV_IN_CV2;
-    frequencySkewCV->parameters.scale = 5.0f;
-    frequencySkewCV->parameters.offset = -2.5f;
-    frequencySkewCV->parameters.time = 0.1f;
+    skewCV = sig_host_FilteredCVIn_new(&allocator, context);
+    skewCV->hardware = &host.device.hardware;
+    sig_List_append(&signals, skewCV, status);
+    skewCV->parameters.control = sig_host_CV_IN_2;
+    skewCV->parameters.scale = 2.5f;
+    skewCV->parameters.time = 0.1f;
 
     rectifiedSkew = sig_dsp_Abs_new(&allocator, context);
     sig_List_append(&signals, rectifiedSkew, status);
-    rectifiedSkew->inputs.source = frequencySkewCV->outputs.main;
+    rectifiedSkew->inputs.source = skewCV->outputs.main;
 
     frequencyCVSkewAdder = sig_dsp_Add_new(&allocator, context);
     sig_List_append(&signals, frequencyCVSkewAdder, status);
@@ -244,7 +245,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
 
     leftFrequencyCVSkewed = sig_dsp_Branch_new(&allocator, context);
     sig_List_append(&signals, leftFrequencyCVSkewed, status);
-    leftFrequencyCVSkewed->inputs.condition = frequencySkewCV->outputs.main;
+    leftFrequencyCVSkewed->inputs.condition = skewCV->outputs.main;
     leftFrequencyCVSkewed->inputs.on = frequencyKnobPlusVOct->outputs.main;
     leftFrequencyCVSkewed->inputs.off = frequencyCVSkewAdder->outputs.main;
 
@@ -254,7 +255,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
 
     rightFrequencyCVSkewed = sig_dsp_Branch_new(&allocator, context);
     sig_List_append(&signals, rightFrequencyCVSkewed, status);
-    rightFrequencyCVSkewed->inputs.condition = frequencySkewCV->outputs.main;
+    rightFrequencyCVSkewed->inputs.condition = skewCV->outputs.main;
     rightFrequencyCVSkewed->inputs.on = frequencyCVSkewAdder->outputs.main;
     rightFrequencyCVSkewed->inputs.off = frequencyKnobPlusVOct->outputs.main;
 
@@ -262,18 +263,19 @@ void buildSignalGraph(struct sig_SignalContext* context,
     sig_List_append(&signals, rightFrequency, status);
     rightFrequency->inputs.source = rightFrequencyCVSkewed->outputs.main;
 
-    resonanceKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    resonanceKnob = sig_host_FilteredCVIn_new(&allocator, context);
+    resonanceKnob->hardware = &host.device.hardware;
     sig_List_append(&signals, resonanceKnob, status);
-    resonanceKnob->parameters.control = sig_daisy_Bluemchen_CV_IN_KNOB_2;
+    resonanceKnob->parameters.control = sig_host_KNOB_2;
     resonanceKnob->parameters.scale = 1.8f; // 4.0f for Bob
 
-    leftIn = sig_daisy_AudioIn_new(&allocator, context, host);
+    leftIn = sig_host_AudioIn_new(&allocator, context);
+    leftIn->hardware = &host.device.hardware;
     sig_List_append(&signals, leftIn, status);
     leftIn->parameters.channel = 0;
 
     leftFilter = sig_dsp_Ladder_new(&allocator, context);
     sig_List_append(&signals, leftFilter, status);
-    leftFilter->parameters.overdrive = 1.1f;
     leftFilter->parameters.passbandGain = 0.5f;
     leftFilter->inputs.source = leftIn->outputs.main;
     leftFilter->inputs.frequency = leftFrequency->outputs.main;
@@ -288,18 +290,19 @@ void buildSignalGraph(struct sig_SignalContext* context,
     sig_List_append(&signals, leftSaturation, status);
     leftSaturation->inputs.source = leftFilter->outputs.main;
 
-    leftOut = sig_daisy_AudioOut_new(&allocator, context, host);
+    leftOut = sig_host_AudioOut_new(&allocator, context);
+    leftOut->hardware = &host.device.hardware;
     sig_List_append(&signals, leftOut, status);
     leftOut->parameters.channel = 0;
     leftOut->inputs.source = leftSaturation->outputs.main;
 
-    rightIn = sig_daisy_AudioIn_new(&allocator, context, host);
+    rightIn = sig_host_AudioIn_new(&allocator, context);
+    rightIn->hardware = &host.device.hardware;
     sig_List_append(&signals, rightIn, status);
     rightIn->parameters.channel = 1;
 
     rightFilter = sig_dsp_Ladder_new(&allocator, context);
     sig_List_append(&signals, rightFilter, status);
-    rightFilter->parameters.overdrive = 1.1f;
     leftFilter->parameters.passbandGain = 0.5f;
     rightFilter->inputs.source = rightIn->outputs.main;
     rightFilter->inputs.frequency = rightFrequency->outputs.main;
@@ -314,7 +317,8 @@ void buildSignalGraph(struct sig_SignalContext* context,
     sig_List_append(&signals, rightSaturation, status);
     rightSaturation->inputs.source = rightFilter->outputs.main;
 
-    rightOut = sig_daisy_AudioOut_new(&allocator, context, host);
+    rightOut = sig_host_AudioOut_new(&allocator, context);
+    rightOut->hardware = &host.device.hardware;
     sig_List_append(&signals, rightOut, status);
     rightOut->parameters.channel = 1;
     rightOut->inputs.source = rightSaturation->outputs.main;
@@ -324,26 +328,23 @@ int main(void) {
     allocator.impl->init(&allocator);
 
     struct sig_AudioSettings audioSettings = {
-        .sampleRate = 96000,
+        .sampleRate = SAMPLERATE,
         .numChannels = 2,
-        .blockSize = 16
+        .blockSize = 2
     };
 
     struct sig_Status status;
     sig_Status_init(&status);
     sig_List_init(&signals, (void**) &listStorage, MAX_NUM_SIGNALS);
 
-    evaluator = sig_dsp_SignalListEvaluator_new(&allocator, &signals);
-    host = sig_daisy_BluemchenHost_new(&allocator,
-        &audioSettings,
-        &bluemchen,
-        (struct sig_dsp_SignalEvaluator*) evaluator);
-    sig_daisy_Host_registerGlobalHost(host);
-
     struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
         &audioSettings);
+    evaluator = sig_dsp_SignalListEvaluator_new(&allocator, &signals);
+    host.Init(&audioSettings, (struct sig_dsp_SignalEvaluator*) evaluator);
+
     buildSignalGraph(context, &status);
-    host->impl->start(host);
+
+    host.Start();
 
     while (1) {
         UpdateOled();

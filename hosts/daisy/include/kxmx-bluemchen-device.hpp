@@ -18,6 +18,14 @@ enum {
 };
 
 enum {
+    sig_host_BUTTON_1 = 0
+};
+
+enum {
+    sig_host_ENCODER_1 = 0
+};
+
+enum {
     sig_host_AUDIO_IN_1 = 0,
     sig_host_AUDIO_IN_2
 };
@@ -30,6 +38,15 @@ enum {
 namespace kxmx {
 namespace bluemchen {
     static const size_t NUM_ADC_CHANNELS = 4;
+    static const size_t NUM_BUTTONS = 1;
+    static dsy_gpio_pin BUTTON_PINS[NUM_BUTTONS] = {
+        seed::PIN_D28
+    };
+
+    static const size_t NUM_ENCODERS = 1;
+    static dsy_gpio_pin ENCODER_PINS[NUM_BUTTONS][2] = {
+        {seed::PIN_D27, seed::PIN_D26}
+    };
 
     static ADCChannelSpec ADC_CHANNEL_SPECS[NUM_ADC_CHANNELS] = {
         {seed::PIN_D16, BI_TO_UNIPOLAR},
@@ -42,6 +59,10 @@ namespace bluemchen {
         public:
             seed::SeedBoard board;
             ADCController<AnalogInput, NUM_ADC_CHANNELS> adcController;
+            Toggle buttons[NUM_BUTTONS];
+            InputBank<Toggle, NUM_BUTTONS> buttonBank;
+            sig::libdaisy::Encoder encoders[NUM_ENCODERS];
+            InputBank<sig::libdaisy::Encoder, NUM_ENCODERS> encoderBank;
             daisy::OledDisplay<daisy::SSD130xI2c64x32Driver>
                 display;
             daisy::MidiUartHandler midi;
@@ -70,14 +91,17 @@ namespace bluemchen {
                 .gateInputs = NULL,
                 .numGPIOOutputs = 0,
                 .gpioOutputs = NULL,
-                .numToggles = 0,
-                .toggles = NULL,
+                .numToggles = 1,
+                .toggles = buttonBank.values,
                 .numTriSwitches = 0,
-                .triSwitches = NULL
+                .triSwitches = NULL,
+                .numEncoders = 1,
+                .encoders = encoderBank.values
             };
 
             InitDisplay();
             InitMidi();
+            InitControls();
         }
 
         void InitADCController() {
@@ -88,6 +112,14 @@ namespace bluemchen {
             daisy::OledDisplay<daisy::SSD130xI2c64x32Driver>::Config config;
             config.driver_config.transport_config.Defaults();
             display.Init(config);
+        }
+
+        void InitControls() {
+            buttons[0].Init(BUTTON_PINS[0]);
+            buttonBank.inputs = buttons;
+
+            encoders[0].Init(ENCODER_PINS[0][0], ENCODER_PINS[0][1]);
+            encoderBank.inputs = encoders;
         }
 
         void InitMidi() {
@@ -107,11 +139,11 @@ namespace bluemchen {
 
         inline void Read() {
             adcController.Read();
+            buttonBank.Read();
+            encoderBank.Read();
         }
 
-        inline void Write() {
-
-        }
+        inline void Write() {}
 
         static void onEvaluateSignals(size_t size,
             struct sig_host_HardwareInterface* hardware) {

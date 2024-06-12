@@ -36,6 +36,7 @@ struct sig_host_HardwareInterface {
     size_t numAudioOutputChannels;
     float** audioOutputChannels;
 
+    // TODO: Should these be sig_Buffers instead?
     size_t numADCChannels;
     float* adcChannels;
 
@@ -53,6 +54,9 @@ struct sig_host_HardwareInterface {
 
     size_t numTriSwitches;
     float* triSwitches;
+
+    size_t numEncoders;
+    float* encoders;
 };
 
 void sig_host_registerGlobalHardwareInterface(
@@ -275,6 +279,64 @@ void sig_host_TriSwitchIn_init(struct sig_host_TriSwitchIn* self,
 void sig_host_TriSwitchIn_generate(void* signal);
 void sig_host_TriSwitchIn_destroy(struct sig_Allocator* allocator,
     struct sig_host_TriSwitchIn* self);
+
+
+struct sig_host_EncoderIn_Parameters {
+    float scale;
+    float offset;
+    int turnControl;
+    int buttonControl;
+};
+
+struct sig_host_EncoderIn_Outputs {
+    /**
+     * @brief The encoder's accumulated value.
+     * This output tracks the sum of all increment values over time.
+     */
+    float_array_ptr main;
+
+    /**
+     * @brief The encoder's increment value.
+     * This output represents the state of change of the encoder:
+     *  -1.0 if the encoder was turned counterclockwise,
+     *  +1.0 if turned clockwise,
+     *  0.0 if the encoder was not turned
+     */
+    float_array_ptr increment;  // The encoder's increment value
+
+    /**
+     * @brief A gate signal for the encoder's button.
+     * This output will be > 1.0 if the button is currently pressed,
+     * and 0.0 it is not.
+     */
+    float_array_ptr button;
+};
+
+void sig_host_EncoderIn_Outputs_newAudioBlocks(struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_host_EncoderIn_Outputs* outputs);
+
+void sig_host_EncoderIn_Outputs_destroyAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_host_EncoderIn_Outputs* outputs);
+
+struct sig_host_EncoderIn {
+    struct sig_dsp_Signal signal;
+    struct sig_host_EncoderIn_Parameters parameters;
+    struct sig_host_EncoderIn_Outputs outputs;
+    struct sig_host_HardwareInterface* hardware;
+
+    float accumulator;
+};
+
+struct sig_host_EncoderIn* sig_host_EncoderIn_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_host_EncoderIn_init(struct sig_host_EncoderIn* self,
+    struct sig_SignalContext* context);
+void sig_host_EncoderIn_generate(void* signal);
+void sig_host_EncoderIn_destroy(struct sig_Allocator* allocator,
+    struct sig_host_EncoderIn* self);
+
 
 #ifdef __cplusplus
 }

@@ -1357,12 +1357,15 @@ void sig_dsp_Accumulate_init(struct sig_dsp_Accumulate* self,
     sig_dsp_Signal_init(self, context, *sig_dsp_Accumulate_generate);
 
     struct sig_dsp_Accumulate_Parameters parameters = {
-        .accumulatorStart = 1.0,
+        .accumulatorStart = 1.0f,
         .wrap = 0.0f,
         .maxValue = 1.0f
     };
     self->parameters = parameters;
 
+    // FIXME: This happens too early for users to
+    // override the parameter, and thus the accumulator
+    // is always initialized to 1.
     self->accumulator = parameters.accumulatorStart;
     self->previousReset = 0.0f;
 

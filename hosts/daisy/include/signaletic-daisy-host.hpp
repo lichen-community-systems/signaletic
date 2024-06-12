@@ -232,9 +232,12 @@ class Toggle {
         }
 
         inline float Value() {
+            // See https://www.ganssle.com/debouncing-pt2.htm
+            // for a good overview of debouncing algorithms.
             uint32_t now = daisy::System::GetNow();
             if (now - previousDebounce >= 1) {
                 state = (state << 1) | !dsy_gpio_read(&gpio);
+                previousDebounce = now;
             }
             return (float) state == 0xff;
         }
@@ -255,8 +258,56 @@ class TriSwitch {
             switchB.Init(pinB);
         }
 
-        inline float Value () {
+        inline float Value() {
             return switchA.Value() + -switchB.Value();
+        }
+};
+
+class Encoder {
+    public:
+        uint32_t previousDebounce;
+        uint8_t a;
+        uint8_t b;
+        dsy_gpio gpioA;
+        dsy_gpio gpioB;
+
+        void Init(dsy_gpio_pin pinA, dsy_gpio_pin pinB) {
+            gpioA.pin = pinA;
+            gpioA.mode = DSY_GPIO_MODE_INPUT;
+            gpioA.pull = DSY_GPIO_PULLUP;
+
+            gpioB.pin = pinB;
+            gpioB.mode = DSY_GPIO_MODE_INPUT;
+            gpioB.pull = DSY_GPIO_PULLUP;
+
+            dsy_gpio_init(&gpioA);
+            dsy_gpio_init(&gpioB);
+
+            previousDebounce = daisy::System::GetNow();
+            a = 255;
+            b = 255;
+        }
+
+        inline float Value() {
+            uint32_t now = daisy::System::GetNow();
+            float increment = 0.0f;
+
+            if (now - previousDebounce >= 1) {
+                a = (a << 1) | dsy_gpio_read(&gpioA);
+                b = (b << 1) | dsy_gpio_read(&gpioB);
+                uint8_t aMasked = a & 3;
+                uint8_t bMasked = b & 3;
+
+                if (aMasked == 2 && bMasked == 0) {
+                    increment = 1.0f;
+                } else if (bMasked == 2 && aMasked == 0) {
+                    increment = -1.0f;
+                }
+
+                previousDebounce = now;
+            }
+
+            return increment;
         }
 };
 
