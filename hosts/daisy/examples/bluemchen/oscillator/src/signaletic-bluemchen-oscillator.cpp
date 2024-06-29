@@ -1,11 +1,6 @@
-#include <string>
-#include <tlsf.h>
 #include <libsignaletic.h>
-#include "../../../../include/signaletic-daisy-host.hpp"
 #include "../../../../include/kxmx-bluemchen-device.hpp"
 
-using namespace kxmx::bluemchen;
-using namespace daisy;
 using namespace sig::libdaisy;
 
 FixedCapStr<20> displayStr;
@@ -28,7 +23,7 @@ struct sig_dsp_Signal* listStorage[MAX_NUM_SIGNALS];
 struct sig_List signals;
 struct sig_dsp_SignalListEvaluator* evaluator;
 
-DaisyHost<BluemchenDevice> host;
+DaisyHost<kxmx::bluemchen::BluemchenDevice> host;
 
 struct sig_host_FilteredCVIn* coarseFreqKnob;
 struct sig_host_FilteredCVIn* fineFreqKnob;

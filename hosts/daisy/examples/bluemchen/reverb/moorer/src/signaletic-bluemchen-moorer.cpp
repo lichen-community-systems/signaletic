@@ -1,10 +1,6 @@
-#include <string>
-#include <tlsf.h>
-#include "../../../../include/daisy-bluemchen-host.h"
+#include <libsignaletic.h>
+#include "../../../../include/kxmx-bluemchen-device.hpp"
 #include "../include/signaletic-bluemchen-moorer-signals.h"
-
-using namespace kxmx;
-using namespace daisy;
 
 FixedCapStr<20> displayStr;
 
@@ -65,11 +61,11 @@ struct sig_dsp_Signal* listStorage[MAX_NUM_SIGNALS];
 struct sig_List signals;
 struct sig_dsp_SignalListEvaluator* evaluator;
 
-Bluemchen bluemchen;
-struct sig_daisy_Host* host;
-struct sig_daisy_AudioIn* audioIn;
-struct sig_daisy_FilteredCVIn* delayTimeScaleKnob;
-struct sig_daisy_FilteredCVIn* combGainKnob;
+DaisyHost<kxmx::bluemchen::BluemchenDevice> host;
+
+struct sig_host_AudioIn* audioIn;
+struct sig_host_FilteredCVIn* delayTimeScaleKnob;
+struct sig_host_FilteredCVIn* combGainKnob;
 struct sig_dsp_ConstantValue* one;
 
 struct sig_DelayLine* earlyEchoDL;
@@ -144,29 +140,29 @@ struct sig_dsp_Allpass* ap;
 
 struct sig_dsp_BinaryOp* reverberatorMixScale;
 struct sig_dsp_BinaryOp* earlyEchoesReverberatorMix;
-struct sig_daisy_AudioOut* leftOut;
-struct sig_daisy_AudioOut* rightOut;
+struct sig_host_AudioOut* leftOut;
+struct sig_host_AudioOut* rightOut;
 
 void UpdateOled() {
-    bluemchen.display.Fill(false);
+    host.device.display.Fill(false);
 
     displayStr.Clear();
     displayStr.Append("Moorer");
-    bluemchen.display.SetCursor(0, 0);
-    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+    host.device.display.SetCursor(0, 0);
+    host.device.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     displayStr.Clear();
     displayStr.Append("Del ");
     displayStr.AppendFloat(delayTimeScaleKnob->outputs.main[0], 2);
-    bluemchen.display.SetCursor(0, 8);
-    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+    host.device.display.SetCursor(0, 8);
+    host.device.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     displayStr.Clear();
     displayStr.Append("g ");
     displayStr.AppendFloat(combGainKnob->outputs.main[0], 2);
-    bluemchen.display.SetCursor(0, 16);
-    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
-    bluemchen.display.Update();
+    host.device.display.SetCursor(0, 16);
+    host.device.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+    host.device.display.Update();
 }
 
 void buildSignalGraph(struct sig_SignalContext* context,
@@ -194,22 +190,25 @@ void buildSignalGraph(struct sig_SignalContext* context,
     // ap       0.006           0.7
 
     /** Controls **/
-    delayTimeScaleKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    delayTimeScaleKnob = sig_host_FilteredCVIn_new(&allocator, context);
+    delayTimeScaleKnob->hardware = &host.device.hardware;
     sig_List_append(&signals, delayTimeScaleKnob, status);
-    delayTimeScaleKnob->parameters.control = sig_daisy_Bluemchen_CV_IN_KNOB_1;
+    delayTimeScaleKnob->parameters.control = sig_host_KNOB_1;
     delayTimeScaleKnob->parameters.scale = 9.999f;
     delayTimeScaleKnob->parameters.offset = 0.001f;
     delayTimeScaleKnob->parameters.time = 0.25f; // Smoother mod pitch shift
 
-    combGainKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    combGainKnob = sig_host_FilteredCVIn_new(&allocator, context);
+    combGainKnob->hardware = &host.device.hardware;
     sig_List_append(&signals, combGainKnob, status);
-    combGainKnob->parameters.control = sig_daisy_Bluemchen_CV_IN_KNOB_2;
+    combGainKnob->parameters.control = sig_host_KNOB_2;
     combGainKnob->parameters.scale = 1.6999f;
     combGainKnob->parameters.offset = 0.001f;
 
-    audioIn = sig_daisy_AudioIn_new(&allocator, context, host);
+    audioIn = sig_host_AudioIn_new(&allocator, context);
+    audioIn->hardware = &host.device.hardware;
     sig_List_append(&signals, audioIn, status);
-    audioIn->parameters.channel = sig_daisy_AUDIO_IN_1;
+    audioIn->parameters.channel = sig_host_AUDIO_IN_1;
 
     /** Early Echoes **/
     // TODO: Add support for scaling the delay taps,
@@ -448,14 +447,16 @@ void buildSignalGraph(struct sig_SignalContext* context,
 
     // TODO: Add wet/dry mix
 
-    leftOut = sig_daisy_AudioOut_new(&allocator, context, host);
+    leftOut = sig_host_AudioOut_new(&allocator, context);
+    leftOut->hardware = &host.device.hardware;
     sig_List_append(&signals, leftOut, status);
-    leftOut->parameters.channel = sig_daisy_AUDIO_OUT_1;
+    leftOut->parameters.channel = sig_host_AUDIO_OUT_1;
     leftOut->inputs.source = earlyEchoesReverberatorMix->outputs.main;
 
-    rightOut = sig_daisy_AudioOut_new(&allocator, context, host);
+    rightOut = sig_host_AudioOut_new(&allocator, context);
+    rightOut->hardware = &host.device.hardware;
     sig_List_append(&signals, rightOut, status);
-    rightOut->parameters.channel = sig_daisy_AUDIO_OUT_2;
+    rightOut->parameters.channel = sig_host_AUDIO_OUT_2;
     rightOut->inputs.source = earlyEchoesReverberatorMix->outputs.main;
 }
 
@@ -473,11 +474,7 @@ int main(void) {
     sig_List_init(&signals, (void**) &listStorage, MAX_NUM_SIGNALS);
 
     evaluator = sig_dsp_SignalListEvaluator_new(&allocator, &signals);
-    host = sig_daisy_BluemchenHost_new(&allocator,
-        &audioSettings,
-        &bluemchen,
-        (struct sig_dsp_SignalEvaluator*) evaluator);
-    sig_daisy_Host_registerGlobalHost(host);
+    host.Init(&audioSettings, (struct sig_dsp_SignalEvaluator*) evaluator);
 
     // Can't write to memory in SDRAM until after the board has
     // been initialized.
@@ -486,7 +483,7 @@ int main(void) {
     struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
         &audioSettings);
     buildSignalGraph(context, &status);
-    host->impl->start(host);
+    host.Start();
 
     while (1) {
         UpdateOled();

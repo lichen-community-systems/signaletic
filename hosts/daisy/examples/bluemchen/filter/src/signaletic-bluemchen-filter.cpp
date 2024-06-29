@@ -1,9 +1,6 @@
 #include <libsignaletic.h>
 #include "../../../../include/kxmx-bluemchen-device.hpp"
 
-using namespace kxmx;
-using namespace daisy;
-
 FixedCapStr<20> displayStr;
 
 #define SAMPLERATE 96000

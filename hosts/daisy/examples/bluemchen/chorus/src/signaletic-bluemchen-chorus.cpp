@@ -1,16 +1,12 @@
-#include <string>
-#include <tlsf.h>
 #include <libsignaletic.h>
-#include "../../../../include/daisy-bluemchen-host.h"
+#include "../../../../include/kxmx-bluemchen-device.hpp"
 
-using namespace kxmx;
-using namespace daisy;
-
-FixedCapStr<20> displayStr;
-
+#define SAMPLERATE 48000
 #define DELAY_LINE_LENGTH 48000 // 1 second
 #define HEAP_SIZE 1024 * 256 // 256KB
 #define MAX_NUM_SIGNALS 32
+
+FixedCapStr<20> displayStr;
 
 float DSY_SDRAM_BSS leftDelayLineSamples[DELAY_LINE_LENGTH];
 struct sig_Buffer leftDelayLineBuffer = {
@@ -38,73 +34,77 @@ struct sig_Allocator allocator = {
 struct sig_dsp_Signal* listStorage[MAX_NUM_SIGNALS];
 struct sig_List signals;
 struct sig_dsp_SignalListEvaluator* evaluator;
+sig::libdaisy::DaisyHost<kxmx::bluemchen::BluemchenDevice> host;
 
-Bluemchen bluemchen;
-struct sig_daisy_Host* host;
-
-struct sig_daisy_FilteredCVIn* mixKnob;
-struct sig_daisy_FilteredCVIn* lfoSpeedKnob;
+struct sig_host_FilteredCVIn* mixKnob;
+struct sig_host_FilteredCVIn* lfoSpeedKnob;
 struct sig_dsp_ConstantValue* lfoDepth;
 struct sig_dsp_ConstantValue* lfoOffset;
-struct sig_daisy_AudioIn* leftIn;
+struct sig_host_AudioIn* leftIn;
 struct sig_dsp_Oscillator* leftLFO;
 struct sig_dsp_Delay* leftDelay;
 struct sig_dsp_LinearXFade* leftWetDryMixer;
-struct sig_daisy_AudioOut* leftOut;
+struct sig_host_AudioOut* leftOut;
 struct sig_dsp_ConstantValue* lfoPhaseOffset;
 struct sig_dsp_Oscillator* rightLFO;
 struct sig_dsp_Delay* rightDelay;
 struct sig_dsp_LinearXFade* rightWetDryMixer;
-struct sig_daisy_AudioOut* rightOut;
+struct sig_host_AudioOut* rightOut;
 
 void UpdateOled() {
-    bluemchen.display.Fill(false);
+    host.device.display.Fill(false);
 
     displayStr.Clear();
     displayStr.Append("Chorus");
-    bluemchen.display.SetCursor(0, 0);
-    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+    host.device.display.SetCursor(0, 0);
+    host.device.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     displayStr.Clear();
     displayStr.Append("Mix ");
     displayStr.AppendFloat(mixKnob->outputs.main[0], 2);
-    bluemchen.display.SetCursor(0, 8);
-    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+    host.device.display.SetCursor(0, 8);
+    host.device.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     displayStr.Clear();
     displayStr.Append("LFO ");
     displayStr.AppendFloat(lfoSpeedKnob->outputs.main[0], 2);
-    bluemchen.display.SetCursor(0, 16);
-    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+    host.device.display.SetCursor(0, 16);
+    host.device.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
-    bluemchen.display.Update();
+    host.device.display.Update();
 }
 
 void buildSignalGraph(struct sig_SignalContext* context,
      struct sig_Status* status) {
-    // Bluemchen AnalogControls are all unipolar,
-    // so they need to be scaled to bipolar values.
-    mixKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    mixKnob = sig_host_FilteredCVIn_new(&allocator, context);
+    mixKnob->hardware = &host.device.hardware;
     sig_List_append(&signals, mixKnob, status);
-    mixKnob->parameters.control = sig_daisy_Bluemchen_CV_IN_KNOB_1;        mixKnob->parameters.scale = 1.5f;
+    mixKnob->parameters.control = sig_host_KNOB_1;
+    mixKnob->parameters.scale = 2.0f;
     mixKnob->parameters.offset = -1.0f;
     mixKnob->parameters.time = 0.1f;
 
     // Juno-60 Chorus
     // https://github.com/pendragon-andyh/Juno60/blob/master/Chorus/README.md
-    lfoSpeedKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    lfoSpeedKnob = sig_host_FilteredCVIn_new(&allocator, context);
+    lfoSpeedKnob->hardware = &host.device.hardware;
     sig_List_append(&signals, lfoSpeedKnob, status);
-    lfoSpeedKnob->parameters.control = sig_daisy_Bluemchen_CV_IN_KNOB_2;
-    lfoSpeedKnob->parameters.scale = 0.35f;
-    lfoSpeedKnob->parameters.offset = 0.513f;
+    lfoSpeedKnob->parameters.control = sig_host_KNOB_2;
+    // These are in the range of the Juno chorus 1 & and 2
+    // lfoSpeedKnob->parameters.scale = 0.35f;
+    // lfoSpeedKnob->parameters.offset = 0.513f;
+    // Where as these can go a little wilder.
+    // 4.0 is about the threshold of consance at full wet.
+    lfoSpeedKnob->parameters.scale = 9.75f;
     lfoSpeedKnob->parameters.time = 0.1f;
 
     lfoDepth = sig_dsp_ConstantValue_new(&allocator, context, 0.001845f);
     lfoOffset = sig_dsp_ConstantValue_new(&allocator, context, 0.003505f);
 
-    leftIn = sig_daisy_AudioIn_new(&allocator, context, host);
+    leftIn = sig_host_AudioIn_new(&allocator, context);
+    leftIn->hardware = &host.device.hardware;
     sig_List_append(&signals, leftIn, status);
-    leftIn->parameters.channel = 0;
+    leftIn->parameters.channel = sig_host_AUDIO_IN_1;
 
     leftLFO = sig_dsp_LFTriangle_new(&allocator, context);
     sig_List_append(&signals, leftLFO, status);
@@ -125,9 +125,10 @@ void buildSignalGraph(struct sig_SignalContext* context,
     leftWetDryMixer->inputs.right = leftDelay->outputs.main;
     leftWetDryMixer->inputs.mix = mixKnob->outputs.main;
 
-    leftOut = sig_daisy_AudioOut_new(&allocator, context, host);
+    leftOut = sig_host_AudioOut_new(&allocator, context);
+    leftOut->hardware = &host.device.hardware;
     sig_List_append(&signals, leftOut, status);
-    leftOut->parameters.channel = sig_daisy_AUDIO_OUT_1;
+    leftOut->parameters.channel = sig_host_AUDIO_OUT_1;
     leftOut->inputs.source = leftWetDryMixer->outputs.main;
 
     // The phase of the right LFO is 180 degrees from the left.
@@ -152,9 +153,10 @@ void buildSignalGraph(struct sig_SignalContext* context,
     rightWetDryMixer->inputs.right = rightDelay->outputs.main;
     rightWetDryMixer->inputs.mix = mixKnob->outputs.main;
 
-    rightOut = sig_daisy_AudioOut_new(&allocator, context, host);
+    rightOut = sig_host_AudioOut_new(&allocator, context);
+    rightOut->hardware = &host.device.hardware;
     sig_List_append(&signals, rightOut, status);
-    rightOut->parameters.channel = sig_daisy_AUDIO_OUT_2;
+    rightOut->parameters.channel = sig_host_AUDIO_OUT_2;
     rightOut->inputs.source = rightWetDryMixer->outputs.main;
 }
 
@@ -162,7 +164,7 @@ int main(void) {
     allocator.impl->init(&allocator);
 
     struct sig_AudioSettings audioSettings = {
-        .sampleRate = 48000,
+        .sampleRate = SAMPLERATE,
         .numChannels = 2,
         .blockSize = 48
     };
@@ -171,17 +173,14 @@ int main(void) {
     sig_Status_init(&status);
     sig_List_init(&signals, (void**) &listStorage, MAX_NUM_SIGNALS);
 
-    evaluator = sig_dsp_SignalListEvaluator_new(&allocator, &signals);
-    host = sig_daisy_BluemchenHost_new(&allocator,
-        &audioSettings,
-        &bluemchen,
-        (struct sig_dsp_SignalEvaluator*) evaluator);
-    sig_daisy_Host_registerGlobalHost(host);
-
     struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
         &audioSettings);
+    evaluator = sig_dsp_SignalListEvaluator_new(&allocator, &signals);
+    host.Init(&audioSettings, (struct sig_dsp_SignalEvaluator*) evaluator);
+
     buildSignalGraph(context, &status);
-    host->impl->start(host);
+
+    host.Start();
 
     while (1) {
         UpdateOled();

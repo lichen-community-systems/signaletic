@@ -79,8 +79,8 @@ namespace bifocals {
             ADCController<AnalogInput, NUM_ADC_CHANNELS> adcController;
             Toggle buttons[NUM_BUTTONS];
             InputBank<Toggle, NUM_BUTTONS> buttonBank;
-            AnalogOutput dacChannels[NUM_DAC_CHANNELS];
-            OutputBank<AnalogOutput, NUM_DAC_CHANNELS> dacOutputBank;
+            DMAAnalogOutput dacChannels[NUM_DAC_CHANNELS];
+            OutputBank<DMAAnalogOutput, NUM_DAC_CHANNELS> dacOutputBank;
             struct sig_host_HardwareInterface hardware;
 
             static void onEvaluateSignals(size_t size,

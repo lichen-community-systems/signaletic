@@ -160,7 +160,7 @@ template<typename T, size_t numChannels> class ADCController {
         }
 };
 
-class AnalogOutput {
+class DMAAnalogOutput {
     public:
         uint16_t* dacOutputs;
         size_t channel;
@@ -172,6 +172,23 @@ class AnalogOutput {
 
         inline void Write(float value) {
             dacOutputs[channel] = sig_unipolarToUint12(value);
+        }
+};
+
+class PollingAnalogOutput {
+    public:
+        daisy::DacHandle* dac;
+        size_t channel;
+
+        void Init(daisy::DacHandle* inDAC, size_t inChannel) {
+            dac = inDAC;
+            channel = inChannel;
+        }
+
+        inline void Write(float value) {
+            uint16_t convertedValue = sig_unipolarToUint12(value);
+            dac->WriteValue(static_cast<daisy::DacHandle::Channel>(channel),
+                convertedValue);
         }
 };
 

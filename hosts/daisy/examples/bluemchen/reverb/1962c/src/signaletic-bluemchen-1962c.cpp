@@ -1,14 +1,10 @@
-#include <string>
-#include <tlsf.h>
 #include <libsignaletic.h>
-#include "../../../../include/daisy-bluemchen-host.h"
-
-using namespace kxmx;
-using namespace daisy;
+#include "../../../../include/kxmx-bluemchen-device.hpp"
 
 FixedCapStr<20> displayStr;
 
-#define MAX_DELAY_LINE_LENGTH 96000 // 1 second.
+#define SAMPLERATE 96000
+#define MAX_DELAY_LINE_LENGTH SAMPLERATE * 1 // 1 second.
 #define DELAY_LINE_HEAP_SIZE 63*1024*1024 // Grab nearly the whole SDRAM.
 #define HEAP_SIZE 1024 * 256 // 256KB
 #define MAX_NUM_SIGNALS 32
@@ -37,11 +33,11 @@ struct sig_dsp_Signal* listStorage[MAX_NUM_SIGNALS];
 struct sig_List signals;
 struct sig_dsp_SignalListEvaluator* evaluator;
 
-Bluemchen bluemchen;
-struct sig_daisy_Host* host;
-struct sig_daisy_AudioIn* audioIn;
-struct sig_daisy_FilteredCVIn* delayTimeScaleKnob;
-struct sig_daisy_FilteredCVIn* feedbackGainScaleKnob;
+DaisyHost<kxmx::bluemchen::BluemchenDevice> host;
+
+struct sig_host_AudioIn* audioIn;
+struct sig_host_FilteredCVIn* delayTimeScaleKnob;
+struct sig_host_FilteredCVIn* feedbackGainScaleKnob;
 struct sig_dsp_ConstantValue* apGain;
 struct sig_dsp_ConstantValue* combLPFCoefficient;
 struct sig_DelayLine* dl1;
@@ -71,37 +67,38 @@ struct sig_dsp_Allpass* ap1;
 struct sig_DelayLine* dl6;
 struct sig_dsp_ConstantValue* ap2DelayTime;
 struct sig_dsp_Allpass* ap2;
-struct sig_daisy_AudioOut* leftOut;
+struct sig_host_AudioOut* leftOut;
 struct sig_dsp_Invert* ap2Inverted;
-struct sig_daisy_AudioOut* rightOut;
+struct sig_host_AudioOut* rightOut;
 
 void UpdateOled() {
-    bluemchen.display.Fill(false);
+    host.device.display.Fill(false);
 
     displayStr.Clear();
     displayStr.Append("1962c");
-    bluemchen.display.SetCursor(0, 0);
-    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+    host.device.display.SetCursor(0, 0);
+    host.device.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     displayStr.Clear();
     displayStr.Append("Del ");
     displayStr.AppendFloat(delayTimeScaleKnob->outputs.main[0], 2);
-    bluemchen.display.SetCursor(0, 8);
-    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+    host.device.display.SetCursor(0, 8);
+    host.device.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
     displayStr.Clear();
     displayStr.Append("g ");
     displayStr.AppendFloat(feedbackGainScaleKnob->outputs.main[0], 2);
-    bluemchen.display.SetCursor(0, 16);
-    bluemchen.display.WriteString(displayStr.Cstr(), Font_6x8, true);
-    bluemchen.display.Update();
+    host.device.display.SetCursor(0, 16);
+    host.device.display.WriteString(displayStr.Cstr(), Font_6x8, true);
+    host.device.display.Update();
 }
 
 void buildSignalGraph(struct sig_SignalContext* context,
      struct sig_Status* status) {
-    audioIn = sig_daisy_AudioIn_new(&allocator, context, host);
+    audioIn = sig_host_AudioIn_new(&allocator, context);
+    audioIn->hardware = &host.device.hardware;
     sig_List_append(&signals, audioIn, status);
-    audioIn->parameters.channel = sig_daisy_AUDIO_IN_1;
+    audioIn->parameters.channel = sig_host_AUDIO_IN_1;
 
     // Parameters are from Dodge and Jerse
     // rvt between 1.5 and 2 seconds for a concert hall
@@ -115,18 +112,20 @@ void buildSignalGraph(struct sig_SignalContext* context,
     // (The gains for both all passes calculate as 0.87479,
     // but Schroeder recommends a g of 0.7 for both allpasses).
 
-    delayTimeScaleKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    delayTimeScaleKnob = sig_host_FilteredCVIn_new(&allocator, context);
+    delayTimeScaleKnob->hardware = &host.device.hardware;
     sig_List_append(&signals, delayTimeScaleKnob, status);
-    delayTimeScaleKnob->parameters.control = sig_daisy_Bluemchen_CV_IN_KNOB_1;
+    delayTimeScaleKnob->parameters.control = sig_host_KNOB_1;
     delayTimeScaleKnob->parameters.scale = 99.999f;
     delayTimeScaleKnob->parameters.offset = 0.001f;
     // Lots of smoothing to help with the pitch shift that occurs
     // when modulating a delay line.
     delayTimeScaleKnob->parameters.time = 0.25f;
 
-    feedbackGainScaleKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    feedbackGainScaleKnob = sig_host_FilteredCVIn_new(&allocator, context);
+    feedbackGainScaleKnob->hardware = &host.device.hardware;
     sig_List_append(&signals, feedbackGainScaleKnob, status);
-    feedbackGainScaleKnob->parameters.control = sig_daisy_Bluemchen_CV_IN_KNOB_2;
+    feedbackGainScaleKnob->parameters.control = sig_host_KNOB_2;
     feedbackGainScaleKnob->parameters.scale = 0.999f;
     feedbackGainScaleKnob->parameters.offset = 0.001f;
 
@@ -228,18 +227,20 @@ void buildSignalGraph(struct sig_SignalContext* context,
     ap2->inputs.delayTime = ap2DelayTime->outputs.main;
     ap2->inputs.g = apGain->outputs.main;
 
-    leftOut = sig_daisy_AudioOut_new(&allocator, context, host);
+    leftOut = sig_host_AudioOut_new(&allocator, context);
+    leftOut->hardware = &host.device.hardware;
     sig_List_append(&signals, leftOut, status);
-    leftOut->parameters.channel = sig_daisy_AUDIO_OUT_1;
+    leftOut->parameters.channel = sig_host_AUDIO_OUT_1;
     leftOut->inputs.source = ap2->outputs.main;
 
     ap2Inverted = sig_dsp_Invert_new(&allocator, context);
     sig_List_append(&signals, ap2Inverted, status);
     ap2Inverted->inputs.source = ap2->outputs.main;
 
-    rightOut = sig_daisy_AudioOut_new(&allocator, context, host);
+    rightOut = sig_host_AudioOut_new(&allocator, context);
+    rightOut->hardware = &host.device.hardware;
     sig_List_append(&signals, rightOut, status);
-    rightOut->parameters.channel = sig_daisy_AUDIO_OUT_2;
+    rightOut->parameters.channel = sig_host_AUDIO_OUT_2;
     rightOut->inputs.source = ap2Inverted->outputs.main;
 }
 
@@ -247,7 +248,7 @@ int main(void) {
     allocator.impl->init(&allocator);
 
     struct sig_AudioSettings audioSettings = {
-        .sampleRate = 96000,
+        .sampleRate = SAMPLERATE,
         .numChannels = 2,
         .blockSize = 96
     };
@@ -257,11 +258,7 @@ int main(void) {
     sig_List_init(&signals, (void**) &listStorage, MAX_NUM_SIGNALS);
 
     evaluator = sig_dsp_SignalListEvaluator_new(&allocator, &signals);
-    host = sig_daisy_BluemchenHost_new(&allocator,
-        &audioSettings,
-        &bluemchen,
-        (struct sig_dsp_SignalEvaluator*) evaluator);
-    sig_daisy_Host_registerGlobalHost(host);
+    host.Init(&audioSettings, (struct sig_dsp_SignalEvaluator*) evaluator);
 
     // Can't write to memory in SDRAM until after the board has
     // been initialized.
@@ -270,7 +267,7 @@ int main(void) {
     struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
         &audioSettings);
     buildSignalGraph(context, &status);
-    host->impl->start(host);
+    host.Start();
 
     while (1) {
         UpdateOled();

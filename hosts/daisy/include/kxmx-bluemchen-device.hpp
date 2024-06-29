@@ -73,7 +73,6 @@ namespace bluemchen {
             board.Init(audioSettings->blockSize, audioSettings->sampleRate);
             InitADCController();
 
-            // TODO: Implement support for the encoder.
             hardware = {
                 .evaluator = evaluator,
                 .onEvaluateSignals = onEvaluateSignals,
