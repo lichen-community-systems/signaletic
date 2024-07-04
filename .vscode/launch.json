@@ -315,6 +315,36 @@
         "type": "cortex-debug"
       },
       {
+        "name": "Remote DPT passthrough",
+        "configFiles": [
+          "interface/stlink.cfg",
+          "target/stm32h7x.cfg"
+        ],
+        "cwd": "${workspaceFolder}/hosts/daisy/examples/dpt/passthrough",
+        "debuggerArgs": [
+          "-d",
+          "${workspaceRoot}/hosts/daisy/examples/dpt/passthrough"
+        ],
+        "executable": "${workspaceRoot}/hosts/daisy/examples/dpt/passthrough/build/signaletic-dpt-passthrough.elf",
+        "interface": "swd",
+        "openOCDLaunchCommands": [
+          "init",
+          "reset init"
+        ],
+        "preLaunchTask": "Debug Build DPT Examples",
+        "preRestartCommands": [
+          "load",
+          "enable breakpoint",
+          "monitor reset"
+        ],
+        "request": "launch",
+        "runToEntryPoint": "main",
+        "servertype": "openocd",
+        "showDevDebugOutput": "parsed",
+        "svdFile": "${workspaceRoot}/.vscode/STM32H750x.svd",
+        "type": "cortex-debug"
+      },
+      {
         "name": "Remote DPT lfos",
         "configFiles": [
           "interface/stlink.cfg",

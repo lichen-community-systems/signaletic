@@ -1,5 +1,5 @@
 # Project Name
-TARGET ?= signaletic-dpt-lfos
+TARGET ?= signaletic-dpt-passthrough
 
 DEBUG = 1
 OPT = -O0

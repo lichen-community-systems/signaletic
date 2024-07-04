@@ -1,7 +1,6 @@
 #include <libsignaletic.h>
 #include "../../../../include/lichen-medium-device.hpp"
 
-using namespace lichen::medium;
 using namespace sig::libdaisy;
 
 #define SAMPLERATE 96000
@@ -22,7 +21,7 @@ struct sig_Allocator allocator = {
 struct sig_dsp_Signal* listStorage[MAX_NUM_SIGNALS];
 struct sig_List signals;
 struct sig_dsp_SignalListEvaluator* evaluator;
-DaisyHost<MediumDevice> host;
+DaisyHost<lichen::medium::MediumDevice> host;
 
 struct sig_host_FilteredCVIn* freqKnob;
 struct sig_host_CVIn* freqCV;

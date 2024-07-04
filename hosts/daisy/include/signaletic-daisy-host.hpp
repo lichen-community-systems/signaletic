@@ -28,7 +28,8 @@ static constexpr struct Normalization BI_TO_UNIPOLAR = {
 };
 
 static constexpr struct Normalization INVERT = {
-    .scale = -1.0f
+    .scale = -1.0f,
+    .offset = 0.0f
 };
 
 static constexpr struct Normalization INV_UNI_TO_BIPOLAR = {
