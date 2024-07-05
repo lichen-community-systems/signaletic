@@ -91,8 +91,8 @@ namespace medium {
             InputBank<TriSwitch, NUM_TRISWITCHES> switchBank;
             Toggle buttons[NUM_BUTTONS];
             InputBank<Toggle, NUM_BUTTONS> buttonBank;
-            DMAAnalogOutput dacChannels[NUM_DAC_CHANNELS];
-            OutputBank<DMAAnalogOutput, NUM_DAC_CHANNELS> dacOutputBank;
+            BufferedAnalogOutput dacChannels[NUM_DAC_CHANNELS];
+            OutputBank<BufferedAnalogOutput, NUM_DAC_CHANNELS> dacOutputBank;
             struct sig_host_HardwareInterface hardware;
 
             static void onEvaluateSignals(size_t size,

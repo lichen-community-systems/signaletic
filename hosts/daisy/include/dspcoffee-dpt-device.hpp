@@ -9,6 +9,11 @@
 
 using namespace sig::libdaisy;
 
+struct Normalization DPT_INTERNAL_DAC_NORMALIZATION = {
+    .scale = 0.651f,
+    .offset = -0.348f
+};
+
 enum {
     sig_host_CV_IN_1 = 0,
     sig_host_CV_IN_2,
@@ -95,8 +100,9 @@ namespace dpt {
             InputBank<GateInput, NUM_GATES> gateInputBank;
             GPIOOutput gateOutputs[NUM_GATES];
             OutputBank<GPIOOutput, NUM_GATES> gateOutputBank;
-            DMAAnalogOutput dacChannels[NUM_DAC_CHANNELS];
-            OutputBank<DMAAnalogOutput, NUM_DAC_CHANNELS> dacOutputBank;
+            BipolarInvertedBufferedAnalogOutput dacChannels[NUM_DAC_CHANNELS];
+            OutputBank<BipolarInvertedBufferedAnalogOutput, NUM_DAC_CHANNELS>
+                dacOutputBank;
             struct sig_host_HardwareInterface hardware;
 
             static void onEvaluateSignals(size_t size,
@@ -177,14 +183,6 @@ namespace dpt {
             }
 
             void InitADCController() {
-                // TODO: Scale DPT CV outputs so that they're all in
-                // a normalized range (e.g. -4V to +4V).
-                // Currently, I think, they're outputting -4.67V to 7.96V)
-                //static constexpr struct Normalization DPT_TO_8VPP = {
-                //     .scale = ??f,
-                //     .offset = ??f
-                // };
-
                 adcController.Init(&board.adc, ADC_CHANNEL_SPECS);
             }
 
@@ -193,12 +191,13 @@ namespace dpt {
                 // here. A better architecture would allow for
                 // multiple DAC (and ADC) instances.
                 for (size_t i = 0; i < NUM_INTERNAL_DAC_CHANNELS; i++) {
-                    dacChannels[i].Init(board.dacOutputValues, i);
+                    dacChannels[i].Init(board.dacOutputValues, i,
+                        DPT_INTERNAL_DAC_NORMALIZATION);
                 }
 
                 for (size_t i = 0; i < NUM_EXTERNAL_DAC_CHANNELS; i++) {
                     size_t j = NUM_INTERNAL_DAC_CHANNELS + i;
-                    dacChannels[j].Init(externalDACBuffer, i);
+                    dacChannels[j].Init(externalDACBuffer, i, NO_NORMALIZATION);
                 }
 
                 dacOutputBank.outputs = dacChannels;

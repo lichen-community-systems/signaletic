@@ -161,33 +161,58 @@ template<typename T, size_t numChannels> class ADCController {
         }
 };
 
-class DMAAnalogOutput {
+class BaseAnalogOutput {
+    public:
+        float scale = 1.0f;
+        float offset = 0.0f;
+};
+
+class BufferedAnalogOutput : public BaseAnalogOutput{
     public:
         uint16_t* dacOutputs;
         size_t channel;
 
-        void Init(uint16_t* inDACOutputs, size_t inChannel) {
+        void Init(uint16_t* inDACOutputs, size_t inChannel,
+            struct Normalization normalization = NO_NORMALIZATION) {
             dacOutputs = inDACOutputs;
             channel = inChannel;
+            scale = normalization.scale;
+            offset = normalization.offset;
         }
 
         inline void Write(float value) {
-            dacOutputs[channel] = sig_unipolarToUint12(value);
+            float normalizedValue = value * scale + offset;
+            dacOutputs[channel] = sig_unipolarToUint12(normalizedValue);
         }
 };
 
-class PollingAnalogOutput {
+// TODO: Probably worth parameterizing the write strategy,
+// though it will make for quite long templated definitions,
+// e.g. OutputBank<AnalogOutput<BipolarInvertedWriter>> dacOutputBank;
+class BipolarInvertedBufferedAnalogOutput : public BufferedAnalogOutput{
+    public:
+        inline void Write(float value) {
+            float normalizedValue = value * scale + offset;
+            dacOutputs[channel] = sig_bipolarToInvUint12(normalizedValue);
+        }
+};
+
+class PollingAnalogOutput : public BaseAnalogOutput {
     public:
         daisy::DacHandle* dac;
         size_t channel;
 
-        void Init(daisy::DacHandle* inDAC, size_t inChannel) {
+        void Init(daisy::DacHandle* inDAC, size_t inChannel,
+            struct Normalization normalization = NO_NORMALIZATION) {
             dac = inDAC;
             channel = inChannel;
+            scale = normalization.scale;
+            offset = normalization.offset;
         }
 
         inline void Write(float value) {
-            uint16_t convertedValue = sig_unipolarToUint12(value);
+            float normalizedValue = value * scale + offset;
+            uint16_t convertedValue = sig_unipolarToUint12(normalizedValue);
             dac->WriteValue(static_cast<daisy::DacHandle::Channel>(channel),
                 convertedValue);
         }
