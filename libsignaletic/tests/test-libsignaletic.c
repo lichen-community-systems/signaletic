@@ -211,7 +211,7 @@ void test_sig_fillWithSilence(void) {
     testAssertBufferIsSilent(&allocator, buffer, 16);
 }
 
-void test_sig_AudioSettings_new() {
+void test_sig_AudioSettings_new(void) {
     struct sig_AudioSettings* s = sig_AudioSettings_new(&allocator);
 
     TEST_ASSERT_EQUAL_FLOAT_MESSAGE(sig_DEFAULT_AUDIOSETTINGS.sampleRate,
@@ -226,7 +226,7 @@ void test_sig_AudioSettings_new() {
     sig_AudioSettings_destroy(&allocator, s);
 }
 
-void test_sig_samplesToSeconds() {
+void test_sig_samplesToSeconds(void) {
     struct sig_AudioSettings* s = sig_AudioSettings_new(&allocator);
 
     size_t expected = 48000;
@@ -787,17 +787,17 @@ void testClockDetector_SingleWaveform(sig_waveform_generator waveform,
     WaveformPlayer_destroy(clockPlayer);
 }
 
-void test_sig_dsp_ClockDetector_square() {
+void test_sig_dsp_ClockDetector_square(void) {
     // Square wave, 2Hz for two seconds.
     testClockDetector_SingleWaveform(sig_waveform_square, 2.0f, 2.0f);
 }
 
-void test_sig_dsp_ClockDetector_sine() {
+void test_sig_dsp_ClockDetector_sine(void) {
     // Sine wave, 10 Hz.
     testClockDetector_SingleWaveform(sig_waveform_sine, 2.0f, 10.0f);
 }
 
-void test_sig_dsp_ClockDetector_slowDown() {
+void test_sig_dsp_ClockDetector_slowDown(void) {
     float bufferDuration = 2.0f;
     size_t bufferLen = (size_t) (audioSettings->sampleRate * bufferDuration);
     size_t halfBufferLen = bufferLen / 2;
@@ -827,14 +827,14 @@ void test_sig_dsp_ClockDetector_slowDown() {
     sig_test_BufferPlayer_destroy(&allocator, clockPlayer);
 }
 
-void test_sig_dsp_ClockDetector_stop() {
+void test_sig_dsp_ClockDetector_stop(void) {
     float bufferDuration = 122.0f;
     float clockDuration = 1.0f;
     size_t bufferLen = (size_t) (audioSettings->sampleRate * bufferDuration);
     size_t clockSectionLen = (size_t)
         (audioSettings->sampleRate * clockDuration);
     size_t silentSectionLen = (size_t)
-        audioSettings->sampleRate * (bufferDuration - clockDuration);
+        (audioSettings->sampleRate * (bufferDuration - clockDuration));
     float clockFreq = 10.0f;
 
     struct sig_Buffer* waveformBuffer = sig_Buffer_new(&allocator, bufferLen);

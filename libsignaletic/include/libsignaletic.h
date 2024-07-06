@@ -1068,7 +1068,7 @@ float sig_DelayLine_allpass(struct sig_DelayLine* self, float sample,
     size_t readPos, float g);
 
 float sig_DelayLine_linearAllpass(struct sig_DelayLine* self,
-    float sample, size_t readPos, float g);
+    float sample, float readPos, float g);
 
 float sig_DelayLine_cubicAllpass(struct sig_DelayLine* self, float sample,
     float readPos, float g);

@@ -83,33 +83,33 @@ inline float sig_linearMap(float value,
     return (value - fromMin) * (toMax - toMin) / (fromMax - fromMin) + toMin;
 }
 
-inline uint16_t sig_unipolarToUint12(float sample) {
+extern inline uint16_t sig_unipolarToUint12(float sample) {
     return (uint16_t) (sample * 4095.0f);
 }
 
-inline uint16_t sig_bipolarToUint12(float sample) {
+extern inline uint16_t sig_bipolarToUint12(float sample) {
     float normalized = sample * 0.5 + 0.5;
     return (uint16_t) (normalized * 4095.0f);
 }
 
-inline uint16_t sig_bipolarToInvUint12(float sample) {
+extern inline uint16_t sig_bipolarToInvUint12(float sample) {
     return sig_bipolarToUint12(-sample);
 }
 
-inline float sig_uint16ToBipolar(uint16_t sample) {
+extern inline float sig_uint16ToBipolar(uint16_t sample) {
     float normalized = (float) (sample / 65535.0f);
     float scaled = normalized * 2.0f - 1.0f;
 
     return scaled;
 }
 
-inline float sig_uint16ToUnipolar(uint16_t sample) {
+extern inline float sig_uint16ToUnipolar(uint16_t sample) {
     float normalized = (float) (sample / 65535.0f);
 
     return normalized;
 }
 
-inline float sig_invUint16ToBipolar(uint16_t sample) {
+extern inline float sig_invUint16ToBipolar(uint16_t sample) {
     return -sig_uint16ToBipolar(sample);
 }
 
@@ -922,7 +922,7 @@ inline float sig_DelayLine_allpass(struct sig_DelayLine* self, float sample,
 }
 
 inline float sig_DelayLine_linearAllpass(struct sig_DelayLine* self,
-    float sample, size_t readPos, float g) {
+    float sample, float readPos, float g) {
     sig_DelayLine_allpass_IMPL(self, sample, readPos, g,
         sig_DelayLine_linearReadAt);
 }
@@ -3114,8 +3114,8 @@ void sig_dsp_TiltEQ_init(struct sig_dsp_TiltEQ* self,
 
 void sig_dsp_TiltEQ_generate(void* signal) {
     struct sig_dsp_TiltEQ* self = (struct sig_dsp_TiltEQ*) signal;
-    float amp = 8.656170; // 6.0f / log(2)
-    float gfactor = 5.0; // Proportional gain.
+    float amp = 8.656170f; // 6.0f / log(2)
+    float gfactor = 5.0f; // Proportional gain.
     float sr3 = self->sr3;
     float lpOut = self->lpOut;
 
@@ -3328,7 +3328,7 @@ void sig_dsp_Comb_generate(void* signal) {
             readPos = maxDelayLength - 1;
         }
 
-        delayTime = sig_fmaxf(delayTime, 0.00001); // Delay time can't be zero.
+        delayTime = sig_fmaxf(delayTime, 0.00001f); // Delay time can't be zero.
         float read = sig_DelayLine_linearReadAt(self->delayLine, readPos);
         float outputSample = sig_filter_smooth(read, self->previousSample,
             lpfCoefficient);
