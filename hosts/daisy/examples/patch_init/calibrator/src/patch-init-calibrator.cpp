@@ -1,7 +1,7 @@
-#include "daisy.h"
 #include <libsignaletic.h>
-#include "../../../../include/daisy-patch-sm-host.h"
+#include "../../../../include/electrosmith-patch-init-device.hpp"
 
+#define SAMPLERATE 48000
 #define HEAP_SIZE 1024 * 256 // 256KB
 #define MAX_NUM_SIGNALS 32
 
@@ -16,31 +16,31 @@ struct sig_Allocator allocator = {
     .heap = &heap
 };
 
-daisy::patch_sm::DaisyPatchSM patchInit;
-
 struct sig_dsp_Signal* listStorage[MAX_NUM_SIGNALS];
 struct sig_List signals;
 struct sig_dsp_SignalListEvaluator* evaluator;
-struct sig_daisy_Host* host;
+sig::libdaisy::DaisyHost<electrosmith::patchinit::PatchInitDevice> host;
 
 struct sig_dsp_ConstantValue* ampScale;
-struct sig_daisy_SwitchIn* button;
-struct sig_daisy_CVIn* cv1In;
+struct sig_host_SwitchIn* button;
+struct sig_host_CVIn* cv1In;
 struct sig_dsp_Calibrator* cv1Calibrator;
 struct sig_dsp_Oscillator* sine1;
 struct sig_dsp_LinearToFreq* sine1Voct;
-struct sig_daisy_AudioOut* audio1Out;
-struct sig_daisy_AudioOut* audio2Out;
+struct sig_host_AudioOut* audio1Out;
+struct sig_host_AudioOut* audio2Out;
 
 
 void buildGraph(struct sig_SignalContext* context, struct sig_Status* status) {
-    button = sig_daisy_SwitchIn_new(&allocator, context, host);
+    button = sig_host_SwitchIn_new(&allocator, context);
+    button->hardware = &host.device.hardware;
     sig_List_append(&signals, button, status);
-    button->parameters.control = sig_daisy_PatchSM_SWITCH_1;
+    button->parameters.control = sig_host_TOGGLE_1;
 
-    cv1In = sig_daisy_CVIn_new(&allocator, context, host);
+    cv1In = sig_host_CVIn_new(&allocator, context);
+    cv1In->hardware = &host.device.hardware;
     sig_List_append(&signals, cv1In, status);
-    cv1In->parameters.control = sig_daisy_PatchInit_CV_IN_1;
+    cv1In->parameters.control = sig_host_CV_IN_1;
     cv1In->parameters.scale = 5.0f;
 
     cv1Calibrator = sig_dsp_Calibrator_new(&allocator, context);
@@ -59,16 +59,17 @@ void buildGraph(struct sig_SignalContext* context, struct sig_Status* status) {
     sine1->inputs.freq = sine1Voct->outputs.main;
     sine1->inputs.mul = ampScale->outputs.main;
 
-    audio1Out = sig_daisy_AudioOut_new(&allocator, context, host);
+    audio1Out = sig_host_AudioOut_new(&allocator, context);
+    audio1Out->hardware = &host.device.hardware;
     sig_List_append(&signals, audio1Out, status);
-    audio1Out->parameters.channel = sig_daisy_AUDIO_OUT_1;
+    audio1Out->parameters.channel = sig_host_AUDIO_OUT_1;
     audio1Out->inputs.source = sine1->outputs.main;
 
-    audio2Out = sig_daisy_AudioOut_new(&allocator, context, host);
+    audio2Out = sig_host_AudioOut_new(&allocator, context);
+    audio2Out->hardware = &host.device.hardware;
     sig_List_append(&signals, audio2Out, status);
-    audio2Out->parameters.channel = sig_daisy_AUDIO_OUT_2;
+    audio2Out->parameters.channel = sig_host_AUDIO_OUT_2;
     audio2Out->inputs.source = sine1->outputs.main;
-
 }
 
 int main(void) {
@@ -79,7 +80,7 @@ int main(void) {
     sig_List_init(&signals, (void**) &listStorage, MAX_NUM_SIGNALS);
 
     struct sig_AudioSettings audioSettings = {
-        .sampleRate = 48000,
+        .sampleRate = SAMPLERATE,
         .numChannels = 2,
         .blockSize = 48
     };
@@ -87,13 +88,11 @@ int main(void) {
     struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
         &audioSettings);
     evaluator = sig_dsp_SignalListEvaluator_new(&allocator, &signals);
-    host = sig_daisy_PatchSMHost_new(&allocator,
-        &audioSettings, &patchInit,
-        (struct sig_dsp_SignalEvaluator*) evaluator);
-    sig_daisy_Host_registerGlobalHost(host);
+    host.Init(&audioSettings, (struct sig_dsp_SignalEvaluator*) evaluator);
+
     buildGraph(context, &status);
 
-    host->impl->start(host);
+    host.Start();
 
     while (1) {}
 }

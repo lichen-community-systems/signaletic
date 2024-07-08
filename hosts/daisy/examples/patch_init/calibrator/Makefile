@@ -5,11 +5,11 @@ DEBUG = 1
 OPT = -O0
 
 # Sources
-C_SOURCES += ../../../../../libsignaletic/vendor/tlsf/tlsf.c ../../../../../libsignaletic/src/libsignaletic.c
+C_SOURCES += ../../../../../libsignaletic/vendor/tlsf/tlsf.c ../../../../../libsignaletic/src/libsignaletic.c ../../../src/signaletic-host.c
 C_INCLUDES += -I../../../../../libsignaletic/vendor/tlsf -I../../../../../libsignaletic/include
 
 CPP_INCLUDES += -I../vendor/lib -I../../../vendor/lib/dev -I../../../include
-CPP_SOURCES = src/${TARGET}.cpp ../../../src/signaletic-daisy-host.cpp ../../../src/daisy-patch-sm-host.cpp
+CPP_SOURCES = ../../../src/signaletic-daisy-host.cpp ../../../src/sig-daisy-patch-sm.cpp src/${TARGET}.cpp
 
 USE_FATFS = 0
 

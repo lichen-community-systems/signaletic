@@ -1,6 +1,5 @@
-#include "daisy.h"
 #include <libsignaletic.h>
-#include "../../../../include/daisy-patch-sm-host.h"
+#include "../../../../include/electrosmith-patch-init-device.hpp"
 
 #define SAMPLERATE 96000
 #define DELAY_LINE_LENGTH SAMPLERATE
@@ -41,9 +40,7 @@ struct sig_Allocator allocator = {
 struct sig_dsp_Signal* listStorage[MAX_NUM_SIGNALS];
 struct sig_List signals;
 struct sig_dsp_SignalListEvaluator* evaluator;
-
-daisy::patch_sm::DaisyPatchSM patchInit;
-struct sig_daisy_Host* host;
+sig::libdaisy::DaisyHost<electrosmith::patchinit::PatchInitDevice> host;
 
 struct sig_dsp_ConstantValue* blend;
 struct sig_dsp_ConstantValue* feedforward;
@@ -51,17 +48,17 @@ struct sig_dsp_ConstantValue* feedback;
 struct sig_dsp_ConstantValue* delayTime;
 struct sig_dsp_ConstantValue* modulationSpeed;
 struct sig_dsp_ConstantValue* modulationWidth;
-struct sig_daisy_FilteredCVIn* blendKnob;
-struct sig_daisy_FilteredCVIn* feedForwardKnob;
-struct sig_daisy_FilteredCVIn* feedbackKnob;
-struct sig_daisy_FilteredCVIn* delayTimeKnob;
+struct sig_host_FilteredCVIn* blendKnob;
+struct sig_host_FilteredCVIn* feedForwardKnob;
+struct sig_host_FilteredCVIn* feedbackKnob;
+struct sig_host_FilteredCVIn* delayTimeKnob;
 struct sig_dsp_Chorus* leftChorus;
 struct sig_dsp_Chorus* rightChorus;
-struct sig_daisy_AudioIn* leftIn;
-struct sig_daisy_AudioIn* rightIn;
-struct sig_daisy_AudioOut* leftOut;
-struct sig_daisy_AudioOut* rightOut;
-struct sig_daisy_CVOut* modulatorLEDOut;
+struct sig_host_AudioIn* leftIn;
+struct sig_host_AudioIn* rightIn;
+struct sig_host_AudioOut* leftOut;
+struct sig_host_AudioOut* rightOut;
+struct sig_host_CVOut* modulatorLEDOut;
 
 void buildSignalGraph(struct sig_SignalContext* context,
     struct sig_Status* status) {
@@ -79,27 +76,32 @@ void buildSignalGraph(struct sig_SignalContext* context,
     modulationWidth = sig_dsp_ConstantValue_new(&allocator, context,
         0.007936507936508f); // ~8ms. Dattoro Part 2 p776.
 
-    blendKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    blendKnob = sig_host_FilteredCVIn_new(&allocator, context);
+    blendKnob->hardware = &host.device.hardware;
     sig_List_append(&signals, blendKnob, status);
-    blendKnob->parameters.control = sig_daisy_PatchInit_KNOB_1;
+    blendKnob->parameters.control = sig_host_KNOB_1;
 
-    delayTimeKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    delayTimeKnob = sig_host_FilteredCVIn_new(&allocator, context);
+    delayTimeKnob->hardware = &host.device.hardware;
     sig_List_append(&signals, delayTimeKnob, status);
-    delayTimeKnob->parameters.control = sig_daisy_PatchInit_KNOB_2;
+    delayTimeKnob->parameters.control = sig_host_KNOB_2;
 
-    feedForwardKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    feedForwardKnob = sig_host_FilteredCVIn_new(&allocator, context);
+    feedForwardKnob->hardware = &host.device.hardware;
     sig_List_append(&signals, feedForwardKnob, status);
-    feedForwardKnob->parameters.control = sig_daisy_PatchInit_KNOB_3;
+    feedForwardKnob->parameters.control = sig_host_KNOB_3;
 
-    feedbackKnob = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    feedbackKnob = sig_host_FilteredCVIn_new(&allocator, context);
+    feedbackKnob->hardware = &host.device.hardware;
     sig_List_append(&signals, feedbackKnob, status);
-    feedbackKnob->parameters.control = sig_daisy_PatchInit_KNOB_4;
+    feedbackKnob->parameters.control = sig_host_KNOB_4;
     feedbackKnob->parameters.scale = 2.0f;
     feedbackKnob->parameters.offset = -1.0f;
 
-    leftIn = sig_daisy_AudioIn_new(&allocator, context, host);
+    leftIn = sig_host_AudioIn_new(&allocator, context);
+    leftIn->hardware = &host.device.hardware;
     sig_List_append(&signals, leftIn, status);
-    leftIn->parameters.channel = 0;
+    leftIn->parameters.channel = sig_host_AUDIO_IN_1;
 
     leftChorus = sig_dsp_Chorus_new(&allocator, context);
     sig_List_append(&signals, leftChorus, status);
@@ -113,9 +115,10 @@ void buildSignalGraph(struct sig_SignalContext* context,
     leftChorus->inputs.speed = modulationSpeed->outputs.main;
     leftChorus->inputs.width = modulationWidth->outputs.main;
 
-    rightIn = sig_daisy_AudioIn_new(&allocator, context, host);
+    rightIn = sig_host_AudioIn_new(&allocator, context);
+    rightIn->hardware = &host.device.hardware;
     sig_List_append(&signals, rightIn, status);
-    rightIn->parameters.channel = 1;
+    rightIn->parameters.channel = sig_host_AUDIO_IN_2;
 
     rightChorus = sig_dsp_Chorus_new(&allocator, context);
     sig_List_append(&signals, rightChorus, status);
@@ -129,19 +132,22 @@ void buildSignalGraph(struct sig_SignalContext* context,
     rightChorus->inputs.speed = modulationSpeed->outputs.main;
     rightChorus->inputs.width = modulationWidth->outputs.main;
 
-    leftOut = sig_daisy_AudioOut_new(&allocator, context, host);
+    leftOut = sig_host_AudioOut_new(&allocator, context);
+    leftOut->hardware = &host.device.hardware;
     sig_List_append(&signals, leftOut, status);
-    leftOut->parameters.channel = sig_daisy_AUDIO_OUT_1;
+    leftOut->parameters.channel = sig_host_AUDIO_OUT_1;
     leftOut->inputs.source = leftChorus->outputs.main;
 
-    rightOut = sig_daisy_AudioOut_new(&allocator, context, host);
+    rightOut = sig_host_AudioOut_new(&allocator, context);
+    rightOut->hardware = &host.device.hardware;
     sig_List_append(&signals, rightOut, status);
-    rightOut->parameters.channel = sig_daisy_AUDIO_OUT_2;
+    rightOut->parameters.channel = sig_host_AUDIO_OUT_2;
     rightOut->inputs.source = rightChorus->outputs.main;
 
-    modulatorLEDOut = sig_daisy_CVOut_new(&allocator, context, host);
+    modulatorLEDOut = sig_host_CVOut_new(&allocator, context);
+    modulatorLEDOut->hardware = &host.device.hardware;
     sig_List_append(&signals, modulatorLEDOut, status);
-    modulatorLEDOut->parameters.control = sig_daisy_PatchInit_LED;
+    modulatorLEDOut->parameters.control = sig_host_CV_OUT_2;
     modulatorLEDOut->inputs.source = leftChorus->outputs.modulator;
     modulatorLEDOut->parameters.scale = 0.5f;
     modulatorLEDOut->parameters.offset = 0.5f;
@@ -160,18 +166,14 @@ int main(void) {
     sig_Status_init(&status);
     sig_List_init(&signals, (void**) &listStorage, MAX_NUM_SIGNALS);
 
-    evaluator = sig_dsp_SignalListEvaluator_new(&allocator, &signals);
-    host = sig_daisy_PatchSMHost_new(&allocator,
-        &audioSettings, &patchInit,
-        (struct sig_dsp_SignalEvaluator*) evaluator);
-    sig_daisy_Host_registerGlobalHost(host);
-
     struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
         &audioSettings);
+    evaluator = sig_dsp_SignalListEvaluator_new(&allocator, &signals);
+    host.Init(&audioSettings, (struct sig_dsp_SignalEvaluator*) evaluator);
+
     buildSignalGraph(context, &status);
-    host->impl->start(host);
 
-    while (1) {
+    host.Start();
 
-    }
+    while (1) {}
 }
