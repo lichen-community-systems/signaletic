@@ -2987,7 +2987,7 @@ void sig_dsp_Ladder_init(
     };
     self->parameters = parameters;
 
-    self->interpolation = 2;
+    self->interpolation = 4;
     self->interpolationRecip = 1.0f / self->interpolation;
     self->alpha = 1.0f;
     self->beta[0] = self->beta[1] = self->beta[2] = self->beta[3] = 0.0f;
@@ -3039,7 +3039,7 @@ void sig_dsp_Ladder_generate(void* signal) {
         float input = FLOAT_ARRAY(self->inputs.source)[i];
         float frequency = FLOAT_ARRAY(self->inputs.frequency)[i];
         float resonance = FLOAT_ARRAY(self->inputs.resonance)[i];
-        float totals[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        float totals[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
         float interp = 0.0f;
 
         // Recalculate coefficients if the frequency has changed.
@@ -3051,33 +3051,30 @@ void sig_dsp_Ladder_generate(void* signal) {
         self->k = 4.0f * resonance;
 
         for (size_t os = 0; os < self->interpolation; os++) {
-            float u = (interp * self->prevInput + (1.0f - interp) * input) -
-                (self->z1[3] - self->parameters.passbandGain * input) *
-                self->k * self->qAdjust;
+            float inInterp = interp * self->prevInput + (1.0f - interp) * input;
+            float u = inInterp - (self->z1[3] - self->parameters.passbandGain *
+                inInterp) * self->k * self->qAdjust;
             u = sig_fastTanhf(u);
-            float stage1 = sig_dsp_Ladder_calcStage(self,
-                u, 0);
-            totals[0] += stage1 * interpolationRecip;
-            float stage2 = sig_dsp_Ladder_calcStage(self,
-                stage1, 1);
-            totals[1] += stage2 * interpolationRecip;
-            float stage3 = sig_dsp_Ladder_calcStage(self,
-                stage2, 2);
-            totals[2] += stage3 * interpolationRecip;
-            float stage4 = sig_dsp_Ladder_calcStage(self,
-                stage3, 3);
-            totals[3] += stage4 * interpolationRecip;
+            totals[0] = u;
+            float stage1 = sig_dsp_Ladder_calcStage(self, u, 0);
+            totals[1] += stage1 * interpolationRecip;
+            float stage2 = sig_dsp_Ladder_calcStage(self, stage1, 1);
+            totals[2] += stage2 * interpolationRecip;
+            float stage3 = sig_dsp_Ladder_calcStage(self, stage2, 2);
+            totals[3] += stage3 * interpolationRecip;
+            float stage4 = sig_dsp_Ladder_calcStage(self, stage3, 3);
+            totals[4] += stage4 * interpolationRecip;
             interp += interpolationRecip;
         }
         self->prevInput = input;
         FLOAT_ARRAY(self->outputs.main)[i] =
-            (input * FLOAT_ARRAY(self->inputs.inputGain)[i]) +
-            (totals[0] * FLOAT_ARRAY(self->inputs.pole1Gain)[i]) +
-            (totals[1] * FLOAT_ARRAY(self->inputs.pole2Gain)[i]) +
-            (totals[2] * FLOAT_ARRAY(self->inputs.pole3Gain)[i]) +
-            (totals[3] * FLOAT_ARRAY(self->inputs.pole4Gain)[i]);
-        FLOAT_ARRAY(self->outputs.twoPole)[i] = totals[1];
-        FLOAT_ARRAY(self->outputs.fourPole)[i] = totals[3];
+            (totals[0] * FLOAT_ARRAY(self->inputs.inputGain)[i]) +
+            (totals[1] * FLOAT_ARRAY(self->inputs.pole1Gain)[i]) +
+            (totals[2] * FLOAT_ARRAY(self->inputs.pole2Gain)[i]) +
+            (totals[3] * FLOAT_ARRAY(self->inputs.pole3Gain)[i]) +
+            (totals[4] * FLOAT_ARRAY(self->inputs.pole4Gain)[i]);
+        FLOAT_ARRAY(self->outputs.twoPole)[i] = totals[2];
+        FLOAT_ARRAY(self->outputs.fourPole)[i] = totals[4];
     }
 }
 

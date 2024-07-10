@@ -295,7 +295,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     gainCV->hardware = &host.device.hardware;
     sig_List_append(&signals, gainCV, status);
     gainCV->parameters.control = sig_host_CV_IN_4;
-    gainCV->parameters.scale = 2.0f;
+    gainCV->parameters.scale = 2.5f;
 
     gain = sig_dsp_Add_new(&allocator, context);
     sig_List_append(&signals, gain, status);
