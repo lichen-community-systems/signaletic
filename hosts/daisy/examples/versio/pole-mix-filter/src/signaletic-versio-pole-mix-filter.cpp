@@ -49,13 +49,10 @@ Knob Scaling:
   Pole 3 (D): -8..0 (should be -32..0)
   Pole 4 (E): 0..4 (should be 0..16)
 */
-#include <string>
-#include <tlsf.h>
 #include <libsignaletic.h>
-#include "../../../../include/daisy-versio-host.h"
+#include "../../../../include/ne-versio-device.hpp"
 
-using namespace daisy;
-
+#define SAMPLERATE 96000
 #define HEAP_SIZE 1024 * 256 // 256KB
 #define MAX_NUM_SIGNALS 32
 
@@ -74,49 +71,48 @@ struct sig_dsp_Signal* listStorage[MAX_NUM_SIGNALS];
 struct sig_List signals;
 struct sig_dsp_SignalListEvaluator* evaluator;
 
-DaisyVersio versio;
-struct sig_daisy_Host* host;
+sig::libdaisy::DaisyHost<ne::versio::VersioDevice> host;
 
-struct sig_daisy_FilteredCVIn* frequencyCV;
-struct sig_daisy_FilteredCVIn* resonance;
-struct sig_daisy_FilteredCVIn* frequencySkewCV;
-struct sig_daisy_TriSwitchIn* a;
-struct sig_daisy_FilteredCVIn* b;
-struct sig_daisy_FilteredCVIn* c;
-struct sig_daisy_FilteredCVIn* d;
-struct sig_daisy_FilteredCVIn* e;
+struct sig_host_FilteredCVIn* frequencyCV;
+struct sig_host_FilteredCVIn* resonance;
+struct sig_host_FilteredCVIn* frequencySkewCV;
+struct sig_host_TriSwitchIn* a;
+struct sig_host_FilteredCVIn* b;
+struct sig_host_FilteredCVIn* c;
+struct sig_host_FilteredCVIn* d;
+struct sig_host_FilteredCVIn* e;
 struct sig_dsp_Abs* rectifiedSkew;
 struct sig_dsp_BinaryOp* frequencyCVSkewAdder;
 struct sig_dsp_Branch* leftFrequencyCVSkewed;
 struct sig_dsp_LinearToFreq* leftFrequency;
 struct sig_dsp_Branch* rightFrequencyCVSkewed;
 struct sig_dsp_LinearToFreq* rightFrequency;
-struct sig_daisy_AudioIn* leftIn;
-struct sig_daisy_AudioIn* rightIn;
+struct sig_host_AudioIn* leftIn;
+struct sig_host_AudioIn* rightIn;
+struct sig_dsp_ConstantValue* preGain;
+struct sig_dsp_BinaryOp* leftVCA;
+struct sig_dsp_BinaryOp* rightVCA;
 struct sig_dsp_Ladder* leftFilter;
 struct sig_dsp_Ladder* rightFilter;
 struct sig_dsp_Tanh* leftSaturation;
 struct sig_dsp_Tanh* rightSaturation;
-struct sig_daisy_AudioOut* leftOut;
-struct sig_daisy_AudioOut* rightOut;
-
+struct sig_host_AudioOut* leftOut;
+struct sig_host_AudioOut* rightOut;
 
 void buildSignalGraph(struct sig_SignalContext* context,
      struct sig_Status* status) {
-    // Versio controls are all unipolar,
-    // so they need to be scaled to bipolar values.
-    frequencyCV = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    frequencyCV = sig_host_FilteredCVIn_new(&allocator, context);
+    frequencyCV->hardware = &host.device.hardware;
     sig_List_append(&signals, frequencyCV, status);
-    frequencyCV->parameters.control = sig_daisy_Versio_CV_IN_1;
-    frequencyCV->parameters.scale = 10.0f;
-    frequencyCV->parameters.offset = -5.0f;
+    frequencyCV->parameters.control = sig_host_CV_IN_1;
+    frequencyCV->parameters.scale = 5.0f;
     frequencyCV->parameters.time = 0.1f;
 
-    frequencySkewCV = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    frequencySkewCV = sig_host_FilteredCVIn_new(&allocator, context);
+    frequencySkewCV->hardware = &host.device.hardware;
     sig_List_append(&signals, frequencySkewCV, status);
-    frequencySkewCV->parameters.control = sig_daisy_Versio_CV_IN_7;
-    frequencySkewCV->parameters.scale = 5.0f;
-    frequencySkewCV->parameters.offset = -2.5f;
+    frequencySkewCV->parameters.control = sig_host_CV_IN_7;
+    frequencySkewCV->parameters.scale = 2.5f;
     frequencySkewCV->parameters.time = 0.1f;
 
     rectifiedSkew = sig_dsp_Abs_new(&allocator, context);
@@ -148,48 +144,66 @@ void buildSignalGraph(struct sig_SignalContext* context,
     sig_List_append(&signals, rightFrequency, status);
     rightFrequency->inputs.source = rightFrequencyCVSkewed->outputs.main;
 
-    resonance = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    resonance = sig_host_FilteredCVIn_new(&allocator, context);
+    resonance->hardware = &host.device.hardware;
     sig_List_append(&signals, resonance, status);
-    resonance->parameters.control = sig_daisy_Versio_CV_IN_5;
-    resonance->parameters.scale = 1.8f;
+    resonance->parameters.control = sig_host_CV_IN_5;
+    resonance->parameters.scale = 0.9f;
+    resonance->parameters.offset = 0.9f;
 
-    a = sig_daisy_TriSwitchIn_new(&allocator, context, host);
+    a = sig_host_TriSwitchIn_new(&allocator, context);
+    a->hardware = &host.device.hardware;
     sig_List_append(&signals, a, status);
-    a->parameters.control = sig_daisy_Versio_TRI_SWITCH_1;
+    a->parameters.control = sig_host_TRISWITCH_1;
 
-    b = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    b = sig_host_FilteredCVIn_new(&allocator, context);
+    b->hardware = &host.device.hardware;
     sig_List_append(&signals, b, status);
-    b->parameters.control = sig_daisy_Versio_CV_IN_2;
-    b->parameters.scale = -8.0f;
+    b->parameters.control = sig_host_CV_IN_2;
+    b->parameters.scale = -4.0f;
+    b->parameters.offset = -4.0f;
     b->parameters.time = 0.1f;
 
-    c = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    c = sig_host_FilteredCVIn_new(&allocator, context);
+    c->hardware = &host.device.hardware;
     sig_List_append(&signals, c, status);
-    c->parameters.control = sig_daisy_Versio_CV_IN_3;
-    c->parameters.scale = 24.0f;
+    c->parameters.control = sig_host_CV_IN_3;
+    c->parameters.scale = 12.0f;
+    c->parameters.offset = 12.0f;
     c->parameters.time = 0.1f;
 
-    d = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    d = sig_host_FilteredCVIn_new(&allocator, context);
+    d->hardware = &host.device.hardware;
     sig_List_append(&signals, d, status);
-    d->parameters.control = sig_daisy_Versio_CV_IN_6;
-    d->parameters.scale = -32.0f;
+    d->parameters.control = sig_host_CV_IN_6;
+    d->parameters.scale = -16.0f;
+    d->parameters.offset = -16.0f;
     d->parameters.time = 0.1f;
 
-    e = sig_daisy_FilteredCVIn_new(&allocator, context, host);
+    e = sig_host_FilteredCVIn_new(&allocator, context);
+    e->hardware = &host.device.hardware;
     sig_List_append(&signals, e, status);
-    e->parameters.control = sig_daisy_Versio_CV_IN_4;
-    e->parameters.scale = 16.0f;
+    e->parameters.control = sig_host_CV_IN_4;
+    e->parameters.scale = 8.0f;
+    e->parameters.offset = 8.0f;
     e->parameters.time = 0.1f;
 
-    leftIn = sig_daisy_AudioIn_new(&allocator, context, host);
+    leftIn = sig_host_AudioIn_new(&allocator, context);
+    leftIn->hardware = &host.device.hardware;
     sig_List_append(&signals, leftIn, status);
-    leftIn->parameters.channel = 0;
+    leftIn->parameters.channel = sig_host_AUDIO_IN_1;
+
+    preGain = sig_dsp_ConstantValue_new(&allocator, context, 1.1f);
+
+    leftVCA = sig_dsp_Mul_new(&allocator, context);
+    sig_List_append(&signals, leftVCA, status);
+    leftVCA->inputs.left = leftIn->outputs.main;
+    leftVCA->inputs.right = preGain->outputs.main;
 
     leftFilter = sig_dsp_Ladder_new(&allocator, context);
     sig_List_append(&signals, leftFilter, status);
-    leftFilter->parameters.overdrive = 1.1f;
     leftFilter->parameters.passbandGain = 0.5f;
-    leftFilter->inputs.source = leftIn->outputs.main;
+    leftFilter->inputs.source = leftVCA->outputs.main;
     leftFilter->inputs.frequency = leftFrequency->outputs.main;
     leftFilter->inputs.resonance = resonance->outputs.main;
     leftFilter->inputs.inputGain = a->outputs.main;
@@ -202,20 +216,26 @@ void buildSignalGraph(struct sig_SignalContext* context,
     sig_List_append(&signals, leftSaturation, status);
     leftSaturation->inputs.source = leftFilter->outputs.main;
 
-    leftOut = sig_daisy_AudioOut_new(&allocator, context, host);
+    leftOut = sig_host_AudioOut_new(&allocator, context);
+    leftOut->hardware = &host.device.hardware;
     sig_List_append(&signals, leftOut, status);
-    leftOut->parameters.channel = 0;
+    leftOut->parameters.channel = sig_host_AUDIO_OUT_1;
     leftOut->inputs.source = leftSaturation->outputs.main;
 
-    rightIn = sig_daisy_AudioIn_new(&allocator, context, host);
+    rightIn = sig_host_AudioIn_new(&allocator, context);
+    rightIn->hardware = &host.device.hardware;
     sig_List_append(&signals, rightIn, status);
-    rightIn->parameters.channel = 1;
+    rightIn->parameters.channel = sig_host_AUDIO_IN_2;
+
+    rightVCA = sig_dsp_Mul_new(&allocator, context);
+    sig_List_append(&signals, rightVCA, status);
+    rightVCA->inputs.left = rightIn->outputs.main;
+    rightVCA->inputs.right = preGain->outputs.main;
 
     rightFilter = sig_dsp_Ladder_new(&allocator, context);
     sig_List_append(&signals, rightFilter, status);
-    rightFilter->parameters.overdrive = 1.1f;
     leftFilter->parameters.passbandGain = 0.5f;
-    rightFilter->inputs.source = rightIn->outputs.main;
+    rightFilter->inputs.source = rightVCA->outputs.main;
     rightFilter->inputs.frequency = rightFrequency->outputs.main;
     rightFilter->inputs.resonance = resonance->outputs.main;
     rightFilter->inputs.inputGain = a->outputs.main;
@@ -228,9 +248,10 @@ void buildSignalGraph(struct sig_SignalContext* context,
     sig_List_append(&signals, rightSaturation, status);
     rightSaturation->inputs.source = rightFilter->outputs.main;
 
-    rightOut = sig_daisy_AudioOut_new(&allocator, context, host);
+    rightOut = sig_host_AudioOut_new(&allocator, context);
+    rightOut->hardware = &host.device.hardware;
     sig_List_append(&signals, rightOut, status);
-    rightOut->parameters.channel = 1;
+    rightOut->parameters.channel = sig_host_AUDIO_OUT_2;
     rightOut->inputs.source = rightSaturation->outputs.main;
 }
 
@@ -238,7 +259,7 @@ int main(void) {
     allocator.impl->init(&allocator);
 
     struct sig_AudioSettings audioSettings = {
-        .sampleRate = 96000,
+        .sampleRate = SAMPLERATE,
         .numChannels = 2,
         .blockSize = 16
     };
@@ -247,16 +268,14 @@ int main(void) {
     sig_Status_init(&status);
     sig_List_init(&signals, (void**) &listStorage, MAX_NUM_SIGNALS);
 
-    evaluator = sig_dsp_SignalListEvaluator_new(&allocator, &signals);
-    host = sig_daisy_VersioHost_new(&allocator, &audioSettings, &versio,
-        (struct sig_dsp_SignalEvaluator*) evaluator);
-    sig_daisy_Host_registerGlobalHost(host);
-
     struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
         &audioSettings);
-    buildSignalGraph(context, &status);
-    host->impl->start(host);
+    evaluator = sig_dsp_SignalListEvaluator_new(&allocator, &signals);
+    host.Init(&audioSettings, (struct sig_dsp_SignalEvaluator*) evaluator);
 
-    while (1) {
-    }
+    buildSignalGraph(context, &status);
+
+    host.Start();
+
+    while (1) {}
 }

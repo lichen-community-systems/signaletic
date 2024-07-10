@@ -703,6 +703,36 @@
         "showDevDebugOutput": "parsed",
         "svdFile": "${workspaceRoot}/.vscode/STM32H750x.svd",
         "type": "cortex-debug"
+      },
+      {
+        "name": "Remote Versio Sine",
+        "configFiles": [
+          "interface/stlink.cfg",
+          "target/stm32h7x.cfg"
+        ],
+        "cwd": "${workspaceFolder}/hosts/daisy/examples/versio/sines",
+        "debuggerArgs": [
+          "-d",
+          "${workspaceRoot}/hosts/daisy/examples/versio/sines"
+        ],
+        "executable": "${workspaceRoot}/hosts/daisy/examples/versio/sines/build/signaletic-versio-sines.elf",
+        "interface": "swd",
+        "openOCDLaunchCommands": [
+          "init",
+          "reset init"
+        ],
+        "preLaunchTask": "Debug Build Versio Examples",
+        "preRestartCommands": [
+          "load",
+          "enable breakpoint",
+          "monitor reset"
+        ],
+        "request": "launch",
+        "runToEntryPoint": "main",
+        "servertype": "openocd",
+        "showDevDebugOutput": "parsed",
+        "svdFile": "${workspaceRoot}/.vscode/STM32H750x.svd",
+        "type": "cortex-debug"
       }
     ],
     "version": "0.2.0"

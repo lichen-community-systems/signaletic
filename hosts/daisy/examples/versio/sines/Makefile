@@ -1,8 +1,8 @@
 # Project Name
-TARGET ?= signaletic-versio-pole-mix-filter
+TARGET ?= signaletic-versio-sines
 
-DEBUG = 0
-OPT = -O3
+DEBUG = 1
+OPT = -O0
 
 # Sources
 C_SOURCES += ../../../../../libsignaletic/vendor/tlsf/tlsf.c ../../../../../libsignaletic/src/libsignaletic.c ../../../src/signaletic-host.c
