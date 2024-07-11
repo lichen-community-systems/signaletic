@@ -95,11 +95,67 @@
             "type": "shell"
         },
         {
-            "label": "Debug Build DPT Examples",
+            "label": "Debug Build Bluemchen 1962a Reverb",
             "dependsOn": [
                 "Build libdaisy"
             ],
             "command": "make clean;DEBUG=1 make",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/reverb/1962a"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
+            "label": "Debug Build Bluemchen 1962b Reverb",
+            "dependsOn": [
+                "Build libdaisy"
+            ],
+            "command": "make clean;DEBUG=1 make",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/reverb/1962b"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
+            "label": "Debug Build Bluemchen 1962c Reverb",
+            "dependsOn": [
+                "Build libdaisy"
+            ],
+            "command": "make clean;DEBUG=1 make",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/reverb/1962c"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
+            "label": "Debug Build Bluemchen Moorer Reverb",
+            "dependsOn": [
+                "Build libdaisy"
+            ],
+            "command": "make clean;DEBUG=1 OPT=-Og make",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/reverb/moorer"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
+            "label": "Debug Build DPT Examples",
+            "dependsOn": [
+                "Build libdaisy"
+            ],
+            "command": "make clean;DEBUG=1 OPT=-Og make",
             "options": {
                 "cwd": "${workspaceFolder}/hosts/daisy/examples/dpt"
             },
@@ -113,7 +169,7 @@
             "dependsOn": [
                 "Build libdaisy"
             ],
-            "command": "make clean;DEBUG=1 make",
+            "command": "make clean;DEBUG=1 OPT=-Og make",
             "options": {
                 "cwd": "${workspaceFolder}/hosts/daisy/examples/patch_init"
             },
@@ -127,9 +183,51 @@
             "dependsOn": [
                 "Build libdaisy"
             ],
-            "command": "make clean;DEBUG=1 make",
+            "command": "make clean;DEBUG=1 OPT=-Og make",
             "options": {
                 "cwd": "${workspaceFolder}/hosts/daisy/examples/versio"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
+            "label": "Debug Build Lichen Medium Examples",
+            "dependsOn": [
+                "Build libdaisy"
+            ],
+            "command": "make clean;DEBUG=1 OPT=-Og make",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/lichen-medium"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
+            "label": "Debug Build Lichen Bifocals Examples",
+            "dependsOn": [
+                "Build libdaisy"
+            ],
+            "command": "make clean;DEBUG=1 OPT=-Og make",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/lichen-bifocals"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
+            "label": "Debug Build Lichen Freddie Examples",
+            "dependsOn": [
+                "Build libdaisy"
+            ],
+            "command": "make clean;DEBUG=1 OPT=-Og make",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/lichen-freddie"
             },
             "problemMatcher": [
                 "$gcc"
@@ -183,9 +281,23 @@
             "type": "shell"
         },
         {
-            "label": "Build and Flash Bluemchen Dusting",
+            "label": "Build and Flash Nehcmeulb Dusting",
             "options": {
                 "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/dusting"
+            },
+            "dependsOn": [
+                "Build Bluemchen Examples"
+            ],
+            "command": "make program",
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "type": "shell"
+        },
+        {
+            "label": "Build and Flash Nehcmeulb Calibrator",
+            "options": {
+                "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/calibrator"
             },
             "dependsOn": [
                 "Build Bluemchen Examples"

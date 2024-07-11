@@ -37,8 +37,8 @@ static const float sig_PI = 3.14159265358979323846f;
 static const float sig_TWOPI = 6.283185307179586f;
 static const float sig_RECIP_TWOPI = 0.159154943091895f;
 static const float sig_LOG0_001 = -6.907755278982137f;
-static const float sig_LOG2 = 0.6931471805599453;
-static const float sig_FREQ_C4 = 261.6256;
+static const float sig_LOG2 = 0.6931471805599453f;
+static const float sig_FREQ_C4 = 261.6256f;
 
 enum sig_Result {
     SIG_RESULT_NONE,
@@ -172,6 +172,39 @@ uint16_t sig_bipolarToUint12(float sample);
 uint16_t sig_bipolarToInvUint12(float sample);
 
 /**
+ * Converts an unsigned 16-bit integer in the range 0-65536 to a
+ * bipolar floating point sample in the range -1.0 to 1.0.
+ *
+ * This function does not clamp the sample.
+ *
+ * @param sample the unsigned 16-bit sample to convert
+ * @return the sample converted to normalized floating point
+ */
+float sig_uint16ToBipolar(uint16_t sample);
+
+/**
+ * Converts an unsigned 16-bit integer in the range 0-65536 to a
+ * unipolar floating point sample in the range 0.0 to 1.0.
+ *
+ * This function does not clamp the sample.
+ *
+ * @param sample the unsigned 16-bit sample to convert
+ * @return the sample converted to normalized unipolar floating point
+ */
+float sig_uint16ToUnipolar(uint16_t sample);
+
+/**
+ * Converts an unsigned 16-bit integer in the range 65536-0 to a
+ * bipolar floating point sample in the range -1.0 to 1.0.
+ *
+ * This function does not clamp the sample.
+ *
+ * @param sample the inverted unsigned 16-bit sample to convert
+ * @return the sample converted to normalized floating point
+ */
+float sig_invUint16ToBipolar(uint16_t sample);
+
+/**
  * Converts MIDI note numbers into frequencies in hertz.
  * This algorithm assumes A4 = 440 Hz = MIDI note #69.
  *
@@ -208,6 +241,34 @@ float sig_linearToFreq(float value, float middleFreq);
  * @return float the linear value
  */
 float sig_freqToLinear(float freq, float middleFreq);
+
+/**
+ * @brief Sums all values in an array.
+ *
+ * @param values an array of floating point values
+ * @param length the length of the array
+ * @return float the sum of all values
+ */
+float sig_sum(float_array_ptr values, size_t length);
+
+/**
+ * @brief Returns the index of the smallest value in an array.
+ *
+ * @param values an array of floating point values
+ * @param length the length of the warray
+ * @return size_t the index to the smallest item in the array
+ */
+size_t sig_indexOfMin(float_array_ptr values, size_t length);
+
+/**
+ * @brief Returns the index of the largest value in an array.
+ *
+ * @param values an array of floating point values
+ * @param length the length of the warray
+ * @return size_t the index to the largest item in the array
+
+ */
+size_t sig_indexOfMax(float_array_ptr values, size_t length);
 
 /**
  * Type definition for array fill functions.
@@ -282,6 +343,36 @@ float sig_interpolate_linear(float idx, float_array_ptr table,
 float sig_interpolate_cubic(float idx, float_array_ptr table, size_t length);
 
 /**
+ * @brief Returns the mean average of all values in the specified array.
+ *
+ * @param values an array of floating point values to average
+ * @param length the number of values in the array
+ * @return float the mean of all values
+ */
+float sig_filter_mean(float_array_ptr values, size_t length);
+
+/**
+ * @brief Returns the mean average of values in the array, after excluding the
+ * largest and smallest values.
+ *
+ * @param values an array of floating point values to average
+ * @param length the number of values in the array
+ * @return float float the mean of all values
+ */
+float sig_filter_meanExcludeMinMax(float_array_ptr values, size_t length);
+
+/**
+ * @brief An exponential moving average filter that implements the formula
+ * y[n] = a * x[n] + (1 - a) * y[n-1]
+ *
+ * @param current the current sample (i.e. x[n])
+ * @param previous the previous output sample (i.e. y[n-1])
+ * @param a the coefficient (between 0 and 1); values closer to 0 apply more filtering)
+ * @return float the filtered sample (i.e. y[n])
+ */
+float sig_filter_ema(float current, float previous, float a);
+
+/**
  * @brief A one pole filter that implements the formula
  * y[n] = b0 * x[n] + a1 * y[n-1].
  *
@@ -349,6 +440,16 @@ float sig_filter_smooth(float current, float previous, float coeff);
 float sig_filter_smooth_calculateCoefficient(float timeSecs,
     float sampleRate);
 
+// TODO: Documentation!
+struct sig_filter_Smooth {
+    float coeff;
+    float previous;
+};
+
+void sig_filter_Smooth_init(struct sig_filter_Smooth* self, float coeff);
+
+float sig_filter_Smooth_generate(struct sig_filter_Smooth* self, float value);
+
 /**
  * Type definition for a waveform generator function.
  *
@@ -397,6 +498,61 @@ float sig_waveform_reverseSaw(float phase);
  */
 float sig_waveform_triangle(float phase);
 
+
+/**
+ * @brief A fast sine approximation implemented using a Chamberlin SVF.
+ * This approximation is good up to about 1/6 the sampleRate.
+ *
+ * For details, see Dattoro "Effect Design Part 3" and
+ * https://www.earlevel.com/main/2003/03/02/the-digital-state-variable-filter/
+ */
+struct sig_osc_FastLFSine {
+    float sampleRate;
+    float f;
+    float sinZ;
+    float cosZ;
+};
+
+/**
+ * @brief Initializes a FastLFSine oscillator.
+ * The default frequency is 1 Hz.
+ *
+ * @param self the oscillator to initialize
+ */
+void sig_osc_FastLFSine_init(struct sig_osc_FastLFSine* self,
+    float sampleRate);
+
+/**
+ * @brief Updates the frequency coefficient for the specified frequency.
+ *
+ * @param self the oscillator instance
+ * @param frequency the frequency
+ * @param sampleRate the current sample rate
+ */
+void sig_osc_FastLFSine_setFrequency(struct sig_osc_FastLFSine* self,
+    float frequency);
+
+/**
+ * @brief Updates the frequency coefficient using an approximation
+ * that is suitable for low frequencies.
+ *
+ * @param self the oscillator instance
+ * @param frequency the frequency
+ * @param sampleRate the current sample rate
+ */
+void sig_osc_FastLFSine_setFrequencyFast(struct sig_osc_FastLFSine* self,
+    float frequency);
+
+/**
+ * @brief Generates new values for the sinZ and cosZ delays,
+ * which provide the output of the system. cosZ is 90 degrees offset from sinZ.
+ *
+ * See:
+ * https://www.earlevel.com/DigitalAudio/images/StateVarLfoBlock.gif
+ *
+ * @param self the oscillator instance
+ */
+void sig_osc_FastLFSine_generate(struct sig_osc_FastLFSine* self);
 
 /**
  * An AudioSettings structure holds key information
@@ -590,6 +746,7 @@ void sig_List_destroy(struct sig_Allocator* allocator,
     struct sig_List* self);
 
 
+
 /**
  * Allocates a new AudioSettings instance with
  * the values from sig_DEFAULT_AUDIO_SETTINGS.
@@ -614,6 +771,7 @@ void sig_AudioSettings_destroy(struct sig_Allocator* allocator,
 struct sig_SignalContext {
     struct sig_AudioSettings* audioSettings;
     struct sig_Buffer* emptyBuffer;
+    struct sig_DelayLine* oneSampleDelayLine;
     struct sig_dsp_ConstantValue* silence;
     struct sig_dsp_ConstantValue* unity;
 };
@@ -763,12 +921,170 @@ float_array_ptr sig_AudioBlock_newSilent(struct sig_Allocator* allocator,
 void sig_AudioBlock_destroy(struct sig_Allocator* allocator,
     float_array_ptr self);
 
+
+/**
+ * @brief A modulatable delay line
+ * with support for comb and allpass configurations.
+ *
+ */
+struct sig_DelayLine {
+    struct sig_Buffer* buffer;
+    size_t writeIdx;
+};
+
+struct sig_DelayLine* sig_DelayLine_new(struct sig_Allocator* allocator,
+    size_t maxDelayLength);
+
+struct sig_DelayLine* sig_DelayLine_newSeconds(struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings, float maxDelaySecs);
+
+struct sig_DelayLine* sig_DelayLine_newWithTransferredBuffer(
+    struct sig_Allocator* allocator, struct sig_Buffer* buffer);
+
+void sig_DelayLine_init(struct sig_DelayLine* self);
+
+typedef void (*sig_DelayLine_readFn)(void* signal);
+
+/**
+ * @brief Reads from the delay line without interpolation.
+ * This function does not support fractional delay times.
+ *
+ * @param self the delay line to read from
+ * @param readPos the position (in samples) at which to read from the delay
+ * @return float the output of the delay line
+ */
+float sig_DelayLine_readAt(struct sig_DelayLine* self, size_t readPos);
+
+/**
+ * @brief Reads from the delay line using linear interpolation.
+ * This function supports fractional delay times.
+ *
+ * @param self the delay line to read from
+ * @param readPos the position (in samples) at which to read from the delay
+ * @return float the output of the delay line
+ */
+float sig_DelayLine_linearReadAt(struct sig_DelayLine* self, float readPos);
+
+/**
+ * @brief Reads from the delay line using cubic interpolation.
+ * This function supports fractional delay times.
+ *
+ * @param self the delay line to read from
+ * @param readPos the position (in samples) at which to read from the delay
+ * @return float the output of the delay line
+ */
+float sig_DelayLine_cubicReadAt(struct sig_DelayLine* self, float readPos);
+
+/**
+ * @brief Reads from the delay line using allpass interpolation.
+ * This function supports fractional delay times.
+ *
+ * @param self the delay line to read from
+ * @param readPos the position (in samples) to read from the delay at
+ * @param previousSample the previous interpolated sample from the delay line
+ * @return float the output of the delay line
+ */
+float sig_DelayLine_allpassReadAt(struct sig_DelayLine* self,
+    float readPos, float previousSample);
+
+/**
+ * @brief Reads from the delay line without interpolation.
+ * This function does not support fractional delay times, and will truncate
+ * the delay time tap down to the nearest sample.
+ *
+ * @param self the delay line to read from
+ * @param tapTime the time (in seconds) at which to read from the delay
+ * @param sampleRate the current sample rate
+ * @return float the output of the delay line
+ */
+float sig_DelayLine_readAtTime(struct sig_DelayLine* self, float source,
+    float tapTime, float sampleRate);
+
+/**
+ * @brief Reads from the delay line at the specified time
+ * (in seconds) using linear interpolation.
+ * This function supports fractional delay times.
+ *
+ * @param self the delay line to read from
+ * @param tapTime the time (in seconds) at which to read from the delay
+ * @param sampleRate the current sample rate
+ * @return float the output of the delay line
+ */
+float sig_DelayLine_linearReadAtTime(struct sig_DelayLine* self, float source,
+    float tapTime, float sampleRate);
+
+/**
+ * @brief Reads from the delay line at the specified time
+ * (in seconds) using cubic interpolation.
+ * This function supports fractional delay times.
+ *
+ * @param self the delay line to read from
+ * @param tapTime the time (in seconds) at which to read from the delay
+ * @param sampleRate the current sample rate
+ * @return float the output of the delay line
+ */
+float sig_DelayLine_cubicReadAtTime(struct sig_DelayLine* self, float source,
+    float tapTime, float sampleRate);
+
+/**
+ * @brief Reads from the delay line at the specified time
+ * (in seconds) using allpass interpolation.
+ * This function supports fractional delay times.
+ *
+ * @param self the delay line to read from
+ * @param tapTime the time (in seconds) at which to read from the delay
+ * @param sampleRate the current sample rate
+ * @param previousSample the previous interpolated sample from the delay line
+ * @return float the output of the delay line
+ */
+float sig_DelayLine_allpassReadAtTime(struct sig_DelayLine* self,
+    float source, float tapTime, float sampleRate, float previousSample);
+
+float sig_DelayLine_readAtTimes(struct sig_DelayLine* self, float source,
+    float* tapTimes, float* tapGains, size_t numTaps,
+    float sampleRate, float timeScale);
+
+float sig_DelayLine_linearReadAtTimes(struct sig_DelayLine* self,
+    float source, float* tapTimes, float* tapGains, size_t numTaps,
+    float sampleRate, float timeScale);
+
+float sig_DelayLine_cubicReadAtTimes(struct sig_DelayLine* self,
+    float source, float* tapTimes, float* tapGains, size_t numTaps,
+    float sampleRate, float timeScale);
+
+void sig_DelayLine_write(struct sig_DelayLine* self, float sample);
+
+float sig_DelayLine_calcFeedbackGain(float delayTime, float decayTime);
+
+float sig_DelayLine_feedback(float sample, float read, float g);
+
+float sig_DelayLine_comb(struct sig_DelayLine* self, float sample,
+    size_t readPos, float g);
+
+float sig_DelayLine_cubicComb(struct sig_DelayLine* self, float sample,
+    float readPos, float g);
+
+float sig_DelayLine_allpass(struct sig_DelayLine* self, float sample,
+    size_t readPos, float g);
+
+float sig_DelayLine_linearAllpass(struct sig_DelayLine* self,
+    float sample, float readPos, float g);
+
+float sig_DelayLine_cubicAllpass(struct sig_DelayLine* self, float sample,
+    float readPos, float g);
+
+void sig_DelayLine_destroy(struct sig_Allocator* allocator,
+    struct sig_DelayLine* self);
+
+float sig_linearXFade(float left, float right, float mix);
+
+
+
 // TODO: Should the signal argument at least be defined
 // as a struct sig_dsp_Signal*, rather than void*?
 // Either way, this is cast by the implementation to whatever
 // concrete Signal type is appropriate.
 typedef void (*sig_dsp_generateFn)(void* signal);
-
 
 struct sig_dsp_Signal {
     struct sig_AudioSettings* audioSettings;
@@ -879,6 +1195,7 @@ void sig_dsp_ConstantValue_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_ConstantValue* self);
 
 
+
 struct sig_dsp_Abs_Inputs {
     float_array_ptr source;
 };
@@ -896,6 +1213,33 @@ void sig_dsp_Abs_init(struct sig_dsp_Abs* self,
 void sig_dsp_Abs_generate(void* signal);
 void sig_dsp_Abs_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Abs* self);
+
+
+
+struct sig_dsp_ScaleOffset_Inputs {
+    float_array_ptr source;
+};
+
+struct sig_dsp_ScaleOffset_Parameters {
+    float scale;
+    float offset;
+};
+
+struct sig_dsp_ScaleOffset {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_ScaleOffset_Inputs inputs;
+    struct sig_dsp_ScaleOffset_Parameters parameters;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
+struct sig_dsp_ScaleOffset* sig_dsp_ScaleOffset_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_ScaleOffset_init(struct sig_dsp_ScaleOffset* self,
+    struct sig_SignalContext* context);
+void sig_dsp_ScaleOffset_generate(void* signal);
+void sig_dsp_ScaleOffset_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_ScaleOffset* self);
+
 
 
 struct sig_dsp_BinaryOp_Inputs {
@@ -920,6 +1264,14 @@ void sig_dsp_Add_init(struct sig_dsp_BinaryOp* self,
     struct sig_SignalContext* context);
 void sig_dsp_Add_generate(void* signal);
 void sig_dsp_Add_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_BinaryOp* self);
+
+struct sig_dsp_BinaryOp* sig_dsp_Sub_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_Sub_init(struct sig_dsp_BinaryOp* self,
+    struct sig_SignalContext* context);
+void sig_dsp_Sub_generate(void* signal);
+void sig_dsp_Sub_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_BinaryOp* self);
 
 struct sig_dsp_BinaryOp* sig_dsp_Mul_new(
@@ -977,6 +1329,8 @@ struct sig_dsp_Accumulate_Inputs {
 
 struct sig_dsp_Accumulate_Parameters {
     float accumulatorStart;
+    float wrap;
+    float maxValue;
 };
 
 /**
@@ -1223,6 +1577,33 @@ void sig_dsp_Smooth_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Smooth* self);
 
 
+
+struct sig_dsp_EMA_Inputs {
+    float_array_ptr source;
+};
+
+struct sig_dsp_EMA_Parameters {
+    float alpha;
+};
+
+struct sig_dsp_EMA {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_EMA_Inputs inputs;
+    struct sig_dsp_EMA_Parameters parameters;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+    float previousSample;
+};
+
+void sig_dsp_EMA_init(struct sig_dsp_EMA* self,
+    struct sig_SignalContext* context);
+struct sig_dsp_EMA* sig_dsp_EMA_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_EMA_generate(void* signal);
+void sig_dsp_EMA_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_EMA* self);
+
+
+
 enum sig_dsp_OnePole_Mode {
     sig_dsp_OnePole_Mode_HIGH_PASS,
     sig_dsp_OnePole_Mode_LOW_PASS,
@@ -1446,13 +1827,44 @@ void sig_dsp_DustGate_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_DustGate* self);
 
 
-struct sig_dsp_ClockFreqDetector_Inputs {
+/**
+ * @brief Inputs for a ClockDetector.
+ */
+struct sig_dsp_ClockDetector_Inputs {
+    /**
+     * @brief The incoming clock signal.
+     */
     float_array_ptr source;
 };
 
-struct sig_dsp_ClockFreqDetector_Parameters {
+struct sig_dsp_ClockDetector_Outputs {
+    /**
+     * @brief The detected clock frequency in pulses per second (i.e. Hz).
+     */
+    float_array_ptr main;
+
+    /**
+     * @brief The detected clock frequency in beats per minute.
+     */
+    float_array_ptr bpm;
+};
+
+void sig_dsp_ClockDetector_Outputs_newAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_dsp_ClockDetector_Outputs* outputs);
+
+void sig_dsp_ClockDetector_Outputs_destroyAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_dsp_ClockDetector_Outputs* outputs);
+
+struct sig_dsp_ClockDetector_Parameters {
+    /**
+     * @brief The minimum value that a trigger must reach to be detected
+     * as a clock pulse.
+     *
+     */
     float threshold;
-    float timeoutDuration;
 };
 
 /**
@@ -1463,27 +1875,29 @@ struct sig_dsp_ClockFreqDetector_Parameters {
  * Inputs:
  *  - source the incoming clock signal
  */
-struct sig_dsp_ClockFreqDetector {
+struct sig_dsp_ClockDetector {
     struct sig_dsp_Signal signal;
-    struct sig_dsp_ClockFreqDetector_Inputs inputs;
-    struct sig_dsp_ClockFreqDetector_Parameters parameters;
-    struct sig_dsp_Signal_SingleMonoOutput outputs;
+    struct sig_dsp_ClockDetector_Inputs inputs;
+    struct sig_dsp_ClockDetector_Parameters parameters;
+    struct sig_dsp_ClockDetector_Outputs outputs;
 
     float previousTrigger;
     bool isRisingEdge;
+    uint8_t numPulsesDetected;
     uint32_t samplesSinceLastPulse;
     float clockFreq;
     uint32_t pulseDurSamples;
 };
 
-void sig_dsp_ClockFreqDetector_init(
-    struct sig_dsp_ClockFreqDetector* self,
+void sig_dsp_ClockDetector_init(
+    struct sig_dsp_ClockDetector* self,
     struct sig_SignalContext* context);
-struct sig_dsp_ClockFreqDetector* sig_dsp_ClockFreqDetector_new(
+struct sig_dsp_ClockDetector* sig_dsp_ClockDetector_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context);
-void sig_dsp_ClockFreqDetector_generate(void* signal);
-void sig_dsp_ClockFreqDetector_destroy(struct sig_Allocator* allocator,
-    struct sig_dsp_ClockFreqDetector* self);
+void sig_dsp_ClockDetector_generate(void* signal);
+void sig_dsp_ClockDetector_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_ClockDetector* self);
+
 
 
 struct sig_dsp_LinearToFreq_Inputs {
@@ -1552,6 +1966,7 @@ void sig_dsp_List_Outputs_destroyAudioBlocks(struct sig_Allocator* allocator,
 struct sig_dsp_List_Parameters {
     float wrap;
     float normalizeIndex;
+    float interpolate;
 };
 
 struct sig_dsp_List {
@@ -1593,6 +2008,8 @@ struct sig_dsp_LinearMap* sig_dsp_LinearMap_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context);
 void sig_dsp_LinearMap_init(struct sig_dsp_LinearMap* self,
     struct sig_SignalContext* context);
+float sig_dsp_List_constrain(bool shouldWrap, float index,
+    float lastIndex, float listLength);
 void sig_dsp_LinearMap_generate(void* signal);
 void sig_dsp_LinearMap_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_LinearMap* self);
@@ -1731,12 +2148,6 @@ struct sig_dsp_Ladder_Parameters {
      * higher values will amplify the lower frequencies when resonance is high.
      */
     float passbandGain;
-
-    /**
-     * @brief Input gain applied prior to the filter,
-     * allowing for greater saturation levels (best between 0.0-4.0)
-     */
-    float overdrive;
 };
 
 /**
@@ -1826,6 +2237,213 @@ void sig_dsp_TiltEQ_generate(void* signal);
 void sig_dsp_TiltEQ_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_TiltEQ* self);
 
+
+
+struct sig_dsp_Delay_Inputs {
+    float_array_ptr source;
+    float_array_ptr delayTime;
+};
+
+struct sig_dsp_Delay {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Delay_Inputs inputs;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+
+    struct sig_DelayLine* delayLine;
+};
+
+struct sig_dsp_Delay* sig_dsp_Delay_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_Delay_init(struct sig_dsp_Delay* self,
+    struct sig_SignalContext* context);
+void sig_dsp_Delay_read(struct sig_dsp_Delay* self, float source,
+    size_t i);
+void sig_dsp_Delay_generate(void* signal);
+void sig_dsp_Delay_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Delay* self);
+
+struct sig_dsp_Delay* sig_dsp_DelayTap_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_DelayTap_init(struct sig_dsp_Delay* self,
+    struct sig_SignalContext* context);
+void sig_dsp_DelayTap_generate(void* signal);
+void sig_dsp_DelayTap_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Delay* self);
+
+struct sig_dsp_DelayWrite_Inputs {
+    float_array_ptr source;
+};
+
+struct sig_dsp_DelayWrite {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_DelayWrite_Inputs inputs;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+
+    struct sig_DelayLine* delayLine;
+};
+
+struct sig_dsp_DelayWrite* sig_dsp_DelayWrite_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_DelayWrite_init(struct sig_dsp_DelayWrite* self,
+    struct sig_SignalContext* context);
+void sig_dsp_DelayWrite_generate(void* signal);
+void sig_dsp_DelayWrite_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_DelayWrite* self);
+
+
+struct sig_dsp_Comb_Inputs {
+    float_array_ptr source;
+    float_array_ptr delayTime;
+    float_array_ptr feedbackGain;
+    float_array_ptr lpfCoefficient;
+};
+
+struct sig_dsp_Comb {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Comb_Inputs inputs;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+
+    struct sig_DelayLine* delayLine;
+    float previousSample;
+};
+
+struct sig_dsp_Comb* sig_dsp_Comb_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_Comb_init(struct sig_dsp_Comb* self,
+    struct sig_SignalContext* context);
+void sig_dsp_Comb_generate(void* signal);
+void sig_dsp_Comb_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Comb* self);
+
+
+
+struct sig_dsp_Allpass_Inputs {
+    float_array_ptr source;
+    float_array_ptr delayTime;
+    float_array_ptr g;
+};
+
+struct sig_dsp_Allpass {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Allpass_Inputs inputs;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+
+    struct sig_DelayLine* delayLine;
+};
+
+struct sig_dsp_Allpass* sig_dsp_Allpass_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_Allpass_init(struct sig_dsp_Allpass* self,
+    struct sig_SignalContext* context);
+void sig_dsp_Allpass_generate(void* signal);
+void sig_dsp_Allpass_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Allpass* self);
+
+
+
+struct sig_dsp_Chorus_Inputs {
+    float_array_ptr source;
+    float_array_ptr delayTime;
+    float_array_ptr speed;
+    float_array_ptr width;
+    float_array_ptr feedbackGain;
+    float_array_ptr feedforwardGain;
+    float_array_ptr blend;
+};
+
+struct sig_dsp_Chorus_Outputs {
+    float_array_ptr main;
+    float_array_ptr modulator;
+};
+
+struct sig_dsp_Chorus {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Chorus_Inputs inputs;
+    struct sig_dsp_Chorus_Outputs outputs;
+
+    struct sig_DelayLine* delayLine;
+    struct sig_osc_FastLFSine modulator;
+    float previousFixedOutput;
+    float previousModulatedOutput;
+};
+
+struct sig_dsp_Chorus* sig_dsp_Chorus_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_Chorus_init(struct sig_dsp_Chorus* self,
+    struct sig_SignalContext* context);
+void sig_dsp_Chorus_generate(void* signal);
+void sig_dsp_Chorus_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Chorus* self);
+
+
+
+struct sig_dsp_LinearXFade_Inputs {
+    float_array_ptr left;
+    float_array_ptr right;
+    float_array_ptr mix;
+};
+
+struct sig_dsp_LinearXFade {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_LinearXFade_Inputs inputs;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
+struct sig_dsp_LinearXFade* sig_dsp_LinearXFade_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_LinearXFade_init(struct sig_dsp_LinearXFade* self,
+    struct sig_SignalContext* context);
+void sig_dsp_LinearXFade_generate(void* signal);
+void sig_dsp_LinearXFade_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_LinearXFade* self);
+
+
+
+// TODO: Don't hardcode these.
+#define sig_dsp_Calibrator_NUM_STAGES 6
+#define sig_dsp_Calibrator_TARGET_VALUES {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 4.75f}
+
+struct sig_dsp_Calibrator_Inputs {
+    float_array_ptr source;
+    float_array_ptr gate;
+};
+
+struct sig_dsp_Calibrator_Node {
+    float target;
+    size_t numSamplesRecorded;
+    float min;
+    float max;
+    float sum;
+    float avg;
+    float diff;
+};
+
+void sig_dsp_Calibrator_Node_init(struct sig_dsp_Calibrator_Node* nodes,
+    float* targetValues, size_t numNodes);
+
+size_t sig_dsp_Calibrator_locateIntervalForValue(float x,
+    struct sig_dsp_Calibrator_Node* nodes, size_t numNodes);
+
+float sig_dsp_Calibrator_fitValueToCalibrationData(float x,
+    struct sig_dsp_Calibrator_Node* nodes, size_t numNodes);
+
+struct sig_dsp_Calibrator {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Calibrator_Inputs inputs;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+
+    struct sig_dsp_Calibrator_Node nodes[sig_dsp_Calibrator_NUM_STAGES];
+    float previousGate;
+    size_t stage;
+};
+
+struct sig_dsp_Calibrator* sig_dsp_Calibrator_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_Calibrator_init(struct sig_dsp_Calibrator* self,
+    struct sig_SignalContext* context);
+void sig_dsp_Calibrator_generate(void* signal);
+void sig_dsp_Calibrator_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Calibrator* self);
 
 #ifdef __cplusplus
 }

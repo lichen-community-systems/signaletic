@@ -211,7 +211,7 @@ void test_sig_fillWithSilence(void) {
     testAssertBufferIsSilent(&allocator, buffer, 16);
 }
 
-void test_sig_AudioSettings_new() {
+void test_sig_AudioSettings_new(void) {
     struct sig_AudioSettings* s = sig_AudioSettings_new(&allocator);
 
     TEST_ASSERT_EQUAL_FLOAT_MESSAGE(sig_DEFAULT_AUDIOSETTINGS.sampleRate,
@@ -226,7 +226,7 @@ void test_sig_AudioSettings_new() {
     sig_AudioSettings_destroy(&allocator, s);
 }
 
-void test_sig_samplesToSeconds() {
+void test_sig_samplesToSeconds(void) {
     struct sig_AudioSettings* s = sig_AudioSettings_new(&allocator);
 
     size_t expected = 48000;
@@ -342,6 +342,46 @@ void test_sig_BufferView(void) {
         view->samples,
         viewLen,
         "The subarray should contain the correct values.");
+}
+
+void test_sig_linearXFade(void) {
+    float left = 0.66f;
+    float right = 0.45f;
+    float mix = -1.0f;
+    float expected = left;
+    float actual = sig_linearXFade(left, right, mix);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(expected, actual, "Left signal only.");
+
+    mix = 1.0f;
+    expected = right;
+    actual = sig_linearXFade(left, right, mix);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(expected, actual, "Right signal only.");
+
+    mix = 0.0f;
+    expected = 0.555f;
+    actual = sig_linearXFade(left, right, mix);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(expected, actual,
+        "Both signals mixed evenly.");
+
+    mix = -0.25f;
+    expected = 0.58125f;
+    actual = sig_linearXFade(left, right, mix);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(expected, actual,
+        "25 percent to the left.");
+
+    left = 0.001f;
+    right = 0.01f;
+    mix = -0.5f;
+    expected = 0.00325f;
+    actual = sig_linearXFade(left, right, mix);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(expected, actual,
+        "50 percent to the left.");
+
+    mix = 0.5f;
+    expected = 0.00775f;
+    actual = sig_linearXFade(left, right, mix);
+    TEST_ASSERT_EQUAL_FLOAT_MESSAGE(expected, actual,
+        "50 percent to the left.");
 }
 
 void test_sig_dsp_Value(void) {
@@ -698,7 +738,7 @@ struct sig_test_BufferPlayer* WaveformPlayer_new(
     sig_waveform_generator waveform,
     float sampleRate, float freq, float duration) {
     struct sig_Buffer* waveformBuffer = sig_Buffer_new(&allocator,
-        (size_t) audioSettings->sampleRate * duration);
+        (size_t) (audioSettings->sampleRate * duration));
 
     sig_Buffer_fillWithWaveform(waveformBuffer, waveform,
         sampleRate, 0.0f, freq);
@@ -714,7 +754,7 @@ void WaveformPlayer_destroy(struct sig_test_BufferPlayer* player) {
 
 void testClockDetector(struct sig_test_BufferPlayer* clockPlayer,
     float duration, float expectedFreq) {
-    struct sig_dsp_ClockFreqDetector* det = sig_dsp_ClockFreqDetector_new(
+    struct sig_dsp_ClockDetector* det = sig_dsp_ClockDetector_new(
         &allocator, context);
     det->inputs.source = clockPlayer->outputs.main;
 
@@ -726,7 +766,14 @@ void testClockDetector(struct sig_test_BufferPlayer* clockPlayer,
         FLOAT_ARRAY(det->outputs.main)[0],
         "The clock's frequency should have been detected correctly.");
 
-    sig_dsp_ClockFreqDetector_destroy(&allocator, det);
+    float expectedBPM = expectedFreq * 60.0f;
+
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.05,
+        expectedBPM,
+        FLOAT_ARRAY(det->outputs.bpm)[0],
+        "The clock's bpm tempo should have been detected correctly.");
+
+    sig_dsp_ClockDetector_destroy(&allocator, det);
 }
 
 void testClockDetector_SingleWaveform(sig_waveform_generator waveform,
@@ -740,19 +787,19 @@ void testClockDetector_SingleWaveform(sig_waveform_generator waveform,
     WaveformPlayer_destroy(clockPlayer);
 }
 
-void test_sig_dsp_ClockFreqDetector_square() {
+void test_sig_dsp_ClockDetector_square(void) {
     // Square wave, 2Hz for two seconds.
     testClockDetector_SingleWaveform(sig_waveform_square, 2.0f, 2.0f);
 }
 
-void test_sig_dsp_ClockFreqDetector_sine() {
+void test_sig_dsp_ClockDetector_sine(void) {
     // Sine wave, 10 Hz.
     testClockDetector_SingleWaveform(sig_waveform_sine, 2.0f, 10.0f);
 }
 
-void test_sig_dsp_ClockFreqDetector_slowDown() {
+void test_sig_dsp_ClockDetector_slowDown(void) {
     float bufferDuration = 2.0f;
-    size_t bufferLen = (size_t) audioSettings->sampleRate * bufferDuration;
+    size_t bufferLen = (size_t) (audioSettings->sampleRate * bufferDuration);
     size_t halfBufferLen = bufferLen / 2;
     float fastSpeed = 10.0f;
     float slowSpeed = 2.0f;
@@ -780,13 +827,14 @@ void test_sig_dsp_ClockFreqDetector_slowDown() {
     sig_test_BufferPlayer_destroy(&allocator, clockPlayer);
 }
 
-void test_sig_dsp_ClockFreqDetector_stop() {
+void test_sig_dsp_ClockDetector_stop(void) {
     float bufferDuration = 122.0f;
     float clockDuration = 1.0f;
-    size_t bufferLen = (size_t) audioSettings->sampleRate * bufferDuration;
-    size_t clockSectionLen = (size_t) audioSettings->sampleRate * clockDuration;
+    size_t bufferLen = (size_t) (audioSettings->sampleRate * bufferDuration);
+    size_t clockSectionLen = (size_t)
+        (audioSettings->sampleRate * clockDuration);
     size_t silentSectionLen = (size_t)
-        audioSettings->sampleRate * (bufferDuration - clockDuration);
+        (audioSettings->sampleRate * (bufferDuration - clockDuration));
     float clockFreq = 10.0f;
 
     struct sig_Buffer* waveformBuffer = sig_Buffer_new(&allocator, bufferLen);
@@ -803,7 +851,9 @@ void test_sig_dsp_ClockFreqDetector_stop() {
     struct sig_test_BufferPlayer* clockPlayer = sig_test_BufferPlayer_new(
         &allocator, context, waveformBuffer);
 
-    testClockDetector(clockPlayer, bufferDuration, 0.0f);
+    // When it no longer receives clock pulses, the detector
+    // should hold on to whatever tempo it last calculated.
+    testClockDetector(clockPlayer, bufferDuration, clockFreq);
 
     sig_BufferView_destroy(&allocator, silentSection);
     sig_BufferView_destroy(&allocator, clockSection);
@@ -1014,6 +1064,9 @@ void test_sig_dsp_List_wrapping(void) {
     // Fractional indexes >= half should be rounded up.
     generateAndTestListIndex(idx, 0.125f, list, 2.0f);
 
+    // Fractional indexes >= half should be rounded up.
+    generateAndTestListIndex(idx, 0.25f, list, 2.0f);
+
     // Another even index.
     generateAndTestListIndex(idx, 0.5f, list, 3.0f);
 
@@ -1029,15 +1082,14 @@ void test_sig_dsp_List_wrapping(void) {
     // A slightly out of bounds index should round down to the last index.
     generateAndTestListIndex(idx, 1.1f, list, 5.0f);
 
-    // But a larger index should round up and
-    // wrap around to return the first value.
-    generateAndTestListIndex(idx, 1.25f, list, 1.0f);
+    // But a larger index should wrap and round up.
+    generateAndTestListIndex(idx, 1.25f, list, 2.0f);
 
     // Larger indices should wrap around past the beginning.
-    generateAndTestListIndex(idx, 1.5f, list, 2.0f);
+    generateAndTestListIndex(idx, 1.5f, list, 3.0f);
 
-    // Very large indices should wrap around the beginning again.
-    generateAndTestListIndex(idx, 3.0f, list, 3.0f);
+    // Very large indices should wrap around several times.
+    generateAndTestListIndex(idx, 3.0f, list, 5.0f);
 
     // Negative indices should wrap around the end.
     // Note the index "shift" here: -0.25 should point
@@ -1073,6 +1125,46 @@ void test_sig_dsp_List_wrapping(void) {
     generateAndTestListIndex(idx, -1.15f, list, 1.0f);
 }
 
+void test_sig_dsp_List_noNormalization(void) {
+    struct sig_dsp_Value* idx = sig_dsp_Value_new(&allocator,
+        context);
+
+    float listItems[5] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
+    struct sig_Buffer listBuffer = {
+        .length = 5,
+        .samples = listItems
+    };
+
+    struct sig_dsp_List* list = sig_dsp_List_new(&allocator, context);
+    list->parameters.normalizeIndex = 0.0f;
+    list->list = &listBuffer;
+    list->inputs.index = idx->outputs.main;
+
+    // No interpolation.
+
+    // Exactly the first index.
+    generateAndTestListIndex(idx, 0.0f, list, 1.0f);
+
+    // Exactly the last index.
+    generateAndTestListIndex(idx, 4.0f, list, 5.0f);
+
+    // Wrap around.
+    generateAndTestListIndex(idx, 5.0f, list, 2.0f);
+
+    // Fractional index, round down.
+    generateAndTestListIndex(idx, 5.1f, list, 2.0f);
+
+    // Fractional index, round up.
+    generateAndTestListIndex(idx, 1.8f, list, 3.0f);
+
+    // Interpolation
+    list->parameters.interpolate = 1.0f;
+    generateAndTestListIndex(idx, 5.1f, list, 2.1f);
+
+    // Wrap around, interpolation.
+    generateAndTestListIndex(idx, -2.5f, list, 3.5f);
+}
+
 void test_sig_dsp_List_clamping(void) {
     struct sig_dsp_Value* idx = sig_dsp_Value_new(&allocator,
         context);
@@ -1099,6 +1191,45 @@ void test_sig_dsp_List_clamping(void) {
     generateAndTestListIndex(idx, -0.00001f, list, 1.0f);
     generateAndTestListIndex(idx, -0.99f, list, 1.0f);
     generateAndTestListIndex(idx, -1.5f, list, 1.0f);
+}
+
+void test_sig_dsp_List_interpolation(void) {
+    struct sig_dsp_Value* idx = sig_dsp_Value_new(&allocator,
+        context);
+
+    float listItems[5] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
+    struct sig_Buffer listBuffer = {
+        .length = 5,
+        .samples = listItems
+    };
+
+    struct sig_dsp_List* list = sig_dsp_List_new(&allocator, context);
+    list->parameters.wrap = 1.0f;
+    list->parameters.interpolate = 1.0f;
+    list->parameters.normalizeIndex = 1.0f;
+    list->list = &listBuffer;
+    list->inputs.index = idx->outputs.main;
+
+    // Start
+    generateAndTestListIndex(idx, 0.0f, list, 1.0f);
+
+    // Interpolated
+    generateAndTestListIndex(idx, 0.1f, list, 1.4f);
+
+    // Halfway
+    generateAndTestListIndex(idx, 0.5f, list, 3.0f);
+
+    // Interpolated
+    generateAndTestListIndex(idx, 0.6f, list, 3.4f);
+
+    // End
+    generateAndTestListIndex(idx, 1.0f, list, 5.0f);
+
+    // Almost end.
+    generateAndTestListIndex(idx, 0.99999999999f, list, 5.0f);
+
+    // Wrap around and interpolate. 1.1f should be the same as 0.1f
+    generateAndTestListIndex(idx, 1.1f, list, 1.4f);
 }
 
 void test_sig_dsp_List_noList(void) {
@@ -1149,6 +1280,7 @@ int main(void) {
     RUN_TEST(test_sig_AudioBlock_newWithValue);
     RUN_TEST(test_sig_Buffer);
     RUN_TEST(test_sig_BufferView);
+    RUN_TEST(test_sig_linearXFade);
     RUN_TEST(test_sig_dsp_Value);
     RUN_TEST(test_sig_dsp_ConstantValue);
     RUN_TEST(test_sig_dsp_TimedTriggerCounter);
@@ -1158,15 +1290,17 @@ int main(void) {
     RUN_TEST(test_sig_dsp_Sine_phaseWrapsAt2PI);
     RUN_TEST(test_test_sig_dsp_Sine_isOffset);
     RUN_TEST(test_sig_dsp_Dust);
-    RUN_TEST(test_sig_dsp_ClockFreqDetector_square);
-    RUN_TEST(test_sig_dsp_ClockFreqDetector_sine);
-    RUN_TEST(test_sig_dsp_ClockFreqDetector_slowDown);
-    RUN_TEST(test_sig_dsp_ClockFreqDetector_stop);
+    RUN_TEST(test_sig_dsp_ClockDetector_square);
+    RUN_TEST(test_sig_dsp_ClockDetector_sine);
+    RUN_TEST(test_sig_dsp_ClockDetector_slowDown);
+    RUN_TEST(test_sig_dsp_ClockDetector_stop);
     RUN_TEST(test_sig_dsp_TimedGate_unipolar);
     RUN_TEST(test_sig_dsp_TimedGate_resetOnTrigger);
     RUN_TEST(test_sig_dsp_TimedGate_bipolar);
     RUN_TEST(test_sig_dsp_List_wrapping);
+    RUN_TEST(test_sig_dsp_List_noNormalization);
     RUN_TEST(test_sig_dsp_List_clamping);
+    RUN_TEST(test_sig_dsp_List_interpolation);
     RUN_TEST(test_sig_dsp_List_noList);
 
     return UNITY_END();

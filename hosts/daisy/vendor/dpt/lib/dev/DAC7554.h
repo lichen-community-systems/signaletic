@@ -3,7 +3,6 @@
 #define DSY_DEV_DAC_7554_H /**< Macro */
 #include <stdlib.h>
 #include <stdint.h>
-#include <vector>
 #include "daisy_core.h"
 
 using namespace std;
@@ -13,10 +12,10 @@ namespace daisy
 {
 
 /** @addtogroup analog_digital_conversion
-    @{ 
+    @{
 */
 
-/** 
+/**
     Driver for DAC7554, based on code from driver for DAC8568
     Based on Code from Westlicht Performer   - https://westlicht.github.io/performer/
     Port for Daisy by Making Sound Machines  - https://github.com/makingsoundmachines
@@ -59,8 +58,6 @@ class Dac7554
 
     typedef uint16_t Value;
 
-    vector<uint8_t> buf;
-
 
     uint8_t buff[1024];
     uint16_t buff16[1024];
@@ -74,7 +71,7 @@ class Dac7554
 
     // configuration currently only uses SPI1, w/ soft chip select.
 
-    /** 
+    /**
     Takes an argument for the pin cfg
     \param pin_cfg should be a pointer to an array of Dac7554::NUM_PINS dsy_gpio_pins
     */
