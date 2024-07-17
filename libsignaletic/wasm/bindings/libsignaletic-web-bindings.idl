@@ -1,116 +1,3 @@
-interface Signals {
-    void evaluateSignals(sig_List signalList);
-
-    sig_dsp_Value Value_new(sig_Allocator allocator,
-        sig_SignalContext context);
-
-    void Value_destroy(sig_Allocator allocator,
-        sig_dsp_Value value);
-
-
-    sig_dsp_BinaryOp Mul_new(sig_Allocator allocator,
-        sig_SignalContext context);
-
-    void Mul_destroy(sig_Allocator allocator, sig_dsp_BinaryOp mul);
-
-    sig_dsp_BinaryOp Add_new(sig_Allocator allocator,
-        sig_SignalContext context);
-
-    void Add_destroy(sig_Allocator allocator, sig_dsp_BinaryOp add);
-
-    sig_dsp_BinaryOp Div_new(sig_Allocator allocator,
-        sig_SignalContext context);
-
-    void Div_destroy(sig_Allocator allocator, sig_dsp_BinaryOp div);
-
-
-    sig_dsp_Oscillator Sine_new(sig_Allocator allocator,
-        sig_SignalContext context);
-
-    void Sine_destroy(sig_Allocator allocator,
-        sig_dsp_Oscillator sine);
-
-    sig_dsp_Oscillator LFTriangle_new(sig_Allocator allocator,
-        sig_SignalContext context);
-
-    void LFTriangle_destroy(sig_Allocator allocator,
-        sig_dsp_Oscillator triangle);
-
-
-    sig_dsp_ClockDetector ClockDetector_new(sig_Allocator allocator,
-        sig_SignalContext context);
-
-    void ClockDetector_destroy(sig_Allocator allocator,
-        sig_dsp_ClockDetector detector);
-};
-
-interface Signaletic {
-    readonly attribute float PI;
-    readonly attribute float TWOPI;
-
-    void Signaletic();
-
-    [Value] attribute Signals dsp;
-
-    sig_Status Status_new(sig_Allocator allocator);
-    void Status_init(sig_Status status);
-    void Status_reset(sig_Status status);
-    void Status_reportResult(sig_Status status, sig_Result result);
-
-    float fminf(float a, float b);
-    float fmaxf(float a, float b);
-    float clamp(float value, float min, float max);
-    float midiToFreq(float midiNum);
-    void fillWithValue(any array, unsigned long length, float value);
-    void fillWithSilence(any array, unsigned long length);
-    float interpolate_linear(float idx, any table,
-        unsigned long length);
-    float interpolate_cubic(float idx, any table,
-        unsigned long length);
-    float filter_smooth(float current, float previous, float coeff);
-    float waveform_sine(float phase);
-    float waveform_square(float phase);
-    float waveform_saw(float phase);
-    float waveform_reverseSaw(float phase);
-    float waveform_triangle(float phase);
-
-    sig_Allocator TLSFAllocator_new(unsigned long size);
-    void TLSFAllocator_destroy(sig_Allocator allocator);
-
-    sig_List List_new(sig_Allocator allocator,
-        unsigned long capacity);
-    void List_insert(sig_List list, unsigned long index, any item,
-        sig_Status status);
-    void List_append(sig_List list, any item, sig_Status status);
-    any List_pop(sig_List list, sig_Status status);
-    any List_remove(sig_List list, unsigned long index, sig_Status status);
-    void List_destroy(sig_Allocator allocator, sig_List list);
-
-    sig_AudioSettings AudioSettings_new(sig_Allocator allocator);
-    void AudioSettings_destroy(sig_Allocator allocator,
-        sig_AudioSettings audioSettings);
-
-    sig_SignalContext SignalContext_new(sig_Allocator allocator,
-        sig_AudioSettings audioSettings);
-    void SignalContext_destroy(sig_Allocator allocator,
-        sig_SignalContext signalContext);
-
-    sig_Buffer Buffer_new(sig_Allocator allocator,
-        unsigned long length);
-    void Buffer_fill(sig_Buffer buffer, float value);
-    void Buffer_fillWithSilence(sig_Buffer buffer);
-    float Buffer_read(sig_Buffer buffer, float idx);
-    float Buffer_readLinear(sig_Buffer buffer, float idx);
-    float Buffer_readCubic(sig_Buffer buffer, float idx);
-    void Buffer_destroy(sig_Allocator allocator, sig_Buffer buffer);
-
-    any AudioBlock_new(sig_Allocator allocator,
-        sig_AudioSettings audioSettings);
-    any AudioBlock_newWithValue(sig_Allocator allocator,
-        sig_AudioSettings audioSettings, float value);
-    void AudioBlock_destroy(sig_Allocator allocator, any audioBlock);
-};
-
 enum sig_Result {
     "SIG_RESULT_NONE",
     "SIG_RESULT_SUCCESS",
@@ -120,6 +7,12 @@ enum sig_Result {
 
 interface sig_Status {
     attribute sig_Result result;
+};
+
+interface sig_AudioSettings {
+    attribute float sampleRate;
+    attribute unsigned long numChannels;
+    attribute unsigned long blockSize;
 };
 
 interface sig_AllocatorHeap {
@@ -138,10 +31,29 @@ interface sig_Allocator {
     attribute sig_AllocatorHeap heap;
 };
 
-interface sig_AudioSettings {
+interface sig_List {
+    attribute unsigned long capacity;
+    attribute unsigned long length;
+};
+
+interface sig_filter_Smooth {
+    attribute float coeff;
+    attribute float previous;
+};
+
+interface sig_osc_FastLFSine {
     attribute float sampleRate;
-    attribute unsigned long numChannels;
-    attribute unsigned long blockSize;
+    attribute float f;
+    attribute float sinZ;
+    attribute float cosZ;
+};
+
+interface sig_SignalContext {
+    attribute sig_AudioSettings audioSettings;
+    attribute sig_Buffer emptyBuffer;
+    attribute sig_DelayLine oneSampleDelayLine;
+    attribute sig_dsp_ConstantValue silence;
+    attribute sig_dsp_ConstantValue unity;
 };
 
 interface sig_Buffer {
@@ -149,9 +61,9 @@ interface sig_Buffer {
     attribute any samples;
 };
 
-interface sig_List {
-    attribute unsigned long capacity;
-    attribute unsigned long length;
+interface sig_DelayLine {
+    attribute sig_Buffer buffer;
+    attribute unsigned long writeIdx;
 };
 
 interface sig_dsp_Signal {
@@ -163,17 +75,16 @@ interface sig_dsp_Signal_SingleMonoOutput {
     attribute any main;
 };
 
-interface sig_dsp_ConstantValue {
-    [Value] attribute sig_dsp_Signal signal;
-    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+interface sig_dsp_SignalEvaluator {
 };
 
-
-interface sig_SignalContext {
-    attribute sig_AudioSettings audioSettings;
-    attribute sig_dsp_ConstantValue silence;
+interface sig_dsp_SignalListEvaluator {
+    attribute sig_List signalList;
 };
 
+interface sig_dsp_Value_Parameters {
+    attribute float value;
+};
 
 interface sig_dsp_Value {
     [Value] attribute sig_dsp_Signal signal;
@@ -182,10 +93,120 @@ interface sig_dsp_Value {
     attribute float lastSample;
 };
 
-interface sig_dsp_Value_Parameters {
-    attribute float value;
+interface sig_dsp_ConstantValue {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
 };
 
+interface sig_dsp_Abs_Inputs {
+    attribute any source;
+};
+
+interface sig_dsp_Abs {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_Abs_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
+interface sig_dsp_ScaleOffset_Inputs {
+    attribute any source;
+};
+
+interface sig_dsp_ScaleOffset_Parameters {
+    attribute float scale;
+    attribute float offset;
+};
+
+interface sig_dsp_ScaleOffset {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_ScaleOffset_Inputs inputs;
+    [Value] attribute sig_dsp_ScaleOffset_Parameters parameters;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
+interface sig_dsp_BinaryOp_Inputs {
+    attribute any left;
+    attribute any right;
+};
+
+interface sig_dsp_BinaryOp {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_BinaryOp_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
+interface sig_dsp_Invert_Inputs {
+    attribute any source;
+};
+
+interface sig_dsp_Invert {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_Invert_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
+interface sig_dsp_Accumulate_Inputs {
+    attribute any source;
+    attribute any reset;
+};
+
+interface sig_dsp_Accumulate_Parameters {
+    attribute float accumulatorStart;
+    attribute float wrap;
+    attribute float maxValue;
+};
+
+interface sig_dsp_Accumulate {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_Accumulate_Inputs inputs;
+    [Value] attribute sig_dsp_Accumulate_Parameters parameters;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+    attribute float accumulator;
+    attribute float previousReset;
+};
+
+interface sig_dsp_GatedTimer_Inputs {
+    attribute any gate;
+    attribute any duration;
+    attribute any loop;
+};
+
+interface sig_dsp_GatedTimer {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_GatedTimer_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+    attribute unsigned long timer;
+    attribute boolean hasFired;
+    attribute float prevGate;
+};
+
+interface sig_dsp_TimedTriggerCounter_Inputs {
+    attribute any source;
+    attribute any duration;
+    attribute any count;
+};
+
+interface sig_dsp_TimedTriggerCounter {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_TimedTriggerCounter_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+    attribute long numTriggers;
+    attribute long timer;
+    attribute boolean isTimerActive;
+    attribute float previousSource;
+};
+
+interface sig_dsp_ToggleGate_Inputs {
+    attribute any trigger;
+};
+
+interface sig_dsp_ToggleGate {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_ToggleGate_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+    attribute boolean isGateOpen;
+    attribute float prevTrig;
+};
 
 interface sig_dsp_Oscillator_Inputs {
     attribute any freq;
@@ -206,32 +227,913 @@ interface sig_dsp_Oscillator {
     attribute float phaseAccumulator;
 };
 
-
-interface sig_dsp_BinaryOp_Inputs {
-    attribute any left;
-    attribute any right;
+interface sig_dsp_Smooth_Inputs {
+    attribute any source;
 };
 
-interface sig_dsp_BinaryOp {
+interface sig_dsp_Smooth_Parameters {
+    attribute float time;
+};
+
+interface sig_dsp_Smooth {
     [Value] attribute sig_dsp_Signal signal;
-    [Value] attribute sig_dsp_BinaryOp_Inputs inputs;
+    [Value] attribute sig_dsp_Smooth_Inputs inputs;
+    [Value] attribute sig_dsp_Smooth_Parameters parameters;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+    attribute float a1;
+    attribute float previousTime;
+    attribute float previousSample;
+};
+
+interface sig_dsp_EMA_Inputs {
+    attribute any source;
+};
+
+interface sig_dsp_EMA_Parameters {
+    attribute float alpha;
+};
+
+interface sig_dsp_EMA {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_EMA_Inputs inputs;
+    [Value] attribute sig_dsp_EMA_Parameters parameters;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+    attribute float previousSample;
+};
+
+interface sig_dsp_Tanh_Inputs {
+    attribute any source;
+};
+
+interface sig_dsp_Tanh {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_Tanh_Inputs inputs;
     [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
 };
 
+interface sig_dsp_Looper_Inputs {
+    attribute any source;
+    attribute any start;
+    attribute any end;
+    attribute any speed;
+    attribute any record;
+    attribute any clear;
+};
 
+interface sig_dsp_Looper_Loop {
+    attribute sig_Buffer buffer;
+    attribute unsigned long startIdx;
+    attribute unsigned long length;
+    attribute boolean isEmpty;
+};
 
-interface sig_dsp_ClockDetector_Outputs {
-    attribute any main;
-    attribute any bpm;
+interface sig_dsp_Looper {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_Looper_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+    [Value] attribute sig_dsp_Looper_Loop loop;
+    attribute unsigned long loopLastIdx;
+    attribute float playbackPos;
+    attribute float previousRecord;
+    attribute float previousClear;
+};
+
+interface sig_dsp_Dust_Parameters {
+    attribute float bipolar;
+};
+
+interface sig_dsp_Dust_Inputs {
+    attribute any density;
+};
+
+interface sig_dsp_Dust {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_Dust_Inputs inputs;
+    [Value] attribute sig_dsp_Dust_Parameters parameters;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+    attribute float sampleDuration;
+    attribute float previousDensity;
+    attribute float threshold;
+    attribute float scale;
+};
+
+interface sig_dsp_TimedGate_Parameters {
+    attribute float resetOnTrigger;
+    attribute float bipolar;
+};
+
+interface sig_dsp_TimedGate_Inputs {
+    attribute any trigger;
+    attribute any duration;
+};
+
+interface sig_dsp_TimedGate {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_TimedGate_Inputs inputs;
+    [Value] attribute sig_dsp_TimedGate_Parameters parameters;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+    attribute float previousTrigger;
+    attribute float gateValue;
+    attribute float previousDuration;
+    attribute long durationSamps;
+    attribute long samplesRemaining;
+};
+
+interface sig_dsp_DustGate_Inputs {
+    attribute any density;
+    attribute any durationPercentage;
+};
+
+interface sig_dsp_DustGate_Parameters {
+    attribute float bipolar;
+};
+
+interface sig_dsp_DustGate {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_DustGate_Inputs inputs;
+    [Value] attribute sig_dsp_DustGate_Parameters parameters;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+    attribute sig_dsp_Dust dust;
+    attribute sig_dsp_BinaryOp reciprocalDensity;
+    attribute sig_dsp_BinaryOp densityDurationMultiplier;
+    attribute sig_dsp_TimedGate gate;
 };
 
 interface sig_dsp_ClockDetector_Inputs {
     attribute any source;
 };
 
+interface sig_dsp_ClockDetector_Outputs {
+    attribute any main;
+    attribute any bpm;
+};
+
+interface sig_dsp_ClockDetector_Parameters {
+    attribute float threshold;
+};
+
 interface sig_dsp_ClockDetector {
     [Value] attribute sig_dsp_Signal signal;
     [Value] attribute sig_dsp_ClockDetector_Inputs inputs;
+    [Value] attribute sig_dsp_ClockDetector_Parameters parameters;
     [Value] attribute sig_dsp_ClockDetector_Outputs outputs;
+    attribute float previousTrigger;
+    attribute boolean isRisingEdge;
+    attribute octet numPulsesDetected;
+    attribute unsigned long samplesSinceLastPulse;
+    attribute float clockFreq;
+    attribute unsigned long pulseDurSamples;
 };
 
+interface sig_dsp_LinearToFreq_Inputs {
+    attribute any source;
+};
+
+interface sig_dsp_LinearToFreq_Parameters {
+    attribute float middleFreq;
+};
+
+interface sig_dsp_LinearToFreq {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_LinearToFreq_Inputs inputs;
+    [Value] attribute sig_dsp_LinearToFreq_Parameters parameters;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
+interface sig_dsp_Branch_Inputs {
+    attribute any off;
+    attribute any on;
+    attribute any condition;
+};
+
+interface sig_dsp_Branch {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_Branch_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
+interface sig_dsp_List_Outputs {
+    attribute any main;
+    attribute any index;
+    attribute any length;
+};
+
+interface sig_dsp_List_Parameters {
+    attribute float wrap;
+    attribute float normalizeIndex;
+    attribute float interpolate;
+};
+
+interface sig_dsp_List_Inputs {
+    attribute any index;
+};
+
+interface sig_dsp_List {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_List_Inputs inputs;
+    [Value] attribute sig_dsp_List_Parameters parameters;
+    [Value] attribute sig_dsp_List_Outputs outputs;
+    attribute sig_Buffer list;
+};
+
+interface sig_dsp_LinearMap_Inputs {
+    attribute any source;
+};
+
+interface sig_dsp_LinearMap_Parameters {
+    attribute float fromMin;
+    attribute float fromMax;
+    attribute float toMin;
+    attribute float toMax;
+};
+
+interface sig_dsp_LinearMap {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_LinearMap_Inputs inputs;
+    [Value] attribute sig_dsp_LinearMap_Parameters parameters;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
+interface sig_dsp_TwoOpFM_Inputs {
+    attribute any frequency;
+    attribute any index;
+    attribute any ratio;
+    attribute any phaseOffset;
+};
+
+interface sig_dsp_TwoOpFM_Outputs {
+    attribute any main;
+    attribute any modulator;
+};
+
+interface sig_dsp_TwoOpFM {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_TwoOpFM_Inputs inputs;
+    [Value] attribute sig_dsp_TwoOpFM_Outputs outputs;
+    attribute sig_dsp_BinaryOp modulatorFrequency;
+    attribute sig_dsp_BinaryOp carrierPhaseOffset;
+    attribute sig_dsp_Oscillator modulator;
+    attribute sig_dsp_Oscillator carrier;
+};
+
+enum sig_dsp_OnePole_Mode {
+    "sig_dsp_OnePole_Mode_HIGH_PASS",
+    "sig_dsp_OnePole_Mode_LOW_PASS",
+    "sig_dsp_OnePole_Mode_NOT_SPECIFIED"
+};
+
+interface sig_dsp_OnePole_Parameters {
+    attribute sig_dsp_OnePole_Mode mode;
+};
+
+interface sig_dsp_OnePole_Inputs {
+    attribute any source;
+    attribute any frequency;
+};
+
+interface sig_dsp_OnePole {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_OnePole_Inputs inputs;
+    [Value] attribute sig_dsp_OnePole_Parameters parameters;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+    attribute float b0;
+    attribute float a1;
+    attribute sig_dsp_OnePole_Mode previousMode;
+    attribute float previousFrequency;
+    attribute float previousSample;
+};
+
+interface sig_dsp_FourPoleFilter_Inputs {
+    attribute any source;
+    attribute any frequency;
+    attribute any resonance;
+    attribute any inputGain;
+    attribute any pole1Gain;
+    attribute any pole2Gain;
+    attribute any pole3Gain;
+    attribute any pole4Gain;
+};
+
+interface sig_dsp_FourPoleFilter_Outputs {
+    attribute any main;
+    attribute any twoPole;
+    attribute any fourPole;
+};
+
+interface sig_dsp_Bob {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_FourPoleFilter_Inputs inputs;
+    [Value] attribute sig_dsp_FourPoleFilter_Outputs outputs;
+    attribute float[] state;
+    attribute float[] deriv1;
+    attribute float[] deriv2;
+    attribute float[] deriv3;
+    attribute float[] deriv4;
+    attribute float[] tempState;
+    attribute float saturation;
+    attribute float saturationInv;
+    attribute octet oversample;
+    attribute float stepSize;
+};
+
+interface sig_dsp_Ladder_Parameters {
+    attribute float passbandGain;
+};
+
+interface sig_dsp_Ladder {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_FourPoleFilter_Inputs inputs;
+    [Value] attribute sig_dsp_Ladder_Parameters parameters;
+    [Value] attribute sig_dsp_FourPoleFilter_Outputs outputs;
+    attribute octet interpolation;
+    attribute float interpolationRecip;
+    attribute float alpha;
+    attribute float[] beta;
+    attribute float[] z0;
+    attribute float[] z1;
+    attribute float k;
+    attribute float fBase;
+    attribute float qAdjust;
+    attribute float prevFrequency;
+    attribute float prevInput;
+};
+
+interface sig_dsp_TiltEQ_Inputs {
+    attribute any source;
+    attribute any frequency;
+    attribute any gain;
+};
+
+interface sig_dsp_TiltEQ {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_TiltEQ_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+    attribute float sr3;
+    attribute float lpOut;
+};
+
+interface sig_dsp_Delay_Inputs {
+    attribute any source;
+    attribute any delayTime;
+};
+
+interface sig_dsp_Delay {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_Delay_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+    attribute sig_DelayLine delayLine;
+};
+
+interface sig_dsp_DelayWrite_Inputs {
+    attribute any source;
+};
+
+interface sig_dsp_DelayWrite {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_DelayWrite_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+    attribute sig_DelayLine delayLine;
+};
+
+interface sig_dsp_Comb_Inputs {
+    attribute any source;
+    attribute any delayTime;
+    attribute any feedbackGain;
+    attribute any lpfCoefficient;
+};
+
+interface sig_dsp_Comb {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_Comb_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+    attribute sig_DelayLine delayLine;
+    attribute float previousSample;
+};
+
+interface sig_dsp_Allpass_Inputs {
+    attribute any source;
+    attribute any delayTime;
+    attribute any g;
+};
+
+interface sig_dsp_Allpass {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_Allpass_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+    attribute sig_DelayLine delayLine;
+};
+
+interface sig_dsp_Chorus_Inputs {
+    attribute any source;
+    attribute any delayTime;
+    attribute any speed;
+    attribute any width;
+    attribute any feedbackGain;
+    attribute any feedforwardGain;
+    attribute any blend;
+};
+
+interface sig_dsp_Chorus_Outputs {
+    attribute any main;
+    attribute any modulator;
+};
+
+interface sig_dsp_Chorus {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_Chorus_Inputs inputs;
+    [Value] attribute sig_dsp_Chorus_Outputs outputs;
+    attribute sig_DelayLine delayLine;
+    [Value] attribute sig_osc_FastLFSine modulator;
+    attribute float previousFixedOutput;
+    attribute float previousModulatedOutput;
+};
+
+interface sig_dsp_LinearXFade_Inputs {
+    attribute any left;
+    attribute any right;
+    attribute any mix;
+};
+
+interface sig_dsp_LinearXFade {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_LinearXFade_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
+interface sig_dsp_Calibrator_Inputs {
+    attribute any source;
+    attribute any gate;
+};
+
+interface sig_dsp_Calibrator_Node {
+    attribute float target;
+    attribute unsigned long numSamplesRecorded;
+    attribute float min;
+    attribute float max;
+    attribute float sum;
+    attribute float avg;
+    attribute float diff;
+};
+
+interface sig_dsp_Calibrator {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_Calibrator_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+    [Value] attribute sig_dsp_Calibrator_Node[] nodes;
+    attribute float previousGate;
+    attribute unsigned long stage;
+};
+
+interface Signals {
+    void Signal_SingleMonoOutput_newAudioBlocks(sig_Allocator allocator,
+        sig_AudioSettings audioSettings,
+        sig_dsp_Signal_SingleMonoOutput outputs);
+    void Signal_SingleMonoOutput_destroyAudioBlocks(sig_Allocator allocator,
+        sig_dsp_Signal_SingleMonoOutput outputs);
+
+    void evaluateSignals(sig_List signalList);
+
+    sig_dsp_SignalListEvaluator SignalListEvaluator_new(
+        sig_Allocator allocator, sig_List signalList);
+    void SignalListEvaluator_init(sig_dsp_SignalListEvaluator evaluator,
+        sig_List signalList);
+    void SignalListEvaluator_evaluate(sig_dsp_SignalEvaluator evaluator);
+    void SignalListEvaluator_destroy(sig_Allocator allocator, sig_dsp_SignalListEvaluator evaluator);
+
+    sig_dsp_Value Value_new(sig_Allocator allocator, sig_SignalContext context);
+    void Value_init(sig_dsp_Value signal, sig_SignalContext context);
+    void Value_generate(any signal);
+    void Value_destroy(sig_Allocator allocator, sig_dsp_Value signal);
+
+    sig_dsp_ConstantValue ConstantValue_new(sig_Allocator allocator,
+        sig_SignalContext context, float value);
+    void ConstantValue_init(sig_dsp_ConstantValue signal,
+        sig_SignalContext context, float value);
+    void ConstantValue_destroy(sig_Allocator allocator,
+        sig_dsp_ConstantValue signal);
+
+    sig_dsp_Abs Abs_new(sig_Allocator allocator, sig_SignalContext context);
+    void Abs_init(sig_dsp_Abs signal, sig_SignalContext context);
+    void Abs_generate(any signal);
+    void Abs_destroy(sig_Allocator allocator, sig_dsp_Abs signal);
+
+    sig_dsp_ScaleOffset ScaleOffset_new(sig_Allocator allocator, sig_SignalContext context);
+    void ScaleOffset_init(sig_dsp_ScaleOffset signal, sig_SignalContext context);
+    void ScaleOffset_generate(any signal);
+    void ScaleOffset_destroy(sig_Allocator allocator, sig_dsp_ScaleOffset signal);
+
+    sig_dsp_BinaryOp Add_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void Add_init(sig_dsp_BinaryOp signal, sig_SignalContext context);
+    void Add_generate(any signal);
+    void Add_destroy(sig_Allocator allocator, sig_dsp_BinaryOp signal);
+
+    sig_dsp_BinaryOp Sub_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void Sub_init(sig_dsp_BinaryOp signal, sig_SignalContext context);
+    void Sub_generate(any signal);
+    void Sub_destroy(sig_Allocator allocator, sig_dsp_BinaryOp signal);
+
+    sig_dsp_BinaryOp Mul_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void Mul_init(sig_dsp_BinaryOp signal, sig_SignalContext context);
+    void Mul_generate(any signal);
+    void Mul_destroy(sig_Allocator allocator, sig_dsp_BinaryOp signal);
+
+    sig_dsp_BinaryOp Div_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void Div_init(sig_dsp_BinaryOp signal, sig_SignalContext context);
+    void Div_generate(any signal);
+    void Div_destroy(sig_Allocator allocator, sig_dsp_BinaryOp signal);
+
+    sig_dsp_Invert Invert_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void Invert_init(sig_dsp_Invert signal, sig_SignalContext context);
+    void Invert_generate(any signal);
+    void Invert_destroy(sig_Allocator allocator, sig_dsp_Invert signal);
+
+    sig_dsp_Accumulate Accumulate_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void Accumulate_init(sig_dsp_Accumulate signal, sig_SignalContext context);
+    void Accumulate_generate(any signal);
+    void Accumulate_destroy(sig_Allocator allocator, sig_dsp_Accumulate signal);
+
+    sig_dsp_GatedTimer GatedTimer_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void GatedTimer_init(sig_dsp_GatedTimer signal, sig_SignalContext context);
+    void GatedTimer_generate(any signal);
+    void GatedTimer_destroy(sig_Allocator allocator, sig_dsp_GatedTimer signal);
+
+    sig_dsp_TimedTriggerCounter TimedTriggerCounter_new(
+        sig_Allocator allocator, sig_SignalContext context);
+    void TimedTriggerCounter_init(sig_dsp_TimedTriggerCounter signal,
+        sig_SignalContext context);
+    void TimedTriggerCounter_generate(any signal);
+    void TimedTriggerCounter_destroy(sig_Allocator allocator,
+        sig_dsp_TimedTriggerCounter signal);
+
+    sig_dsp_ToggleGate ToggleGate_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void ToggleGate_init(sig_dsp_ToggleGate signal, sig_SignalContext context);
+    void ToggleGate_generate(any signal);
+    void ToggleGate_destroy(sig_Allocator allocator, sig_dsp_ToggleGate signal);
+
+    void Oscillator_Outputs_newAudioBlocks(sig_Allocator allocator,
+        sig_AudioSettings audioSettings, sig_dsp_Oscillator_Outputs outputs);
+    void Oscillator_Outputs_destroyAudioBlocks(sig_Allocator allocator,
+        sig_dsp_Oscillator_Outputs outputs);
+
+    float Oscillator_eoc(float phase);
+    float Oscillator_wrapPhase(float phase);
+    void Oscillator_accumulatePhase(sig_dsp_Oscillator signal, unsigned long i);
+    void Oscillator_destroy(sig_Allocator allocator, sig_dsp_Oscillator signal);
+
+    void Sine_init(sig_dsp_Oscillator signal, sig_SignalContext context);
+    sig_dsp_Oscillator Sine_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void Sine_generate(any signal);
+    void Sine_destroy(sig_Allocator allocator, sig_dsp_Oscillator signal);
+
+    void LFTriangle_init(sig_dsp_Oscillator signal, sig_SignalContext context);
+    sig_dsp_Oscillator LFTriangle_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void LFTriangle_generate(any signal);
+    void LFTriangle_destroy(sig_Allocator allocator, sig_dsp_Oscillator signal);
+
+    void Smooth_init(sig_dsp_Smooth signal, sig_SignalContext context);
+    sig_dsp_Smooth Smooth_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void Smooth_generate(any signal);
+    void Smooth_destroy(sig_Allocator allocator, sig_dsp_Smooth signal);
+
+    void EMA_init(sig_dsp_EMA signal, sig_SignalContext context);
+    sig_dsp_EMA EMA_new(sig_Allocator allocator, sig_SignalContext context);
+    void EMA_generate(any signal);
+    void EMA_destroy(sig_Allocator allocator, sig_dsp_EMA signal);
+
+    void Tanh_init(sig_dsp_Tanh signal, sig_SignalContext context);
+    sig_dsp_Tanh Tanh_new(sig_Allocator allocator, sig_SignalContext context);
+    void Tanh_generate(any signal);
+    void Tanh_destroy(sig_Allocator allocator, sig_dsp_Tanh signal);
+
+    void Looper_init(sig_dsp_Looper signal, sig_SignalContext context);
+    sig_dsp_Looper Looper_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void Looper_setBuffer(sig_dsp_Looper signal, sig_Buffer buffer);
+    void Looper_generate(any signal);
+    void Looper_destroy(sig_Allocator allocator, sig_dsp_Looper signal);
+
+    void Dust_init(sig_dsp_Dust signal, sig_SignalContext context);
+    sig_dsp_Dust Dust_new(sig_Allocator allocator, sig_SignalContext context);
+    void Dust_generate(any signal);
+    void Dust_destroy(sig_Allocator allocator, sig_dsp_Dust signal);
+
+    void TimedGate_init(sig_dsp_TimedGate signal, sig_SignalContext context);
+    sig_dsp_TimedGate TimedGate_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void TimedGate_generate(any signal);
+    void TimedGate_destroy(sig_Allocator allocator, sig_dsp_TimedGate signal);
+
+    sig_dsp_DustGate DustGate_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void DustGate_init(sig_dsp_DustGate signal, sig_SignalContext context);
+    void DustGate_generate(any signal);
+    void DustGate_destroy(sig_Allocator allocator, sig_dsp_DustGate signal);
+
+    void ClockDetector_Outputs_newAudioBlocks(sig_Allocator allocator,
+        sig_AudioSettings audioSettings, sig_dsp_ClockDetector_Outputs outputs);
+    void ClockDetector_Outputs_destroyAudioBlocks(sig_Allocator allocator,
+        sig_dsp_ClockDetector_Outputs outputs);
+    void ClockDetector_init(sig_dsp_ClockDetector signal,
+        sig_SignalContext context);
+    sig_dsp_ClockDetector ClockDetector_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void ClockDetector_generate(any signal);
+    void ClockDetector_destroy(sig_Allocator allocator,
+        sig_dsp_ClockDetector signal);
+
+    sig_dsp_LinearToFreq LinearToFreq_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void LinearToFreq_init(sig_dsp_LinearToFreq signal,
+        sig_SignalContext context);
+    void LinearToFreq_generate(any signal);
+    void LinearToFreq_destroy(sig_Allocator allocator,
+        sig_dsp_LinearToFreq signal);
+
+    sig_dsp_Branch Branch_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void Branch_init(sig_dsp_Branch signal, sig_SignalContext context);
+    void Branch_generate(any signal);
+    void Branch_destroy(sig_Allocator allocator, sig_dsp_Branch signal);
+
+    void List_Outputs_newAudioBlocks(sig_Allocator allocator,
+        sig_AudioSettings audioSettings, sig_dsp_List_Outputs outputs);
+    void List_Outputs_destroyAudioBlocks(sig_Allocator allocator,
+        sig_dsp_List_Outputs outputs);
+    sig_dsp_List List_new(sig_Allocator allocator, sig_SignalContext context);
+    void List_init(sig_dsp_List signal, sig_SignalContext context);
+    float List_constrain(boolean shouldWrap, float index,
+        float lastIndex, float listLength);
+    void List_generate(any signal);
+    void List_destroy(sig_Allocator allocator, sig_dsp_List signal);
+
+    sig_dsp_LinearMap LinearMap_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void LinearMap_init(sig_dsp_LinearMap signal, sig_SignalContext context);
+    void LinearMap_generate(any signal);
+    void LinearMap_destroy(sig_Allocator allocator, sig_dsp_LinearMap signal);
+
+    sig_dsp_TwoOpFM TwoOpFM_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void TwoOpFM_init(sig_dsp_TwoOpFM signal, sig_SignalContext context);
+    void TwoOpFM_generate(any signal);
+    void TwoOpFM_destroy(sig_Allocator allocator, sig_dsp_TwoOpFM signal);
+
+    void OnePole_init(sig_dsp_OnePole signal, sig_SignalContext context);
+    sig_dsp_OnePole OnePole_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void OnePole_recalculateCoefficients(sig_dsp_OnePole signal,
+        float frequency);
+    void OnePole_generate(any signal);
+    void OnePole_destroy(sig_Allocator allocator, sig_dsp_OnePole signal);
+
+    void FourPoleFilter_Outputs_newAudioBlocks(sig_Allocator allocator,
+        sig_AudioSettings audioSettings,
+        sig_dsp_FourPoleFilter_Outputs outputs);
+    void FourPoleFilter_Outputs_destroyAudioBlocks(sig_Allocator allocator,
+         sig_dsp_FourPoleFilter_Outputs outputs);
+
+    sig_dsp_Bob Bob_new(sig_Allocator allocator, sig_SignalContext context);
+    void Bob_init(sig_dsp_Bob signal, sig_SignalContext context);
+    float Bob_clip(float value, float saturation, float saturationInv);
+    void Bob_generate(any signal);
+    void Bob_destroy(sig_Allocator allocator, sig_dsp_Bob signal);
+
+    sig_dsp_Ladder Ladder_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void Ladder_init(sig_dsp_Ladder signal, sig_SignalContext context);
+    void Ladder_calcCoefficients(sig_dsp_Ladder signal, float freq);
+    float Ladder_calcStage(sig_dsp_Ladder signal, float s, octet i);
+    void Ladder_generate(any signal);
+    void Ladder_destroy(sig_Allocator allocator, sig_dsp_Ladder signal);
+
+    sig_dsp_TiltEQ TiltEQ_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void TiltEQ_init(sig_dsp_TiltEQ signal, sig_SignalContext context);
+    void TiltEQ_generate(any signal);
+    void TiltEQ_destroy(sig_Allocator allocator, sig_dsp_TiltEQ signal);
+
+    sig_dsp_Delay Delay_new(sig_Allocator allocator, sig_SignalContext context);
+    void Delay_init(sig_dsp_Delay signal, sig_SignalContext context);
+    void Delay_read(sig_dsp_Delay signal, float source, unsigned long i);
+    void Delay_generate(any signal);
+    void Delay_destroy(sig_Allocator allocator, sig_dsp_Delay signal);
+
+    sig_dsp_Delay DelayTap_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void DelayTap_init(sig_dsp_Delay signal, sig_SignalContext context);
+    void DelayTap_generate(any signal);
+    void DelayTap_destroy(sig_Allocator allocator, sig_dsp_Delay signal);
+
+    sig_dsp_DelayWrite DelayWrite_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void DelayWrite_init(sig_dsp_DelayWrite signal, sig_SignalContext context);
+    void DelayWrite_generate(any signal);
+    void DelayWrite_destroy(sig_Allocator allocator, sig_dsp_DelayWrite signal);
+
+    sig_dsp_Comb Comb_new(sig_Allocator allocator, sig_SignalContext context);
+    void Comb_init(sig_dsp_Comb signal, sig_SignalContext context);
+    void Comb_generate(any signal);
+    void Comb_destroy(sig_Allocator allocator, sig_dsp_Comb signal);
+
+    sig_dsp_Allpass Allpass_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void Allpass_init(sig_dsp_Allpass signal, sig_SignalContext context);
+    void Allpass_generate(any signal);
+    void Allpass_destroy(sig_Allocator allocator, sig_dsp_Allpass signal);
+
+    sig_dsp_Chorus Chorus_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void Chorus_init(sig_dsp_Chorus signal, sig_SignalContext context);
+    void Chorus_generate(any signal);
+    void Chorus_destroy(sig_Allocator allocator, sig_dsp_Chorus signal);
+
+    sig_dsp_LinearXFade LinearXFade_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void LinearXFade_init(sig_dsp_LinearXFade signal, sig_SignalContext context);
+    void LinearXFade_generate(any signal);
+    void LinearXFade_destroy(sig_Allocator allocator, sig_dsp_LinearXFade signal);
+
+    void Calibrator_Node_init(sig_dsp_Calibrator_Node nodes, any targetValues,
+        unsigned long numNodes);
+    unsigned long Calibrator_locateIntervalForValue(float x,
+        sig_dsp_Calibrator_Node nodes, unsigned long numNodes);
+    float Calibrator_fitValueToCalibrationData(float x, sig_dsp_Calibrator_Node nodes, unsigned long numNodes);
+    sig_dsp_Calibrator Calibrator_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void Calibrator_init(sig_dsp_Calibrator signal, sig_SignalContext context);
+    void Calibrator_generate(any signal);
+    void Calibrator_destroy(sig_Allocator allocator, sig_dsp_Calibrator signal);
+};
+
+interface Signaletic {
+    void Signaletic();
+
+    [Value] attribute Signals dsp;
+
+    readonly attribute float PI;
+    readonly attribute float TWOPI;
+    readonly attribute float RECIP_TWOPI;
+    readonly attribute float LOG0_001;
+    readonly attribute float LOG2;
+    readonly attribute float FREQ_C4;
+
+    [Value] readonly attribute sig_AudioSettings DEFAULT_AUDIOSETTINGS;
+
+    sig_Status Status_new(sig_Allocator allocator);
+    void Status_init(sig_Status status);
+    void Status_reset(sig_Status status);
+    void Status_reportResult(sig_Status status, sig_Result result);
+
+    float fminf(float a, float b);
+    float fmaxf(float a, float b);
+    float clamp(float value, float min, float max);
+    float flooredfmodf(float num, float denom);
+    float randf();
+    float fastTanhf(float x);
+    float linearMap(float value, float fromMin, float fromMax, float toMin,
+        float toMax);
+    unsigned short unipolarToUint12(float sample);
+    unsigned short bipolarToUint12(float sample);
+    unsigned short bipolarToInvUint12(float sample);
+    float uint16ToBipolar(unsigned short sample);
+    float uint16ToUnipolar(unsigned short sample);
+    float invUint16ToBipolar(unsigned short sample);
+    float midiToFreq(float midiNum);
+    float freqToMidi(float frequency);
+    float linearToFreq(float value, float middleFreq);
+    float freqToLinear(float freq, float middleFreq);
+    float sum(any values, unsigned long length);
+    unsigned long indexOfMin(any values, unsigned long length);
+    unsigned long indexOfMax(any values, unsigned long length);
+
+    float randomFill(unsigned long i, any array);
+    void fillWithValue(any array, unsigned long length, float value);
+    void fillWithSilence(any array, unsigned long length);
+    float interpolate_linear(float idx, any table, unsigned long length);
+    float interpolate_cubic(float idx, any table, unsigned long length);
+    float filter_mean(any values, unsigned long length);
+    float filter_meanExcludeMinMax(any values, unsigned long length);
+    float filter_ema(float current, float previous, float a);
+    float filter_onepole(float current, float previous, float b0, float a1);
+    float filter_onepole_HPF_calculateA1(float frequency, float sampleRate);
+    float filter_onepole_HPF_calculateB0(float a1);
+    float filter_onepole_LPF_calculateA1(float frequency, float sampleRate);
+    float filter_onepole_LPF_calculateB0(float a1);
+    float filter_smooth(float current, float previous, float coeff);
+    float filter_smooth_calculateCoefficient(float timeSecs, float sampleRate);
+
+    void filter_Smooth_init(sig_filter_Smooth smooth, float coeff);
+    float filter_Smooth_generate(sig_filter_Smooth smooth, float value);
+
+    float waveform_sine(float phase);
+    float waveform_square(float phase);
+    float waveform_saw(float phase);
+    float waveform_reverseSaw(float phase);
+    float waveform_triangle(float phase);
+
+    void osc_FastLFSine_init(sig_osc_FastLFSine signal, float sampleRate);
+    void osc_FastLFSine_setFrequency(sig_osc_FastLFSine signal,
+        float frequency);
+    void osc_FastLFSine_setFrequencyFast(sig_osc_FastLFSine signal,
+        float frequency);
+    void osc_FastLFSine_generate(sig_osc_FastLFSine signal);
+
+    unsigned long secondsToSamples(sig_AudioSettings audioSettings,
+        float duration);
+
+    sig_Allocator TLSFAllocator_new(unsigned long size);
+    void TLSFAllocator_destroy(sig_Allocator allocator);
+
+    sig_List List_new(sig_Allocator allocator,
+        unsigned long capacity);
+    void List_insert(sig_List list, unsigned long index, any item,
+        sig_Status status);
+    void List_append(sig_List list, any item, sig_Status status);
+    any List_pop(sig_List list, sig_Status status);
+    any List_remove(sig_List list, unsigned long index, sig_Status status);
+    void List_destroy(sig_Allocator allocator, sig_List list);
+
+    sig_AudioSettings AudioSettings_new(sig_Allocator allocator);
+    void AudioSettings_destroy(sig_Allocator allocator,
+        sig_AudioSettings settings);
+
+    sig_SignalContext SignalContext_new(sig_Allocator allocator, sig_AudioSettings audioSettings);
+    void SignalContext_destroy(sig_Allocator allocator,
+        sig_SignalContext context);
+
+    sig_Buffer Buffer_new(sig_Allocator allocator, unsigned long length);
+    void Buffer_fillWithValue(sig_Buffer buffer, float value);
+    void Buffer_fillWithSilence(sig_Buffer buffer);
+    float Buffer_read(sig_Buffer buffer, float idx);
+    float Buffer_readLinear(sig_Buffer buffer, float idx);
+    float Buffer_readCubic(sig_Buffer buffer, float idx);
+    void Buffer_destroy(sig_Allocator allocator, sig_Buffer buffer);
+
+    sig_Buffer BufferView_new(sig_Allocator allocator, sig_Buffer buffer, unsigned long startIdx, unsigned long length);
+    void BufferView_destroy(sig_Allocator allocator, sig_Buffer buffer);
+
+    any AudioBlock_new(sig_Allocator allocator,
+        sig_AudioSettings audioSettings);
+    any AudioBlock_newWithValue(sig_Allocator allocator,
+        sig_AudioSettings audioSettings, float value);
+    any AudioBlock_newSilent(sig_Allocator allocator,
+        sig_AudioSettings audioSettings);
+    void AudioBlock_destroy(sig_Allocator allocator, any audioBlock);
+
+    sig_DelayLine DelayLine_new(sig_Allocator allocator,
+        unsigned long maxDelayLength);
+    sig_DelayLine DelayLine_newSeconds(sig_Allocator allocator, sig_AudioSettings audioSettings, float maxDelaySecs);
+    sig_DelayLine DelayLine_newWithTransferredBuffer(sig_Allocator allocator,
+        sig_Buffer buffer);
+    void DelayLine_init(sig_DelayLine delayLine);
+    float DelayLine_readAt(sig_DelayLine delayLine, unsigned long readPos);
+    float DelayLine_linearReadAt(sig_DelayLine delayLine, float readPos);
+    float DelayLine_cubicReadAt(sig_DelayLine delayLine, float readPos);
+    float DelayLine_allpassReadAt(sig_DelayLine delayLine, float readPos,
+        float previousSample);
+    float DelayLine_readAtTime(sig_DelayLine delayLine, float source,
+        float tapTime, float sampleRate);
+    float DelayLine_linearReadAtTime(sig_DelayLine delayLine, float source,
+        float tapTime, float sampleRate);
+    float DelayLine_cubicReadAtTime(sig_DelayLine delayLine, float source,
+        float tapTime, float sampleRate);
+    float DelayLine_allpassReadAtTime(sig_DelayLine delayLine, float source,
+        float tapTime, float sampleRate, float previousSample);
+    float DelayLine_readAtTimes(sig_DelayLine delayLine, float source,
+        any tapTimes, any tapGains, unsigned long numTaps, float sampleRate,
+        float timeScale);
+    float DelayLine_linearReadAtTimes(sig_DelayLine delayLine, float source,
+        any tapTimes, any tapGains, unsigned long numTaps, float sampleRate,
+        float timeScale);
+    float DelayLine_cubicReadAtTimes(sig_DelayLine delayLine, float source,
+        any tapTimes, any tapGains, unsigned long numTaps, float sampleRate,
+        float timeScale);
+
+    void DelayLine_write(sig_DelayLine delayLine, float sample);
+    float DelayLine_calcFeedbackGain(float delayTime, float decayTime);
+    float DelayLine_feedback(float sample, float read, float g);
+    float DelayLine_comb(sig_DelayLine delayLine, float sample,
+        unsigned long readPos, float g);
+    float DelayLine_cubicComb(sig_DelayLine delayLine, float sample,
+        float readPos, float g);
+    float DelayLine_allpass(sig_DelayLine delayLine, float sample,
+        unsigned long readPos, float g);
+    float DelayLine_linearAllpass(sig_DelayLine delayLine, float sample,
+        float readPos, float g);
+    float DelayLine_cubicAllpass(sig_DelayLine delayLine, float sample,
+        float readPos, float g);
+    void DelayLine_destroy(sig_Allocator allocator, sig_DelayLine delayLine);
+
+    float linearXFade(float left, float right, float mix);
+};

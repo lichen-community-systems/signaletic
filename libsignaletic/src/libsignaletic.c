@@ -847,22 +847,22 @@ inline float sig_DelayLine_allpassReadAtTime(struct sig_DelayLine* self,
     return tapSum
 
 inline float sig_DelayLine_readAtTimes(struct sig_DelayLine* self,
-    float source, float* tapTimes, float* tapGains, size_t numTaps,
-    float sampleRate, float timeScale) {
+    float source, float_array_ptr tapTimes, float_array_ptr tapGains,
+    size_t numTaps, float sampleRate, float timeScale) {
     sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,
         tapGains, numTaps, sampleRate, timeScale, sig_DelayLine_readAt);
 }
 
 inline float sig_DelayLine_linearReadAtTimes(struct sig_DelayLine* self,
-    float source, float* tapTimes, float* tapGains, size_t numTaps,
-    float sampleRate, float timeScale) {
+    float source, float_array_ptr tapTimes, float_array_ptr tapGains,
+    size_t numTaps, float sampleRate, float timeScale) {
     sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,
         tapGains, numTaps, sampleRate, timeScale, sig_DelayLine_linearReadAt);
 }
 
 inline float sig_DelayLine_cubicReadAtTimes(struct sig_DelayLine* self,
-    float source, float* tapTimes, float* tapGains, size_t numTaps,
-    float sampleRate, float timeScale) {
+    float source, float_array_ptr tapTimes, float_array_ptr tapGains,
+    size_t numTaps, float sampleRate, float timeScale) {
     sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,
         tapGains,numTaps, sampleRate, timeScale, sig_DelayLine_cubicReadAt);
 }
@@ -3553,10 +3553,10 @@ struct sig_dsp_Calibrator* sig_dsp_Calibrator_new(
 
 inline void sig_dsp_Calibrator_Node_init(
     struct sig_dsp_Calibrator_Node* nodes,
-    float* targetValues, size_t numNodes) {
+    float_array_ptr targetValues, size_t numNodes) {
     for (size_t i = 0; i < numNodes; i++) {
         struct sig_dsp_Calibrator_Node* node = &nodes[i];
-        node->target = node->avg = targetValues[i];
+        node->target = node->avg = FLOAT_ARRAY(targetValues)[i];
         node->numSamplesRecorded = 0;
         node->min = INFINITY;
         node->max = -INFINITY;
