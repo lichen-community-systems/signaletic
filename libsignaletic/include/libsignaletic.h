@@ -1041,16 +1041,16 @@ float sig_DelayLine_allpassReadAtTime(struct sig_DelayLine* self,
     float source, float tapTime, float sampleRate, float previousSample);
 
 float sig_DelayLine_readAtTimes(struct sig_DelayLine* self, float source,
-    float* tapTimes, float* tapGains, size_t numTaps,
+    float_array_ptr tapTimes, float_array_ptr tapGains, size_t numTaps,
     float sampleRate, float timeScale);
 
 float sig_DelayLine_linearReadAtTimes(struct sig_DelayLine* self,
-    float source, float* tapTimes, float* tapGains, size_t numTaps,
-    float sampleRate, float timeScale);
+    float source, float_array_ptr tapTimes, float_array_ptr tapGains,
+    size_t numTaps, float sampleRate, float timeScale);
 
 float sig_DelayLine_cubicReadAtTimes(struct sig_DelayLine* self,
-    float source, float* tapTimes, float* tapGains, size_t numTaps,
-    float sampleRate, float timeScale);
+    float source, float_array_ptr tapTimes, float_array_ptr tapGains,
+    size_t numTaps, float sampleRate, float timeScale);
 
 void sig_DelayLine_write(struct sig_DelayLine* self, float sample);
 
@@ -1817,12 +1817,9 @@ struct sig_dsp_DustGate {
 
 struct sig_dsp_DustGate* sig_dsp_DustGate_new(struct sig_Allocator* allocator,
     struct sig_SignalContext* context);
-
 void sig_dsp_DustGate_init(struct sig_dsp_DustGate* self,
     struct sig_SignalContext* context);
-
 void sig_dsp_DustGate_generate(void* signal);
-
 void sig_dsp_DustGate_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_DustGate* self);
 
@@ -1981,6 +1978,8 @@ struct sig_dsp_List* sig_dsp_List_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context);
 void sig_dsp_List_init(struct sig_dsp_List* self,
     struct sig_SignalContext* context);
+float sig_dsp_List_constrain(bool shouldWrap, float index,
+    float lastIndex, float listLength);
 void sig_dsp_List_generate(void* signal);
 void sig_dsp_List_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_List* self);
@@ -2008,8 +2007,6 @@ struct sig_dsp_LinearMap* sig_dsp_LinearMap_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context);
 void sig_dsp_LinearMap_init(struct sig_dsp_LinearMap* self,
     struct sig_SignalContext* context);
-float sig_dsp_List_constrain(bool shouldWrap, float index,
-    float lastIndex, float listLength);
 void sig_dsp_LinearMap_generate(void* signal);
 void sig_dsp_LinearMap_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_LinearMap* self);
@@ -2419,7 +2416,7 @@ struct sig_dsp_Calibrator_Node {
 };
 
 void sig_dsp_Calibrator_Node_init(struct sig_dsp_Calibrator_Node* nodes,
-    float* targetValues, size_t numNodes);
+    float_array_ptr targetValues, size_t numNodes);
 
 size_t sig_dsp_Calibrator_locateIntervalForValue(float x,
     struct sig_dsp_Calibrator_Node* nodes, size_t numNodes);
