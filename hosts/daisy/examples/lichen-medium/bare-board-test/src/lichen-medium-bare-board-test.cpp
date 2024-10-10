@@ -67,7 +67,7 @@ void buildSignalGraph(struct sig_Allocator* allocator,
     harmonizer->inputs.freq = harmonizerFreqScale->outputs.main;
     harmonizer->inputs.mul = buttonValue->outputs.main;
 
-    sine = sig_dsp_Sine_new(allocator, context);
+    sine = sig_dsp_SineOscillator_new(allocator, context);
     sig_List_append(signals, sine, status);
     sine->inputs.freq = freq->outputs.main;
 

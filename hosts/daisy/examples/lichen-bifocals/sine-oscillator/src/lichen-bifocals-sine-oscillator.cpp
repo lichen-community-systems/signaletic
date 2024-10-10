@@ -52,7 +52,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     freqSum->inputs.left = freqKnob->outputs.main;
     freqSum->inputs.right = freqCV->outputs.main;
 
-    osc = sig_dsp_Sine_new(&allocator, context);
+    osc = sig_dsp_SineOscillator_new(&allocator, context);
     sig_List_append(&signals, osc, status);
     osc->inputs.freq = freqSum->outputs.main;
 

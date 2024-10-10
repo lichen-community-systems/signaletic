@@ -40,7 +40,7 @@ class SignaleticOscillator extends AudioWorkletProcessor {
         this.ampMod.parameters.value = 1.0;
 
         /** Carrier **/
-        this.carrier = sig.dsp.Sine_new(this.allocator, this.signalContext);
+        this.carrier = sig.dsp.SineOscillator_new(this.allocator, this.signalContext);
         this.carrier.inputs.freq = this.freqMod.outputs.main;
         this.carrier.inputs.mul = this.ampMod.outputs.main;
 

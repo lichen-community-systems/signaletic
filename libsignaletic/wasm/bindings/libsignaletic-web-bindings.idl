@@ -98,18 +98,27 @@ interface sig_dsp_ConstantValue {
     [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
 };
 
-interface sig_dsp_Abs_Inputs {
+interface sig_dsp_Signal_SingleSourceInput {
     attribute any source;
 };
 
 interface sig_dsp_Abs {
     [Value] attribute sig_dsp_Signal signal;
-    [Value] attribute sig_dsp_Abs_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleSourceInput inputs;
     [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
 };
 
-interface sig_dsp_ScaleOffset_Inputs {
-    attribute any source;
+
+interface sig_dsp_Clamp_Parameters {
+    attribute float min;
+    attribute float max;
+};
+
+interface sig_dsp_Clamp {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_Signal_SingleSourceInput inputs;
+    [Value] attribute sig_dsp_Clamp_Parameters;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
 };
 
 interface sig_dsp_ScaleOffset_Parameters {
@@ -119,10 +128,17 @@ interface sig_dsp_ScaleOffset_Parameters {
 
 interface sig_dsp_ScaleOffset {
     [Value] attribute sig_dsp_Signal signal;
-    [Value] attribute sig_dsp_ScaleOffset_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleSourceInput inputs;
     [Value] attribute sig_dsp_ScaleOffset_Parameters parameters;
     [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
 };
+
+interface sig_dsp_Sine {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_Signal_SingleSourceInput inputs;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
 
 interface sig_dsp_BinaryOp_Inputs {
     attribute any left;
@@ -660,6 +676,18 @@ interface sig_dsp_LinearXFade {
     [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
 };
 
+interface sig_dsp_SineWavefolder_Inputs {
+    attribute any source;
+    attribute any gain;
+    attribute any factor;
+};
+
+interface sig_dsp_Sinewavefolder {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_Sinewavefolder_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
 interface sig_dsp_Calibrator_Inputs {
     attribute any source;
     attribute any gate;
@@ -712,15 +740,24 @@ interface Signals {
     void ConstantValue_destroy(sig_Allocator allocator,
         sig_dsp_ConstantValue signal);
 
-    sig_dsp_Abs Abs_new(sig_Allocator allocator, sig_SignalContext context);
+    sig_dsp_Abs Abs_new(sig_Allocator allocator,
+        sig_SignalContext context);
     void Abs_init(sig_dsp_Abs signal, sig_SignalContext context);
     void Abs_generate(any signal);
     void Abs_destroy(sig_Allocator allocator, sig_dsp_Abs signal);
 
-    sig_dsp_ScaleOffset ScaleOffset_new(sig_Allocator allocator, sig_SignalContext context);
+    sig_dsp_ScaleOffset ScaleOffset_new(sig_Allocator allocator,
+        sig_SignalContext context);
     void ScaleOffset_init(sig_dsp_ScaleOffset signal, sig_SignalContext context);
     void ScaleOffset_generate(any signal);
     void ScaleOffset_destroy(sig_Allocator allocator, sig_dsp_ScaleOffset signal);
+
+    sig_dsp_Sine Sine_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void Sine_init(sig_dsp_Sine signal, sig_SignalContext context);
+    void Sine_generate(any signal);
+    void Sine_destroy(sig_Allocator allocator,
+        sig_dsp_Sine signal);
 
     sig_dsp_BinaryOp Add_new(sig_Allocator allocator,
         sig_SignalContext context);
@@ -788,11 +825,13 @@ interface Signals {
     void Oscillator_accumulatePhase(sig_dsp_Oscillator signal, unsigned long i);
     void Oscillator_destroy(sig_Allocator allocator, sig_dsp_Oscillator signal);
 
-    void Sine_init(sig_dsp_Oscillator signal, sig_SignalContext context);
-    sig_dsp_Oscillator Sine_new(sig_Allocator allocator,
+    void SineOscillator_init(sig_dsp_Oscillator signal,
         sig_SignalContext context);
-    void Sine_generate(any signal);
-    void Sine_destroy(sig_Allocator allocator, sig_dsp_Oscillator signal);
+    sig_dsp_Oscillator SineOscillator_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void SineOscillator_generate(any signal);
+    void SineOscillator_destroy(sig_Allocator allocator,
+        sig_dsp_Oscillator signal);
 
     void LFTriangle_init(sig_dsp_Oscillator signal, sig_SignalContext context);
     sig_dsp_Oscillator LFTriangle_new(sig_Allocator allocator,
@@ -960,20 +999,41 @@ interface Signals {
 
     sig_dsp_LinearXFade LinearXFade_new(sig_Allocator allocator,
         sig_SignalContext context);
-    void LinearXFade_init(sig_dsp_LinearXFade signal, sig_SignalContext context);
+    void LinearXFade_init(sig_dsp_LinearXFade signal,
+        sig_SignalContext context);
     void LinearXFade_generate(any signal);
-    void LinearXFade_destroy(sig_Allocator allocator, sig_dsp_LinearXFade signal);
+    void LinearXFade_destroy(sig_Allocator allocator,
+        sig_dsp_LinearXFade signal);
 
-    void Calibrator_Node_init(sig_dsp_Calibrator_Node nodes, any targetValues,
-        unsigned long numNodes);
+    void Calibrator_Node_init(sig_dsp_Calibrator_Node nodes,
+        any targetValues, unsigned long numNodes);
     unsigned long Calibrator_locateIntervalForValue(float x,
         sig_dsp_Calibrator_Node nodes, unsigned long numNodes);
-    float Calibrator_fitValueToCalibrationData(float x, sig_dsp_Calibrator_Node nodes, unsigned long numNodes);
+    float Calibrator_fitValueToCalibrationData(float x,
+        sig_dsp_Calibrator_Node nodes, unsigned long numNodes);
     sig_dsp_Calibrator Calibrator_new(sig_Allocator allocator,
         sig_SignalContext context);
-    void Calibrator_init(sig_dsp_Calibrator signal, sig_SignalContext context);
+    void Calibrator_init(sig_dsp_Calibrator signal,
+        sig_SignalContext context);
     void Calibrator_generate(any signal);
-    void Calibrator_destroy(sig_Allocator allocator, sig_dsp_Calibrator signal);
+    void Calibrator_destroy(sig_Allocator allocator,
+        sig_dsp_Calibrator signal);
+
+    sig_dsp_Sinewavefolder Sinewavefolder_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void Sinewavefolder_init(sig_dsp_Sinewavefolder signal,
+        sig_SignalContext context);
+    void Sinewavefolder_generate(any signal);
+    void Sinewavefolder_destroy(sig_Allocator allocator,
+        sig_dsp_Sinewavefolder signal);
+
+    sig_dsp_NoiseGate sig_dsp_NoiseGate_new(
+        sig_Allocator allocator, sig_SignalContext context);
+    void sig_dsp_NoiseGate_init(sig_dsp_NoiseGate signal,
+        sig_SignalContext context);
+    void sig_dsp_NoiseGate_generate(any signal);
+    void sig_dsp_NoiseGate_destroy(sig_Allocator allocator,
+        sig_dsp_NoiseGate signal);
 };
 
 interface Signaletic {
@@ -1136,4 +1196,5 @@ interface Signaletic {
     void DelayLine_destroy(sig_Allocator allocator, sig_DelayLine delayLine);
 
     float linearXFade(float left, float right, float mix);
+    float sineWavefolder(float x, float gain, float factor);
 };

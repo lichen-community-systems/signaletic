@@ -25,6 +25,14 @@ enum {
 };
 
 enum {
+    sig_host_TOGGLE_1 = 0
+};
+
+enum {
+    sig_host_TRISWITCH_1 = 0
+};
+
+enum {
     sig_host_CV_OUT_1 = 0
 };
 

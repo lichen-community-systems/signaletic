@@ -54,7 +54,7 @@ void buildGraph(struct sig_SignalContext* context, struct sig_Status* status) {
     sig_List_append(&signals, sine1Voct, status);
     sine1Voct->inputs.source = cv1Calibrator->outputs.main;
 
-    sine1 = sig_dsp_Sine_new(&allocator, context);
+    sine1 = sig_dsp_SineOscillator_new(&allocator, context);
     sig_List_append(&signals, sine1, status);
     sine1->inputs.freq = sine1Voct->outputs.main;
     sine1->inputs.mul = ampScale->outputs.main;

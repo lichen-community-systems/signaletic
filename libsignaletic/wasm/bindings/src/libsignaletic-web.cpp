@@ -102,6 +102,26 @@ public:
         return sig_dsp_Abs_destroy(allocator, self);
     }
 
+    struct sig_dsp_Clamp* Clamp_new(
+        struct sig_Allocator* allocator,
+        struct sig_SignalContext* context) {
+        return sig_dsp_Clamp_new(allocator, context);
+    }
+
+    void Clamp_init(struct sig_dsp_Clamp* self,
+        struct sig_SignalContext* context) {
+        sig_dsp_Clamp_init(self, context);
+    }
+
+    void Clamp_generate(void* signal) {
+        sig_dsp_Clamp_generate(signal);
+    }
+
+    void Clamp_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_Clamp* self) {
+        return sig_dsp_Clamp_destroy(allocator, self);
+    }
+
     struct sig_dsp_ScaleOffset* ScaleOffset_new(
         struct sig_Allocator* allocator,
         struct sig_SignalContext* context) {
@@ -121,6 +141,28 @@ public:
         struct sig_dsp_ScaleOffset* self) {
         return sig_dsp_ScaleOffset_destroy(allocator, self);
     }
+
+
+    struct sig_dsp_Sine* Sine_new(
+        struct sig_Allocator* allocator,
+        struct sig_SignalContext* context) {
+        return sig_dsp_Sine_new(allocator, context);
+    }
+
+    void Sine_init(struct sig_dsp_Sine* self,
+        struct sig_SignalContext* context) {
+        sig_dsp_Sine_init(self, context);
+    }
+
+    void Sine_generate(void* signal) {
+        sig_dsp_Sine_generate(signal);
+    }
+
+    void Sine_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_Sine* self) {
+        return sig_dsp_Sine_destroy(allocator, self);
+    }
+
 
     struct sig_dsp_BinaryOp* Add_new(
         struct sig_Allocator* allocator,
@@ -335,23 +377,24 @@ public:
         sig_dsp_Oscillator_destroy(allocator, self);
     }
 
-    struct sig_dsp_Oscillator* Sine_new(struct sig_Allocator* allocator,
+    struct sig_dsp_Oscillator* SineOscillator_new(
+        struct sig_Allocator* allocator,
         struct sig_SignalContext* context) {
-        return sig_dsp_Sine_new(allocator, context);
+        return sig_dsp_SineOscillator_new(allocator, context);
     }
 
-    void Sine_init(struct sig_dsp_Oscillator* self,
+    void SineOscillator_init(struct sig_dsp_Oscillator* self,
         struct sig_SignalContext* context) {
-        sig_dsp_Sine_init(self, context);
+        sig_dsp_SineOscillator_init(self, context);
     }
 
-    void Sine_generate(void* signal) {
-        sig_dsp_Sine_generate(signal);
+    void SineOscillator_generate(void* signal) {
+        sig_dsp_SineOscillator_generate(signal);
     }
 
-    void Sine_destroy(struct sig_Allocator* allocator,
+    void SineOscillator_destroy(struct sig_Allocator* allocator,
         struct sig_dsp_Oscillator* self) {
-        return sig_dsp_Sine_destroy(allocator, self);
+        return sig_dsp_SineOscillator_destroy(allocator, self);
     }
 
     struct sig_dsp_Oscillator* LFTriangle_new(struct sig_Allocator* allocator,
@@ -954,6 +997,47 @@ public:
         struct sig_dsp_Calibrator* self) {
         return sig_dsp_Calibrator_destroy(allocator, self);
     }
+
+    struct sig_dsp_SineWavefolder* SineWavefolder_new(
+        struct sig_Allocator* allocator,
+        struct sig_SignalContext* context) {
+        return sig_dsp_SineWavefolder_new(allocator, context);
+    }
+
+    void SineWavefolder_init(struct sig_dsp_SineWavefolder* self,
+        struct sig_SignalContext* context) {
+        sig_dsp_SineWavefolder_init(self, context);
+    }
+
+    void SineWavefolder_generate(void* signal) {
+        sig_dsp_SineWavefolder_generate(signal);
+    }
+
+    void SineWavefolder_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_SineWavefolder* self) {
+        return sig_dsp_SineWavefolder_destroy(allocator, self);
+    }
+
+
+    struct sig_dsp_NoiseGate* NoiseGate_new(
+        struct sig_Allocator* allocator,
+        struct sig_SignalContext* context) {
+        return sig_dsp_NoiseGate_new(allocator, context);
+    }
+
+    void NoiseGate_init(struct sig_dsp_NoiseGate* self,
+        struct sig_SignalContext* context) {
+        sig_dsp_NoiseGate_init(self, context);
+    }
+
+    void NoiseGate_generate(void* signal) {
+        sig_dsp_NoiseGate_generate(signal);
+    }
+
+    void NoiseGate_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_NoiseGate* self) {
+        return sig_dsp_NoiseGate_destroy(allocator, self);
+    }
 };
 
 class Signaletic {
@@ -1469,6 +1553,10 @@ public:
 
     float linearXFade(float left, float right, float mix) {
         return sig_linearXFade(left, right, mix);
+    }
+
+    float sineWavefolder(float x, float gain, float factor) {
+        return sig_sineWavefolder(x, gain, factor);
     }
 
     void SingleMonoOutput_newAudioBlocks(

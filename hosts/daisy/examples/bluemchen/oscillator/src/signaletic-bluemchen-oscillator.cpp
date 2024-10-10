@@ -98,7 +98,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     sig_List_append(&signals, frequency, status);
     frequency->inputs.source = coarseVOctPlusFine->outputs.main;
 
-    osc = sig_dsp_Sine_new(&allocator, context);
+    osc = sig_dsp_SineOscillator_new(&allocator, context);
     sig_List_append(&signals, osc, status);
     osc->inputs.freq = frequency->outputs.main;
 

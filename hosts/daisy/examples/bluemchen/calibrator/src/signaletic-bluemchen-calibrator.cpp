@@ -138,7 +138,7 @@ void buildSignalGraph(struct sig_SignalContext* context, struct sig_Status* stat
     sig_List_append(&signals, sine1Voct, status);
     sine1Voct->inputs.source = cv1Calibrator->outputs.main;
 
-    sine1 = sig_dsp_Sine_new(&allocator, context);
+    sine1 = sig_dsp_SineOscillator_new(&allocator, context);
     sig_List_append(&signals, sine1, status);
     sine1->inputs.freq = sine1Voct->outputs.main;
     sine1->inputs.mul = ampScale->outputs.main;
@@ -153,7 +153,7 @@ void buildSignalGraph(struct sig_SignalContext* context, struct sig_Status* stat
     sig_List_append(&signals, sine2Voct, status);
     sine2Voct->inputs.source = cv2Calibrator->outputs.main;
 
-    sine2 = sig_dsp_Sine_new(&allocator, context);
+    sine2 = sig_dsp_SineOscillator_new(&allocator, context);
     sig_List_append(&signals, sine2, status);
     sine2->inputs.freq = sine2Voct->outputs.main;
     sine2->inputs.mul = ampScale->outputs.main;

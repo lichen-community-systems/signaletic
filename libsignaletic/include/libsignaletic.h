@@ -124,9 +124,8 @@ float sig_randf();
 float sig_fastTanhf(float x);
 
 /**
- * @brief Linearly maps a value from one range to another.
- * This implementation does not clamp the output if the value
- * is outside of the specified current range.
+ * @brief Linearly maps a value from one range to another,
+ * clamping out of range values to the min and max.
  *
  * @param value the value to map
  * @param fromMin the minimum of the current range
@@ -1078,7 +1077,7 @@ void sig_DelayLine_destroy(struct sig_Allocator* allocator,
 
 float sig_linearXFade(float left, float right, float mix);
 
-
+float sig_sineWavefolder(float x, float gain, float factor);
 
 // TODO: Should the signal argument at least be defined
 // as a struct sig_dsp_Signal*, rather than void*?
@@ -1109,6 +1108,10 @@ void sig_dsp_Signal_destroy(struct sig_Allocator* allocator,
 
 #define sig_CONNECT_TO_UNITY(signal, inputName, context)\
     signal->inputs.inputName = context->unity->outputs.main;
+
+struct sig_dsp_Signal_SingleSourceInput {
+    float_array_ptr source;
+};
 
 struct sig_dsp_Signal_SingleMonoOutput {
     float_array_ptr main;
@@ -1195,14 +1198,9 @@ void sig_dsp_ConstantValue_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_ConstantValue* self);
 
 
-
-struct sig_dsp_Abs_Inputs {
-    float_array_ptr source;
-};
-
 struct sig_dsp_Abs {
     struct sig_dsp_Signal signal;
-    struct sig_dsp_Abs_Inputs inputs;
+    struct sig_dsp_Signal_SingleSourceInput inputs;
     struct sig_dsp_Signal_SingleMonoOutput outputs;
 };
 
@@ -1215,10 +1213,26 @@ void sig_dsp_Abs_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Abs* self);
 
 
-
-struct sig_dsp_ScaleOffset_Inputs {
-    float_array_ptr source;
+struct sig_dsp_Clamp_Parameters {
+    float min;
+    float max;
 };
+
+struct sig_dsp_Clamp {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Signal_SingleSourceInput inputs;
+    struct sig_dsp_Clamp_Parameters parameters;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
+struct sig_dsp_Clamp* sig_dsp_Clamp_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_Clamp_init(struct sig_dsp_Clamp* self,
+    struct sig_SignalContext* context);
+void sig_dsp_Clamp_generate(void* signal);
+void sig_dsp_Clamp_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Clamp* self);
+
 
 struct sig_dsp_ScaleOffset_Parameters {
     float scale;
@@ -1227,7 +1241,7 @@ struct sig_dsp_ScaleOffset_Parameters {
 
 struct sig_dsp_ScaleOffset {
     struct sig_dsp_Signal signal;
-    struct sig_dsp_ScaleOffset_Inputs inputs;
+    struct sig_dsp_Signal_SingleSourceInput inputs;
     struct sig_dsp_ScaleOffset_Parameters parameters;
     struct sig_dsp_Signal_SingleMonoOutput outputs;
 };
@@ -1240,6 +1254,20 @@ void sig_dsp_ScaleOffset_generate(void* signal);
 void sig_dsp_ScaleOffset_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_ScaleOffset* self);
 
+
+struct sig_dsp_Sine {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Signal_SingleSourceInput inputs;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
+struct sig_dsp_Sine* sig_dsp_Sine_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_Sine_init(struct sig_dsp_Sine* self,
+    struct sig_SignalContext* context);
+void sig_dsp_Sine_generate(void* signal);
+void sig_dsp_Sine_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Sine* self);
 
 
 struct sig_dsp_BinaryOp_Inputs {
@@ -1533,12 +1561,12 @@ void sig_dsp_Oscillator_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Oscillator* self);
 
 
-void sig_dsp_Sine_init(struct sig_dsp_Oscillator* self,
+void sig_dsp_SineOscillator_init(struct sig_dsp_Oscillator* self,
     struct sig_SignalContext* context);
-struct sig_dsp_Oscillator* sig_dsp_Sine_new(struct sig_Allocator* allocator,
+struct sig_dsp_Oscillator* sig_dsp_SineOscillator_new(struct sig_Allocator* allocator,
     struct sig_SignalContext* context);
-void sig_dsp_Sine_generate(void* signal);
-void sig_dsp_Sine_destroy(struct sig_Allocator* allocator,
+void sig_dsp_SineOscillator_generate(void* signal);
+void sig_dsp_SineOscillator_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Oscillator* self);
 
 void sig_dsp_LFTriangle_init(struct sig_dsp_Oscillator* self,
@@ -2083,7 +2111,7 @@ void sig_dsp_FourPoleFilter_Outputs_destroyAudioBlocks(
 
 
 /**
- * @brief Miller Pucket's 24dB Moog-style ladder low pass filter.
+ * @brief Miller Puckette's 24dB Moog-style ladder low pass filter.
  * Imitates a Moog resonant filter by Runge-Kutte numerical integration
  * of a differential equation approximately describing the dynamics of
  * the circuit.
@@ -2441,6 +2469,48 @@ void sig_dsp_Calibrator_init(struct sig_dsp_Calibrator* self,
 void sig_dsp_Calibrator_generate(void* signal);
 void sig_dsp_Calibrator_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Calibrator* self);
+
+
+struct sig_dsp_SineWavefolder_Inputs {
+    float_array_ptr source;
+    float_array_ptr gain;
+    float_array_ptr factor;
+};
+
+struct sig_dsp_SineWavefolder {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_SineWavefolder_Inputs inputs;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
+struct sig_dsp_SineWavefolder* sig_dsp_SineWavefolder_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_SineWavefolder_init(struct sig_dsp_SineWavefolder* self,
+    struct sig_SignalContext* context);
+void sig_dsp_SineWavefolder_generate(void* signal);
+void sig_dsp_SineWavefolder_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_SineWavefolder* self);
+
+
+struct sig_dsp_NoiseGate_Inputs {
+    float_array_ptr source;
+    float_array_ptr threshold;
+};
+
+struct sig_dsp_NoiseGate {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_NoiseGate_Inputs inputs;
+    struct sig_dsp_ScaleOffset_Parameters parameters;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
+struct sig_dsp_NoiseGate* sig_dsp_NoiseGate_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_NoiseGate_init(struct sig_dsp_NoiseGate* self,
+    struct sig_SignalContext* context);
+void sig_dsp_NoiseGate_generate(void* signal);
+void sig_dsp_NoiseGate_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_NoiseGate* self);
 
 #ifdef __cplusplus
 }

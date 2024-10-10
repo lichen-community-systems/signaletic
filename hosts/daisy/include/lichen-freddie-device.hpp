@@ -47,8 +47,8 @@ namespace freddie {
         seed::PIN_D8,
         seed::PIN_D9,
         seed::PIN_D10,
-        seed::PIN_D11,
-        seed::PIN_D12,
+        seed::PIN_D29,
+        seed::PIN_D30,
         seed::PIN_D25,
         seed::PIN_D26,
         seed::PIN_D27

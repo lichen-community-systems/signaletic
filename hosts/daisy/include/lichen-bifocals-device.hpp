@@ -23,6 +23,10 @@ enum {
 };
 
 enum {
+    sig_host_TOGGLE_1 = 0
+};
+
+enum {
     sig_host_CV_OUT_1 = 0
 };
 
@@ -45,13 +49,13 @@ namespace bifocals {
     static ADCChannelSpec ADC_CHANNEL_SPECS[NUM_ADC_CHANNELS] = {
         // Freq Knob/POT_2_CV_7/Pin C8 - Unipolar
         {patchsm::PIN_CV_7, INVERT},
-        // Reso Knob/CV_IN_5/Pin C6
+        // Gain Knob/CV_IN_5/Pin C6
         {patchsm::PIN_CV_5, INVERT},
-        // Gain Knob/POT_1_CV_6/Pin C7
+        // Skew Knob/POT_1_CV_6/Pin C7
         {patchsm::PIN_CV_6, INVERT},
-        // Knob four/POT_4_CV_9/Pin A2
+        // Shape/POT_4_CV_9/Pin A2
         {patchsm::PIN_ADC_9, BI_TO_UNIPOLAR},
-        // Knob five/POT_5_CV_10/Pin A3
+        // Reso/POT_5_CV_10/Pin A3
         {patchsm::PIN_ADC_10, BI_TO_UNIPOLAR},
 
         // Shape CV/CV_IN_1/Pin C5
@@ -68,7 +72,7 @@ namespace bifocals {
 
     static const size_t NUM_BUTTONS = 1;
     static dsy_gpio_pin BUTTON_PINS[NUM_BUTTONS] = {
-        patchsm::PIN_D1
+        patchsm::PIN_B7
     };
 
     static const size_t NUM_DAC_CHANNELS = 1;

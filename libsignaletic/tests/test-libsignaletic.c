@@ -554,7 +554,7 @@ void destroyOscInputs(struct sig_Allocator* allocator,
     allocator->impl->free(allocator, sineInputs->add);
 }
 
-void test_sig_dsp_Sine(void) {
+void test_sig_dsp_SineOscillator(void) {
     // Generated from this program:
     /*
         #include <stddef.h>
@@ -597,7 +597,7 @@ void test_sig_dsp_Sine(void) {
     struct sig_SignalContext* mono441kContext = sig_SignalContext_new(
         &allocator, &mono441kAudioSettings);
 
-    struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
+    struct sig_dsp_Oscillator* sine = sig_dsp_SineOscillator_new(&allocator,
         mono441kContext);
     createOscInputs(&allocator, sine, 440.0f, 0.0f, 1.0f, 0.0f);
 
@@ -609,11 +609,11 @@ void test_sig_dsp_Sine(void) {
     }
 
     destroyOscInputs(&allocator, &sine->inputs);
-    sig_dsp_Sine_destroy(&allocator, sine);
+    sig_dsp_SineOscillator_destroy(&allocator, sine);
     sig_SignalContext_destroy(&allocator, mono441kContext);
 }
 
-void test_test_sig_dsp_Sine_isOffset(void) {
+void test_test_sig_dsp_SineOscillator_isOffset(void) {
     float expected[BLOCK_SIZE] = {
         1.00000000f, 1.06264830f, 1.12505054f, 1.18696141f,
         1.24813783f, 1.30833936f, 1.36732960f, 1.42487669f,
@@ -636,7 +636,7 @@ void test_test_sig_dsp_Sine_isOffset(void) {
     struct sig_SignalContext* mono441kContext = sig_SignalContext_new(
         &allocator, &mono441kAudioSettings);
 
-    struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
+    struct sig_dsp_Oscillator* sine = sig_dsp_SineOscillator_new(&allocator,
         mono441kContext);
     createOscInputs(&allocator, sine, 440.0f, 0.0f, 1.0f, 1.0f);
 
@@ -647,12 +647,12 @@ void test_test_sig_dsp_Sine_isOffset(void) {
         sine->signal.audioSettings->blockSize);
 
     destroyOscInputs(&allocator, &sine->inputs);
-    sig_dsp_Sine_destroy(&allocator, sine);
+    sig_dsp_SineOscillator_destroy(&allocator, sine);
     sig_SignalContext_destroy(&allocator, mono441kContext);
 }
 
-void test_sig_dsp_Sine_accumulatesPhase(void) {
-    struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
+void test_sig_dsp_SineOscillator_accumulatesPhase(void) {
+    struct sig_dsp_Oscillator* sine = sig_dsp_SineOscillator_new(&allocator,
         context);
     createOscInputs(&allocator, sine, 440.0f, 0.0f, 1.0f, 0.0f);
 
@@ -676,11 +676,11 @@ void test_sig_dsp_Sine_accumulatesPhase(void) {
     );
 
     destroyOscInputs(&allocator, &sine->inputs);
-    sig_dsp_Sine_destroy(&allocator, sine);
+    sig_dsp_SineOscillator_destroy(&allocator, sine);
 }
 
-void test_sig_dsp_Sine_phaseWrapsAt2PI(void) {
-    struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator,
+void test_sig_dsp_SineOscillator_phaseWrapsAt2PI(void) {
+    struct sig_dsp_Oscillator* sine = sig_dsp_SineOscillator_new(&allocator,
         context);
     createOscInputs(&allocator, sine, 440.0f, 0.0f, 1.0f, 0.0f);
 
@@ -695,7 +695,7 @@ void test_sig_dsp_Sine_phaseWrapsAt2PI(void) {
     );
 
     destroyOscInputs(&allocator, &sine->inputs);
-    sig_dsp_Sine_destroy(&allocator, sine);
+    sig_dsp_SineOscillator_destroy(&allocator, sine);
 }
 
 void testDust(struct sig_dsp_Dust* dust,
@@ -1285,10 +1285,10 @@ int main(void) {
     RUN_TEST(test_sig_dsp_ConstantValue);
     RUN_TEST(test_sig_dsp_TimedTriggerCounter);
     RUN_TEST(test_sig_dsp_Mul);
-    RUN_TEST(test_sig_dsp_Sine);
-    RUN_TEST(test_sig_dsp_Sine_accumulatesPhase);
-    RUN_TEST(test_sig_dsp_Sine_phaseWrapsAt2PI);
-    RUN_TEST(test_test_sig_dsp_Sine_isOffset);
+    RUN_TEST(test_sig_dsp_SineOscillator);
+    RUN_TEST(test_sig_dsp_SineOscillator_accumulatesPhase);
+    RUN_TEST(test_sig_dsp_SineOscillator_phaseWrapsAt2PI);
+    RUN_TEST(test_test_sig_dsp_SineOscillator_isOffset);
     RUN_TEST(test_sig_dsp_Dust);
     RUN_TEST(test_sig_dsp_ClockDetector_square);
     RUN_TEST(test_sig_dsp_ClockDetector_sine);

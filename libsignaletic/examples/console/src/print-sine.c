@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
 
     struct sig_SignalContext* context = sig_SignalContext_new(&allocator,
         &audioSettings);
-    struct sig_dsp_Oscillator* sine = sig_dsp_Sine_new(&allocator, context);
+    struct sig_dsp_Oscillator* sine = sig_dsp_SineOscillator_new(&allocator, context);
     struct sig_dsp_ConstantValue* freq = sig_dsp_ConstantValue_new(&allocator,
         context, 440.0f);
     struct sig_dsp_ConstantValue* amp = sig_dsp_ConstantValue_new(&allocator,
@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
 
     sig_dsp_ConstantValue_destroy(&allocator, freq);
     sig_dsp_ConstantValue_destroy(&allocator, amp);
-    sig_dsp_Sine_destroy(&allocator, sine);
+    sig_dsp_SineOscillator_destroy(&allocator, sine);
     sig_SignalContext_destroy(&allocator, context);
 
     return EXIT_SUCCESS;

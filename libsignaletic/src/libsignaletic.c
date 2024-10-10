@@ -71,8 +71,14 @@ float sig_randf() {
 
 inline float sig_fastTanhf(float x) {
     // From https://gist.github.com/ndonald2/534831b639b8c78d40279b5007e06e5b
-    if (x > 3.0f) return 1.0f;
-    if (x < -3.0f) return -1.0f;
+    if (x > 3.0f) {
+        return 1.0f;
+    }
+
+    if (x < -3.0f) {
+        return -1.0f;
+    }
+
     float x2 = x * x;
     return x * (27.0f + x2) / (27.0f + 9.0f * x2);
 }
@@ -80,7 +86,11 @@ inline float sig_fastTanhf(float x) {
 // TODO: Unit tests.
 inline float sig_linearMap(float value,
     float fromMin, float fromMax, float toMin, float toMax) {
-    return (value - fromMin) * (toMax - toMin) / (fromMax - fromMin) + toMin;
+    float clamped = sig_clamp(value, fromMin, fromMax);
+    float mapped = (clamped - fromMin) * (toMax - toMin) /
+        (fromMax - fromMin) + toMin;
+
+    return mapped;
 }
 
 extern inline uint16_t sig_unipolarToUint12(float sample) {
@@ -950,6 +960,11 @@ inline float sig_linearXFade(float left, float right, float mix) {
     return sample;
 }
 
+inline float sig_sineWavefolder(float x, float gain, float factor) {
+    float sample = x + gain * sinf(factor * x);
+    return sample;
+}
+
 void sig_dsp_Signal_init(void* signal, struct sig_SignalContext* context,
     sig_dsp_generateFn generate) {
     struct sig_dsp_Signal* self = (struct sig_dsp_Signal*) signal;
@@ -1124,6 +1139,48 @@ void sig_dsp_Abs_destroy(struct sig_Allocator* allocator,
 
 
 
+struct sig_dsp_Clamp* sig_dsp_Clamp_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_Clamp* self = sig_MALLOC(allocator,
+        struct sig_dsp_Clamp);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+    sig_dsp_Clamp_init(self, context);
+
+    return self;
+}
+
+void sig_dsp_Clamp_init(struct sig_dsp_Clamp* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_Clamp_generate);
+
+    self->parameters.min = 0.0f;
+    self->parameters.max = 1.0f;
+
+    sig_CONNECT_TO_SILENCE(self, source, context);
+}
+
+void sig_dsp_Clamp_generate(void* signal) {
+    struct sig_dsp_Clamp* self = (struct sig_dsp_Clamp*) signal;
+    float min = self->parameters.min;
+    float max = self->parameters.max;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float source = FLOAT_ARRAY(self->inputs.source)[i];
+        float sample = sig_clamp(source, min, max);
+        FLOAT_ARRAY(self->outputs.main)[i] = sample;
+    }
+}
+
+void sig_dsp_Clamp_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Clamp* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
+}
+
+
+
 struct sig_dsp_ScaleOffset* sig_dsp_ScaleOffset_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context) {
     struct sig_dsp_ScaleOffset* self = sig_MALLOC(allocator,
@@ -1166,6 +1223,40 @@ void sig_dsp_ScaleOffset_destroy(struct sig_Allocator* allocator,
     sig_dsp_Signal_destroy(allocator, (void*) self);
 }
 
+
+struct sig_dsp_Sine* sig_dsp_Sine_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_Sine* self = sig_MALLOC(allocator,
+        struct sig_dsp_Sine);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+    sig_dsp_Sine_init(self, context);
+
+    return self;
+};
+
+void sig_dsp_Sine_init(struct sig_dsp_Sine* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_Sine_generate);
+
+    sig_CONNECT_TO_SILENCE(self, source, context);
+}
+
+void sig_dsp_Sine_generate(void* signal) {
+    struct sig_dsp_Sine* self = (struct sig_dsp_Sine*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float source = FLOAT_ARRAY(self->inputs.source)[i];
+        FLOAT_ARRAY(self->outputs.main)[i] = sinf(source);
+    }
+}
+
+void sig_dsp_Sine_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Sine* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
+}
 
 
 struct sig_dsp_BinaryOp* sig_dsp_BinaryOp_new(struct sig_Allocator* allocator,
@@ -1692,22 +1783,22 @@ inline void sig_dsp_Oscillator_accumulatePhase(
     self->phaseAccumulator = sig_flooredfmodf(phase, 1.0f);
 }
 
-void sig_dsp_Sine_init(struct sig_dsp_Oscillator* self,
+void sig_dsp_SineOscillator_init(struct sig_dsp_Oscillator* self,
     struct sig_SignalContext* context) {
-    sig_dsp_Oscillator_init(self, context, *sig_dsp_Sine_generate);
+    sig_dsp_Oscillator_init(self, context, *sig_dsp_SineOscillator_generate);
 }
 
-struct sig_dsp_Oscillator* sig_dsp_Sine_new(struct sig_Allocator* allocator,
+struct sig_dsp_Oscillator* sig_dsp_SineOscillator_new(struct sig_Allocator* allocator,
     struct sig_SignalContext* context) {
-    return sig_dsp_Oscillator_new(allocator, context, *sig_dsp_Sine_generate);
+    return sig_dsp_Oscillator_new(allocator, context, *sig_dsp_SineOscillator_generate);
 }
 
-void sig_dsp_Sine_destroy(struct sig_Allocator* allocator,
+void sig_dsp_SineOscillator_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Oscillator* self) {
     sig_dsp_Oscillator_destroy(allocator, self);
 }
 
-void sig_dsp_Sine_generate(void* signal) {
+void sig_dsp_SineOscillator_generate(void* signal) {
     struct sig_dsp_Oscillator* self = (struct sig_dsp_Oscillator*) signal;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
@@ -2749,8 +2840,8 @@ struct sig_dsp_TwoOpFM* sig_dsp_TwoOpFM_new(struct sig_Allocator* allocator,
         struct sig_dsp_TwoOpFM);
     self->modulatorFrequency = sig_dsp_Mul_new(allocator, context);
     self->carrierPhaseOffset = sig_dsp_Add_new(allocator, context);
-    self->modulator = sig_dsp_Sine_new(allocator, context);
-    self->carrier = sig_dsp_Sine_new(allocator, context);
+    self->modulator = sig_dsp_SineOscillator_new(allocator, context);
+    self->carrier = sig_dsp_SineOscillator_new(allocator, context);
 
     sig_dsp_TwoOpFM_init(self, context);
 
@@ -2797,8 +2888,8 @@ void sig_dsp_TwoOpFM_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_TwoOpFM* self) {
     sig_dsp_Mul_destroy(allocator, self->modulatorFrequency);
     sig_dsp_Add_destroy(allocator, self->carrierPhaseOffset);
-    sig_dsp_Sine_destroy(allocator, self->carrier);
-    sig_dsp_Sine_destroy(allocator, self->modulator);
+    sig_dsp_SineOscillator_destroy(allocator, self->carrier);
+    sig_dsp_SineOscillator_destroy(allocator, self->modulator);
     sig_dsp_Signal_destroy(allocator, self);
 }
 
@@ -3487,7 +3578,7 @@ void sig_dsp_Chorus_generate(void* signal) {
         // TODO: What kind of gain staging should we do here?
         // It seems likely that we can have up to 3x gain depending on
         // the values of feedbackGain, feedforwardGain, and blend.
-        FLOAT_ARRAY(self->outputs.main)[i] = sig_fastTanhf(output / 3.0f);
+        FLOAT_ARRAY(self->outputs.main)[i] = tanhf(output / 3.0f);
     }
 }
 
@@ -3667,4 +3758,92 @@ void sig_dsp_Calibrator_destroy(struct sig_Allocator* allocator,
     sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
+}
+
+struct sig_dsp_SineWavefolder* sig_dsp_SineWavefolder_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_SineWavefolder* self = sig_MALLOC(allocator,
+        struct sig_dsp_SineWavefolder);
+    sig_dsp_SineWavefolder_init(self, context);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_dsp_SineWavefolder_init(struct sig_dsp_SineWavefolder* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_SineWavefolder_generate);
+
+    sig_CONNECT_TO_SILENCE(self, source, context);
+    sig_CONNECT_TO_SILENCE(self, gain, context);
+    sig_CONNECT_TO_SILENCE(self, factor, context);
+}
+
+void sig_dsp_SineWavefolder_generate(void* signal) {
+    struct sig_dsp_SineWavefolder* self =
+        (struct sig_dsp_SineWavefolder*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float source = FLOAT_ARRAY(self->inputs.source)[i];
+        float gain = FLOAT_ARRAY(self->inputs.gain)[i];
+        float factor = FLOAT_ARRAY(self->inputs.factor)[i];
+
+        float sample = sig_sineWavefolder(source, gain, factor);
+
+        FLOAT_ARRAY(self->outputs.main)[i] = sample;
+    }
+}
+
+void sig_dsp_SineWavefolder_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_SineWavefolder* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, self);
+}
+
+
+struct sig_dsp_NoiseGate* sig_dsp_NoiseGate_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_NoiseGate* self = sig_MALLOC(allocator,
+        struct sig_dsp_NoiseGate);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+    sig_dsp_NoiseGate_init(self, context);
+
+    return self;
+}
+
+void sig_dsp_NoiseGate_init(struct sig_dsp_NoiseGate* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_NoiseGate_generate);
+
+    struct sig_dsp_ScaleOffset_Parameters parameters = {
+        .scale = 1.0,
+        .offset= 0.0f
+    };
+    self->parameters = parameters;
+
+    sig_CONNECT_TO_SILENCE(self, source, context);
+}
+
+void sig_dsp_NoiseGate_generate(void* signal) {
+    struct sig_dsp_NoiseGate* self = (struct sig_dsp_NoiseGate*) signal;
+
+    float scale = self->parameters.scale;
+    float offset = self->parameters.offset;
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float source = FLOAT_ARRAY(self->inputs.source)[i];
+        float threshold = FLOAT_ARRAY(self->inputs.threshold)[i];
+
+        float sample = source >= threshold ? source * scale + offset : 0.0f;
+        FLOAT_ARRAY(self->outputs.main)[i] = sample;
+    }
+}
+
+void sig_dsp_NoiseGate_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_NoiseGate* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
 }

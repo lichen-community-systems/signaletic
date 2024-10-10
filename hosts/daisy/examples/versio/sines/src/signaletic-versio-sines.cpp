@@ -38,7 +38,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     freqCV->parameters.control = sig_host_CV_IN_1;
     freqCV->parameters.scale = 1760.0f;
 
-    osc = sig_dsp_Sine_new(&allocator, context);
+    osc = sig_dsp_SineOscillator_new(&allocator, context);
     sig_List_append(&signals, osc, status);
     osc->inputs.freq = freqCV->outputs.main;
 
