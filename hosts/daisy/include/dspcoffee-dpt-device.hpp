@@ -62,14 +62,14 @@ namespace dpt {
     // its knobs configured as hardware attenuators of the incoming
     // CV jacks, normaled to ~5V when unplugged.
     static ADCChannelSpec ADC_CHANNEL_SPECS[NUM_ADC_CHANNELS] = {
-        {patchsm::PIN_CV_1, INVERT}, // C5
-        {patchsm::PIN_CV_2, INVERT}, // C4
-        {patchsm::PIN_CV_3, INVERT}, // C3
-        {patchsm::PIN_CV_4, INVERT}, // C2
-        {patchsm::PIN_CV_8, INVERT}, // C9
-        {patchsm::PIN_CV_7, INVERT}, // C8
-        {patchsm::PIN_CV_5, INVERT}, // C6
-        {patchsm::PIN_CV_6, INVERT}  // C7
+        {patchsm::PIN_CV_1, INVERT, NO_MUX}, // C5
+        {patchsm::PIN_CV_2, INVERT, NO_MUX}, // C4
+        {patchsm::PIN_CV_3, INVERT, NO_MUX}, // C3
+        {patchsm::PIN_CV_4, INVERT, NO_MUX}, // C2
+        {patchsm::PIN_CV_8, INVERT, NO_MUX}, // C9
+        {patchsm::PIN_CV_7, INVERT, NO_MUX}, // C8
+        {patchsm::PIN_CV_5, INVERT, NO_MUX}, // C6
+        {patchsm::PIN_CV_6, INVERT, NO_MUX}  // C7
     };
 
     static const size_t NUM_GATES = 2;

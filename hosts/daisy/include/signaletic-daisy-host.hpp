@@ -42,9 +42,24 @@ static constexpr struct Normalization INV_BI_TO_UNIPOLAR = {
     .offset = 0.5f
 };
 
+struct ADCMuxSpec {
+    uint8_t numMuxChannels;
+    dsy_gpio_pin selA;
+    dsy_gpio_pin selB;
+    dsy_gpio_pin selC;
+};
+
+static constexpr struct ADCMuxSpec NO_MUX = {
+    .numMuxChannels = 0,
+    .selA = {DSY_GPIOX, 0},
+    .selB = {DSY_GPIOX, 0},
+    .selC = {DSY_GPIOX, 0}
+};
+
 struct ADCChannelSpec {
     dsy_gpio_pin pin;
     struct Normalization normalization;
+    struct ADCMuxSpec mux;
 };
 
 template<typename T, size_t size> class InputBank {
@@ -78,6 +93,16 @@ class BaseAnalogInput {
 
         void Init(daisy::AdcHandle* adc, ADCChannelSpec spec, int adcChannel) {
             adcPtr = adc->GetPtr(adcChannel);
+            InitNormalization(spec);
+        }
+
+        void InitMux(daisy::AdcHandle* adc, ADCChannelSpec spec, int adcChannel,
+            int muxChannel) {
+            adcPtr = adc->GetMuxPtr(adcChannel, muxChannel);
+            InitNormalization(spec);
+        }
+
+        void InitNormalization(ADCChannelSpec spec) {
             scale = spec.normalization.scale;
             offset = spec.normalization.offset;
         }
@@ -111,7 +136,7 @@ class UnipolarAnalogInput : public BaseAnalogInput {
         }
 };
 
-class InvertedAnalogInput : public AnalogInput {
+class InvertedAnalogInput : public BaseAnalogInput {
     public:
         /**
          * @brief Returns the inverted value of the ADC channel as
@@ -125,24 +150,42 @@ class InvertedAnalogInput : public AnalogInput {
         }
 };
 
-template<typename T, size_t numChannels> class ADCController {
+template<typename T, size_t numInputs>
+    class ADCController {
     public:
         daisy::AdcHandle* adcHandle;
-        T inputs[numChannels];
-        InputBank<T, numChannels> channelBank;
+        T inputs[numInputs];
+        InputBank<T, numInputs> channelBank;
 
-        void Init(daisy::AdcHandle* inAdcHandle, ADCChannelSpec* channelSpecs) {
+        void Init(daisy::AdcHandle* inAdcHandle, ADCChannelSpec* channelSpecs,
+            size_t numADCChannels) {
             adcHandle = inAdcHandle;
 
-            daisy::AdcChannelConfig adcConfigs[numChannels];
-            for (size_t i = 0; i < numChannels; i++) {
-                adcConfigs[i].InitSingle(channelSpecs[i].pin);
+            daisy::AdcChannelConfig adcConfigs[numADCChannels];
+            for (size_t i = 0; i < numADCChannels; i++) {
+                ADCChannelSpec spec = channelSpecs[i];
+                if (spec.mux.numMuxChannels > 0) {
+                    adcConfigs[i].InitMux(spec.pin, spec.mux.numMuxChannels,
+                        spec.mux.selA, spec.mux.selB, spec.mux.selC);
+                } else {
+                    adcConfigs[i].InitSingle(spec.pin);
+                }
             }
 
-            adcHandle->Init(adcConfigs, numChannels);
+            adcHandle->Init(adcConfigs, numADCChannels);
 
-            for (size_t i = 0; i < numChannels; i++) {
-                inputs[i].Init(adcHandle, channelSpecs[i], i);
+            size_t inputIdx = 0;
+            for (size_t i = 0; i < numADCChannels; i++) {
+                ADCChannelSpec spec = channelSpecs[i];
+                if (spec.mux.numMuxChannels > 0) {
+                    for (size_t j = 0; j < spec.mux.numMuxChannels; j++) {
+                        inputs[inputIdx].InitMux(adcHandle, spec, i, j);
+                        inputIdx++;
+                    }
+                } else {
+                    inputs[inputIdx].Init(adcHandle, spec, i);
+                    inputIdx++;
+                }
             }
 
             channelBank.inputs = inputs;

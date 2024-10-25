@@ -48,26 +48,26 @@ namespace bifocals {
     // knobs first in labelled order, then CV jacks in labelled order.
     static ADCChannelSpec ADC_CHANNEL_SPECS[NUM_ADC_CHANNELS] = {
         // Freq Knob/POT_2_CV_7/Pin C8 - Unipolar
-        {patchsm::PIN_CV_7, INVERT},
+        {patchsm::PIN_CV_7, INVERT, NO_MUX},
         // Gain Knob/CV_IN_5/Pin C6
-        {patchsm::PIN_CV_5, INVERT},
+        {patchsm::PIN_CV_5, INVERT, NO_MUX},
         // Skew Knob/POT_1_CV_6/Pin C7
-        {patchsm::PIN_CV_6, INVERT},
+        {patchsm::PIN_CV_6, INVERT, NO_MUX},
         // Shape/POT_4_CV_9/Pin A2
-        {patchsm::PIN_ADC_9, BI_TO_UNIPOLAR},
+        {patchsm::PIN_ADC_9, BI_TO_UNIPOLAR, NO_MUX},
         // Reso/POT_5_CV_10/Pin A3
-        {patchsm::PIN_ADC_10, BI_TO_UNIPOLAR},
+        {patchsm::PIN_ADC_10, BI_TO_UNIPOLAR, NO_MUX},
 
         // Shape CV/CV_IN_1/Pin C5
-        {patchsm::PIN_CV_1, INVERT},
+        {patchsm::PIN_CV_1, INVERT, NO_MUX},
         // Frequency CV/CV_IN_2/Pin C4
-        {patchsm::PIN_CV_2, INVERT},
+        {patchsm::PIN_CV_2, INVERT, NO_MUX},
         // Reso CV/CV_IN_3/Pin C3
-        {patchsm::PIN_CV_3, INVERT},
+        {patchsm::PIN_CV_3, INVERT, NO_MUX},
         // Gain CV/CV_IN_4/Pin C2
-        {patchsm::PIN_CV_4, INVERT},
+        {patchsm::PIN_CV_4, INVERT, NO_MUX},
         // Skew CV/POT_3_CV_8/Pin C9
-        {patchsm::PIN_CV_8, INVERT}
+        {patchsm::PIN_CV_8, INVERT, NO_MUX}
     };
 
     static const size_t NUM_BUTTONS = 1;

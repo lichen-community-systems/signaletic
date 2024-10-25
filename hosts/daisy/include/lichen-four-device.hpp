@@ -7,21 +7,34 @@
 using namespace sig::libdaisy;
 
 enum {
-    sig_host_KNOB_1 = 0,
-    sig_host_KNOB_2,
-    sig_host_KNOB_3,
-    sig_host_KNOB_4,
-    sig_host_KNOB_5,
-    sig_host_KNOB_6
-};
-
-enum {
-    sig_host_CV_IN_1 = 6,
+    sig_host_CV_IN_1 = 0,
     sig_host_CV_IN_2,
     sig_host_CV_IN_3,
     sig_host_CV_IN_4,
     sig_host_CV_IN_5,
-    sig_host_CV_IN_6
+    sig_host_CV_IN_6,
+    sig_host_CV_IN_7,
+    sig_host_CV_IN_8
+};
+
+enum {
+    sig_host_KNOB_1 = 8,
+    sig_host_KNOB_2,
+    sig_host_KNOB_3,
+    sig_host_KNOB_4,
+    sig_host_KNOB_5,
+    sig_host_KNOB_6,
+    sig_host_KNOB_7,
+    sig_host_KNOB_8
+};
+
+enum {
+    sig_host_GATE_IN_1 = 0
+};
+
+enum {
+    sig_host_GATE_OUT_1 = 0,
+    sig_host_GATE_OUT_2
 };
 
 enum {
@@ -29,16 +42,8 @@ enum {
 };
 
 enum {
-    sig_host_TRISWITCH_1 = 0
-};
-
-enum {
-    sig_host_CV_OUT_1 = 0
-};
-
-enum {
-    sig_host_AUDIO_IN_1 = 0,
-    sig_host_AUDIO_IN_2
+    sig_host_CV_OUT_1 = 0,
+    sig_host_CV_OUT_2
 };
 
 enum {
@@ -47,39 +52,26 @@ enum {
 };
 
 namespace lichen {
-namespace medium {
-    static const size_t NUM_ADC_CHANNELS = 12;
+namespace four {
+    static const size_t NUM_ADC_CHANNELS = 9;
+    static const size_t NUM_MUX_CHANNELS = 8;
+    static const size_t NUM_ADC_INPUTS = NUM_ADC_CHANNELS + NUM_MUX_CHANNELS;
 
-    // These pins are ordered based on the panel:
-    // knobs first in labelled order, then CV jacks in labelled order.
     static ADCChannelSpec ADC_CHANNEL_SPECS[NUM_ADC_CHANNELS] = {
-        {patchsm::PIN_CV_5, INVERT, NO_MUX}, // Knob one/POT_CV_1/Pin C8
-        {patchsm::PIN_CV_6, INVERT, NO_MUX}, // Knob two/POT_CV_2/Pin C9
-        {patchsm::PIN_ADC_9, BI_TO_UNIPOLAR, NO_MUX}, // Knob three/POT_CV_3/Pin A2
-        {patchsm::PIN_ADC_11, BI_TO_UNIPOLAR, NO_MUX}, // Knob four/POT_CV_4/Pin A3
-        {patchsm::PIN_ADC_10, BI_TO_UNIPOLAR, NO_MUX}, // Knob five/POT_CV_5/Pin D9
-        {patchsm::PIN_ADC_12, BI_TO_UNIPOLAR, NO_MUX}, // Knob six/POT_CV_6/Pin D8
-
-        {patchsm::PIN_CV_1, INVERT, NO_MUX}, // CV1 ("seven")/CV_IN_1/Pin C5
-        {patchsm::PIN_CV_2, INVERT, NO_MUX}, // CV2 ("eight")/CV_IN_2Pin C4
-        {patchsm::PIN_CV_3, INVERT, NO_MUX}, // CV3 ("nine")/CV_IN_3/Pin C3
-        {patchsm::PIN_CV_7, INVERT, NO_MUX}, // CV6 ("ten")/CV_IN_6/Pin C7
-        {patchsm::PIN_CV_8, INVERT, NO_MUX}, // CV5 ("eleven")/CV_IN_5/Pin C6
-        {patchsm::PIN_CV_4, INVERT, NO_MUX} // CV4 ("twelve")/CV_IN_4/Pin C2
-    };
-
-    static const size_t NUM_GATES = 1;
-
-    static dsy_gpio_pin GATE_PINS[NUM_GATES] = {
-        patchsm::PIN_B10
-    };
-
-    static const size_t NUM_TRISWITCHES = 1;
-    static dsy_gpio_pin TRISWITCH_PINS[NUM_GATES][2] = {
-        {
-            patchsm::PIN_B7,
-            patchsm::PIN_B8
-        }
+        {patchsm::PIN_CV_1, INVERT, NO_MUX},
+        {patchsm::PIN_CV_2, INVERT, NO_MUX},
+        {patchsm::PIN_CV_3, INVERT, NO_MUX},
+        {patchsm::PIN_CV_4, INVERT, NO_MUX},
+        {patchsm::PIN_CV_5, INVERT, NO_MUX},
+        {patchsm::PIN_CV_6, INVERT, NO_MUX},
+        {patchsm::PIN_CV_7, INVERT, NO_MUX},
+        {patchsm::PIN_CV_8, INVERT, NO_MUX},
+        {patchsm::PIN_ADC_9, BI_TO_UNIPOLAR, {
+            .numMuxChannels = 8,
+            .selA = patchsm::PIN_D2,
+            .selB = patchsm::PIN_D3,
+            .selC = patchsm::PIN_D4
+        }}
     };
 
     static const size_t NUM_BUTTONS = 1;
@@ -87,31 +79,42 @@ namespace medium {
         patchsm::PIN_D1
     };
 
-    static const size_t NUM_DAC_CHANNELS = 1;
+    static const size_t NUM_DAC_CHANNELS = 2;
+    static const size_t NUM_GATES = 1;
+    static dsy_gpio_pin GATE_INPUT_PINS[NUM_GATES] = {
+        patchsm::PIN_B10
+    };
 
-    class MediumDevice {
+    static const size_t NUM_GPIO_OUTPUTS = 2;
+    static dsy_gpio_pin GPIO_OUTPUT_PINS[NUM_GPIO_OUTPUTS] = {
+        patchsm::PIN_B5, // Gate output
+        patchsm::PIN_D5  // LED
+    };
+
+    class FourDevice {
         public:
             patchsm::PatchSMBoard board;
-            ADCController<AnalogInput, NUM_ADC_CHANNELS> adcController;
-            GateInput gates[NUM_GATES];
-            InputBank<GateInput, NUM_GATES> gateBank;
-            TriSwitch triSwitches[NUM_TRISWITCHES];
-            InputBank<TriSwitch, NUM_TRISWITCHES> switchBank;
+            ADCController<AnalogInput, NUM_ADC_INPUTS> adcController;
             Toggle buttons[NUM_BUTTONS];
             InputBank<Toggle, NUM_BUTTONS> buttonBank;
             BufferedAnalogOutput dacChannels[NUM_DAC_CHANNELS];
             OutputBank<BufferedAnalogOutput, NUM_DAC_CHANNELS> dacOutputBank;
+            GateInput gateInputs[NUM_GATES];
+            InputBank<GateInput, NUM_GATES> gateInputBank;
+            GPIOOutput gpioOutputs[NUM_GPIO_OUTPUTS];
+            OutputBank<GPIOOutput, NUM_GPIO_OUTPUTS> gpioOutputBank;
+
             struct sig_host_HardwareInterface hardware;
 
             static void onEvaluateSignals(size_t size,
                 struct sig_host_HardwareInterface* hardware) {
-                MediumDevice* self = static_cast<MediumDevice*> (hardware->userData);
+                FourDevice* self = static_cast<FourDevice*> (hardware->userData);
                 self->Read();
             }
 
             static void afterEvaluateSignals(size_t size,
                 struct sig_host_HardwareInterface* hardware) {
-                MediumDevice* self = static_cast<MediumDevice*> (hardware->userData);
+                FourDevice* self = static_cast<FourDevice*> (hardware->userData);
                 self->Write();
             }
 
@@ -128,7 +131,7 @@ namespace medium {
                     .onEvaluateSignals = onEvaluateSignals,
                     .afterEvaluateSignals = afterEvaluateSignals,
                     .userData = this,
-                    .numAudioInputChannels = 2,
+                    .numAudioInputChannels = 0,
                     .audioInputChannels = NULL, // Supplied by audio callback
                     .numAudioOutputChannels = 2,
                     .audioOutputChannels = NULL, // Supplied by audio callback
@@ -137,35 +140,41 @@ namespace medium {
                     .numDACChannels = NUM_DAC_CHANNELS,
                     .dacChannels = dacOutputBank.values,
                     .numGateInputs = NUM_GATES,
-                    .gateInputs = gateBank.values,
-                    .numGPIOOutputs = 0,
-                    .gpioOutputs = NULL,
+                    .gateInputs = gateInputBank.values,
+                    .numGPIOOutputs = NUM_GPIO_OUTPUTS,
+                    .gpioOutputs = gpioOutputBank.values,
                     .numToggles = NUM_BUTTONS,
                     .toggles = buttonBank.values,
-                    .numTriSwitches = NUM_TRISWITCHES,
-                    .triSwitches = switchBank.values
+                    .numTriSwitches = 0,
+                    .triSwitches = NULL
                 };
             }
 
             void InitADCController() {
-                adcController.Init(&board.adc, ADC_CHANNEL_SPECS);
+                adcController.Init(&board.adc, ADC_CHANNEL_SPECS,
+                    NUM_ADC_CHANNELS);
             }
 
             void InitDAC() {
                 for (size_t i = 0; i < NUM_DAC_CHANNELS; i++) {
-                    dacChannels[i].Init(board.dacOutputValues, i);
+                    dacChannels[i].Init(board.dacOutputValues, i,
+                        BI_TO_UNIPOLAR);
                 }
 
                 dacOutputBank.outputs = dacChannels;
             }
 
             void InitControls() {
-                gates[0].Init(GATE_PINS[0]);
-                gateBank.inputs = gates;
-                triSwitches[0].Init(TRISWITCH_PINS[0]);
-                switchBank.inputs = triSwitches;
                 buttons[0].Init(BUTTON_PINS[0]);
                 buttonBank.inputs = buttons;
+                gateInputs[0].Init(GATE_INPUT_PINS[0]);
+                gateInputBank.inputs = gateInputs;
+
+                for (size_t i = 0; i < NUM_GPIO_OUTPUTS; i++) {
+                    gpioOutputs[i].Init(GPIO_OUTPUT_PINS[i],
+                        DSY_GPIO_MODE_OUTPUT_PP, DSY_GPIO_NOPULL);
+                }
+                gpioOutputBank.outputs = gpioOutputs;
             }
 
             void Start(daisy::AudioHandle::AudioCallback callback) {
@@ -182,12 +191,12 @@ namespace medium {
 
             inline void Read() {
                 adcController.Read();
-                gateBank.Read();
-                switchBank.Read();
                 buttonBank.Read();
+                gateInputBank.Read();
             }
 
             inline void Write() {
+                gpioOutputBank.Write();
                 dacOutputBank.Write();
             }
     };

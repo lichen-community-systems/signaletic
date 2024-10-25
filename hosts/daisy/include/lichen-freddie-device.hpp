@@ -22,14 +22,14 @@ namespace freddie {
     static const size_t NUM_CONTROLS = 8;
 
     static ADCChannelSpec ADC_CHANNEL_SPECS[NUM_CONTROLS] = {
-        {seed::PIN_ADC_0, INVERT},
-        {seed::PIN_ADC_1, INVERT},
-        {seed::PIN_ADC_2, INVERT},
-        {seed::PIN_ADC_3, INVERT},
-        {seed::PIN_ADC_4, INVERT},
-        {seed::PIN_ADC_5, INVERT},
-        {seed::PIN_ADC_6, INVERT},
-        {seed::PIN_ADC_7, INVERT}
+        {seed::PIN_ADC_0, INVERT, NO_MUX},
+        {seed::PIN_ADC_1, INVERT, NO_MUX},
+        {seed::PIN_ADC_2, INVERT, NO_MUX},
+        {seed::PIN_ADC_3, INVERT, NO_MUX},
+        {seed::PIN_ADC_4, INVERT, NO_MUX},
+        {seed::PIN_ADC_5, INVERT, NO_MUX},
+        {seed::PIN_ADC_6, INVERT, NO_MUX},
+        {seed::PIN_ADC_7, INVERT, NO_MUX}
     };
 
     static dsy_gpio_pin BUTTON_PINS[NUM_CONTROLS] = {

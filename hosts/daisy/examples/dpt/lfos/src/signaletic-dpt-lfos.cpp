@@ -1,4 +1,5 @@
-#include "../include/signaletic-dpt-lfos-signals.h"
+#include <libsignaletic.h>
+#include "../../../shared/include/signaletic-lfos-signals.h"
 #include "../../../../include/dspcoffee-dpt-device.hpp"
 
 #define SAMPLERATE 48000

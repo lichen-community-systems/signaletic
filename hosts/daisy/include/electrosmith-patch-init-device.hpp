@@ -34,16 +34,16 @@ namespace patchinit {
 
     static ADCChannelSpec ADC_CHANNEL_SPECS[NUM_ADC_CHANNELS] = {
         // Knobs
-        {patchsm::PIN_CV_1, INVERT}, // CV1/Pin C5
-        {patchsm::PIN_CV_2, INVERT}, // CV2/Pin C4
-        {patchsm::PIN_CV_3, INVERT}, // CV3/Pin C3
-        {patchsm::PIN_CV_4, INVERT}, // CV4/Pin C2
+        {patchsm::PIN_CV_1, INVERT, NO_MUX}, // CV1/Pin C5
+        {patchsm::PIN_CV_2, INVERT, NO_MUX}, // CV2/Pin C4
+        {patchsm::PIN_CV_3, INVERT, NO_MUX}, // CV3/Pin C3
+        {patchsm::PIN_CV_4, INVERT, NO_MUX}, // CV4/Pin C2
 
         // CV Jacks
-        {patchsm::PIN_CV_8, INVERT}, // CV5/Pin C6
-        {patchsm::PIN_CV_7, INVERT}, // CV6/Pin C7
-        {patchsm::PIN_CV_5, INVERT}, // CV7/Pin C8
-        {patchsm::PIN_CV_6, INVERT}, // CV8/Pin C9
+        {patchsm::PIN_CV_8, INVERT, NO_MUX}, // CV5/Pin C6
+        {patchsm::PIN_CV_7, INVERT, NO_MUX}, // CV6/Pin C7
+        {patchsm::PIN_CV_5, INVERT, NO_MUX}, // CV7/Pin C8
+        {patchsm::PIN_CV_6, INVERT, NO_MUX}, // CV8/Pin C9
 
     };
 

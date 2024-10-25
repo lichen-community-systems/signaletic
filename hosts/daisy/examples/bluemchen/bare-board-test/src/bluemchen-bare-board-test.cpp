@@ -197,25 +197,30 @@ int main(void) {
 
     sig::libdaisy::ADCChannelSpec knob1Spec = {
         .pin = adcPins[0],
-        .normalization = sig::libdaisy::BI_TO_UNIPOLAR
+        .normalization = sig::libdaisy::BI_TO_UNIPOLAR,
+        .mux = sig::libdaisy::NO_MUX
     };
     knob1.Init(&board.adc, knob1Spec, 0);
 
     sig::libdaisy::ADCChannelSpec knob2Spec = {
         .pin = adcPins[1],
-        .normalization = sig::libdaisy::BI_TO_UNIPOLAR
+        .normalization = sig::libdaisy::BI_TO_UNIPOLAR,
+        .mux = sig::libdaisy::NO_MUX
+
     };
     knob2.Init(&board.adc, knob2Spec, 1);
 
     sig::libdaisy::ADCChannelSpec cv1Spec = {
         .pin = adcPins[2],
-        .normalization = sig::libdaisy::INVERT
+        .normalization = sig::libdaisy::INVERT,
+        .mux = sig::libdaisy::NO_MUX
     };
     cv1.Init(&board.adc, cv1Spec, 2);
 
     sig::libdaisy::ADCChannelSpec cv2Spec = {
         .pin = adcPins[3],
-        .normalization = sig::libdaisy::INVERT
+        .normalization = sig::libdaisy::INVERT,
+        .mux = sig::libdaisy::NO_MUX
     };
     cv2.Init(&board.adc, cv2Spec, 3);
 

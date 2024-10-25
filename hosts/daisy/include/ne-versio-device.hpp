@@ -44,13 +44,13 @@ namespace ne {
 namespace versio {
     static const size_t NUM_ADC_CHANNELS = 7;
     static ADCChannelSpec ADC_CHANNEL_SPECS[NUM_ADC_CHANNELS] = {
-        {seed::PIN_D21, INVERT},
-        {seed::PIN_D22, INVERT},
-        {seed::PIN_D28, INVERT},
-        {seed::PIN_D23, INVERT},
-        {seed::PIN_D16, INVERT},
-        {seed::PIN_D17, INVERT},
-        {seed::PIN_D19, INVERT}
+        {seed::PIN_D21, INVERT, NO_MUX},
+        {seed::PIN_D22, INVERT, NO_MUX},
+        {seed::PIN_D28, INVERT, NO_MUX},
+        {seed::PIN_D23, INVERT, NO_MUX},
+        {seed::PIN_D16, INVERT, NO_MUX},
+        {seed::PIN_D17, INVERT, NO_MUX},
+        {seed::PIN_D19, INVERT, NO_MUX}
     };
 
     static const size_t NUM_GATES = 1;

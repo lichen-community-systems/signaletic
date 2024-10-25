@@ -675,6 +675,36 @@
         "type": "cortex-debug"
       },
       {
+        "name": "Remote Lichen Four LFOs",
+        "configFiles": [
+          "interface/stlink.cfg",
+          "target/stm32h7x.cfg"
+        ],
+        "cwd": "${workspaceFolder}/hosts/daisy/examples/lichen-four/lfos",
+        "debuggerArgs": [
+          "-d",
+          "${workspaceRoot}/hosts/daisy/examples/lichen-four/lfos"
+        ],
+        "executable": "${workspaceRoot}/hosts/daisy/examples/lichen-four/lfos/build/lichen-four-lfos.elf",
+        "interface": "swd",
+        "openOCDLaunchCommands": [
+          "init",
+          "reset init"
+        ],
+        "preLaunchTask": "Debug Build Lichen Four Examples",
+        "preRestartCommands": [
+          "load",
+          "enable breakpoint",
+          "monitor reset"
+        ],
+        "request": "launch",
+        "runToEntryPoint": "main",
+        "servertype": "openocd",
+        "showDevDebugOutput": "parsed",
+        "svdFile": "${workspaceRoot}/.vscode/STM32H750x.svd",
+        "type": "cortex-debug"
+      },
+      {
         "name": "Remote Versio Filter",
         "configFiles": [
           "interface/stlink.cfg",

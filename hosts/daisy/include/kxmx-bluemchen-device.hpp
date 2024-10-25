@@ -49,10 +49,10 @@ namespace bluemchen {
     };
 
     static ADCChannelSpec ADC_CHANNEL_SPECS[NUM_ADC_CHANNELS] = {
-        {seed::PIN_D16, BI_TO_UNIPOLAR},
-        {seed::PIN_D15, BI_TO_UNIPOLAR},
-        {seed::PIN_D21, INVERT},
-        {seed::PIN_D18, INVERT}
+        {seed::PIN_D16, BI_TO_UNIPOLAR, NO_MUX},
+        {seed::PIN_D15, BI_TO_UNIPOLAR, NO_MUX},
+        {seed::PIN_D21, INVERT, NO_MUX},
+        {seed::PIN_D18, INVERT, NO_MUX}
     };
 
     class BluemchenDevice {
