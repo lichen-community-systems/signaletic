@@ -1,3 +1,6 @@
+#ifndef SIGNALETIC_CLOCKED_LFO_H
+#define SIGNALETIC_CLOCKED_LFO_H
+
 #include <libsignaletic.h>
 #include "../../../../include/signaletic-host.h"
 
@@ -79,3 +82,4 @@ void sig_dsp_ClockedLFO_destroy(struct sig_Allocator* allocator,
     self = NULL;
 }
 
+#endif /* SIGNALETIC_CLOCKED_LFO_H */

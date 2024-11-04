@@ -5,9 +5,6 @@
 #include <stdint.h>
 #include "daisy_core.h"
 
-using namespace std;
-
-
 namespace daisy
 {
 

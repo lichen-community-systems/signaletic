@@ -91,7 +91,8 @@ namespace freddie {
         }
 
         void InitADCController() {
-            adcController.Init(&board.adc, ADC_CHANNEL_SPECS);
+            adcController.Init(&board.adc, ADC_CHANNEL_SPECS,
+                NUM_CONTROLS);
         }
 
         void InitButtons() {

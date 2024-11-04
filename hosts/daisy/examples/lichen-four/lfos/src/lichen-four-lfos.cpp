@@ -1,7 +1,6 @@
 #include <libsignaletic.h>
-#include "../../../shared/include/signaletic-lfos-signals.h"
+#include "../../../shared/include/clocked-lfo.h"
 #include "../../../shared/include/summed-cv-in.h"
-
 #include "../../../../include/lichen-four-device.hpp"
 
 using namespace lichen::four;
@@ -28,6 +27,7 @@ struct sig_dsp_SignalListEvaluator* evaluator;
 DaisyHost<FourDevice> host;
 
 struct sig_host_GateIn* clockIn;
+struct sig_host_SwitchIn* button;
 struct sig_host_SummedCVIn* lfo1Frequency;
 struct sig_host_SummedCVIn* lfo2Frequency;
 struct sig_host_SummedCVIn* lfo3Frequency;
@@ -45,7 +45,6 @@ struct sig_host_CVOut* out2;
 struct sig_host_CVOut* out3;
 struct sig_host_AudioOut* out4;
 struct sig_host_GateOut* clockOut;
-struct sig_host_SwitchIn* button;
 struct sig_host_GateOut* led;
 
 void buildSignalGraph(struct sig_SignalContext* context,
@@ -54,6 +53,11 @@ void buildSignalGraph(struct sig_SignalContext* context,
     clockIn->hardware = &host.device.hardware;
     sig_List_append(&signals, clockIn, status);
     clockIn->parameters.control = sig_host_GATE_IN_1;
+
+    button = sig_host_SwitchIn_new(&allocator, context);
+    button->hardware = &host.device.hardware;
+    sig_List_append(&signals, button, status);
+    button->parameters.control = sig_host_GATE_IN_1;
 
     lfo1Frequency = sig_host_SummedCVIn_new(&allocator, context);
     lfo1Frequency->hardware = &host.device.hardware;
@@ -165,10 +169,11 @@ void buildSignalGraph(struct sig_SignalContext* context,
     out4->parameters.channel = sig_host_AUDIO_OUT_2;
     out4->inputs.source = lfo4->outputs.main;
 
-    button = sig_host_SwitchIn_new(&allocator, context);
-    button->hardware = &host.device.hardware;
-    sig_List_append(&signals, button, status);
-    button->parameters.control = sig_host_GATE_IN_1;
+    clockOut = sig_host_GateOut_new(&allocator, context);
+    clockOut->hardware = &host.device.hardware;
+    sig_List_append(&signals, clockOut, status);
+    clockOut->parameters.control = sig_host_GATE_OUT_1;
+    clockOut->inputs.source = clockIn->outputs.main;
 
     led = sig_host_GateOut_new(&allocator, context);
     led->hardware = &host.device.hardware;

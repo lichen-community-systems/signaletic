@@ -104,7 +104,8 @@ namespace bluemchen {
         }
 
         void InitADCController() {
-            adcController.Init(&board.adc, ADC_CHANNEL_SPECS);
+            adcController.Init(&board.adc, ADC_CHANNEL_SPECS,
+                NUM_ADC_CHANNELS);
         }
 
         void InitDisplay() {
