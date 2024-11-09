@@ -117,7 +117,7 @@ interface sig_dsp_Clamp_Parameters {
 interface sig_dsp_Clamp {
     [Value] attribute sig_dsp_Signal signal;
     [Value] attribute sig_dsp_Signal_SingleSourceInput inputs;
-    [Value] attribute sig_dsp_Clamp_Parameters;
+    [Value] attribute sig_dsp_Clamp_Parameters parameters;
     [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
 };
 
@@ -375,6 +375,31 @@ interface sig_dsp_DustGate {
     attribute sig_dsp_TimedGate gate;
 };
 
+interface sig_dsp_Clock_Parameters {
+    attribute float threshold;
+};
+
+interface sig_dsp_ClockSource_Inputs {
+    attribute any pulse;
+    attribute any tap;
+};
+
+interface sig_dsp_ClockSource {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_ClockSource_Inputs inputs;
+    [Value] attribute sig_dsp_Clock_Parameters parameters;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+
+    attribute float previousTapValue;
+    attribute unsigned short tapCount;
+    attribute unsigned long tempoDurationSamples;
+    attribute unsigned long numHighSamples;
+    attribute unsigned long samplesSinceLastTap;
+    attribute boolean isLatching;
+    attribute unsigned long latchedTapSamplesRemaining;
+};
+
+
 interface sig_dsp_ClockDetector_Inputs {
     attribute any source;
 };
@@ -384,14 +409,10 @@ interface sig_dsp_ClockDetector_Outputs {
     attribute any bpm;
 };
 
-interface sig_dsp_ClockDetector_Parameters {
-    attribute float threshold;
-};
-
 interface sig_dsp_ClockDetector {
     [Value] attribute sig_dsp_Signal signal;
     [Value] attribute sig_dsp_ClockDetector_Inputs inputs;
-    [Value] attribute sig_dsp_ClockDetector_Parameters parameters;
+    [Value] attribute sig_dsp_Clock_Parameters parameters;
     [Value] attribute sig_dsp_ClockDetector_Outputs outputs;
     attribute float previousTrigger;
     attribute boolean isRisingEdge;
@@ -682,11 +703,25 @@ interface sig_dsp_SineWavefolder_Inputs {
     attribute any factor;
 };
 
-interface sig_dsp_Sinewavefolder {
+interface sig_dsp_SineWavefolder {
     [Value] attribute sig_dsp_Signal signal;
-    [Value] attribute sig_dsp_Sinewavefolder_Inputs inputs;
+    [Value] attribute sig_dsp_SineWavefolder_Inputs inputs;
     [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
 };
+
+
+interface sig_dsp_NoiseGate_Inputs {
+    attribute any source;
+    attribute any threshold;
+};
+
+interface sig_dsp_NoiseGate {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_NoiseGate_Inputs inputs;
+    [Value] attribute sig_dsp_ScaleOffset_Parameters parameters;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
 
 interface sig_dsp_Calibrator_Inputs {
     attribute any source;
@@ -879,6 +914,14 @@ interface Signals {
     void DustGate_generate(any signal);
     void DustGate_destroy(sig_Allocator allocator, sig_dsp_DustGate signal);
 
+    void ClockSource_init(sig_dsp_ClockSource signal,
+        sig_SignalContext context);
+    sig_dsp_ClockSource ClockSource_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void ClockSource_generate(any signal);
+    void ClockSource_destroy(sig_Allocator allocator,
+        sig_dsp_ClockSource signal);
+
     void ClockDetector_Outputs_newAudioBlocks(sig_Allocator allocator,
         sig_AudioSettings audioSettings, sig_dsp_ClockDetector_Outputs outputs);
     void ClockDetector_Outputs_destroyAudioBlocks(sig_Allocator allocator,
@@ -1019,20 +1062,20 @@ interface Signals {
     void Calibrator_destroy(sig_Allocator allocator,
         sig_dsp_Calibrator signal);
 
-    sig_dsp_Sinewavefolder Sinewavefolder_new(sig_Allocator allocator,
+    sig_dsp_SineWavefolder SineWavefolder_new(sig_Allocator allocator,
         sig_SignalContext context);
-    void Sinewavefolder_init(sig_dsp_Sinewavefolder signal,
+    void SineWavefolder_init(sig_dsp_SineWavefolder signal,
         sig_SignalContext context);
-    void Sinewavefolder_generate(any signal);
-    void Sinewavefolder_destroy(sig_Allocator allocator,
-        sig_dsp_Sinewavefolder signal);
+    void SineWavefolder_generate(any signal);
+    void SineWavefolder_destroy(sig_Allocator allocator,
+        sig_dsp_SineWavefolder signal);
 
-    sig_dsp_NoiseGate sig_dsp_NoiseGate_new(
+    sig_dsp_NoiseGate NoiseGate_new(
         sig_Allocator allocator, sig_SignalContext context);
-    void sig_dsp_NoiseGate_init(sig_dsp_NoiseGate signal,
+    void NoiseGate_init(sig_dsp_NoiseGate signal,
         sig_SignalContext context);
-    void sig_dsp_NoiseGate_generate(any signal);
-    void sig_dsp_NoiseGate_destroy(sig_Allocator allocator,
+    void NoiseGate_generate(any signal);
+    void NoiseGate_destroy(sig_Allocator allocator,
         sig_dsp_NoiseGate signal);
 };
 

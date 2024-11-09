@@ -578,6 +578,25 @@ public:
         return sig_dsp_DustGate_destroy(allocator, self);
     }
 
+    void ClockSource_init(struct sig_dsp_ClockSource* self,
+        struct sig_SignalContext* context) {
+        sig_dsp_ClockSource_init(self, context);
+    }
+
+    struct sig_dsp_ClockSource* ClockSource_new(
+        struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+        return sig_dsp_ClockSource_new(allocator, context);
+    }
+
+    void ClockSource_generate(void* signal) {
+        sig_dsp_ClockSource_generate(signal);
+    }
+
+    void ClockSource_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_ClockSource* self) {
+        return sig_dsp_ClockSource_destroy(allocator, self);
+    }
+
     void ClockDetector_Outputs_newAudioBlocks(
         struct sig_Allocator* allocator,
         struct sig_AudioSettings* audioSettings,

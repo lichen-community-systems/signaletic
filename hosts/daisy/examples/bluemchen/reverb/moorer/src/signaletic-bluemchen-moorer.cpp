@@ -1,6 +1,6 @@
 #include <libsignaletic.h>
 #include "../../../../include/kxmx-bluemchen-device.hpp"
-#include "../../../../shared/multi-tap-delay.h"
+#include "../../../../shared/include/multi-tap-delay.h"
 
 FixedCapStr<20> displayStr;
 
