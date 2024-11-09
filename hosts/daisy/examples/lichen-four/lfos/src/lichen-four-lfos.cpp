@@ -27,7 +27,8 @@ struct sig_dsp_SignalListEvaluator* evaluator;
 DaisyHost<FourDevice> host;
 
 struct sig_host_GateIn* clockIn;
-struct sig_host_SwitchIn* button;
+struct sig_host_SwitchIn* tapTempoButton;
+struct sig_dsp_ClockSource* clock;
 struct sig_host_SummedCVIn* lfo1Frequency;
 struct sig_host_SummedCVIn* lfo2Frequency;
 struct sig_host_SummedCVIn* lfo3Frequency;
@@ -54,14 +55,20 @@ void buildSignalGraph(struct sig_SignalContext* context,
     sig_List_append(&signals, clockIn, status);
     clockIn->parameters.control = sig_host_GATE_IN_1;
 
-    button = sig_host_SwitchIn_new(&allocator, context);
-    button->hardware = &host.device.hardware;
-    sig_List_append(&signals, button, status);
-    button->parameters.control = sig_host_GATE_IN_1;
+    tapTempoButton = sig_host_SwitchIn_new(&allocator, context);
+    tapTempoButton->hardware = &host.device.hardware;
+    sig_List_append(&signals, tapTempoButton, status);
+    tapTempoButton->parameters.control = sig_host_TOGGLE_1;
+
+    clock = sig_dsp_ClockSource_new(&allocator, context);
+    sig_List_append(&signals, clock, status);
+    clock->inputs.pulse = clockIn->outputs.main;
+    clock->inputs.tap = tapTempoButton->outputs.main;
 
     lfo1Frequency = sig_host_SummedCVIn_new(&allocator, context);
     lfo1Frequency->hardware = &host.device.hardware;
-    sig_List_append(&signals, lfo1Frequency, status);    lfo1Frequency->leftCVIn->parameters.control = sig_host_KNOB_1;
+    sig_List_append(&signals, lfo1Frequency, status);
+    lfo1Frequency->leftCVIn->parameters.control = sig_host_KNOB_1;
     lfo1Frequency->rightCVIn->parameters.control = sig_host_CV_IN_8;
     lfo1Frequency->leftCVIn->parameters.scale = 10.0f;
     lfo1Frequency->rightCVIn->parameters.scale = 10.0f;
@@ -76,7 +83,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
 
     lfo1 = sig_dsp_ClockedLFO_new(&allocator, context);
     sig_List_append(&signals, lfo1, status);
-    lfo1->inputs.clock = clockIn->outputs.main;
+    lfo1->inputs.clock = clock->outputs.main;
     lfo1->inputs.frequencyScale = lfo1Frequency->outputs.main;
     lfo1->inputs.scale = lfo1Scale->outputs.main;
 
@@ -104,7 +111,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
 
     lfo2 = sig_dsp_ClockedLFO_new(&allocator, context);
     sig_List_append(&signals, lfo2, status);
-    lfo2->inputs.clock = clockIn->outputs.main;
+    lfo2->inputs.clock = clock->outputs.main;
     lfo2->inputs.frequencyScale = lfo2Frequency->outputs.main;
     lfo2->inputs.scale = lfo2Scale->outputs.main;
 
@@ -132,7 +139,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
 
     lfo3 = sig_dsp_ClockedLFO_new(&allocator, context);
     sig_List_append(&signals, lfo3, status);
-    lfo3->inputs.clock = clockIn->outputs.main;
+    lfo3->inputs.clock = clock->outputs.main;
     lfo3->inputs.frequencyScale = lfo3Frequency->outputs.main;
     lfo3->inputs.scale = lfo3Scale->outputs.main;
 
@@ -159,7 +166,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
 
     lfo4 = sig_dsp_ClockedLFO_new(&allocator, context);
     sig_List_append(&signals, lfo4, status);
-    lfo4->inputs.clock = clockIn->outputs.main;
+    lfo4->inputs.clock = clock->outputs.main;
     lfo4->inputs.frequencyScale = lfo4Frequency->outputs.main;
     lfo4->inputs.scale = lfo4Scale->outputs.main;
 
@@ -173,13 +180,13 @@ void buildSignalGraph(struct sig_SignalContext* context,
     clockOut->hardware = &host.device.hardware;
     sig_List_append(&signals, clockOut, status);
     clockOut->parameters.control = sig_host_GATE_OUT_1;
-    clockOut->inputs.source = clockIn->outputs.main;
+    clockOut->inputs.source = clock->outputs.main;
 
     led = sig_host_GateOut_new(&allocator, context);
     led->hardware = &host.device.hardware;
     sig_List_append(&signals, led, status);
     led->parameters.control = sig_host_GATE_OUT_2;
-    led->inputs.source = clockIn->outputs.main;
+    led->inputs.source = clock->outputs.main;
 }
 
 int main(void) {

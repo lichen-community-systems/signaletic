@@ -2483,6 +2483,141 @@ void sig_dsp_DustGate_destroy(struct sig_Allocator* allocator,
 }
 
 
+void sig_dsp_ClockSource_init(
+    struct sig_dsp_ClockSource* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_ClockSource_generate);
+
+    struct sig_dsp_Clock_Parameters params = {
+        .threshold = 0.04f, // 0.2V, assuming 10Vpp
+    };
+    self->parameters = params;
+
+    self->previousTapValue = 0.0f;
+    self->tapCount = 0;
+    self->tempoDurationSamples = 0;
+    self->samplesSinceLastTap = 0;
+    self->isLatching = false;
+    self->latchedTapSamplesRemaining = 0;
+
+    sig_CONNECT_TO_SILENCE(self, pulse, context);
+    sig_CONNECT_TO_SILENCE(self, tap, context);
+}
+
+struct sig_dsp_ClockSource* sig_dsp_ClockSource_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_ClockSource* self = sig_MALLOC(allocator,
+        struct sig_dsp_ClockSource);
+    sig_dsp_ClockSource_init(self, context);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+static inline void updateTempo(struct sig_dsp_ClockSource* self,
+    size_t tempoDuration) {
+    self->tempoDurationSamples = tempoDuration;
+    self->numHighSamples = (uint32_t) (
+        (float) self->tempoDurationSamples * 0.25f);
+}
+
+static inline void handleTap(struct sig_dsp_ClockSource* self) {
+    self->tapCount++;
+    if (self->tapCount == 2) {
+        // Two taps is enough to output a tempo clock.
+        updateTempo(self, self->samplesSinceLastTap);
+        self->latchedTapSamplesRemaining = self->tempoDurationSamples;
+        self->isLatching = true;
+    } else if (self->tapCount > 2) {
+        // The second duration should be averaged with the first,
+        // assuming it's within 50%.
+        uint32_t shortestDuration = (uint32_t) (
+            (float) self->tempoDurationSamples / 1.5f);
+        uint32_t longestDuration = (uint32_t) (
+            (float) self->tempoDurationSamples * 1.5f);
+
+        if (self->samplesSinceLastTap >= shortestDuration &&
+            self->samplesSinceLastTap <= longestDuration) {
+            float prevTempoDuration = self->tempoDurationSamples;
+            uint32_t averagedTempoDuration = (uint32_t) (
+                (float) (prevTempoDuration + self->samplesSinceLastTap) / 2.0f);
+            updateTempo(self, averagedTempoDuration);
+
+            // Recalculate the tap duration.
+            if (self->tempoDurationSamples < prevTempoDuration) {
+                if (self->latchedTapSamplesRemaining >
+                    self->tempoDurationSamples) {
+                    // The current duration is shorter than
+                    // the previous time remaining.
+                    self->latchedTapSamplesRemaining = self->tempoDurationSamples;
+                }
+            } else if (self->tempoDurationSamples > prevTempoDuration) {
+                // Add the additional time to the duration remaining.
+                self->latchedTapSamplesRemaining += (
+                    self->tempoDurationSamples - prevTempoDuration);
+            }
+
+            self->tapCount = 0;
+        } else {
+            self->tapCount = 1;
+        }
+    }
+
+    self->samplesSinceLastTap = 0;
+}
+
+void sig_dsp_ClockSource_generate(void* signal) {
+    struct sig_dsp_ClockSource* self = (struct sig_dsp_ClockSource*) signal;
+    float_array_ptr pulse = self->inputs.pulse;
+    float_array_ptr tap = self->inputs.tap;
+    float threshold = self->parameters.threshold;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float pulseValue = FLOAT_ARRAY(pulse)[i];
+        float tapValue = FLOAT_ARRAY(tap)[i];
+
+        float sample = 0.0f;
+        if (pulseValue >= threshold) {
+            self->isLatching = false;
+            self->tapCount = 0;
+            sample = 1.0f;
+        } else if (pulseValue < threshold) {
+            if (self->tapCount > 0) {
+                self->samplesSinceLastTap++;
+            }
+
+            if (tapValue >= threshold && self->previousTapValue < threshold) {
+                handleTap(self);
+            }
+
+            if (self->isLatching) {
+                if (self->latchedTapSamplesRemaining <= self->numHighSamples) {
+                    sample = 1.0f;
+                }
+
+                self->latchedTapSamplesRemaining--;
+                if (self->latchedTapSamplesRemaining <= 0) {
+                    self->latchedTapSamplesRemaining =
+                        self->tempoDurationSamples;
+                }
+            }
+        }
+
+        FLOAT_ARRAY(self->outputs.main)[i] = sample;
+        self->previousTapValue = tapValue;
+    }
+}
+
+void sig_dsp_ClockSource_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_ClockSource* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, self);
+    self = NULL;
+}
+
+
 
 void sig_dsp_ClockDetector_Outputs_newAudioBlocks(
     struct sig_Allocator* allocator,
@@ -2504,7 +2639,7 @@ void sig_dsp_ClockDetector_init(struct sig_dsp_ClockDetector* self,
     struct sig_SignalContext* context) {
     sig_dsp_Signal_init(self, context, *sig_dsp_ClockDetector_generate);
 
-    struct sig_dsp_ClockDetector_Parameters params = {
+    struct sig_dsp_Clock_Parameters params = {
         .threshold = 0.04f // 0.2V, assuming 10Vpp
     };
 

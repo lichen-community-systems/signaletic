@@ -2,7 +2,7 @@
  Manfred Schroeder's second reverb topology in
  "Natural Sounding Artificial Reverberation" (1962),
  which nests five all pass filters into an additional
-allpass-style delay line and mixes the dry and wet signals together.
+ allpass-style delay line and mixes the dry and wet signals together.
 
  Sean Costello has a good blog post about the design:
  https://valhalladsp.com/2009/05/30/schroeder-reverbs-the-forgotten-algorithm/

@@ -1852,6 +1852,63 @@ void sig_dsp_DustGate_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_DustGate* self);
 
 
+struct sig_dsp_Clock_Parameters {
+    /**
+     * @brief The minimum value that a trigger must reach to be
+     * recognized as a clock pulse.
+     *
+     */
+    float threshold;
+};
+
+/**
+ * @brief Inputs for a ClockSource.
+ */
+struct sig_dsp_ClockSource_Inputs {
+    float_array_ptr pulse;
+    float_array_ptr tap;
+};
+
+/**
+ * Provides a unified clock from two inputs:
+ * 1. A consistent pulsed clock signal
+ * 2. A tapped tempo
+ *
+ * When two pulses are received at the tap tempo input,
+ * this signal will output a latched occuring at the detected frequency.
+ * Howerver, whenever  a clock pulse is received,
+ * it will always take precedence over the tapped tempo.
+ *
+ * Inputs:
+ *  - pulses a clock signal
+ *  - taps a manually tapped signal
+ */
+struct sig_dsp_ClockSource {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_ClockSource_Inputs inputs;
+    struct sig_dsp_Clock_Parameters parameters;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+
+    float previousTapValue;
+    uint8_t tapCount;
+    uint32_t tempoDurationSamples;
+    uint32_t numHighSamples;
+    uint32_t samplesSinceLastTap;
+    bool isLatching;
+    uint32_t latchedTapSamplesRemaining;
+};
+
+void sig_dsp_ClockSource_init(
+    struct sig_dsp_ClockSource* self,
+    struct sig_SignalContext* context);
+struct sig_dsp_ClockSource* sig_dsp_ClockSource_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_ClockSource_generate(void* signal);
+void sig_dsp_ClockSource_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_ClockSource* self);
+
+
+
 /**
  * @brief Inputs for a ClockDetector.
  */
@@ -1883,14 +1940,6 @@ void sig_dsp_ClockDetector_Outputs_destroyAudioBlocks(
     struct sig_Allocator* allocator,
     struct sig_dsp_ClockDetector_Outputs* outputs);
 
-struct sig_dsp_ClockDetector_Parameters {
-    /**
-     * @brief The minimum value that a trigger must reach to be detected
-     * as a clock pulse.
-     *
-     */
-    float threshold;
-};
 
 /**
  * Detects the number of pulses per second of an incoming clock signal
@@ -1903,7 +1952,7 @@ struct sig_dsp_ClockDetector_Parameters {
 struct sig_dsp_ClockDetector {
     struct sig_dsp_Signal signal;
     struct sig_dsp_ClockDetector_Inputs inputs;
-    struct sig_dsp_ClockDetector_Parameters parameters;
+    struct sig_dsp_Clock_Parameters parameters;
     struct sig_dsp_ClockDetector_Outputs outputs;
 
     float previousTrigger;

@@ -20,8 +20,8 @@ namespace patchsm {
     static constexpr dsy_gpio_pin PIN_B2 = {DSY_GPIOX, 0};
     static constexpr dsy_gpio_pin PIN_B3 = {DSY_GPIOX, 0};
     static constexpr dsy_gpio_pin PIN_B4 = {DSY_GPIOX, 0};
-    static constexpr dsy_gpio_pin PIN_B5 = {DSY_GPIOC, 13};
-    static constexpr dsy_gpio_pin PIN_B6 = {DSY_GPIOC, 14};
+    static constexpr dsy_gpio_pin PIN_B5 = {DSY_GPIOC, 14};
+    static constexpr dsy_gpio_pin PIN_B6 = {DSY_GPIOC, 13};
     static constexpr dsy_gpio_pin PIN_B7 = {DSY_GPIOB, 8};
     static constexpr dsy_gpio_pin PIN_B8 = {DSY_GPIOB, 9};
     static constexpr dsy_gpio_pin PIN_B9 = {DSY_GPIOG, 14};

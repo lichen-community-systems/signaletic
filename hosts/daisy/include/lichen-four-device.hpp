@@ -29,16 +29,16 @@ enum {
 };
 
 enum {
+    sig_host_TOGGLE_1 = 0
+};
+
+enum {
     sig_host_GATE_IN_1 = 0
 };
 
 enum {
     sig_host_GATE_OUT_1 = 0,
     sig_host_GATE_OUT_2
-};
-
-enum {
-    sig_host_TOGGLE_1 = 0
 };
 
 enum {
