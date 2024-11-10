@@ -46,3 +46,18 @@ struct sig_host_SummedCVIn* sig_host_SummedCVIn_new(
 
     return self;
 }
+
+void sig_host_SummedCVIn_destroy(struct sig_Allocator* allocator,
+    struct sig_host_SummedCVIn* self) {
+    sig_dsp_Add_destroy(allocator, self->summer);
+    self->summer = NULL;
+    sig_host_CVIn_destroy(allocator, self->rightCVIn);
+    self->rightCVIn = NULL;
+    sig_host_CVIn_destroy(allocator, self->leftCVIn);
+    self->leftCVIn = NULL;
+
+    // We don't call sig_dsp_Signal_destroy
+    // because our output is borrowed and has already been freed.
+    allocator->impl->free(allocator, self);
+    self = NULL;
+}

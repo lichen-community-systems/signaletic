@@ -1,7 +1,6 @@
 #include <libsignaletic.h>
-#include "../../../shared/include/clocked-lfo.h"
-#include "../../../shared/include/summed-cv-in.h"
 #include "../../../../include/lichen-four-device.hpp"
+#include "../include/clock-dividing-lfo.h"
 
 using namespace lichen::four;
 using namespace sig::libdaisy;
@@ -9,6 +8,7 @@ using namespace sig::libdaisy;
 #define SAMPLERATE 96000
 #define HEAP_SIZE 1024 * 384 // 384 KB
 #define MAX_NUM_SIGNALS 32
+#define NUM_CLOCK_DIVISIONS 37
 
 uint8_t memory[HEAP_SIZE];
 struct sig_AllocatorHeap heap = {
@@ -26,21 +26,60 @@ struct sig_List signals;
 struct sig_dsp_SignalListEvaluator* evaluator;
 DaisyHost<FourDevice> host;
 
+float clockDivisions[NUM_CLOCK_DIVISIONS] = {
+    // Frequency multiplications and divisions,
+    // which are mapped to the lfo frequency slider control.
+    1.0f/100.0f,
+    1.0f/30.0f,
+    1.0f/29.0f,
+    1.0f/23.0f,
+    1.0f/20.0f,
+    1.0f/19.0f,
+    1.0f/17.0f,
+    1.0f/13.0f,
+    1.0f/11.0f,
+    1.0f/10.0f,
+    1.0f/9.0f,
+    1.0f/8.0f,
+    1.0f/7.0f,
+    1.0f/6.0f,
+    1.0f/5.0f,
+    1.0f/4.0f,
+    1.0f/3.0f,
+    1.0f/2.0f,
+    1.0f,
+    2.0f,
+    3.0f,
+    4.0f,
+    5.0f,
+    6.0f,
+    7.0f,
+    8.0f,
+    9.0f,
+    10.0f,
+    11.0f,
+    13.0f,
+    17.0f,
+    19.0f,
+    20.0f,
+    23.0f,
+    29.0f,
+    30.0f,
+    100.0f
+};
+
+struct sig_Buffer clockDivisionsBuffer = {
+    .length = NUM_CLOCK_DIVISIONS,
+    .samples = clockDivisions
+};
+
 struct sig_host_GateIn* clockIn;
 struct sig_host_SwitchIn* tapTempoButton;
 struct sig_dsp_ClockSource* clock;
-struct sig_host_SummedCVIn* lfo1Frequency;
-struct sig_host_SummedCVIn* lfo2Frequency;
-struct sig_host_SummedCVIn* lfo3Frequency;
-struct sig_host_SummedCVIn* lfo4Frequency;
-struct sig_host_SummedCVIn* lfo1Scale;
-struct sig_host_SummedCVIn* lfo2Scale;
-struct sig_host_SummedCVIn* lfo3Scale;
-struct sig_host_SummedCVIn* lfo4Scale;
-struct sig_dsp_ClockedLFO* lfo1;
-struct sig_dsp_ClockedLFO* lfo2;
-struct sig_dsp_ClockedLFO* lfo3;
-struct sig_dsp_ClockedLFO* lfo4;
+struct sig_host_ClockDividingLFO* lfo1;
+struct sig_host_ClockDividingLFO* lfo2;
+struct sig_host_ClockDividingLFO* lfo3;
+struct sig_host_ClockDividingLFO* lfo4;
 struct sig_host_AudioOut* out1;
 struct sig_host_CVOut* out2;
 struct sig_host_CVOut* out3;
@@ -65,27 +104,24 @@ void buildSignalGraph(struct sig_SignalContext* context,
     clock->inputs.pulse = clockIn->outputs.main;
     clock->inputs.tap = tapTempoButton->outputs.main;
 
-    lfo1Frequency = sig_host_SummedCVIn_new(&allocator, context);
-    lfo1Frequency->hardware = &host.device.hardware;
-    sig_List_append(&signals, lfo1Frequency, status);
-    lfo1Frequency->leftCVIn->parameters.control = sig_host_KNOB_1;
-    lfo1Frequency->rightCVIn->parameters.control = sig_host_CV_IN_8;
-    lfo1Frequency->leftCVIn->parameters.scale = 10.0f;
-    lfo1Frequency->rightCVIn->parameters.scale = 10.0f;
-
-    lfo1Scale = sig_host_SummedCVIn_new(&allocator, context);
-    lfo1Scale->hardware = &host.device.hardware;
-    sig_List_append(&signals, lfo1Scale, status);
-    lfo1Scale->leftCVIn->parameters.control = sig_host_KNOB_5;
-    lfo1Scale->rightCVIn->parameters.control = sig_host_CV_IN_1;
-    lfo1Scale->leftCVIn->parameters.scale = 0.5525f;
-    lfo1Scale->rightCVIn->parameters.scale = 0.4f;
-
-    lfo1 = sig_dsp_ClockedLFO_new(&allocator, context);
+    lfo1 = sig_host_ClockDividingLFO_new(&allocator, context);
+    lfo1->hardware = &host.device.hardware;
     sig_List_append(&signals, lfo1, status);
+    lfo1->clockDivisionsBuffer = &clockDivisionsBuffer;
     lfo1->inputs.clock = clock->outputs.main;
-    lfo1->inputs.frequencyScale = lfo1Frequency->outputs.main;
-    lfo1->inputs.scale = lfo1Scale->outputs.main;
+    lfo1->frequencyCV->leftCVIn->parameters.control = sig_host_KNOB_1;
+    lfo1->frequencyCV->rightCVIn->parameters.control = sig_host_CV_IN_8;
+    // TODO: These scalings result a deadzone at the bottom of the
+    // range when the bipolar CV input is in the negative and the
+    // slider is at the bottom (0.0f).
+    // TODO: Add greater audio rate range for LFO1 and LFO4,
+    // which are connected to DC-coupled audio outputs.
+    lfo1->frequencyCV->leftCVIn->parameters.scale = 0.75f;
+    lfo1->frequencyCV->rightCVIn->parameters.scale = 0.25f;
+    lfo1->scale->leftCVIn->parameters.control = sig_host_KNOB_5;
+    lfo1->scale->rightCVIn->parameters.control = sig_host_CV_IN_1;
+    lfo1->scale->leftCVIn->parameters.scale = 0.5525f;
+    lfo1->scale->rightCVIn->parameters.scale = 0.4f;
 
     out1 = sig_host_AudioOut_new(&allocator, context);
     out1->hardware = &host.device.hardware;
@@ -93,27 +129,20 @@ void buildSignalGraph(struct sig_SignalContext* context,
     out1->parameters.channel = sig_host_AUDIO_OUT_1;
     out1->inputs.source = lfo1->outputs.main;
 
-    lfo2Frequency = sig_host_SummedCVIn_new(&allocator, context);
-    lfo2Frequency->hardware = &host.device.hardware;
-    sig_List_append(&signals, lfo2Frequency, status);    lfo2Frequency->leftCVIn->parameters.control = sig_host_KNOB_2;
-    lfo2Frequency->rightCVIn->parameters.control = sig_host_CV_IN_7;
-    lfo2Frequency->leftCVIn->parameters.scale = 10.0f;
-    lfo2Frequency->rightCVIn->parameters.scale = 10.0f;
-
-    lfo2Scale = sig_host_SummedCVIn_new(&allocator, context);
-    lfo2Scale->hardware = &host.device.hardware;
-    sig_List_append(&signals, lfo2Scale, status);
-    lfo2Scale->leftCVIn->parameters.control = sig_host_KNOB_6;
-    lfo2Scale->rightCVIn->parameters.control = sig_host_CV_IN_2;
-    // TODO: Clipping!
-    lfo2Scale->leftCVIn->parameters.scale = 0.95f;
-    lfo2Scale->rightCVIn->parameters.scale = 0.4f;
-
-    lfo2 = sig_dsp_ClockedLFO_new(&allocator, context);
+    lfo2 = sig_host_ClockDividingLFO_new(&allocator, context);
+    lfo2->hardware = &host.device.hardware;
     sig_List_append(&signals, lfo2, status);
+    lfo2->clockDivisionsBuffer = &clockDivisionsBuffer;
     lfo2->inputs.clock = clock->outputs.main;
-    lfo2->inputs.frequencyScale = lfo2Frequency->outputs.main;
-    lfo2->inputs.scale = lfo2Scale->outputs.main;
+    lfo2->frequencyCV->leftCVIn->parameters.control = sig_host_KNOB_2;
+    lfo2->frequencyCV->rightCVIn->parameters.control = sig_host_CV_IN_7;
+    lfo2->frequencyCV->leftCVIn->parameters.scale = 0.75f;
+    lfo2->frequencyCV->rightCVIn->parameters.scale = 0.25f;
+    lfo2->scale->leftCVIn->parameters.control = sig_host_KNOB_6;
+    lfo2->scale->rightCVIn->parameters.control = sig_host_CV_IN_2;
+    // TODO: Clipping!
+    lfo2->scale->leftCVIn->parameters.scale = 0.95f;
+    lfo2->scale->rightCVIn->parameters.scale = 0.4f;
 
     out2 = sig_host_CVOut_new(&allocator, context);
     out2->hardware = &host.device.hardware;
@@ -121,27 +150,19 @@ void buildSignalGraph(struct sig_SignalContext* context,
     out2->parameters.control = sig_host_CV_OUT_1;
     out2->inputs.source = lfo2->outputs.main;
 
-    lfo3Frequency = sig_host_SummedCVIn_new(&allocator, context);
-    lfo3Frequency->hardware = &host.device.hardware;
-    sig_List_append(&signals, lfo3Frequency, status);    lfo3Frequency->leftCVIn->parameters.control = sig_host_KNOB_3;
-    lfo3Frequency->rightCVIn->parameters.control = sig_host_CV_IN_5;
-    lfo3Frequency->leftCVIn->parameters.scale = 10.0f;
-    lfo3Frequency->rightCVIn->parameters.scale = 10.0f;
-
-    lfo3Scale = sig_host_SummedCVIn_new(&allocator, context);
-    lfo3Scale->hardware = &host.device.hardware;
-    sig_List_append(&signals, lfo3Scale, status);
-    lfo3Scale->leftCVIn->parameters.control = sig_host_KNOB_7;
-    lfo3Scale->rightCVIn->parameters.control = sig_host_CV_IN_3;
-    // TODO: Clipping!
-    lfo3Scale->leftCVIn->parameters.scale = 0.95f;
-    lfo3Scale->rightCVIn->parameters.scale = 0.4f;
-
-    lfo3 = sig_dsp_ClockedLFO_new(&allocator, context);
+    lfo3 = sig_host_ClockDividingLFO_new(&allocator, context);
+    lfo3->hardware = &host.device.hardware;
     sig_List_append(&signals, lfo3, status);
+    lfo3->clockDivisionsBuffer = &clockDivisionsBuffer;
     lfo3->inputs.clock = clock->outputs.main;
-    lfo3->inputs.frequencyScale = lfo3Frequency->outputs.main;
-    lfo3->inputs.scale = lfo3Scale->outputs.main;
+    lfo3->frequencyCV->leftCVIn->parameters.control = sig_host_KNOB_3;
+    lfo3->frequencyCV->rightCVIn->parameters.control = sig_host_CV_IN_5;
+    lfo3->frequencyCV->leftCVIn->parameters.scale = 0.75f;
+    lfo3->frequencyCV->rightCVIn->parameters.scale = 0.25f;
+    lfo3->scale->leftCVIn->parameters.control = sig_host_KNOB_7;
+    lfo3->scale->rightCVIn->parameters.control = sig_host_CV_IN_3;
+    lfo3->scale->leftCVIn->parameters.scale = 0.95f;
+    lfo3->scale->rightCVIn->parameters.scale = 0.4f;
 
     out3 = sig_host_CVOut_new(&allocator, context);
     out3->hardware = &host.device.hardware;
@@ -149,26 +170,19 @@ void buildSignalGraph(struct sig_SignalContext* context,
     out3->parameters.control = sig_host_CV_OUT_2;
     out3->inputs.source = lfo3->outputs.main;
 
-    lfo4Frequency = sig_host_SummedCVIn_new(&allocator, context);
-    lfo4Frequency->hardware = &host.device.hardware;
-    sig_List_append(&signals, lfo4Frequency, status);    lfo4Frequency->leftCVIn->parameters.control = sig_host_KNOB_4;
-    lfo4Frequency->rightCVIn->parameters.control = sig_host_CV_IN_6;
-    lfo4Frequency->leftCVIn->parameters.scale = 10.0f;
-    lfo4Frequency->rightCVIn->parameters.scale = 10.0f;
-
-    lfo4Scale = sig_host_SummedCVIn_new(&allocator, context);
-    lfo4Scale->hardware = &host.device.hardware;
-    sig_List_append(&signals, lfo4Scale, status);
-    lfo4Scale->leftCVIn->parameters.control = sig_host_KNOB_8;
-    lfo4Scale->rightCVIn->parameters.control = sig_host_CV_IN_4;
-    lfo4Scale->leftCVIn->parameters.scale = 0.5525f;
-    lfo4Scale->rightCVIn->parameters.scale = 0.4f;
-
-    lfo4 = sig_dsp_ClockedLFO_new(&allocator, context);
+    lfo4 = sig_host_ClockDividingLFO_new(&allocator, context);
+    lfo4->hardware = &host.device.hardware;
     sig_List_append(&signals, lfo4, status);
+    lfo4->clockDivisionsBuffer = &clockDivisionsBuffer;
     lfo4->inputs.clock = clock->outputs.main;
-    lfo4->inputs.frequencyScale = lfo4Frequency->outputs.main;
-    lfo4->inputs.scale = lfo4Scale->outputs.main;
+    lfo4->frequencyCV->leftCVIn->parameters.control = sig_host_KNOB_4;
+    lfo4->frequencyCV->rightCVIn->parameters.control = sig_host_CV_IN_6;
+    lfo4->frequencyCV->leftCVIn->parameters.scale = 0.75f;
+    lfo4->frequencyCV->rightCVIn->parameters.scale = 0.25f;
+    lfo4->scale->leftCVIn->parameters.control = sig_host_KNOB_8;
+    lfo4->scale->rightCVIn->parameters.control = sig_host_CV_IN_4;
+    lfo4->scale->leftCVIn->parameters.scale = 0.5525f;
+    lfo4->scale->rightCVIn->parameters.scale = 0.4f;
 
     out4 = sig_host_AudioOut_new(&allocator, context);
     out4->hardware = &host.device.hardware;
@@ -195,7 +209,7 @@ int main(void) {
     struct sig_AudioSettings audioSettings = {
         .sampleRate = SAMPLERATE,
         .numChannels = 2,
-        .blockSize = 2
+        .blockSize = 1
     };
 
     struct sig_Status status;
