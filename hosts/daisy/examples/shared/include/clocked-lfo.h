@@ -17,7 +17,8 @@ struct sig_dsp_ClockedLFO {
     struct sig_dsp_Signal_SingleMonoOutput outputs;
     struct sig_dsp_ClockDetector* clockFrequency;
     struct sig_dsp_BinaryOp* clockFrequencyMultiplier;
-    struct sig_dsp_Oscillator* lfo;
+    struct sig_dsp_WaveTableOscillator* lfo;
+    struct sig_WaveTable* wavetable;
 };
 
 void sig_dsp_ClockedLFO_generate(void* signal) {
@@ -25,6 +26,7 @@ void sig_dsp_ClockedLFO_generate(void* signal) {
     // FIXME: Need to either more formally separate construction from
     // initialization, or introduce an additional lifecycle hook for
     // handling this kind of initialization logic.
+    self->lfo->wavetable = self->wavetable;
     self->clockFrequency->inputs.source = self->inputs.clock;
     self->clockFrequencyMultiplier->inputs.right = self->inputs.frequencyScale;
     self->lfo->inputs.mul = self->inputs.scale;
@@ -59,7 +61,7 @@ struct sig_dsp_ClockedLFO* sig_dsp_ClockedLFO_new(
 
     self->clockFrequency = sig_dsp_ClockDetector_new(allocator, context);
     self->clockFrequencyMultiplier = sig_dsp_Mul_new(allocator, context);
-    self->lfo = sig_dsp_LFTriangle_new(allocator, context);
+    self->lfo = sig_dsp_WaveTableOscillator_new(allocator, context);
 
     sig_dsp_ClockedLFO_init(self, context);
 
@@ -72,7 +74,7 @@ void sig_dsp_ClockedLFO_destroy(struct sig_Allocator* allocator,
     self->clockFrequency = NULL;
     sig_dsp_Mul_destroy(allocator, self->clockFrequencyMultiplier);
     self->clockFrequencyMultiplier = NULL;
-    sig_dsp_LFTriangle_destroy(allocator, self->lfo);
+    sig_dsp_WaveTableOscillator_destroy(allocator, self->lfo);
     self->lfo = NULL;
 
     // We don't call sig_dsp_Signal_destroy

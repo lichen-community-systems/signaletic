@@ -5,7 +5,9 @@
 using namespace lichen::four;
 using namespace sig::libdaisy;
 
-#define SAMPLERATE 96000
+#define SAMPLERATE 48000
+#define WAVETABLE_SIZE 8192
+#define NUM_WAVES 5
 #define HEAP_SIZE 1024 * 384 // 384 KB
 #define MAX_NUM_SIGNALS 32
 #define NUM_CLOCK_DIVISIONS 37
@@ -73,6 +75,15 @@ struct sig_Buffer clockDivisionsBuffer = {
     .samples = clockDivisions
 };
 
+float (*waveGenerators[NUM_WAVES]) (float) = {
+    sig_waveform_sine,
+    sig_waveform_triangle,
+    sig_waveform_saw,
+    sig_waveform_square,
+    sig_waveform_reverseSaw
+};
+
+struct sig_WaveTable* lfoWaveTable;
 struct sig_host_GateIn* clockIn;
 struct sig_host_SwitchIn* tapTempoButton;
 struct sig_dsp_ClockSource* clock;
@@ -86,6 +97,16 @@ struct sig_host_CVOut* out3;
 struct sig_host_AudioOut* out4;
 struct sig_host_GateOut* clockOut;
 struct sig_host_GateOut* led;
+
+void buildWaveTable() {
+    lfoWaveTable = sig_WaveTable_new(&allocator, NUM_WAVES, WAVETABLE_SIZE);
+
+    for (size_t i = 0; i < lfoWaveTable->length; i++) {
+        struct sig_Buffer* table = lfoWaveTable->waves[i];
+        sig_Buffer_fillWithWaveform(table, waveGenerators[i], WAVETABLE_SIZE,
+            0.0f, 1.0f);
+    }
+}
 
 void buildSignalGraph(struct sig_SignalContext* context,
     struct sig_Status* status) {
@@ -104,9 +125,12 @@ void buildSignalGraph(struct sig_SignalContext* context,
     clock->inputs.pulse = clockIn->outputs.main;
     clock->inputs.tap = tapTempoButton->outputs.main;
 
+    buildWaveTable();
+
     lfo1 = sig_host_ClockDividingLFO_new(&allocator, context);
     lfo1->hardware = &host.device.hardware;
     sig_List_append(&signals, lfo1, status);
+    lfo1->lfo->wavetable = lfoWaveTable;
     lfo1->clockDivisionsBuffer = &clockDivisionsBuffer;
     lfo1->inputs.clock = clock->outputs.main;
     lfo1->frequencyCV->leftCVIn->parameters.control = sig_host_KNOB_1;
@@ -116,12 +140,10 @@ void buildSignalGraph(struct sig_SignalContext* context,
     // slider is at the bottom (0.0f).
     // TODO: Add greater audio rate range for LFO1 and LFO4,
     // which are connected to DC-coupled audio outputs.
-    lfo1->frequencyCV->leftCVIn->parameters.scale = 0.75f;
-    lfo1->frequencyCV->rightCVIn->parameters.scale = 0.25f;
-    lfo1->scale->leftCVIn->parameters.control = sig_host_KNOB_5;
-    lfo1->scale->rightCVIn->parameters.control = sig_host_CV_IN_1;
-    lfo1->scale->leftCVIn->parameters.scale = 0.5525f;
-    lfo1->scale->rightCVIn->parameters.scale = 0.4f;
+    lfo1->frequencyCV->leftCVIn->parameters.scale = 0.5f;
+    lfo1->frequencyCV->rightCVIn->parameters.scale = 0.5f;
+    lfo1->waveform->leftCVIn->parameters.control = sig_host_KNOB_5;
+    lfo1->waveform->rightCVIn->parameters.control = sig_host_CV_IN_1;
 
     out1 = sig_host_AudioOut_new(&allocator, context);
     out1->hardware = &host.device.hardware;
@@ -132,17 +154,15 @@ void buildSignalGraph(struct sig_SignalContext* context,
     lfo2 = sig_host_ClockDividingLFO_new(&allocator, context);
     lfo2->hardware = &host.device.hardware;
     sig_List_append(&signals, lfo2, status);
+    lfo2->lfo->wavetable = lfoWaveTable;
     lfo2->clockDivisionsBuffer = &clockDivisionsBuffer;
     lfo2->inputs.clock = clock->outputs.main;
     lfo2->frequencyCV->leftCVIn->parameters.control = sig_host_KNOB_2;
     lfo2->frequencyCV->rightCVIn->parameters.control = sig_host_CV_IN_7;
-    lfo2->frequencyCV->leftCVIn->parameters.scale = 0.75f;
-    lfo2->frequencyCV->rightCVIn->parameters.scale = 0.25f;
-    lfo2->scale->leftCVIn->parameters.control = sig_host_KNOB_6;
-    lfo2->scale->rightCVIn->parameters.control = sig_host_CV_IN_2;
-    // TODO: Clipping!
-    lfo2->scale->leftCVIn->parameters.scale = 0.95f;
-    lfo2->scale->rightCVIn->parameters.scale = 0.4f;
+    lfo2->frequencyCV->leftCVIn->parameters.scale = 0.5f;
+    lfo2->frequencyCV->rightCVIn->parameters.scale = 0.5f;
+    lfo2->waveform->leftCVIn->parameters.control = sig_host_KNOB_6;
+    lfo2->waveform->rightCVIn->parameters.control = sig_host_CV_IN_2;
 
     out2 = sig_host_CVOut_new(&allocator, context);
     out2->hardware = &host.device.hardware;
@@ -153,16 +173,15 @@ void buildSignalGraph(struct sig_SignalContext* context,
     lfo3 = sig_host_ClockDividingLFO_new(&allocator, context);
     lfo3->hardware = &host.device.hardware;
     sig_List_append(&signals, lfo3, status);
+    lfo3->lfo->wavetable = lfoWaveTable;
     lfo3->clockDivisionsBuffer = &clockDivisionsBuffer;
     lfo3->inputs.clock = clock->outputs.main;
     lfo3->frequencyCV->leftCVIn->parameters.control = sig_host_KNOB_3;
     lfo3->frequencyCV->rightCVIn->parameters.control = sig_host_CV_IN_5;
-    lfo3->frequencyCV->leftCVIn->parameters.scale = 0.75f;
-    lfo3->frequencyCV->rightCVIn->parameters.scale = 0.25f;
-    lfo3->scale->leftCVIn->parameters.control = sig_host_KNOB_7;
-    lfo3->scale->rightCVIn->parameters.control = sig_host_CV_IN_3;
-    lfo3->scale->leftCVIn->parameters.scale = 0.95f;
-    lfo3->scale->rightCVIn->parameters.scale = 0.4f;
+    lfo3->frequencyCV->leftCVIn->parameters.scale = 0.5f;
+    lfo3->frequencyCV->rightCVIn->parameters.scale = 0.5f;
+    lfo3->waveform->leftCVIn->parameters.control = sig_host_KNOB_7;
+    lfo3->waveform->rightCVIn->parameters.control = sig_host_CV_IN_3;
 
     out3 = sig_host_CVOut_new(&allocator, context);
     out3->hardware = &host.device.hardware;
@@ -173,16 +192,15 @@ void buildSignalGraph(struct sig_SignalContext* context,
     lfo4 = sig_host_ClockDividingLFO_new(&allocator, context);
     lfo4->hardware = &host.device.hardware;
     sig_List_append(&signals, lfo4, status);
+    lfo4->lfo->wavetable = lfoWaveTable;
     lfo4->clockDivisionsBuffer = &clockDivisionsBuffer;
     lfo4->inputs.clock = clock->outputs.main;
     lfo4->frequencyCV->leftCVIn->parameters.control = sig_host_KNOB_4;
     lfo4->frequencyCV->rightCVIn->parameters.control = sig_host_CV_IN_6;
-    lfo4->frequencyCV->leftCVIn->parameters.scale = 0.75f;
-    lfo4->frequencyCV->rightCVIn->parameters.scale = 0.25f;
-    lfo4->scale->leftCVIn->parameters.control = sig_host_KNOB_8;
-    lfo4->scale->rightCVIn->parameters.control = sig_host_CV_IN_4;
-    lfo4->scale->leftCVIn->parameters.scale = 0.5525f;
-    lfo4->scale->rightCVIn->parameters.scale = 0.4f;
+    lfo4->frequencyCV->leftCVIn->parameters.scale = 0.5f;
+    lfo4->frequencyCV->rightCVIn->parameters.scale = 0.5f;
+    lfo4->waveform->leftCVIn->parameters.control = sig_host_KNOB_8;
+    lfo4->waveform->rightCVIn->parameters.control = sig_host_CV_IN_4;
 
     out4 = sig_host_AudioOut_new(&allocator, context);
     out4->hardware = &host.device.hardware;

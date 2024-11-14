@@ -19,7 +19,7 @@ struct sig_host_ClockDividingLFO {
 
     struct sig_host_SummedCVIn* frequencyCV;
     struct sig_dsp_List* clockDivisions;
-    struct sig_host_SummedCVIn* scale;
+    struct sig_host_SummedCVIn* waveform;
     struct sig_dsp_ClockedLFO* lfo;
 };
 
@@ -27,14 +27,14 @@ void sig_host_ClockDividingLFO_generate(void* signal) {
     struct sig_host_ClockDividingLFO* self =
         (struct sig_host_ClockDividingLFO*) signal;
     self->frequencyCV->hardware = self->hardware;
-    self->scale->hardware = self->hardware;
+    self->waveform->hardware = self->hardware;
     self->lfo->inputs.clock = self->inputs.clock;
     self->clockDivisions->list = self->clockDivisionsBuffer;
 
     // Generate child signal outputs.
     self->frequencyCV->signal.generate(self->frequencyCV);
     self->clockDivisions->signal.generate(self->clockDivisions);
-    self->scale->signal.generate(self->scale);
+    self->waveform->signal.generate(self->waveform);
     self->lfo->signal.generate(self->lfo);
 }
 
@@ -47,7 +47,7 @@ void sig_host_ClockDividingLFO_init(struct sig_host_ClockDividingLFO* self,
     self->clockDivisions->inputs.index = self->frequencyCV->outputs.main;
 
     self->lfo->inputs.frequencyScale = self->clockDivisions->outputs.main;
-    self->lfo->inputs.scale = self->scale->outputs.main;
+    self->lfo->lfo->inputs.tableIndex = self->waveform->outputs.main;
     self->outputs.main = self->lfo->outputs.main;
 
     sig_CONNECT_TO_SILENCE(self, clock, context);
@@ -60,7 +60,7 @@ struct sig_host_ClockDividingLFO* sig_host_ClockDividingLFO_new(
 
     self->frequencyCV = sig_host_SummedCVIn_new(allocator, context);
     self->clockDivisions = sig_dsp_List_new(allocator, context);
-    self->scale = sig_host_SummedCVIn_new(allocator, context);
+    self->waveform = sig_host_SummedCVIn_new(allocator, context);
     self->lfo = sig_dsp_ClockedLFO_new(allocator, context);
 
     sig_host_ClockDividingLFO_init(self, context);
@@ -72,8 +72,8 @@ void sig_host_ClockDividingLFO_destroy(struct sig_Allocator* allocator,
     struct sig_host_ClockDividingLFO* self) {
     sig_dsp_ClockedLFO_destroy(allocator, self->lfo);
     self->lfo = NULL;
-    sig_host_SummedCVIn_destroy(allocator, self->scale);
-    self->scale = NULL;
+    sig_host_SummedCVIn_destroy(allocator, self->waveform);
+    self->waveform = NULL;
     sig_dsp_List_destroy(allocator, self->clockDivisions);
     self->clockDivisions = NULL;
     sig_host_SummedCVIn_destroy(allocator, self->frequencyCV);

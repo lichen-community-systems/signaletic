@@ -650,7 +650,7 @@ void sig_Buffer_fillWithWaveform(struct sig_Buffer* self,
         phase += phaseInc;
         if (phase >= sig_TWOPI) {
             phase -= sig_TWOPI;
-        } else if (phase < 0.0) {
+        } else if (phase < 0.0f) {
             phase += sig_TWOPI;
         }
     }
@@ -662,6 +662,14 @@ float sig_Buffer_read(struct sig_Buffer* self, float idx) {
 
 float sig_Buffer_readLinear(struct sig_Buffer* self, float idx) {
     return sig_interpolate_linear(idx, self->samples, self->length);
+}
+
+inline float sig_Buffer_readLinearAtPhase(struct sig_Buffer* self,
+    float phase) {
+    size_t tableLength = self->length;
+    float tableIdx = phase * tableLength;
+
+    return sig_interpolate_linear(tableIdx, self->samples, tableLength);
 }
 
 float sig_Buffer_readCubic(struct sig_Buffer* self, float idx) {
@@ -700,6 +708,49 @@ void sig_BufferView_destroy(struct sig_Allocator* allocator,
 }
 
 
+struct sig_WaveTable* sig_WaveTable_new(struct sig_Allocator* allocator,
+    size_t numTables, size_t tableLength) {
+    struct sig_WaveTable* self = sig_MALLOC(allocator, struct sig_WaveTable);
+    self->length = numTables;
+
+    self->waves = (struct sig_Buffer**) allocator->impl->malloc(
+        allocator, sizeof(struct sig_Buffer*) * numTables);
+
+    for (size_t i = 0; i < numTables; i++) {
+        self->waves[i] = sig_Buffer_new(allocator, tableLength);
+    }
+
+    return self;
+}
+
+inline float sig_WaveTable_readLinearAtPhase(struct sig_WaveTable* self,
+    float tableIdx, float phase) {
+        int32_t tableIdxIntegral = (int32_t) tableIdx;
+        float tableIdxFractional = tableIdx - (float) tableIdxIntegral;
+        size_t aTableIndex = tableIdxIntegral % self->length;
+        struct sig_Buffer* aTable = self->waves[aTableIndex];
+        size_t bTableIndex = (tableIdxIntegral + 1) % self->length;
+        struct sig_Buffer* bTable = self->waves[bTableIndex];
+
+        float a = sig_Buffer_readLinearAtPhase(aTable, phase);
+        float b = sig_Buffer_readLinearAtPhase(bTable, phase);
+        float sample = a + (b - a) * tableIdxFractional;
+
+        return sample;
+}
+
+void sig_WaveTable_destroy(struct sig_Allocator* allocator,
+    struct sig_WaveTable* self) {
+    for (size_t i = 0; i < self->length; i++) {
+        sig_Buffer_destroy(allocator, self->waves[i]);
+        self->waves[i] = NULL;
+    }
+
+    allocator->impl->free(allocator, self->waves);
+    self->waves = NULL;
+    allocator->impl->free(allocator, self);
+    self = NULL;
+}
 
 struct sig_DelayLine* sig_DelayLine_new(struct sig_Allocator* allocator,
     size_t maxDelayLength) {
@@ -1723,7 +1774,9 @@ void sig_dsp_Oscillator_Outputs_destroyAudioBlocks(
     struct sig_Allocator* allocator,
     struct sig_dsp_Oscillator_Outputs* outputs) {
     sig_AudioBlock_destroy(allocator, outputs->main);
+    outputs->main = NULL;
     sig_AudioBlock_destroy(allocator, outputs->eoc);
+    outputs->eoc = NULL;
 }
 
 struct sig_dsp_Oscillator* sig_dsp_Oscillator_new(
@@ -1856,6 +1909,125 @@ void sig_dsp_LFTriangle_generate(void* signal) {
 void sig_dsp_LFTriangle_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Oscillator* self) {
     sig_dsp_Oscillator_destroy(allocator, self);
+}
+
+
+void sig_dsp_WaveOscillator_init(struct sig_dsp_WaveOscillator* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_WaveOscillator_generate);
+
+    sig_CONNECT_TO_SILENCE(self, freq, context);
+    sig_CONNECT_TO_SILENCE(self, phaseOffset, context);
+    sig_CONNECT_TO_UNITY(self, mul, context);
+    sig_CONNECT_TO_SILENCE(self, add, context);
+
+    self->phaseAccumulator = 0.0;
+}
+
+struct sig_dsp_WaveOscillator* sig_dsp_WaveOscillator_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_WaveOscillator* self = sig_MALLOC(allocator,
+        struct sig_dsp_WaveOscillator);
+    sig_dsp_WaveOscillator_init(self, context);
+    sig_dsp_Oscillator_Outputs_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_dsp_WaveOscillator_generate(void* signal) {
+    struct sig_dsp_WaveOscillator* self =
+        (struct sig_dsp_WaveOscillator*) signal;
+
+    float_array_ptr table = self->waveform->samples;
+    size_t tableLength = self->waveform->length;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float modulatedPhase = self->phaseAccumulator +
+            FLOAT_ARRAY(self->inputs.phaseOffset)[i];
+        float eoc = sig_dsp_Oscillator_eoc(modulatedPhase);
+        modulatedPhase = sig_flooredfmodf(modulatedPhase, 1.0f);
+
+        float tableIdx = modulatedPhase * tableLength;
+        float sample = sig_interpolate_linear(tableIdx, table, tableLength);
+        float scaledSample = sample * FLOAT_ARRAY(self->inputs.mul)[i] +
+            FLOAT_ARRAY(self->inputs.add)[i];
+
+        FLOAT_ARRAY(self->outputs.main)[i] = scaledSample;
+        FLOAT_ARRAY(self->outputs.eoc)[i] = eoc;
+
+        sig_dsp_Oscillator_accumulatePhase((struct sig_dsp_Oscillator*) self,
+            i);
+    }
+}
+
+void sig_dsp_WaveOscillator_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_WaveOscillator* self) {
+    sig_dsp_Oscillator_Outputs_destroyAudioBlocks(allocator, &self->outputs);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
+    self = NULL;
+}
+
+
+
+void sig_dsp_WaveTableOscillator_init(struct sig_dsp_WaveTableOscillator* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_WaveTableOscillator_generate);
+
+    sig_CONNECT_TO_SILENCE(self, freq, context);
+    sig_CONNECT_TO_SILENCE(self, phaseOffset, context);
+    sig_CONNECT_TO_UNITY(self, mul, context);
+    sig_CONNECT_TO_SILENCE(self, add, context);
+    sig_CONNECT_TO_SILENCE(self, tableIndex, context);
+
+    self->phaseAccumulator = 0.0;
+}
+
+struct sig_dsp_WaveTableOscillator* sig_dsp_WaveTableOscillator_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_WaveTableOscillator* self = sig_MALLOC(allocator,
+        struct sig_dsp_WaveTableOscillator);
+    sig_dsp_WaveTableOscillator_init(self, context);
+    sig_dsp_Oscillator_Outputs_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_dsp_WaveTableOscillator_generate(void* signal) {
+    struct sig_dsp_WaveTableOscillator* self =
+        (struct sig_dsp_WaveTableOscillator*) signal;
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float modulatedPhase = self->phaseAccumulator +
+            FLOAT_ARRAY(self->inputs.phaseOffset)[i];
+        float eoc = sig_dsp_Oscillator_eoc(modulatedPhase);
+        modulatedPhase = sig_flooredfmodf(modulatedPhase, 1.0f);
+
+        float tableIndex = FLOAT_ARRAY(self->inputs.tableIndex)[i] *
+            (float)(self->wavetable->length - 1);
+        float sample = sig_WaveTable_readLinearAtPhase(
+            self->wavetable, tableIndex, modulatedPhase);
+        float scaledSample = sample * FLOAT_ARRAY(self->inputs.mul)[i] +
+            FLOAT_ARRAY(self->inputs.add)[i];
+
+        FLOAT_ARRAY(self->outputs.main)[i] = scaledSample;
+        FLOAT_ARRAY(self->outputs.eoc)[i] = eoc;
+
+        // FIXME: Copied from sig_dsp_Oscillator_accumulatePhase.
+        // Need to generalize phase accumulation logic across oscillators.
+        float phaseStep = FLOAT_ARRAY(self->inputs.freq)[i] /
+            self->signal.audioSettings->sampleRate;
+        float phase = self->phaseAccumulator + phaseStep;
+        self->phaseAccumulator = sig_flooredfmodf(phase, 1.0f);
+    }
+}
+
+void sig_dsp_WaveTableOscillator_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_WaveTableOscillator* self) {
+    sig_dsp_Oscillator_Outputs_destroyAudioBlocks(allocator, &self->outputs);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
+    self = NULL;
 }
 
 

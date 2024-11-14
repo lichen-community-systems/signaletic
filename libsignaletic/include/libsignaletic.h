@@ -863,6 +863,16 @@ float sig_Buffer_read(struct sig_Buffer* self, float idx);
 float sig_Buffer_readLinear(struct sig_Buffer* self, float idx);
 
 /**
+ * Reads from the buffer using linear interpolation using
+ * a phase value between 0.0 and 1.0.
+ *
+ * @param self the buffer from which to read
+ * @param phase the phase value from which the index will be derived
+ * @return the linearly interpolated sample
+ */
+float sig_Buffer_readLinearAtPhase(struct sig_Buffer* self, float phase);
+
+/**
  * Reads from the buffer using cubic interpolation.
  *
  * @param self the buffer from which to read
@@ -909,6 +919,25 @@ void sig_BufferView_destroy(struct sig_Allocator* allocator,
     struct sig_Buffer* self);
 
 
+/**
+ * @brief An array of sig_Buffers representing a wavetable.
+ *
+ */
+struct sig_WaveTable {
+    size_t length;
+    struct sig_Buffer** waves;
+};
+
+struct sig_WaveTable* sig_WaveTable_new(struct sig_Allocator* allocator,
+    size_t numTables, size_t tableLength);
+
+float sig_WaveTable_readLinearAtPhase(struct sig_WaveTable* self,
+    float tableIdx, float phase);
+
+void sig_WaveTable_destroy(struct sig_Allocator* allocator,
+    struct sig_WaveTable* self);
+
+
 float_array_ptr sig_AudioBlock_new(struct sig_Allocator* allocator,
     struct sig_AudioSettings* audioSettings);
 float_array_ptr sig_AudioBlock_newWithValue(
@@ -919,6 +948,7 @@ float_array_ptr sig_AudioBlock_newSilent(struct sig_Allocator* allocator,
     struct sig_AudioSettings* audioSettings);
 void sig_AudioBlock_destroy(struct sig_Allocator* allocator,
     float_array_ptr self);
+
 
 
 /**
@@ -1576,6 +1606,49 @@ struct sig_dsp_Oscillator* sig_dsp_LFTriangle_new(
 void sig_dsp_LFTriangle_generate(void* signal);
 void sig_dsp_LFTriangle_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Oscillator* self);
+
+
+struct sig_dsp_WaveOscillator {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Oscillator_Inputs inputs;
+    struct sig_dsp_Oscillator_Outputs outputs;
+    float phaseAccumulator;
+
+    struct sig_Buffer* waveform;
+};
+
+void sig_dsp_WaveOscillator_init(struct sig_dsp_WaveOscillator* self,
+    struct sig_SignalContext* context);
+struct sig_dsp_WaveOscillator* sig_dsp_WaveOscillator_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_WaveOscillator_generate(void* signal);
+void sig_dsp_WaveOscillator_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_WaveOscillator* self);
+
+struct sig_dsp_WaveTableOscillator_Inputs {
+    float_array_ptr freq;
+    float_array_ptr phaseOffset;
+    float_array_ptr mul;
+    float_array_ptr add;
+    float_array_ptr tableIndex;
+};
+
+struct sig_dsp_WaveTableOscillator {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_WaveTableOscillator_Inputs inputs;
+    struct sig_dsp_Oscillator_Outputs outputs;
+    float phaseAccumulator;
+
+    struct sig_WaveTable* wavetable;
+};
+
+void sig_dsp_WaveTableOscillator_init(struct sig_dsp_WaveTableOscillator* self,
+    struct sig_SignalContext* context);
+struct sig_dsp_WaveTableOscillator* sig_dsp_WaveTableOscillator_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_WaveTableOscillator_generate(void* signal);
+void sig_dsp_WaveTableOscillator_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_WaveTableOscillator* self);
 
 
 struct sig_dsp_Smooth_Inputs {
