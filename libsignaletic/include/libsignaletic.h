@@ -2180,8 +2180,9 @@ struct sig_dsp_TwoOpFM {
     struct sig_dsp_TwoOpFM_Outputs outputs;
     struct sig_dsp_BinaryOp* modulatorFrequency;
     struct sig_dsp_BinaryOp* carrierPhaseOffset;
-    struct sig_dsp_Oscillator* modulator;
-    struct sig_dsp_Oscillator* carrier;
+    struct sig_Buffer* sineTable;
+    struct sig_dsp_WaveOscillator* modulator;
+    struct sig_dsp_WaveOscillator* carrier;
 };
 
 struct sig_dsp_TwoOpFM* sig_dsp_TwoOpFM_new(struct sig_Allocator* allocator,

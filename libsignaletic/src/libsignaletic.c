@@ -3147,8 +3147,11 @@ struct sig_dsp_TwoOpFM* sig_dsp_TwoOpFM_new(struct sig_Allocator* allocator,
         struct sig_dsp_TwoOpFM);
     self->modulatorFrequency = sig_dsp_Mul_new(allocator, context);
     self->carrierPhaseOffset = sig_dsp_Add_new(allocator, context);
-    self->modulator = sig_dsp_SineOscillator_new(allocator, context);
-    self->carrier = sig_dsp_SineOscillator_new(allocator, context);
+    self->sineTable = sig_Buffer_new(allocator, 8192);
+    sig_Buffer_fillWithWaveform(self->sineTable, sig_waveform_sine,
+        8192, 0.0f, 1.0f);
+    self->modulator = sig_dsp_WaveOscillator_new(allocator, context);
+    self->carrier = sig_dsp_WaveOscillator_new(allocator, context);
 
     sig_dsp_TwoOpFM_init(self, context);
 
@@ -3158,6 +3161,8 @@ struct sig_dsp_TwoOpFM* sig_dsp_TwoOpFM_new(struct sig_Allocator* allocator,
 void sig_dsp_TwoOpFM_init(struct sig_dsp_TwoOpFM* self,
     struct sig_SignalContext* context) {
     sig_dsp_Signal_init(self, context, *sig_dsp_TwoOpFM_generate);
+    self->modulator->waveform = self->sineTable;
+    self->carrier->waveform = self->sineTable;
 
     self->carrierPhaseOffset->inputs.left = self->modulator->outputs.main;
     self->modulator->inputs.freq = self->modulatorFrequency->outputs.main;
@@ -3195,8 +3200,8 @@ void sig_dsp_TwoOpFM_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_TwoOpFM* self) {
     sig_dsp_Mul_destroy(allocator, self->modulatorFrequency);
     sig_dsp_Add_destroy(allocator, self->carrierPhaseOffset);
-    sig_dsp_SineOscillator_destroy(allocator, self->carrier);
-    sig_dsp_SineOscillator_destroy(allocator, self->modulator);
+    sig_dsp_WaveOscillator_destroy(allocator, self->carrier);
+    sig_dsp_WaveOscillator_destroy(allocator, self->modulator);
     sig_dsp_Signal_destroy(allocator, self);
 }
 
