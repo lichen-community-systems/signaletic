@@ -416,6 +416,45 @@ public:
         return sig_dsp_LFTriangle_destroy(allocator, self);
     }
 
+    void WaveOscillator_init(struct sig_dsp_WaveOscillator* self,
+        struct sig_SignalContext* context) {
+        sig_dsp_WaveOscillator_init(self, context);
+    }
+
+    struct sig_dsp_WaveOscillator* WaveOscillator_new(
+        struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+        return sig_dsp_WaveOscillator_new(allocator, context);
+    }
+
+    void WaveOscillator_generate(void* signal) {
+        sig_dsp_WaveOscillator_generate(signal);
+    }
+
+    void WaveOscillator_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_WaveOscillator* self) {
+        sig_dsp_WaveOscillator_destroy(allocator, self);
+    }
+
+    void WaveTableOscillator_init(
+        struct sig_dsp_WaveTableOscillator* self,
+        struct sig_SignalContext* context) {
+        sig_dsp_WaveTableOscillator_init(self, context);
+    }
+
+    struct sig_dsp_WaveTableOscillator* WaveTableOscillator_new(
+        struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+        return sig_dsp_WaveTableOscillator_new(allocator, context);
+    }
+
+    void WaveTableOscillator_generate(void* signal) {
+        sig_dsp_WaveTableOscillator_generate(signal);
+    }
+
+    void WaveTableOscillator_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_WaveTableOscillator* self) {
+        sig_dsp_WaveTableOscillator_destroy(allocator, self);
+    }
+
     struct sig_dsp_Smooth* Smooth_new(struct sig_Allocator* allocator,
         struct sig_SignalContext* context) {
         return sig_dsp_Smooth_new(allocator, context);
@@ -1429,6 +1468,21 @@ public:
     float_array_ptr AudioBlock_new(struct sig_Allocator* allocator,
         struct sig_AudioSettings* audioSettings) {
         return sig_AudioBlock_new(allocator, audioSettings);
+    }
+
+    sig_WaveTable* WaveTable_new(struct sig_Allocator* allocator,
+        unsigned long numTables, unsigned long tableLength) {
+        return sig_WaveTable_new(allocator, numTables, tableLength);
+    }
+
+    float WaveTable_readLinearAtPhase(struct sig_WaveTable* wavetable,
+        float tableIdx, float phase) {
+        return sig_WaveTable_readLinearAtPhase(wavetable, tableIdx, phase);
+    }
+
+    void WaveTable_destroy(struct sig_Allocator* allocator,
+        struct sig_WaveTable* wavetable) {
+        return sig_WaveTable_destroy(allocator, wavetable);
     }
 
     float_array_ptr AudioBlock_newWithValue(

@@ -61,6 +61,11 @@ interface sig_Buffer {
     attribute any samples;
 };
 
+
+interface sig_WaveTable {
+    attribute unsigned long length;
+};
+
 interface sig_DelayLine {
     attribute sig_Buffer buffer;
     attribute unsigned long writeIdx;
@@ -242,6 +247,33 @@ interface sig_dsp_Oscillator {
     [Value] attribute sig_dsp_Oscillator_Outputs outputs;
     attribute float phaseAccumulator;
 };
+
+interface sig_dsp_WaveOscillator {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_Oscillator_Inputs inputs;
+    [Value] attribute sig_dsp_Oscillator_Outputs outputs;
+    attribute float phaseAccumulator;
+
+    attribute sig_Buffer waveform;
+};
+
+interface sig_dsp_WaveTableOscillator_Inputs {
+    attribute any freq;
+    attribute any phaseOffset;
+    attribute any mul;
+    attribute any add;
+    attribute any tableIndex;
+};
+
+interface sig_dsp_WaveTableOscillator {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_WaveTableOscillator_Inputs inputs;
+    [Value] attribute sig_dsp_Oscillator_Outputs outputs;
+    attribute float phaseAccumulator;
+
+    attribute sig_WaveTable wavetable;
+};
+
 
 interface sig_dsp_Smooth_Inputs {
     attribute any source;
@@ -509,8 +541,8 @@ interface sig_dsp_TwoOpFM {
     [Value] attribute sig_dsp_TwoOpFM_Outputs outputs;
     attribute sig_dsp_BinaryOp modulatorFrequency;
     attribute sig_dsp_BinaryOp carrierPhaseOffset;
-    attribute sig_dsp_Oscillator modulator;
-    attribute sig_dsp_Oscillator carrier;
+    attribute sig_dsp_WaveOscillator modulator;
+    attribute sig_dsp_WaveOscillator carrier;
 };
 
 enum sig_dsp_OnePole_Mode {
@@ -874,6 +906,22 @@ interface Signals {
     void LFTriangle_generate(any signal);
     void LFTriangle_destroy(sig_Allocator allocator, sig_dsp_Oscillator signal);
 
+    void WaveOscillator_init(sig_dsp_WaveOscillator signal,
+        sig_SignalContext context);
+    sig_dsp_WaveOscillator WaveOscillator_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void WaveOscillator_generate(any signal);
+    void WaveOscillator_destroy(sig_Allocator allocator,
+        sig_dsp_WaveOscillator signal);
+
+    void WaveTableOscillator_init(sig_dsp_WaveTableOscillator signal,
+        sig_SignalContext context);
+    sig_dsp_WaveTableOscillator WaveTableOscillator_new(
+        sig_Allocator allocator, sig_SignalContext context);
+    void WaveTableOscillator_generate(any signal);
+    void WaveTableOscillator_destroy(sig_Allocator allocator,
+        sig_dsp_WaveTableOscillator signal);
+
     void Smooth_init(sig_dsp_Smooth signal, sig_SignalContext context);
     sig_dsp_Smooth Smooth_new(sig_Allocator allocator,
         sig_SignalContext context);
@@ -1183,8 +1231,16 @@ interface Signaletic {
     float Buffer_readCubic(sig_Buffer buffer, float idx);
     void Buffer_destroy(sig_Allocator allocator, sig_Buffer buffer);
 
-    sig_Buffer BufferView_new(sig_Allocator allocator, sig_Buffer buffer, unsigned long startIdx, unsigned long length);
+    sig_Buffer BufferView_new(sig_Allocator allocator, sig_Buffer buffer,
+        unsigned long startIdx, unsigned long length);
     void BufferView_destroy(sig_Allocator allocator, sig_Buffer buffer);
+
+    sig_WaveTable WaveTable_new(sig_Allocator allocator,
+        unsigned long numTables, unsigned long tableLength);
+    float WaveTable_readLinearAtPhase(sig_WaveTable wavetable,
+        float tableIdx, float phase);
+    void WaveTable_destroy(sig_Allocator allocator,
+        sig_WaveTable wavetable);
 
     any AudioBlock_new(sig_Allocator allocator,
         sig_AudioSettings audioSettings);
