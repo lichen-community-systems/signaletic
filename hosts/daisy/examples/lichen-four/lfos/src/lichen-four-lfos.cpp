@@ -10,7 +10,7 @@ using namespace sig::libdaisy;
 #define NUM_WAVES 5
 #define HEAP_SIZE 1024 * 384 // 384 KB
 #define MAX_NUM_SIGNALS 32
-#define NUM_CLOCK_DIVISIONS 37
+#define NUM_CLOCK_STEPS 25
 
 uint8_t memory[HEAP_SIZE];
 struct sig_AllocatorHeap heap = {
@@ -28,11 +28,15 @@ struct sig_List signals;
 struct sig_dsp_SignalListEvaluator* evaluator;
 DaisyHost<FourDevice> host;
 
-float clockDivisions[NUM_CLOCK_DIVISIONS] = {
-    // Frequency multiplications and divisions,
-    // which are mapped to the lfo frequency slider control.
+float clockDivisions[NUM_CLOCK_STEPS] = {
+    1.0f/523.0f,
+    1.0f/300.0f,
+    1.0f/263.0f,
+    1.0f/200.0f,
+    1.0f/131.0f,
     1.0f/100.0f,
-    1.0f/30.0f,
+    1.0f/67.0f,
+    1.0f/31.0f,
     1.0f/29.0f,
     1.0f/23.0f,
     1.0f/20.0f,
@@ -49,6 +53,15 @@ float clockDivisions[NUM_CLOCK_DIVISIONS] = {
     1.0f/4.0f,
     1.0f/3.0f,
     1.0f/2.0f,
+    1.0f
+};
+
+struct sig_Buffer clockDivisionsBuffer = {
+    .length = NUM_CLOCK_STEPS,
+    .samples = clockDivisions
+};
+
+float clockMultiplications[NUM_CLOCK_STEPS] = {
     1.0f,
     2.0f,
     3.0f,
@@ -66,13 +79,19 @@ float clockDivisions[NUM_CLOCK_DIVISIONS] = {
     20.0f,
     23.0f,
     29.0f,
-    30.0f,
-    100.0f
+    31.0f,
+    67.0f,
+    100.0f,
+    131.0f,
+    200.0f,
+    263.0f,
+    300.0f,
+    523.0f
 };
 
-struct sig_Buffer clockDivisionsBuffer = {
-    .length = NUM_CLOCK_DIVISIONS,
-    .samples = clockDivisions
+struct sig_Buffer clockMultiplicationsBuffer = {
+    .length = NUM_CLOCK_STEPS,
+    .samples = clockMultiplications
 };
 
 float (*waveGenerators[NUM_WAVES]) (float) = {
@@ -131,7 +150,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     lfo1->hardware = &host.device.hardware;
     sig_List_append(&signals, lfo1, status);
     lfo1->lfo->wavetable = lfoWaveTable;
-    lfo1->clockDivisionsBuffer = &clockDivisionsBuffer;
+    lfo1->clockScaleBuffer = &clockMultiplicationsBuffer;
     lfo1->inputs.clock = clock->outputs.main;
     lfo1->frequencyCV->leftCVIn->parameters.control = sig_host_KNOB_1;
     lfo1->frequencyCV->rightCVIn->parameters.control = sig_host_CV_IN_8;
@@ -155,7 +174,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     lfo2->hardware = &host.device.hardware;
     sig_List_append(&signals, lfo2, status);
     lfo2->lfo->wavetable = lfoWaveTable;
-    lfo2->clockDivisionsBuffer = &clockDivisionsBuffer;
+    lfo2->clockScaleBuffer = &clockDivisionsBuffer;
     lfo2->inputs.clock = clock->outputs.main;
     lfo2->frequencyCV->leftCVIn->parameters.control = sig_host_KNOB_2;
     lfo2->frequencyCV->rightCVIn->parameters.control = sig_host_CV_IN_7;
@@ -174,7 +193,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     lfo3->hardware = &host.device.hardware;
     sig_List_append(&signals, lfo3, status);
     lfo3->lfo->wavetable = lfoWaveTable;
-    lfo3->clockDivisionsBuffer = &clockDivisionsBuffer;
+    lfo3->clockScaleBuffer = &clockDivisionsBuffer;
     lfo3->inputs.clock = clock->outputs.main;
     lfo3->frequencyCV->leftCVIn->parameters.control = sig_host_KNOB_3;
     lfo3->frequencyCV->rightCVIn->parameters.control = sig_host_CV_IN_5;
@@ -193,7 +212,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     lfo4->hardware = &host.device.hardware;
     sig_List_append(&signals, lfo4, status);
     lfo4->lfo->wavetable = lfoWaveTable;
-    lfo4->clockDivisionsBuffer = &clockDivisionsBuffer;
+    lfo4->clockScaleBuffer = &clockMultiplicationsBuffer;
     lfo4->inputs.clock = clock->outputs.main;
     lfo4->frequencyCV->leftCVIn->parameters.control = sig_host_KNOB_4;
     lfo4->frequencyCV->rightCVIn->parameters.control = sig_host_CV_IN_6;

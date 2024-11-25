@@ -15,7 +15,7 @@ struct sig_host_ClockDividingLFO {
     struct sig_dsp_Signal_SingleMonoOutput outputs;
     struct sig_host_HardwareInterface* hardware;
 
-    struct sig_Buffer* clockDivisionsBuffer;
+    struct sig_Buffer* clockScaleBuffer;
 
     struct sig_host_SummedCVIn* frequencyCV;
     struct sig_dsp_List* clockDivisions;
@@ -29,7 +29,7 @@ void sig_host_ClockDividingLFO_generate(void* signal) {
     self->frequencyCV->hardware = self->hardware;
     self->waveform->hardware = self->hardware;
     self->lfo->inputs.clock = self->inputs.clock;
-    self->clockDivisions->list = self->clockDivisionsBuffer;
+    self->clockDivisions->list = self->clockScaleBuffer;
 
     // Generate child signal outputs.
     self->frequencyCV->signal.generate(self->frequencyCV);
