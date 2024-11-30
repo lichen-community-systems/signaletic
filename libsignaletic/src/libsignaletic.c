@@ -1872,34 +1872,7 @@ void sig_dsp_Oscillator_init(struct sig_dsp_Oscillator* self,
     sig_CONNECT_TO_UNITY(self, mul, context);
     sig_CONNECT_TO_SILENCE(self, add, context);
 
-    self->phaseAccumulator = 0.0f;
-}
-
-inline float sig_dsp_Oscillator_eoc(float phase) {
-    return phase < 0.0f || phase > 1.0f ? 1.0f : 0.0f;
-}
-
-inline float sig_dsp_Oscillator_wrapPhase(float phase) {
-    while (phase < 0.0f) {
-        phase += 1.0f;
-    }
-
-    while (phase > 1.0f) {
-        phase -= 1.0f;
-    }
-
-    return phase;
-}
-
-inline void sig_dsp_Oscillator_accumulatePhase(
-    struct sig_dsp_Oscillator* self, size_t i) {
-    float phaseStep = FLOAT_ARRAY(self->inputs.freq)[i] /
-        self->signal.audioSettings->sampleRate;
-    float phase = self->phaseAccumulator + phaseStep;
-
-    // TODO: Benchmark this against wrapPhase() above,
-    // which is currently unused.
-    self->phaseAccumulator = sig_flooredfmodf(phase, 1.0f);
+    sig_osc_Oscillator_init(&self->state);
 }
 
 void sig_dsp_SineOscillator_init(struct sig_dsp_Oscillator* self,
@@ -1919,22 +1892,29 @@ void sig_dsp_SineOscillator_destroy(struct sig_Allocator* allocator,
 
 void sig_dsp_SineOscillator_generate(void* signal) {
     struct sig_dsp_Oscillator* self = (struct sig_dsp_Oscillator*) signal;
+    float sampleRate = self->signal.audioSettings->sampleRate;
+    float* frequency = FLOAT_ARRAY(self->inputs.freq);
+    float* phaseOffset = FLOAT_ARRAY(self->inputs.phaseOffset);
+    float* mul = FLOAT_ARRAY(self->inputs.mul);
+    float* add = FLOAT_ARRAY(self->inputs.add);
+    float* mainOutput = FLOAT_ARRAY(self->outputs.main);
+    float* eocOutput = FLOAT_ARRAY(self->outputs.eoc);
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float modulatedPhase = self->phaseAccumulator +
-            FLOAT_ARRAY(self->inputs.phaseOffset)[i];
-        float eoc = sig_dsp_Oscillator_eoc(modulatedPhase);
-        modulatedPhase = sig_flooredfmodf(modulatedPhase, 1.0f);
+        float modulatedPhase = self->state.phaseAccumulator +
+            phaseOffset[i];
+        float eoc = sig_osc_Oscillator_eoc(modulatedPhase);
+        modulatedPhase = sig_osc_Oscillator_wrapPhase(modulatedPhase);
 
         float angularPhase = modulatedPhase * sig_TWOPI;
         float sample = sinf(angularPhase);
-        float scaledSample = sample * FLOAT_ARRAY(self->inputs.mul)[i] +
-            FLOAT_ARRAY(self->inputs.add)[i];
+        float scaledSample = sample * mul[i] + add[i];
 
-        FLOAT_ARRAY(self->outputs.main)[i] = scaledSample;
-        FLOAT_ARRAY(self->outputs.eoc)[i] = eoc;
+        mainOutput[i] = scaledSample;
+        eocOutput[i] = eoc;
 
-        sig_dsp_Oscillator_accumulatePhase(self, i);
+        sig_osc_Oscillator_accumulatePhase(&self->state.phaseAccumulator,
+            frequency[i], sampleRate);
     }
 }
 
@@ -1950,25 +1930,31 @@ struct sig_dsp_Oscillator* sig_dsp_LFTriangle_new(
         *sig_dsp_LFTriangle_generate);
 }
 
-// TODO: Address duplication with other oscillator types.
 void sig_dsp_LFTriangle_generate(void* signal) {
     struct sig_dsp_Oscillator* self = (struct sig_dsp_Oscillator*) signal;
+    float sampleRate = self->signal.audioSettings->sampleRate;
+    float* frequency = FLOAT_ARRAY(self->inputs.freq);
+    float* phaseOffset = FLOAT_ARRAY(self->inputs.phaseOffset);
+    float* mul = FLOAT_ARRAY(self->inputs.mul);
+    float* add = FLOAT_ARRAY(self->inputs.add);
+    float* mainOutput = FLOAT_ARRAY(self->outputs.main);
+    float* eocOutput = FLOAT_ARRAY(self->outputs.eoc);
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float modulatedPhase = self->phaseAccumulator +
-            FLOAT_ARRAY(self->inputs.phaseOffset)[i];
-        float eoc = sig_dsp_Oscillator_eoc(modulatedPhase);
-        modulatedPhase = sig_flooredfmodf(modulatedPhase, 1.0f) *
+        float modulatedPhase = self->state.phaseAccumulator +
+            phaseOffset[i];
+        float eoc = sig_osc_Oscillator_eoc(modulatedPhase);
+        modulatedPhase = sig_osc_Oscillator_wrapPhase(modulatedPhase) *
             sig_TWOPI;
 
-        float val = -1.0f + (2.0f * (modulatedPhase * sig_RECIP_TWOPI));
-        val = 2.0f * (fabsf(val) - 0.5f); // Rectify and scale/offset
+        float sample = -1.0f + (2.0f * (modulatedPhase * sig_RECIP_TWOPI));
+        sample = 2.0f * (fabsf(sample) - 0.5f); // Rectify and scale/offset
+        float scaledSample = sample * mul[i] + add[i];
 
-        FLOAT_ARRAY(self->outputs.main)[i] = val *
-            FLOAT_ARRAY(self->inputs.mul)[i] +
-            FLOAT_ARRAY(self->inputs.add)[i];
-        FLOAT_ARRAY(self->outputs.eoc)[i] = eoc;
-        sig_dsp_Oscillator_accumulatePhase(self, i);
+        mainOutput[i] = scaledSample;
+        eocOutput[i] = eoc;
+        sig_osc_Oscillator_accumulatePhase(&self->state.phaseAccumulator,
+            frequency[i], sampleRate);
     }
 }
 
@@ -1987,7 +1973,7 @@ void sig_dsp_WavetableOscillator_init(struct sig_dsp_WavetableOscillator* self,
     sig_CONNECT_TO_UNITY(self, mul, context);
     sig_CONNECT_TO_SILENCE(self, add, context);
 
-    sig_osc_Wavetable_init(&self->oscillator, self->wavetable);
+    sig_osc_Wavetable_init(&self->state, self->wavetable);
 }
 
 struct sig_dsp_WavetableOscillator* sig_dsp_WavetableOscillator_new(
@@ -2005,21 +1991,23 @@ void sig_dsp_WavetableOscillator_generate(void* signal) {
     struct sig_dsp_WavetableOscillator* self =
         (struct sig_dsp_WavetableOscillator*) signal;
     float sampleRate = self->signal.audioSettings->sampleRate;
+    float* frequency = FLOAT_ARRAY(self->inputs.freq);
+    float* phaseOffset = FLOAT_ARRAY(self->inputs.phaseOffset);
+    float* mul = FLOAT_ARRAY(self->inputs.mul);
+    float* add = FLOAT_ARRAY(self->inputs.add);
+    float* eocOutput = FLOAT_ARRAY(self->outputs.eoc);
+    float* mainOutput = FLOAT_ARRAY(self->outputs.main);
+
     // TODO: This has to be assigned because we don't know when
     // it is been updated by the user.
-    self->oscillator.wavetable = self->wavetable;
+    self->state.wavetable = self->wavetable;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float frequency = FLOAT_ARRAY(self->inputs.freq)[i];
-        float phaseOffset = FLOAT_ARRAY(self->inputs.phaseOffset)[i];
-        float* eocOut = &FLOAT_ARRAY(self->outputs.eoc)[i];
+        float sample = sig_osc_Wavetable_generate(&self->state,
+            frequency[i], phaseOffset[i], sampleRate, &eocOutput[i]);
+        float scaledSample = sample * mul[i] + add[i];
 
-        float sample = sig_osc_Wavetable_generate(&self->oscillator,
-            frequency, phaseOffset, sampleRate, eocOut);
-        float scaledSample = sample * FLOAT_ARRAY(self->inputs.mul)[i] +
-            FLOAT_ARRAY(self->inputs.add)[i];
-
-        FLOAT_ARRAY(self->outputs.main)[i] = scaledSample;
+        mainOutput[i] = scaledSample;
     }
 }
 
@@ -2042,7 +2030,7 @@ void sig_dsp_WavetableBankOscillator_init(struct sig_dsp_WavetableBankOscillator
     sig_CONNECT_TO_SILENCE(self, add, context);
     sig_CONNECT_TO_SILENCE(self, tableIndex, context);
 
-    sig_osc_WavetableBank_init(&self->oscillator, self->wavetables);
+    sig_osc_WavetableBank_init(&self->state, self->wavetables);
 }
 
 struct sig_dsp_WavetableBankOscillator* sig_dsp_WavetableBankOscillator_new(
@@ -2059,22 +2047,22 @@ struct sig_dsp_WavetableBankOscillator* sig_dsp_WavetableBankOscillator_new(
 inline void sig_dsp_WavetableBankOscillator_generate(void* signal) {
     struct sig_dsp_WavetableBankOscillator* self =
         (struct sig_dsp_WavetableBankOscillator*) signal;
-    self->oscillator.wavetables = self->wavetables;
+    self->state.wavetables = self->wavetables;
     float sampleRate = self->signal.audioSettings->sampleRate;
     float* frequency = FLOAT_ARRAY(self->inputs.freq);
     float* phaseOffset = FLOAT_ARRAY(self->inputs.phaseOffset);
     float* tableIndex = FLOAT_ARRAY(self->inputs.tableIndex);
     float* mul = FLOAT_ARRAY(self->inputs.mul);
     float* add = FLOAT_ARRAY(self->inputs.add);
-    float* eocOut = FLOAT_ARRAY(self->outputs.eoc);
-
+    float* eocOutput = FLOAT_ARRAY(self->outputs.eoc);
+    float* mainOutput = FLOAT_ARRAY(self->outputs.main);
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float sample = sig_osc_WavetableBank_generate(&self->oscillator,
+        float sample = sig_osc_WavetableBank_generate(&self->state,
             frequency[i], phaseOffset[i], tableIndex[i], sampleRate,
-            &eocOut[i]);
+            &eocOutput[i]);
         float scaledSample = sample * mul[i] + add[i];
 
-        FLOAT_ARRAY(self->outputs.main)[i] = scaledSample;
+        mainOutput[i] = scaledSample;
     }
 }
 
@@ -3240,8 +3228,8 @@ void sig_dsp_TwoOpFM_init(struct sig_dsp_TwoOpFM* self,
 
     sig_Buffer_fillWithWaveform(self->sineTable, sig_waveform_sine,
         self->sineTable->length, 0.0f, 1.0f);
-    sig_osc_Wavetable_init(&self->carrier, self->sineTable);
-    sig_osc_Wavetable_init(&self->modulator, self->sineTable);
+    sig_osc_Wavetable_init(&self->carrierState, self->sineTable);
+    sig_osc_Wavetable_init(&self->modulatorState, self->sineTable);
     sig_DelayLine_init(&self->feedbackDelay);
 
     sig_CONNECT_TO_SILENCE(self, frequency, context);
@@ -3273,12 +3261,13 @@ void sig_dsp_TwoOpFM_generate(void* signal) {
         float feedback = sig_filter_mean(feedbackBuffer->samples,
             feedbackBuffer->length) * feedbackGain[i];
         float modulatorFrequency = fundamental * ratio[i];
-        float modulatorSample = sig_osc_Wavetable_generate(&self->modulator,
-            modulatorFrequency, feedback + modulatorPhaseOffset[i],
-            sampleRate, &modulatorEOCOut[i]);
+        float modulatorSample = sig_osc_Wavetable_generate(
+            &self->modulatorState, modulatorFrequency,
+            feedback + modulatorPhaseOffset[i], sampleRate,
+            &modulatorEOCOut[i]);
         float modulatorSampleScaled = modulatorSample * index[i];
         float carrierPhaseOffset = modulatorSampleScaled + phaseOffset[i];
-        float carrierSample = sig_osc_Wavetable_generate(&self->carrier,
+        float carrierSample = sig_osc_Wavetable_generate(&self->carrierState,
             fundamental, carrierPhaseOffset, sampleRate, &carrierEOCOut[i]);
 
         sig_DelayLine_write(&self->feedbackDelay, carrierSample);

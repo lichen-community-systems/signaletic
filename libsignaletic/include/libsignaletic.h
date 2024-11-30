@@ -1691,7 +1691,7 @@ struct sig_dsp_Oscillator {
     struct sig_dsp_Signal signal;
     struct sig_dsp_Oscillator_Inputs inputs;
     struct sig_dsp_Oscillator_Outputs outputs;
-    float phaseAccumulator;
+    struct sig_osc_Oscillator state;
 };
 
 struct sig_dsp_Oscillator* sig_dsp_Oscillator_new(
@@ -1728,7 +1728,7 @@ struct sig_dsp_WavetableOscillator {
     struct sig_dsp_Signal signal;
     struct sig_dsp_Oscillator_Inputs inputs;
     struct sig_dsp_Oscillator_Outputs outputs;
-    struct sig_osc_Wavetable oscillator;
+    struct sig_osc_Wavetable state;
 
     struct sig_Buffer* wavetable;
 };
@@ -1753,7 +1753,7 @@ struct sig_dsp_WavetableBankOscillator {
     struct sig_dsp_Signal signal;
     struct sig_dsp_WavetableBankOscillator_Inputs inputs;
     struct sig_dsp_Oscillator_Outputs outputs;
-    struct sig_osc_WavetableBank oscillator;
+    struct sig_osc_WavetableBank state;
     struct sig_WavetableBank* wavetables;
 };
 
@@ -2307,8 +2307,8 @@ struct sig_dsp_TwoOpFM {
     struct sig_dsp_Signal signal;
     struct sig_dsp_TwoOpFM_Inputs inputs;
     struct sig_dsp_TwoOpFM_Outputs outputs;
-    struct sig_osc_Wavetable carrier;
-    struct sig_osc_Wavetable modulator;
+    struct sig_osc_Wavetable carrierState;
+    struct sig_osc_Wavetable modulatorState;
     struct sig_DelayLine feedbackDelay;
 
     struct sig_Buffer* sineTable;

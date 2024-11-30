@@ -663,7 +663,7 @@ void test_sig_dsp_SineOscillator_accumulatesPhase(void) {
     TEST_ASSERT_FLOAT_WITHIN_MESSAGE(
         0.000001,
         phaseStep * 48.0,
-        sine->phaseAccumulator,
+        sine->state.phaseAccumulator,
         "The phase accumulator should have been incremented for each sample in the block."
     );
 
@@ -671,7 +671,7 @@ void test_sig_dsp_SineOscillator_accumulatesPhase(void) {
     TEST_ASSERT_FLOAT_WITHIN_MESSAGE(
         0.000001,
         phaseStep * 96.0,
-        sine->phaseAccumulator,
+        sine->state.phaseAccumulator,
         "The phase accumulator should have continued to be incremented when generating a second block."
     );
 
@@ -689,8 +689,8 @@ void test_sig_dsp_SineOscillator_phaseWrapsAt2PI(void) {
     sine->signal.generate(sine);
 
     TEST_ASSERT_TRUE_MESSAGE(
-        sine->phaseAccumulator <= 1.0 &&
-        sine->phaseAccumulator >= 0.0,
+        sine->state.phaseAccumulator <= 1.0 &&
+        sine->state.phaseAccumulator >= 0.0,
         "The phase accumulator should wrap around when it is greater than 1.0 (i.e. a normalized equivalent to 2*PI)."
     );
 
