@@ -349,6 +349,71 @@ float sig_waveform_triangle(float phase) {
 
 
 
+void sig_osc_Oscillator_init(struct sig_osc_Oscillator* self) {
+    self->phaseAccumulator = 0.0f;
+}
+
+inline float sig_osc_Oscillator_eoc(float phase) {
+    return phase < 0.0f || phase > 1.0f ? 1.0f : 0.0f;
+}
+
+inline float sig_osc_Oscillator_wrapPhase(float phase) {
+    return sig_flooredfmodf(phase, 1.0f);
+}
+
+inline void sig_osc_Oscillator_accumulatePhase(float* phaseAccumulator,
+    float frequency, float sampleRate) {
+    float phaseStep = frequency / sampleRate;
+    float phase = *phaseAccumulator + phaseStep;
+
+    *phaseAccumulator = sig_osc_Oscillator_wrapPhase(phase);
+}
+
+void sig_osc_Wavetable_init(struct sig_osc_Wavetable* self,
+    struct sig_Buffer* wavetable) {
+    self->phaseAccumulator = 0.0f;
+    self->wavetable = wavetable;
+}
+
+inline float sig_osc_Wavetable_generate(struct sig_osc_Wavetable* self,
+    float frequency, float phaseOffset, float sampleRate, float* eocOut) {
+    float modulatedPhase = self->phaseAccumulator + phaseOffset;
+    *eocOut = sig_osc_Oscillator_eoc(modulatedPhase);
+    modulatedPhase = sig_osc_Oscillator_wrapPhase(modulatedPhase);
+    float sample = sig_Buffer_readLinearAtPhase(self->wavetable,
+        modulatedPhase);
+    sig_osc_Oscillator_accumulatePhase(&self->phaseAccumulator,
+        frequency, sampleRate);
+
+    return sample;
+}
+
+
+void sig_osc_WavetableBank_init(struct sig_osc_WavetableBank* self,
+    struct sig_WavetableBank* wavetables) {
+    self->phaseAccumulator = 0.0f;
+    self->wavetables = wavetables;
+}
+
+inline float sig_osc_WavetableBank_generate(struct sig_osc_WavetableBank* self,
+    float frequency, float phaseOffset, float tableIndex, float sampleRate,
+    float* eocOut) {
+        // TODO: Precompute this.
+        float lastWaveTableIdx = (float) (self->wavetables->length - 1);
+        // TODO: Reduce duplication with sig_osc_Wavetable
+        float modulatedPhase = self->phaseAccumulator + phaseOffset;
+        *eocOut = sig_osc_Oscillator_eoc(modulatedPhase);
+        modulatedPhase = sig_flooredfmodf(modulatedPhase, 1.0f);
+        float scaledTableIdx = tableIndex * lastWaveTableIdx;
+        float sample = sig_WavetableBank_readLinearAtPhase(
+            self->wavetables, scaledTableIdx, modulatedPhase);
+        sig_osc_Oscillator_accumulatePhase(&self->phaseAccumulator,
+            frequency, sampleRate);
+
+        return sample;
+}
+
+
 void sig_osc_FastLFSine_init(struct sig_osc_FastLFSine* self,
     float sampleRate) {
     self->sampleRate = sampleRate;
@@ -708,9 +773,10 @@ void sig_BufferView_destroy(struct sig_Allocator* allocator,
 }
 
 
-struct sig_WaveTable* sig_WaveTable_new(struct sig_Allocator* allocator,
+struct sig_WavetableBank* sig_WavetableBank_new(struct sig_Allocator* allocator,
     size_t numTables, size_t tableLength) {
-    struct sig_WaveTable* self = sig_MALLOC(allocator, struct sig_WaveTable);
+    struct sig_WavetableBank* self = sig_MALLOC(allocator,
+        struct sig_WavetableBank);
     self->length = numTables;
 
     self->waves = (struct sig_Buffer**) allocator->impl->malloc(
@@ -723,7 +789,7 @@ struct sig_WaveTable* sig_WaveTable_new(struct sig_Allocator* allocator,
     return self;
 }
 
-inline float sig_WaveTable_readLinearAtPhase(struct sig_WaveTable* self,
+inline float sig_WavetableBank_readLinearAtPhase(struct sig_WavetableBank* self,
     float tableIdx, float phase) {
         int32_t tableIdxIntegral = (int32_t) tableIdx;
         float tableIdxFractional = tableIdx - (float) tableIdxIntegral;
@@ -739,8 +805,8 @@ inline float sig_WaveTable_readLinearAtPhase(struct sig_WaveTable* self,
         return sample;
 }
 
-void sig_WaveTable_destroy(struct sig_Allocator* allocator,
-    struct sig_WaveTable* self) {
+void sig_WavetableBank_destroy(struct sig_Allocator* allocator,
+    struct sig_WavetableBank* self) {
     for (size_t i = 0; i < self->length; i++) {
         sig_Buffer_destroy(allocator, self->waves[i]);
         self->waves[i] = NULL;
@@ -1912,57 +1978,53 @@ void sig_dsp_LFTriangle_destroy(struct sig_Allocator* allocator,
 }
 
 
-void sig_dsp_WaveOscillator_init(struct sig_dsp_WaveOscillator* self,
+void sig_dsp_WavetableOscillator_init(struct sig_dsp_WavetableOscillator* self,
     struct sig_SignalContext* context) {
-    sig_dsp_Signal_init(self, context, *sig_dsp_WaveOscillator_generate);
+    sig_dsp_Signal_init(self, context, *sig_dsp_WavetableOscillator_generate);
 
     sig_CONNECT_TO_SILENCE(self, freq, context);
     sig_CONNECT_TO_SILENCE(self, phaseOffset, context);
     sig_CONNECT_TO_UNITY(self, mul, context);
     sig_CONNECT_TO_SILENCE(self, add, context);
 
-    self->phaseAccumulator = 0.0;
+    sig_osc_Wavetable_init(&self->oscillator, self->wavetable);
 }
 
-struct sig_dsp_WaveOscillator* sig_dsp_WaveOscillator_new(
+struct sig_dsp_WavetableOscillator* sig_dsp_WavetableOscillator_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context) {
-    struct sig_dsp_WaveOscillator* self = sig_MALLOC(allocator,
-        struct sig_dsp_WaveOscillator);
-    sig_dsp_WaveOscillator_init(self, context);
+    struct sig_dsp_WavetableOscillator* self = sig_MALLOC(allocator,
+        struct sig_dsp_WavetableOscillator);
+    sig_dsp_WavetableOscillator_init(self, context);
     sig_dsp_Oscillator_Outputs_newAudioBlocks(allocator,
         context->audioSettings, &self->outputs);
 
     return self;
 }
 
-void sig_dsp_WaveOscillator_generate(void* signal) {
-    struct sig_dsp_WaveOscillator* self =
-        (struct sig_dsp_WaveOscillator*) signal;
-
-    float_array_ptr table = self->waveform->samples;
-    size_t tableLength = self->waveform->length;
+void sig_dsp_WavetableOscillator_generate(void* signal) {
+    struct sig_dsp_WavetableOscillator* self =
+        (struct sig_dsp_WavetableOscillator*) signal;
+    float sampleRate = self->signal.audioSettings->sampleRate;
+    // TODO: This has to be assigned because we don't know when
+    // it is been updated by the user.
+    self->oscillator.wavetable = self->wavetable;
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float modulatedPhase = self->phaseAccumulator +
-            FLOAT_ARRAY(self->inputs.phaseOffset)[i];
-        float eoc = sig_dsp_Oscillator_eoc(modulatedPhase);
-        modulatedPhase = sig_flooredfmodf(modulatedPhase, 1.0f);
+        float frequency = FLOAT_ARRAY(self->inputs.freq)[i];
+        float phaseOffset = FLOAT_ARRAY(self->inputs.phaseOffset)[i];
+        float* eocOut = &FLOAT_ARRAY(self->outputs.eoc)[i];
 
-        float tableIdx = modulatedPhase * tableLength;
-        float sample = sig_interpolate_linear(tableIdx, table, tableLength);
+        float sample = sig_osc_Wavetable_generate(&self->oscillator,
+            frequency, phaseOffset, sampleRate, eocOut);
         float scaledSample = sample * FLOAT_ARRAY(self->inputs.mul)[i] +
             FLOAT_ARRAY(self->inputs.add)[i];
 
         FLOAT_ARRAY(self->outputs.main)[i] = scaledSample;
-        FLOAT_ARRAY(self->outputs.eoc)[i] = eoc;
-
-        sig_dsp_Oscillator_accumulatePhase((struct sig_dsp_Oscillator*) self,
-            i);
     }
 }
 
-void sig_dsp_WaveOscillator_destroy(struct sig_Allocator* allocator,
-    struct sig_dsp_WaveOscillator* self) {
+void sig_dsp_WavetableOscillator_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_WavetableOscillator* self) {
     sig_dsp_Oscillator_Outputs_destroyAudioBlocks(allocator, &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
     self = NULL;
@@ -1970,9 +2032,9 @@ void sig_dsp_WaveOscillator_destroy(struct sig_Allocator* allocator,
 
 
 
-void sig_dsp_WaveTableOscillator_init(struct sig_dsp_WaveTableOscillator* self,
+void sig_dsp_WavetableBankOscillator_init(struct sig_dsp_WavetableBankOscillator* self,
     struct sig_SignalContext* context) {
-    sig_dsp_Signal_init(self, context, *sig_dsp_WaveTableOscillator_generate);
+    sig_dsp_Signal_init(self, context, *sig_dsp_WavetableBankOscillator_generate);
 
     sig_CONNECT_TO_SILENCE(self, freq, context);
     sig_CONNECT_TO_SILENCE(self, phaseOffset, context);
@@ -1980,51 +2042,44 @@ void sig_dsp_WaveTableOscillator_init(struct sig_dsp_WaveTableOscillator* self,
     sig_CONNECT_TO_SILENCE(self, add, context);
     sig_CONNECT_TO_SILENCE(self, tableIndex, context);
 
-    self->phaseAccumulator = 0.0;
+    sig_osc_WavetableBank_init(&self->oscillator, self->wavetables);
 }
 
-struct sig_dsp_WaveTableOscillator* sig_dsp_WaveTableOscillator_new(
+struct sig_dsp_WavetableBankOscillator* sig_dsp_WavetableBankOscillator_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context) {
-    struct sig_dsp_WaveTableOscillator* self = sig_MALLOC(allocator,
-        struct sig_dsp_WaveTableOscillator);
-    sig_dsp_WaveTableOscillator_init(self, context);
+    struct sig_dsp_WavetableBankOscillator* self = sig_MALLOC(allocator,
+        struct sig_dsp_WavetableBankOscillator);
+    sig_dsp_WavetableBankOscillator_init(self, context);
     sig_dsp_Oscillator_Outputs_newAudioBlocks(allocator,
         context->audioSettings, &self->outputs);
 
     return self;
 }
 
-void sig_dsp_WaveTableOscillator_generate(void* signal) {
-    struct sig_dsp_WaveTableOscillator* self =
-        (struct sig_dsp_WaveTableOscillator*) signal;
+inline void sig_dsp_WavetableBankOscillator_generate(void* signal) {
+    struct sig_dsp_WavetableBankOscillator* self =
+        (struct sig_dsp_WavetableBankOscillator*) signal;
+    self->oscillator.wavetables = self->wavetables;
+    float sampleRate = self->signal.audioSettings->sampleRate;
+    float* frequency = FLOAT_ARRAY(self->inputs.freq);
+    float* phaseOffset = FLOAT_ARRAY(self->inputs.phaseOffset);
+    float* tableIndex = FLOAT_ARRAY(self->inputs.tableIndex);
+    float* mul = FLOAT_ARRAY(self->inputs.mul);
+    float* add = FLOAT_ARRAY(self->inputs.add);
+    float* eocOut = FLOAT_ARRAY(self->outputs.eoc);
 
     for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float modulatedPhase = self->phaseAccumulator +
-            FLOAT_ARRAY(self->inputs.phaseOffset)[i];
-        float eoc = sig_dsp_Oscillator_eoc(modulatedPhase);
-        modulatedPhase = sig_flooredfmodf(modulatedPhase, 1.0f);
-
-        float tableIndex = FLOAT_ARRAY(self->inputs.tableIndex)[i] *
-            (float)(self->wavetable->length - 1);
-        float sample = sig_WaveTable_readLinearAtPhase(
-            self->wavetable, tableIndex, modulatedPhase);
-        float scaledSample = sample * FLOAT_ARRAY(self->inputs.mul)[i] +
-            FLOAT_ARRAY(self->inputs.add)[i];
+        float sample = sig_osc_WavetableBank_generate(&self->oscillator,
+            frequency[i], phaseOffset[i], tableIndex[i], sampleRate,
+            &eocOut[i]);
+        float scaledSample = sample * mul[i] + add[i];
 
         FLOAT_ARRAY(self->outputs.main)[i] = scaledSample;
-        FLOAT_ARRAY(self->outputs.eoc)[i] = eoc;
-
-        // FIXME: Copied from sig_dsp_Oscillator_accumulatePhase.
-        // Need to generalize phase accumulation logic across oscillators.
-        float phaseStep = FLOAT_ARRAY(self->inputs.freq)[i] /
-            self->signal.audioSettings->sampleRate;
-        float phase = self->phaseAccumulator + phaseStep;
-        self->phaseAccumulator = sig_flooredfmodf(phase, 1.0f);
     }
 }
 
-void sig_dsp_WaveTableOscillator_destroy(struct sig_Allocator* allocator,
-    struct sig_dsp_WaveTableOscillator* self) {
+void sig_dsp_WavetableBankOscillator_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_WavetableBankOscillator* self) {
     sig_dsp_Oscillator_Outputs_destroyAudioBlocks(allocator, &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
     self = NULL;
@@ -3141,17 +3196,38 @@ void sig_dsp_LinearMap_destroy(struct sig_Allocator* allocator,
 }
 
 
+void sig_dsp_TwoOpFM_Outputs_newAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_dsp_TwoOpFM_Outputs* outputs) {
+    outputs->main = sig_AudioBlock_newSilent(allocator, audioSettings);
+    outputs->carrierEOC = sig_AudioBlock_newSilent(allocator, audioSettings);
+    outputs->modulator = sig_AudioBlock_newSilent(allocator, audioSettings);
+    outputs->modulatorEOC = sig_AudioBlock_newSilent(allocator,
+        audioSettings);
+}
+
+void sig_dsp_TwoOpFM_Outputs_destroyAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_dsp_TwoOpFM_Outputs* outputs) {
+    sig_AudioBlock_destroy(allocator, outputs->main);
+    outputs->main = NULL;
+    sig_AudioBlock_destroy(allocator, outputs->carrierEOC);
+    outputs->carrierEOC = NULL;
+    sig_AudioBlock_destroy(allocator, outputs->modulator);
+    outputs->modulator = NULL;
+    sig_AudioBlock_destroy(allocator, outputs->modulatorEOC);
+    outputs->modulatorEOC = NULL;
+}
+
 struct sig_dsp_TwoOpFM* sig_dsp_TwoOpFM_new(struct sig_Allocator* allocator,
     struct sig_SignalContext* context) {
     struct sig_dsp_TwoOpFM* self = sig_MALLOC(allocator,
         struct sig_dsp_TwoOpFM);
-    self->modulatorFrequency = sig_dsp_Mul_new(allocator, context);
-    self->carrierPhaseOffset = sig_dsp_Add_new(allocator, context);
+    sig_dsp_TwoOpFM_Outputs_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
     self->sineTable = sig_Buffer_new(allocator, 8192);
-    sig_Buffer_fillWithWaveform(self->sineTable, sig_waveform_sine,
-        8192, 0.0f, 1.0f);
-    self->modulator = sig_dsp_WaveOscillator_new(allocator, context);
-    self->carrier = sig_dsp_WaveOscillator_new(allocator, context);
+    self->feedbackDelay.buffer = sig_Buffer_new(allocator, 2);
 
     sig_dsp_TwoOpFM_init(self, context);
 
@@ -3161,47 +3237,63 @@ struct sig_dsp_TwoOpFM* sig_dsp_TwoOpFM_new(struct sig_Allocator* allocator,
 void sig_dsp_TwoOpFM_init(struct sig_dsp_TwoOpFM* self,
     struct sig_SignalContext* context) {
     sig_dsp_Signal_init(self, context, *sig_dsp_TwoOpFM_generate);
-    self->modulator->waveform = self->sineTable;
-    self->carrier->waveform = self->sineTable;
 
-    self->carrierPhaseOffset->inputs.left = self->modulator->outputs.main;
-    self->modulator->inputs.freq = self->modulatorFrequency->outputs.main;
-    self->carrier->inputs.phaseOffset = self->carrierPhaseOffset->outputs.main;
-    self->carrier->inputs.mul = context->unity->outputs.main;
-
-    self->outputs.main = self->carrier->outputs.main;
-    self->outputs.modulator = self->modulator->outputs.main;
+    sig_Buffer_fillWithWaveform(self->sineTable, sig_waveform_sine,
+        self->sineTable->length, 0.0f, 1.0f);
+    sig_osc_Wavetable_init(&self->carrier, self->sineTable);
+    sig_osc_Wavetable_init(&self->modulator, self->sineTable);
+    sig_DelayLine_init(&self->feedbackDelay);
 
     sig_CONNECT_TO_SILENCE(self, frequency, context);
     sig_CONNECT_TO_SILENCE(self, index, context);
     sig_CONNECT_TO_SILENCE(self, ratio, context);
     sig_CONNECT_TO_SILENCE(self, phaseOffset, context);
+    sig_CONNECT_TO_SILENCE(self, modulatorPhaseOffset, context);
+    sig_CONNECT_TO_SILENCE(self, feedbackGain, context);
 }
 
 void sig_dsp_TwoOpFM_generate(void* signal) {
     struct sig_dsp_TwoOpFM* self = (struct sig_dsp_TwoOpFM*) signal;
+    float* frequency = FLOAT_ARRAY(self->inputs.frequency);
+    float* index = FLOAT_ARRAY(self->inputs.index);
+    float* ratio = FLOAT_ARRAY(self->inputs.ratio);
+    float* feedbackGain = FLOAT_ARRAY(self->inputs.feedbackGain);
+    float* phaseOffset = FLOAT_ARRAY(self->inputs.phaseOffset);
+    float* modulatorPhaseOffset = FLOAT_ARRAY(
+        self->inputs.modulatorPhaseOffset);
+    float sampleRate = self->signal.audioSettings->sampleRate;
+    float* modulatorEOCOut = FLOAT_ARRAY(self->outputs.modulatorEOC);
+    float* carrierEOCOut = FLOAT_ARRAY(self->outputs.carrierEOC);
+    float* mainOut = FLOAT_ARRAY(self->outputs.main);
+    float* modulatorOut = FLOAT_ARRAY(self->outputs.modulator);
+    struct sig_Buffer* feedbackBuffer = self->feedbackDelay.buffer;
 
-    // All inputs need to be rebound every time here since any of
-    // the Signal's inputs could have changed.
-    // TODO: There's a pattern here, you can almost see it.
-    self->carrierPhaseOffset->inputs.right = self->inputs.phaseOffset;
-    self->modulatorFrequency->inputs.left = self->inputs.frequency;
-    self->modulatorFrequency->inputs.right = self->inputs.ratio;
-    self->modulator->inputs.mul = self->inputs.index;
-    self->carrier->inputs.freq = self->inputs.frequency;
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float fundamental = frequency[i];
+        float feedback = sig_filter_mean(feedbackBuffer->samples,
+            feedbackBuffer->length) * feedbackGain[i];
+        float modulatorFrequency = fundamental * ratio[i];
+        float modulatorSample = sig_osc_Wavetable_generate(&self->modulator,
+            modulatorFrequency, feedback + modulatorPhaseOffset[i],
+            sampleRate, &modulatorEOCOut[i]);
+        float modulatorSampleScaled = modulatorSample * index[i];
+        float carrierPhaseOffset = modulatorSampleScaled + phaseOffset[i];
+        float carrierSample = sig_osc_Wavetable_generate(&self->carrier,
+            fundamental, carrierPhaseOffset, sampleRate, &carrierEOCOut[i]);
 
-    self->modulatorFrequency->signal.generate(self->modulatorFrequency);
-    self->modulator->signal.generate(self->modulator);
-    self->carrierPhaseOffset->signal.generate(self->carrierPhaseOffset);
-    self->carrier->signal.generate(self->carrier);
+        sig_DelayLine_write(&self->feedbackDelay, carrierSample);
+        mainOut[i] = carrierSample;
+        modulatorOut[i] = modulatorSample;
+    }
 }
 
 void sig_dsp_TwoOpFM_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_TwoOpFM* self) {
-    sig_dsp_Mul_destroy(allocator, self->modulatorFrequency);
-    sig_dsp_Add_destroy(allocator, self->carrierPhaseOffset);
-    sig_dsp_WaveOscillator_destroy(allocator, self->carrier);
-    sig_dsp_WaveOscillator_destroy(allocator, self->modulator);
+    sig_dsp_TwoOpFM_Outputs_destroyAudioBlocks(allocator, &self->outputs);
+    sig_Buffer_destroy(allocator, self->sineTable);
+    self->sineTable = NULL;
+    sig_Buffer_destroy(allocator, self->feedbackDelay.buffer);
+    self->feedbackDelay.buffer = NULL;
     sig_dsp_Signal_destroy(allocator, self);
 }
 

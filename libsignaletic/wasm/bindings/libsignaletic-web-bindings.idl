@@ -41,6 +41,20 @@ interface sig_filter_Smooth {
     attribute float previous;
 };
 
+interface sig_osc_Oscillator {
+    attribute float phaseAccumulator;
+};
+
+interface sig_osc_Wavetable {
+    attribute float phaseAccumulator;
+    attribute sig_Buffer wavetable;
+};
+
+interface sig_osc_WavetableBank {
+    attribute float phaseAccumulator;
+    attribute sig_WavetableBank wavetables;
+};
+
 interface sig_osc_FastLFSine {
     attribute float sampleRate;
     attribute float f;
@@ -62,9 +76,10 @@ interface sig_Buffer {
 };
 
 
-interface sig_WaveTable {
+interface sig_WavetableBank {
     attribute unsigned long length;
 };
+
 
 interface sig_DelayLine {
     attribute sig_Buffer buffer;
@@ -248,16 +263,15 @@ interface sig_dsp_Oscillator {
     attribute float phaseAccumulator;
 };
 
-interface sig_dsp_WaveOscillator {
+interface sig_dsp_WavetableOscillator {
     [Value] attribute sig_dsp_Signal signal;
     [Value] attribute sig_dsp_Oscillator_Inputs inputs;
     [Value] attribute sig_dsp_Oscillator_Outputs outputs;
-    attribute float phaseAccumulator;
 
-    attribute sig_Buffer waveform;
+    attribute sig_Buffer wavetable;
 };
 
-interface sig_dsp_WaveTableOscillator_Inputs {
+interface sig_dsp_WavetableBankOscillator_Inputs {
     attribute any freq;
     attribute any phaseOffset;
     attribute any mul;
@@ -265,13 +279,12 @@ interface sig_dsp_WaveTableOscillator_Inputs {
     attribute any tableIndex;
 };
 
-interface sig_dsp_WaveTableOscillator {
+interface sig_dsp_WavetableBankOscillator {
     [Value] attribute sig_dsp_Signal signal;
-    [Value] attribute sig_dsp_WaveTableOscillator_Inputs inputs;
+    [Value] attribute sig_dsp_WavetableBankOscillator_Inputs inputs;
     [Value] attribute sig_dsp_Oscillator_Outputs outputs;
-    attribute float phaseAccumulator;
 
-    attribute sig_WaveTable wavetable;
+    attribute sig_WavetableBank wavetables;
 };
 
 
@@ -528,21 +541,26 @@ interface sig_dsp_TwoOpFM_Inputs {
     attribute any index;
     attribute any ratio;
     attribute any phaseOffset;
+    attribute any modulatorPhaseOffset;
+    attribute any feedbackGain;
 };
 
 interface sig_dsp_TwoOpFM_Outputs {
     attribute any main;
+    attribute any carrierEOC;
     attribute any modulator;
+    attribute any modulatorEOC;
 };
 
 interface sig_dsp_TwoOpFM {
     [Value] attribute sig_dsp_Signal signal;
     [Value] attribute sig_dsp_TwoOpFM_Inputs inputs;
     [Value] attribute sig_dsp_TwoOpFM_Outputs outputs;
-    attribute sig_dsp_BinaryOp modulatorFrequency;
-    attribute sig_dsp_BinaryOp carrierPhaseOffset;
-    attribute sig_dsp_WaveOscillator modulator;
-    attribute sig_dsp_WaveOscillator carrier;
+    [Value] attribute sig_osc_Wavetable carrier;
+    [Value] attribute sig_osc_Wavetable modulator;
+
+    attribute sig_Buffer sineTable;
+
 };
 
 enum sig_dsp_OnePole_Mode {
@@ -906,21 +924,21 @@ interface Signals {
     void LFTriangle_generate(any signal);
     void LFTriangle_destroy(sig_Allocator allocator, sig_dsp_Oscillator signal);
 
-    void WaveOscillator_init(sig_dsp_WaveOscillator signal,
+    void WaveOscillator_init(sig_dsp_WavetableOscillator signal,
         sig_SignalContext context);
-    sig_dsp_WaveOscillator WaveOscillator_new(sig_Allocator allocator,
+    sig_dsp_WavetableOscillator WaveOscillator_new(sig_Allocator allocator,
         sig_SignalContext context);
     void WaveOscillator_generate(any signal);
     void WaveOscillator_destroy(sig_Allocator allocator,
-        sig_dsp_WaveOscillator signal);
+        sig_dsp_WavetableOscillator signal);
 
-    void WaveTableOscillator_init(sig_dsp_WaveTableOscillator signal,
+    void WavetableBankOscillator_init(sig_dsp_WavetableBankOscillator signal,
         sig_SignalContext context);
-    sig_dsp_WaveTableOscillator WaveTableOscillator_new(
+    sig_dsp_WavetableBankOscillator WavetableBankOscillator_new(
         sig_Allocator allocator, sig_SignalContext context);
-    void WaveTableOscillator_generate(any signal);
-    void WaveTableOscillator_destroy(sig_Allocator allocator,
-        sig_dsp_WaveTableOscillator signal);
+    void WavetableBankOscillator_generate(any signal);
+    void WavetableBankOscillator_destroy(sig_Allocator allocator,
+        sig_dsp_WavetableBankOscillator signal);
 
     void Smooth_init(sig_dsp_Smooth signal, sig_SignalContext context);
     sig_dsp_Smooth Smooth_new(sig_Allocator allocator,
@@ -1193,6 +1211,17 @@ interface Signaletic {
     float waveform_reverseSaw(float phase);
     float waveform_triangle(float phase);
 
+    void osc_Oscillator_init(sig_osc_Oscillator oscillator);
+    float osc_Oscillator_eoc(float phase);
+    float osc_Oscillator_wrapPhase(float phase);
+    void osc_Oscillator_accumulatePhase(any phaseAccumulator,
+        float frequency, float sampleRate);
+
+    void osc_Wavetable_init(sig_osc_Wavetable oscillator,
+        sig_Buffer table);
+    float osc_Wavetable_generate(sig_osc_Wavetable oscillator,
+        float frequency, float phaseOffset, float sampleRate, any eocOut);
+
     void osc_FastLFSine_init(sig_osc_FastLFSine signal, float sampleRate);
     void osc_FastLFSine_setFrequency(sig_osc_FastLFSine signal,
         float frequency);
@@ -1235,12 +1264,12 @@ interface Signaletic {
         unsigned long startIdx, unsigned long length);
     void BufferView_destroy(sig_Allocator allocator, sig_Buffer buffer);
 
-    sig_WaveTable WaveTable_new(sig_Allocator allocator,
+    sig_WavetableBank WavetableBank_new(sig_Allocator allocator,
         unsigned long numTables, unsigned long tableLength);
-    float WaveTable_readLinearAtPhase(sig_WaveTable wavetable,
+    float WavetableBank_readLinearAtPhase(sig_WavetableBank wavetables,
         float tableIdx, float phase);
-    void WaveTable_destroy(sig_Allocator allocator,
-        sig_WaveTable wavetable);
+    void WavetableBank_destroy(sig_Allocator allocator,
+        sig_WavetableBank wavetables);
 
     any AudioBlock_new(sig_Allocator allocator,
         sig_AudioSettings audioSettings);

@@ -416,43 +416,43 @@ public:
         return sig_dsp_LFTriangle_destroy(allocator, self);
     }
 
-    void WaveOscillator_init(struct sig_dsp_WaveOscillator* self,
+    void WaveOscillator_init(struct sig_dsp_WavetableOscillator* self,
         struct sig_SignalContext* context) {
-        sig_dsp_WaveOscillator_init(self, context);
+        sig_dsp_WavetableOscillator_init(self, context);
     }
 
-    struct sig_dsp_WaveOscillator* WaveOscillator_new(
+    struct sig_dsp_WavetableOscillator* WaveOscillator_new(
         struct sig_Allocator* allocator, struct sig_SignalContext* context) {
-        return sig_dsp_WaveOscillator_new(allocator, context);
+        return sig_dsp_WavetableOscillator_new(allocator, context);
     }
 
     void WaveOscillator_generate(void* signal) {
-        sig_dsp_WaveOscillator_generate(signal);
+        sig_dsp_WavetableOscillator_generate(signal);
     }
 
     void WaveOscillator_destroy(struct sig_Allocator* allocator,
-        struct sig_dsp_WaveOscillator* self) {
-        sig_dsp_WaveOscillator_destroy(allocator, self);
+        struct sig_dsp_WavetableOscillator* self) {
+        sig_dsp_WavetableOscillator_destroy(allocator, self);
     }
 
-    void WaveTableOscillator_init(
-        struct sig_dsp_WaveTableOscillator* self,
+    void WavetableBankOscillator_init(
+        struct sig_dsp_WavetableBankOscillator* self,
         struct sig_SignalContext* context) {
-        sig_dsp_WaveTableOscillator_init(self, context);
+        sig_dsp_WavetableBankOscillator_init(self, context);
     }
 
-    struct sig_dsp_WaveTableOscillator* WaveTableOscillator_new(
+    struct sig_dsp_WavetableBankOscillator* WavetableBankOscillator_new(
         struct sig_Allocator* allocator, struct sig_SignalContext* context) {
-        return sig_dsp_WaveTableOscillator_new(allocator, context);
+        return sig_dsp_WavetableBankOscillator_new(allocator, context);
     }
 
-    void WaveTableOscillator_generate(void* signal) {
-        sig_dsp_WaveTableOscillator_generate(signal);
+    void WavetableBankOscillator_generate(void* signal) {
+        sig_dsp_WavetableBankOscillator_generate(signal);
     }
 
-    void WaveTableOscillator_destroy(struct sig_Allocator* allocator,
-        struct sig_dsp_WaveTableOscillator* self) {
-        sig_dsp_WaveTableOscillator_destroy(allocator, self);
+    void WavetableBankOscillator_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_WavetableBankOscillator* self) {
+        sig_dsp_WavetableBankOscillator_destroy(allocator, self);
     }
 
     struct sig_dsp_Smooth* Smooth_new(struct sig_Allocator* allocator,
@@ -1309,6 +1309,37 @@ public:
         return sig_waveform_triangle(phase);
     }
 
+
+    void osc_Oscillator_init(struct sig_osc_Oscillator* self) {
+        sig_osc_Oscillator_init(self);
+    }
+
+    float osc_Oscillator_eoc(float phase) {
+        return sig_osc_Oscillator_eoc(phase);
+    }
+
+    float osc_Oscillator_wrapPhase(float phase) {
+        return sig_osc_Oscillator_wrapPhase(phase);
+    }
+
+    void osc_Oscillator_accumulatePhase(void* phaseAccumulator,
+        float frequency, float sampleRate) {
+        sig_osc_Oscillator_accumulatePhase((float *) phaseAccumulator,
+            frequency, sampleRate);
+    }
+
+    void osc_Wavetable_init(struct sig_osc_Wavetable* self,
+        struct sig_Buffer* wavetable) {
+        sig_osc_Wavetable_init(self, wavetable);
+    }
+
+    float osc_Wavetable_generate(struct sig_osc_Wavetable* self,
+        float frequency, float phaseOffset, float sampleRate, void* eocOut) {
+        return sig_osc_Wavetable_generate(self, frequency, phaseOffset,
+            sampleRate, (float*) eocOut);
+    }
+
+
     void osc_FastLFSine_init(struct sig_osc_FastLFSine* self,
         float sampleRate) {
         sig_osc_FastLFSine_init(self, sampleRate);
@@ -1470,19 +1501,19 @@ public:
         return sig_AudioBlock_new(allocator, audioSettings);
     }
 
-    sig_WaveTable* WaveTable_new(struct sig_Allocator* allocator,
+    sig_WavetableBank* WavetableBank_new(struct sig_Allocator* allocator,
         unsigned long numTables, unsigned long tableLength) {
-        return sig_WaveTable_new(allocator, numTables, tableLength);
+        return sig_WavetableBank_new(allocator, numTables, tableLength);
     }
 
-    float WaveTable_readLinearAtPhase(struct sig_WaveTable* wavetable,
+    float WavetableBank_readLinearAtPhase(struct sig_WavetableBank* wavetable,
         float tableIdx, float phase) {
-        return sig_WaveTable_readLinearAtPhase(wavetable, tableIdx, phase);
+        return sig_WavetableBank_readLinearAtPhase(wavetable, tableIdx, phase);
     }
 
-    void WaveTable_destroy(struct sig_Allocator* allocator,
-        struct sig_WaveTable* wavetable) {
-        return sig_WaveTable_destroy(allocator, wavetable);
+    void WavetableBank_destroy(struct sig_Allocator* allocator,
+        struct sig_WavetableBank* wavetable) {
+        return sig_WavetableBank_destroy(allocator, wavetable);
     }
 
     float_array_ptr AudioBlock_newWithValue(

@@ -29,31 +29,31 @@ struct sig_dsp_SignalListEvaluator* evaluator;
 DaisyHost<FourDevice> host;
 
 float clockDivisions[NUM_CLOCK_STEPS] = {
-    1.0f/523.0f,
-    1.0f/300.0f,
-    1.0f/263.0f,
-    1.0f/200.0f,
-    1.0f/131.0f,
-    1.0f/100.0f,
-    1.0f/67.0f,
-    1.0f/31.0f,
-    1.0f/29.0f,
-    1.0f/23.0f,
-    1.0f/20.0f,
-    1.0f/19.0f,
-    1.0f/17.0f,
-    1.0f/13.0f,
-    1.0f/11.0f,
-    1.0f/10.0f,
-    1.0f/9.0f,
-    1.0f/8.0f,
-    1.0f/7.0f,
-    1.0f/6.0f,
-    1.0f/5.0f,
-    1.0f/4.0f,
-    1.0f/3.0f,
+    1.0f,
     1.0f/2.0f,
-    1.0f
+    1.0f/3.0f,
+    1.0f/4.0f,
+    1.0f/5.0f,
+    1.0f/6.0f,
+    1.0f/7.0f,
+    1.0f/8.0f,
+    1.0f/9.0f,
+    1.0f/10.0f,
+    1.0f/11.0f,
+    1.0f/13.0f,
+    1.0f/17.0f,
+    1.0f/19.0f,
+    1.0f/20.0f,
+    1.0f/23.0f,
+    1.0f/29.0f,
+    1.0f/31.0f,
+    1.0f/67.0f,
+    1.0f/100.0f,
+    1.0f/131.0f,
+    1.0f/200.0f,
+    1.0f/263.0f,
+    1.0f/300.0f,
+    1.0f/523.0f
 };
 
 struct sig_Buffer clockDivisionsBuffer = {
@@ -102,7 +102,7 @@ float (*waveGenerators[NUM_WAVES]) (float) = {
     sig_waveform_reverseSaw
 };
 
-struct sig_WaveTable* lfoWaveTable;
+struct sig_WavetableBank* lfoWavetables;
 struct sig_host_GateIn* clockIn;
 struct sig_host_SwitchIn* tapTempoButton;
 struct sig_dsp_ClockSource* clock;
@@ -117,13 +117,14 @@ struct sig_host_AudioOut* out4;
 struct sig_host_GateOut* clockOut;
 struct sig_host_GateOut* led;
 
-void buildWaveTable() {
-    lfoWaveTable = sig_WaveTable_new(&allocator, NUM_WAVES, WAVETABLE_SIZE);
+// TODO: Refactor this into a library function.
+void buildWavetables() {
+    lfoWavetables = sig_WavetableBank_new(&allocator, NUM_WAVES, WAVETABLE_SIZE);
 
-    for (size_t i = 0; i < lfoWaveTable->length; i++) {
-        struct sig_Buffer* table = lfoWaveTable->waves[i];
-        sig_Buffer_fillWithWaveform(table, waveGenerators[i], WAVETABLE_SIZE,
-            0.0f, 1.0f);
+    for (size_t i = 0; i < lfoWavetables->length; i++) {
+        struct sig_Buffer* wavetable = lfoWavetables->waves[i];
+        sig_Buffer_fillWithWaveform(wavetable, waveGenerators[i],
+            WAVETABLE_SIZE, 0.0f, 1.0f);
     }
 }
 
@@ -144,12 +145,12 @@ void buildSignalGraph(struct sig_SignalContext* context,
     clock->inputs.pulse = clockIn->outputs.main;
     clock->inputs.tap = tapTempoButton->outputs.main;
 
-    buildWaveTable();
+    buildWavetables();
 
     lfo1 = sig_host_ClockDividingLFO_new(&allocator, context);
     lfo1->hardware = &host.device.hardware;
     sig_List_append(&signals, lfo1, status);
-    lfo1->lfo->wavetable = lfoWaveTable;
+    lfo1->lfo->wavetables = lfoWavetables;
     lfo1->clockScaleBuffer = &clockMultiplicationsBuffer;
     lfo1->inputs.clock = clock->outputs.main;
     lfo1->frequencyCV->leftCVIn->parameters.control = sig_host_KNOB_1;
@@ -173,7 +174,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     lfo2 = sig_host_ClockDividingLFO_new(&allocator, context);
     lfo2->hardware = &host.device.hardware;
     sig_List_append(&signals, lfo2, status);
-    lfo2->lfo->wavetable = lfoWaveTable;
+    lfo2->lfo->wavetables = lfoWavetables;
     lfo2->clockScaleBuffer = &clockDivisionsBuffer;
     lfo2->inputs.clock = clock->outputs.main;
     lfo2->frequencyCV->leftCVIn->parameters.control = sig_host_KNOB_2;
@@ -192,7 +193,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     lfo3 = sig_host_ClockDividingLFO_new(&allocator, context);
     lfo3->hardware = &host.device.hardware;
     sig_List_append(&signals, lfo3, status);
-    lfo3->lfo->wavetable = lfoWaveTable;
+    lfo3->lfo->wavetables = lfoWavetables;
     lfo3->clockScaleBuffer = &clockDivisionsBuffer;
     lfo3->inputs.clock = clock->outputs.main;
     lfo3->frequencyCV->leftCVIn->parameters.control = sig_host_KNOB_3;
@@ -211,7 +212,7 @@ void buildSignalGraph(struct sig_SignalContext* context,
     lfo4 = sig_host_ClockDividingLFO_new(&allocator, context);
     lfo4->hardware = &host.device.hardware;
     sig_List_append(&signals, lfo4, status);
-    lfo4->lfo->wavetable = lfoWaveTable;
+    lfo4->lfo->wavetables = lfoWavetables;
     lfo4->clockScaleBuffer = &clockMultiplicationsBuffer;
     lfo4->inputs.clock = clock->outputs.main;
     lfo4->frequencyCV->leftCVIn->parameters.control = sig_host_KNOB_4;
@@ -246,7 +247,7 @@ int main(void) {
     struct sig_AudioSettings audioSettings = {
         .sampleRate = SAMPLERATE,
         .numChannels = 2,
-        .blockSize = 1
+        .blockSize = 48
     };
 
     struct sig_Status status;

@@ -499,6 +499,122 @@ float sig_waveform_triangle(float phase);
 
 
 /**
+ * @brief State for an oscillator.
+ */
+struct sig_osc_Oscillator {
+    float phaseAccumulator;
+};
+
+/**
+ * @brief Initializes the oscillator state.
+ *
+ * @param self
+ */
+void sig_osc_Oscillator_init(struct sig_osc_Oscillator* self);
+
+/**
+ * @brief Determines whether the current sample is the end of the
+ * oscillator's cycle. Returns 1.0f if it's the end of cycle,
+ * and 0.0f if not.
+ *
+ * @param phase the oscillator's phase accumulator
+ * @return float
+ */
+float sig_osc_Oscillator_eoc(float phase);
+
+/**
+ * @brief Wraps an oscillator's phase accumulator around in
+ * the range between 0.0f and 1.0f. Supports through-zero modulation.
+ *
+ * @param phase the current phase of the oscillator
+ * @return float the wrapped phase
+ */
+float sig_osc_Oscillator_wrapPhase(float phase);
+
+/**
+ * @brief Updates an oscillator's phase accumulator based on the
+ * current frequency and sample rate.
+ *
+ * @param self the oscillator
+ * @param frequency the oscillator's frequency
+ * @param sampleRate the current sample rate
+ */
+void sig_osc_Oscillator_accumulatePhase(float* phaseAccumulator,
+    float frequency, float sampleRate);
+
+/**
+ * @brief The state for a wavetable oscillator.
+ */
+struct sig_osc_Wavetable {
+    float phaseAccumulator;
+    struct sig_Buffer* wavetable;
+};
+
+/**
+ * @brief Initializes a wavetable oscillator's state
+ * with the supplied wavetable.
+ *
+ * @param self the wavetable oscillator to initialize
+ * @param wavetable the wavetable buffer to use
+ */
+void sig_osc_Wavetable_init(struct sig_osc_Wavetable* self,
+    struct sig_Buffer* wavetable);
+
+/**
+ * @brief Generates a single sample of the wavetable oscillator's output.
+ * Note that this function has side effects, in that in addition to returning
+ * the oscillator's output sample, it will also write the current end of cycle
+ * sample to the eocOut pointer.
+ *
+ * @param self the wavetable oscillator state
+ * @param frequency the current frequency
+ * @param phaseOffset the phase offset to apply
+ * @param sampleRate the sample rate
+ * @param eocOut a float pointer into which the end of cycle sample will be written
+ * @return float the oscillator's output sample
+ */
+float sig_osc_Wavetable_generate(struct sig_osc_Wavetable* self,
+    float frequency, float phaseOffset, float sampleRate, float* eocOut);
+
+/**
+ * @brief An oscillator that reads from a modulatable bank of wavetables.
+ * i.e. what in the sythesizer world is called a "wavetable synth."
+ */
+struct sig_osc_WavetableBank {
+    float phaseAccumulator;
+    struct sig_WavetableBank* wavetables;
+};
+
+/**
+ * @brief Initializes the state of the WavetableBank oscillator.
+ *
+ * @param self the wavetable bank oscillator state
+ * @param wavetables a pointer to a bank of wavetables to use
+ */
+void sig_osc_WavetableBank_init(struct sig_osc_WavetableBank* self,
+    struct sig_WavetableBank* wavetables);
+
+/**
+ * @brief Generates a single sample of the wavetable bank's output.
+ * Using the normalized (0..1) tableIndex input, his oscillator will
+ * linearly inteprlate between tables in the bank.
+ * This function has side effects, in that in addition to returning
+ * the oscillator's output sample, it will also write the current end of
+ * cycle sample to the eocOut pointer.
+ *
+ * @param self the wavetable bank oscillator state
+ * @param frequency the oscillator's frequency
+ * @param phaseOffset the phase offset to apply
+ * @param tableIndex normalized index of the wavetable to sample from, which will be scaled to the number of tables in the bank
+ * @param sampleRate the sample rate
+ * @param eocOut a float pointer into which the end of cycle sample will be written
+ * @return float the oscillator's output sample
+ */
+float sig_osc_WavetableBank_generate(struct sig_osc_WavetableBank* self,
+    float frequency, float phaseOffset, float tableIndex, float sampleRate,
+    float* eocOut);
+
+/**
  * @brief A fast sine approximation implemented using a Chamberlin SVF.
  * This approximation is good up to about 1/6 the sampleRate.
  *
@@ -923,19 +1039,19 @@ void sig_BufferView_destroy(struct sig_Allocator* allocator,
  * @brief An array of sig_Buffers representing a wavetable.
  *
  */
-struct sig_WaveTable {
+struct sig_WavetableBank {
     size_t length;
     struct sig_Buffer** waves;
 };
 
-struct sig_WaveTable* sig_WaveTable_new(struct sig_Allocator* allocator,
+struct sig_WavetableBank* sig_WavetableBank_new(struct sig_Allocator* allocator,
     size_t numTables, size_t tableLength);
 
-float sig_WaveTable_readLinearAtPhase(struct sig_WaveTable* self,
+float sig_WavetableBank_readLinearAtPhase(struct sig_WavetableBank* self,
     float tableIdx, float phase);
 
-void sig_WaveTable_destroy(struct sig_Allocator* allocator,
-    struct sig_WaveTable* self);
+void sig_WavetableBank_destroy(struct sig_Allocator* allocator,
+    struct sig_WavetableBank* self);
 
 
 float_array_ptr sig_AudioBlock_new(struct sig_Allocator* allocator,
@@ -1608,24 +1724,24 @@ void sig_dsp_LFTriangle_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Oscillator* self);
 
 
-struct sig_dsp_WaveOscillator {
+struct sig_dsp_WavetableOscillator {
     struct sig_dsp_Signal signal;
     struct sig_dsp_Oscillator_Inputs inputs;
     struct sig_dsp_Oscillator_Outputs outputs;
-    float phaseAccumulator;
+    struct sig_osc_Wavetable oscillator;
 
-    struct sig_Buffer* waveform;
+    struct sig_Buffer* wavetable;
 };
 
-void sig_dsp_WaveOscillator_init(struct sig_dsp_WaveOscillator* self,
+void sig_dsp_WavetableOscillator_init(struct sig_dsp_WavetableOscillator* self,
     struct sig_SignalContext* context);
-struct sig_dsp_WaveOscillator* sig_dsp_WaveOscillator_new(
+struct sig_dsp_WavetableOscillator* sig_dsp_WavetableOscillator_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context);
-void sig_dsp_WaveOscillator_generate(void* signal);
-void sig_dsp_WaveOscillator_destroy(struct sig_Allocator* allocator,
-    struct sig_dsp_WaveOscillator* self);
+void sig_dsp_WavetableOscillator_generate(void* signal);
+void sig_dsp_WavetableOscillator_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_WavetableOscillator* self);
 
-struct sig_dsp_WaveTableOscillator_Inputs {
+struct sig_dsp_WavetableBankOscillator_Inputs {
     float_array_ptr freq;
     float_array_ptr phaseOffset;
     float_array_ptr mul;
@@ -1633,22 +1749,21 @@ struct sig_dsp_WaveTableOscillator_Inputs {
     float_array_ptr tableIndex;
 };
 
-struct sig_dsp_WaveTableOscillator {
+struct sig_dsp_WavetableBankOscillator {
     struct sig_dsp_Signal signal;
-    struct sig_dsp_WaveTableOscillator_Inputs inputs;
+    struct sig_dsp_WavetableBankOscillator_Inputs inputs;
     struct sig_dsp_Oscillator_Outputs outputs;
-    float phaseAccumulator;
-
-    struct sig_WaveTable* wavetable;
+    struct sig_osc_WavetableBank oscillator;
+    struct sig_WavetableBank* wavetables;
 };
 
-void sig_dsp_WaveTableOscillator_init(struct sig_dsp_WaveTableOscillator* self,
+void sig_dsp_WavetableBankOscillator_init(struct sig_dsp_WavetableBankOscillator* self,
     struct sig_SignalContext* context);
-struct sig_dsp_WaveTableOscillator* sig_dsp_WaveTableOscillator_new(
+struct sig_dsp_WavetableBankOscillator* sig_dsp_WavetableBankOscillator_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context);
-void sig_dsp_WaveTableOscillator_generate(void* signal);
-void sig_dsp_WaveTableOscillator_destroy(struct sig_Allocator* allocator,
-    struct sig_dsp_WaveTableOscillator* self);
+void sig_dsp_WavetableBankOscillator_generate(void* signal);
+void sig_dsp_WavetableBankOscillator_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_WavetableBankOscillator* self);
 
 
 struct sig_dsp_Smooth_Inputs {
@@ -2167,22 +2282,36 @@ struct sig_dsp_TwoOpFM_Inputs {
     float_array_ptr index;
     float_array_ptr ratio;
     float_array_ptr phaseOffset;
+    float_array_ptr modulatorPhaseOffset;
+    float_array_ptr feedbackGain;
 };
 
 struct sig_dsp_TwoOpFM_Outputs {
     float_array_ptr main;
+    float_array_ptr carrierEOC;
     float_array_ptr modulator;
+    float_array_ptr modulatorEOC;
 };
+
+void sig_dsp_TwoOpFM_Outputs_newAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_dsp_TwoOpFM_Outputs* outputs);
+
+void sig_dsp_TwoOpFM_Outputs_destroyAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_dsp_TwoOpFM_Outputs* outputs);
+
 
 struct sig_dsp_TwoOpFM {
     struct sig_dsp_Signal signal;
     struct sig_dsp_TwoOpFM_Inputs inputs;
     struct sig_dsp_TwoOpFM_Outputs outputs;
-    struct sig_dsp_BinaryOp* modulatorFrequency;
-    struct sig_dsp_BinaryOp* carrierPhaseOffset;
+    struct sig_osc_Wavetable carrier;
+    struct sig_osc_Wavetable modulator;
+    struct sig_DelayLine feedbackDelay;
+
     struct sig_Buffer* sineTable;
-    struct sig_dsp_WaveOscillator* modulator;
-    struct sig_dsp_WaveOscillator* carrier;
 };
 
 struct sig_dsp_TwoOpFM* sig_dsp_TwoOpFM_new(struct sig_Allocator* allocator,
