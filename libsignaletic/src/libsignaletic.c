@@ -4,21 +4,6 @@
                     // stdio.h, stdlib.h, string.h (for errors etc.)
 #include <libsignaletic.h>
 
-void sig_Status_init(struct sig_Status* status) {
-    sig_Status_reset(status);
-}
-
-void sig_Status_reset(struct sig_Status* status) {
-    status->result = SIG_RESULT_NONE;
-}
-
-inline void sig_Status_reportResult(struct sig_Status* status,
-    enum sig_Result result) {
-    if (status != NULL) {
-        status->result = result;
-    }
-}
-
 inline float sig_fminf(float a, float b) {
     float r;
 #ifdef __arm__
@@ -65,7 +50,7 @@ inline float sig_flooredfmodf(float numer, float denom) {
 //                   im = 714025;
 //     jran=(jran*ia+ic) % im;
 //     float ran=(float) jran / (float) im;
-float sig_randf() {
+float sig_randf(void) {
     return (float) ((double) rand() / ((double) RAND_MAX + 1));
 }
 
@@ -465,6 +450,31 @@ struct sig_AllocatorImpl sig_TLSFAllocatorImpl = {
     .malloc = sig_TLSFAllocator_malloc,
     .free = sig_TLSFAllocator_free
 };
+
+
+struct sig_Status* sig_Status_new(struct sig_Allocator* allocator) {
+    struct sig_Status* self = allocator->impl->malloc(allocator,
+        sizeof(struct sig_Status));
+    sig_Status_init(self);
+
+    return self;
+}
+
+void sig_Status_init(struct sig_Status* status) {
+    sig_Status_reset(status);
+}
+
+void sig_Status_reset(struct sig_Status* status) {
+    status->result = SIG_RESULT_NONE;
+}
+
+inline void sig_Status_reportResult(struct sig_Status* status,
+    enum sig_Result result) {
+    if (status != NULL) {
+        status->result = result;
+    }
+}
+
 
 // TODO: Unit tests.
 struct sig_List* sig_List_new(struct sig_Allocator* allocator,
@@ -873,7 +883,7 @@ inline float sig_DelayLine_cubicReadAt(struct sig_DelayLine* self,
 
     int32_t integ = (int32_t) readPos;
     float frac = readPos - (float) integ;
-    int32_t t = (self->writeIdx + integ + maxDelayLength);
+    int32_t t = (int32_t) (self->writeIdx + integ + maxDelayLength);
     float xm1 = delayLineSamples[(t - 1) % maxDelayLength];
     float x0 = delayLineSamples[t % maxDelayLength];
     float x1 = delayLineSamples[(t + 1) % maxDelayLength];
@@ -2731,7 +2741,7 @@ struct sig_dsp_ClockSource* sig_dsp_ClockSource_new(
 }
 
 static inline void updateTempo(struct sig_dsp_ClockSource* self,
-    size_t tempoDuration) {
+    uint32_t tempoDuration) {
     self->tempoDurationSamples = tempoDuration;
     self->numHighSamples = (uint32_t) (
         (float) self->tempoDurationSamples * 0.25f);

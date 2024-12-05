@@ -359,19 +359,6 @@ public:
         sig_dsp_Oscillator_Outputs_destroyAudioBlocks(allocator, outputs);
     }
 
-    float Oscillator_eoc(float phase) {
-        return sig_dsp_Oscillator_eoc(phase);
-    }
-
-    float Oscillator_wrapPhase(float phase) {
-        return sig_dsp_Oscillator_wrapPhase(phase);
-    }
-
-    void Oscillator_accumulatePhase(struct sig_dsp_Oscillator* self,
-        size_t i) {
-        sig_dsp_Oscillator_accumulatePhase(self, i);
-    }
-
     void Oscillator_destroy(struct sig_Allocator* allocator,
         struct sig_dsp_Oscillator* self) {
         sig_dsp_Oscillator_destroy(allocator, self);

@@ -260,14 +260,14 @@ interface sig_dsp_Oscillator {
     [Value] attribute sig_dsp_Signal signal;
     [Value] attribute sig_dsp_Oscillator_Inputs inputs;
     [Value] attribute sig_dsp_Oscillator_Outputs outputs;
-    attribute float phaseAccumulator;
+    [Value] attribute sig_osc_Oscillator state;
 };
 
 interface sig_dsp_WavetableOscillator {
     [Value] attribute sig_dsp_Signal signal;
     [Value] attribute sig_dsp_Oscillator_Inputs inputs;
     [Value] attribute sig_dsp_Oscillator_Outputs outputs;
-
+    [Value] attribute sig_osc_Wavetable state;
     attribute sig_Buffer wavetable;
 };
 
@@ -283,7 +283,7 @@ interface sig_dsp_WavetableBankOscillator {
     [Value] attribute sig_dsp_Signal signal;
     [Value] attribute sig_dsp_WavetableBankOscillator_Inputs inputs;
     [Value] attribute sig_dsp_Oscillator_Outputs outputs;
-
+    [Value] attribute sig_osc_WavetableBank state;
     attribute sig_WavetableBank wavetables;
 };
 
@@ -556,9 +556,9 @@ interface sig_dsp_TwoOpFM {
     [Value] attribute sig_dsp_Signal signal;
     [Value] attribute sig_dsp_TwoOpFM_Inputs inputs;
     [Value] attribute sig_dsp_TwoOpFM_Outputs outputs;
-    [Value] attribute sig_osc_Wavetable carrier;
-    [Value] attribute sig_osc_Wavetable modulator;
-
+    [Value] attribute sig_osc_Wavetable carrierState;
+    [Value] attribute sig_osc_Wavetable modulatorState;
+    [Value] attribute sig_DelayLine feedbackDelay;
     attribute sig_Buffer sineTable;
 
 };
@@ -905,9 +905,6 @@ interface Signals {
     void Oscillator_Outputs_destroyAudioBlocks(sig_Allocator allocator,
         sig_dsp_Oscillator_Outputs outputs);
 
-    float Oscillator_eoc(float phase);
-    float Oscillator_wrapPhase(float phase);
-    void Oscillator_accumulatePhase(sig_dsp_Oscillator signal, unsigned long i);
     void Oscillator_destroy(sig_Allocator allocator, sig_dsp_Oscillator signal);
 
     void SineOscillator_init(sig_dsp_Oscillator signal,

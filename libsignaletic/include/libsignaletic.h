@@ -40,24 +40,6 @@ static const float sig_LOG0_001 = -6.907755278982137f;
 static const float sig_LOG2 = 0.6931471805599453f;
 static const float sig_FREQ_C4 = 261.6256f;
 
-enum sig_Result {
-    SIG_RESULT_NONE,
-    SIG_RESULT_SUCCESS,
-    SIG_ERROR_INDEX_OUT_OF_BOUNDS,
-    SIG_ERROR_EXCEEDS_CAPACITY
-};
-
-struct sig_Status {
-    enum sig_Result result;
-};
-
-void sig_Status_init(struct sig_Status* status);
-
-void sig_Status_reset(struct sig_Status* status);
-
-void sig_Status_reportResult(struct sig_Status* status,
-    enum sig_Result result);
-
 /**
  * Returns the smaller of two floating point arguments.
  *
@@ -113,7 +95,7 @@ float sig_flooredfmodf(float num, float denom);
  *
  * @return a random value
  */
-float sig_randf();
+float sig_randf(void);
 
 /**
  * @brief A fast tanh approximation
@@ -235,7 +217,7 @@ float sig_linearToFreq(float value, float middleFreq);
  * @brief Converts a frequency in Hz in to a linear volts per octave-style
  * floating point value.
  *
- * @param value the frequency to convert
+ * @param freq the frequency to convert
  * @param middleFreq the frequency at the midpoint (e.g. 261.6256 for middle C4 at 0.0f)
  * @return float the linear value
  */
@@ -508,7 +490,7 @@ struct sig_osc_Oscillator {
 /**
  * @brief Initializes the oscillator state.
  *
- * @param self
+ * @param self the oscillator state to initialize
  */
 void sig_osc_Oscillator_init(struct sig_osc_Oscillator* self);
 
@@ -535,7 +517,7 @@ float sig_osc_Oscillator_wrapPhase(float phase);
  * @brief Updates an oscillator's phase accumulator based on the
  * current frequency and sample rate.
  *
- * @param self the oscillator
+ * @param phaseAccumulator a pointer to the phase accumulator
  * @param frequency the oscillator's frequency
  * @param sampleRate the current sample rate
  */
@@ -642,7 +624,6 @@ void sig_osc_FastLFSine_init(struct sig_osc_FastLFSine* self,
  *
  * @param self the oscillator instance
  * @param frequency the frequency
- * @param sampleRate the current sample rate
  */
 void sig_osc_FastLFSine_setFrequency(struct sig_osc_FastLFSine* self,
     float frequency);
@@ -653,7 +634,6 @@ void sig_osc_FastLFSine_setFrequency(struct sig_osc_FastLFSine* self,
  *
  * @param self the oscillator instance
  * @param frequency the frequency
- * @param sampleRate the current sample rate
  */
 void sig_osc_FastLFSine_setFrequencyFast(struct sig_osc_FastLFSine* self,
     float frequency);
@@ -784,6 +764,28 @@ void sig_TLSFAllocator_free(struct sig_Allocator* allocator,
  */
 extern struct sig_AllocatorImpl sig_TLSFAllocatorImpl;
 
+
+enum sig_Result {
+    SIG_RESULT_NONE,
+    SIG_RESULT_SUCCESS,
+    SIG_ERROR_INDEX_OUT_OF_BOUNDS,
+    SIG_ERROR_EXCEEDS_CAPACITY
+};
+
+struct sig_Status {
+    enum sig_Result result;
+};
+
+struct sig_Status* sig_Status_new(struct sig_Allocator* allocator);
+
+void sig_Status_init(struct sig_Status* status);
+
+void sig_Status_reset(struct sig_Status* status);
+
+void sig_Status_reportResult(struct sig_Status* status,
+    enum sig_Result result);
+
+
 /**
  * A mutable list, which stores pointers to any type of object ("items").
  */
@@ -818,7 +820,7 @@ void sig_List_init(struct sig_List* self, void** items, size_t capacity);
  * @param self the List instance to insert into
  * @param index the position at which to insert the item
  * @param item the item to add
- * @param errorCode the
+ * @param status a pointer to the result of the operation
  */
 void sig_List_insert(struct sig_List* self, size_t index, void* item,
     struct sig_Status* status);
@@ -828,6 +830,7 @@ void sig_List_insert(struct sig_List* self, size_t index, void* item,
  *
  * @param self the list to append into
  * @param item the item to append
+ * @param status a pointer to the result of the operation
  */
 void sig_List_append(struct sig_List* self, void* item,
     struct sig_Status* status);
@@ -837,6 +840,7 @@ void sig_List_append(struct sig_List* self, void* item,
  *
  * @param self the list from which to pop the last item
  * @return void* the item that was removed from the list
+ * @param status a pointer to the result of the operation
  */
 void* sig_List_pop(struct sig_List* self, struct sig_Status* status);
 
@@ -845,6 +849,7 @@ void* sig_List_pop(struct sig_List* self, struct sig_Status* status);
  *
  * @param self the list from which to remove an item
  * @param index the index at which to remove the item
+ * @param status a pointer to the result of the operation
  * @return void* the item that was removed
  */
 void* sig_List_remove(struct sig_List* self, size_t index,
