@@ -337,7 +337,6 @@ void sig_host_EncoderIn_generate(void* signal);
 void sig_host_EncoderIn_destroy(struct sig_Allocator* allocator,
     struct sig_host_EncoderIn* self);
 
-
 #ifdef __cplusplus
 }
 #endif

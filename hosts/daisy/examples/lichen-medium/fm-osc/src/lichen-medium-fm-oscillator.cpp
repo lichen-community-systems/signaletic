@@ -67,6 +67,7 @@ struct sig_dsp_LinearToFreq* modulatorFreeFrequency;
 struct sig_dsp_BinaryOp* ratioFree;
 struct sig_host_SummedCVIn* feedback;
 struct sig_host_SummedCVIn* indexIn;
+struct sig_dsp_Smooth* indexSmoother;
 struct sig_host_FilteredCVIn* indexSkewCV;
 struct sig_dsp_BinaryOp* indexSkew;
 struct sig_dsp_Abs* rectifiedIndexSkew;
@@ -74,6 +75,7 @@ struct sig_dsp_BinaryOp* indexSkewAdder;
 struct sig_dsp_Branch* leftIndex;
 struct sig_host_AudioIn* leftAudioIn;
 struct sig_host_SummedCVIn* modulatorIndex;
+struct sig_dsp_Smooth* modulatorIndexSmoother;
 struct sig_dsp_BinaryOp* leftAudioInGain;
 struct sig_dsp_TwoOpFM* leftOp;
 struct sig_dsp_ConstantValue* rightOpPhaseOffset;
@@ -122,14 +124,26 @@ void buildControlGraph(struct sig_Allocator* allocator,
     indexIn = sig_host_SummedCVIn_new(allocator, context);
     indexIn->hardware = &host.device.hardware;
     sig_List_append(signals, indexIn, status);
-    indexIn->leftCVIn->parameters.control = sig_host_KNOB_5;
-    indexIn->rightCVIn->parameters.control = sig_host_CV_IN_4;
+    indexIn->leftCVIn->parameters.control = sig_host_KNOB_6;
+    indexIn->rightCVIn->parameters.control = sig_host_CV_IN_6;
+
+    // Discontinuities in the amplitude of a phase modulator
+    // are really noticeable, so lots of smoothing is important.
+    indexSmoother = sig_dsp_Smooth_new(allocator, context);
+    sig_List_append(signals, indexSmoother, status);
+    indexSmoother->inputs.source = indexIn->outputs.main;
+    indexSmoother->parameters.time = 0.02f;
 
     modulatorIndex = sig_host_SummedCVIn_new(allocator, context);
     modulatorIndex->hardware = &host.device.hardware;
     sig_List_append(signals, modulatorIndex, status);
-    modulatorIndex->leftCVIn->parameters.control = sig_host_KNOB_6;
-    modulatorIndex->rightCVIn->parameters.control = sig_host_CV_IN_6;
+    modulatorIndex->leftCVIn->parameters.control = sig_host_KNOB_5;
+    modulatorIndex->rightCVIn->parameters.control = sig_host_CV_IN_4;
+
+    modulatorIndexSmoother = sig_dsp_Smooth_new(allocator, context);
+    sig_List_append(signals, modulatorIndexSmoother, status);
+    modulatorIndexSmoother->inputs.source = modulatorIndex->outputs.main;
+    modulatorIndexSmoother->parameters.time = 0.02f;
 
     button = sig_host_SwitchIn_new(allocator, context);
     button->hardware = &host.device.hardware;
@@ -180,7 +194,7 @@ void buildInputGraph(struct sig_Allocator* allocator,
 
     indexSkewAdder = sig_dsp_Add_new(allocator, context);
     sig_List_append(signals, indexSkewAdder, status);
-    indexSkewAdder->inputs.left = indexIn->outputs.main;
+    indexSkewAdder->inputs.left = indexSmoother->outputs.main;
     indexSkewAdder->inputs.right = rectifiedIndexSkew->outputs.main;
 
     coarsePlusVOct = sig_dsp_Add_new(allocator, context);
@@ -237,7 +251,7 @@ void buildSignalGraph(struct sig_Allocator* allocator,
     leftIndex = sig_dsp_Branch_new(allocator, context);
     sig_List_append(signals, leftIndex, status);
     leftIndex->inputs.condition = indexSkewCV->outputs.main;
-    leftIndex->inputs.on = indexIn->outputs.main;
+    leftIndex->inputs.on = indexSmoother->outputs.main;
     leftIndex->inputs.off = indexSkewAdder->outputs.main;
 
     leftAudioIn = sig_host_AudioIn_new(allocator, context);
@@ -248,7 +262,7 @@ void buildSignalGraph(struct sig_Allocator* allocator,
     leftAudioInGain = sig_dsp_Mul_new(allocator, context);
     sig_List_append(signals, leftAudioInGain, status);
     leftAudioInGain->inputs.left = leftAudioIn->outputs.main;
-    leftAudioInGain->inputs.right = modulatorIndex->outputs.main;
+    leftAudioInGain->inputs.right = modulatorIndexSmoother->outputs.main;
 
     leftOp = sig_dsp_TwoOpFM_new(allocator, context);
     sig_List_append(signals, leftOp, status);
@@ -264,7 +278,7 @@ void buildSignalGraph(struct sig_Allocator* allocator,
     sig_List_append(signals, rightIndex, status);
     rightIndex->inputs.condition = indexSkewCV->outputs.main;
     rightIndex->inputs.on = indexSkewAdder->outputs.main;
-    rightIndex->inputs.off = indexIn->outputs.main;
+    rightIndex->inputs.off = indexSmoother->outputs.main;
 
     rightAudioIn = sig_host_AudioIn_new(allocator, context);
     rightAudioIn->hardware = &host.device.hardware;
@@ -274,7 +288,7 @@ void buildSignalGraph(struct sig_Allocator* allocator,
     rightAudioInGain = sig_dsp_Mul_new(allocator, context);
     sig_List_append(signals, rightAudioInGain, status);
     rightAudioInGain->inputs.left = rightAudioIn->outputs.main;
-    rightAudioInGain->inputs.right = modulatorIndex->outputs.main;
+    rightAudioInGain->inputs.right = modulatorIndexSmoother->outputs.main;
 
     rightOp = sig_dsp_TwoOpFM_new(allocator, context);
     sig_List_append(signals, rightOp, status);

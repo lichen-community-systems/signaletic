@@ -6,7 +6,7 @@ using namespace lichen::four;
 using namespace sig::libdaisy;
 
 #define SAMPLERATE 48000
-#define WAVETABLE_SIZE 8192
+#define WAVETABLE_SIZE 2048
 #define NUM_WAVES 5
 #define HEAP_SIZE 1024 * 384 // 384 KB
 #define MAX_NUM_SIGNALS 32
