@@ -93,8 +93,8 @@ void buildSignalGraph(struct sig_SignalContext* context,
     // These are in the range of the Juno chorus 1 & and 2
     // lfoSpeedKnob->parameters.scale = 0.35f;
     // lfoSpeedKnob->parameters.offset = 0.513f;
-    // Where as these can go a little wilder.
-    // 4.0 is about the threshold of consance at full wet.
+    // Whereas these can go a little wilder.
+    // 4.0 is about the threshold of consonance at full wet.
     lfoSpeedKnob->parameters.scale = 9.75f;
     lfoSpeedKnob->parameters.time = 0.1f;
 

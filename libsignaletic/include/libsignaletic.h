@@ -1720,6 +1720,28 @@ void sig_dsp_SineOscillator_generate(void* signal);
 void sig_dsp_SineOscillator_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Oscillator* self);
 
+struct sig_dsp_FastLFSineOscillator_Inputs {
+    float_array_ptr frequency;
+    float_array_ptr mul;
+    float_array_ptr add;
+};
+
+struct sig_dsp_FastLFSineOscillator {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_FastLFSineOscillator_Inputs inputs;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+    struct sig_osc_FastLFSine state;
+};
+
+void sig_dsp_FastLFSineOscillator_init(struct sig_dsp_FastLFSineOscillator* self,
+    struct sig_SignalContext* context);
+struct sig_dsp_FastLFSineOscillator* sig_dsp_FastLFSineOscillator_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_FastLFSineOscillator_generate(void* signal);
+void sig_dsp_FastLFSineOscillator_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_FastLFSineOscillator* self);
+
+
 void sig_dsp_LFTriangle_init(struct sig_dsp_Oscillator* self,
     struct sig_SignalContext* context);
 struct sig_dsp_Oscillator* sig_dsp_LFTriangle_new(

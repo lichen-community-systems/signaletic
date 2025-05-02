@@ -418,6 +418,10 @@ inline void sig_osc_FastLFSine_setFrequencyFast(struct sig_osc_FastLFSine* self,
 }
 
 inline void sig_osc_FastLFSine_generate(struct sig_osc_FastLFSine* self) {
+    // TODO: Oversample for stability at higher frequencies.
+    // Depending on the Q setting, but stability is roughly 1/6
+    // of the sample rate.
+    // A simple way to do this is to run the filter twice with the same input sample, and discard one output sample.
     self->sinZ = self->sinZ + self->f * self->cosZ;
     self->cosZ = self->cosZ - self->f * self->sinZ;
 }
@@ -1927,6 +1931,57 @@ void sig_dsp_SineOscillator_generate(void* signal) {
             frequency[i], sampleRate);
     }
 }
+
+
+void sig_dsp_FastLFSineOscillator_init(
+    struct sig_dsp_FastLFSineOscillator* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_FastLFSineOscillator_generate);
+
+    sig_CONNECT_TO_SILENCE(self, frequency, context);
+    sig_CONNECT_TO_UNITY(self, mul, context);
+    sig_CONNECT_TO_SILENCE(self, add, context);
+
+    sig_osc_FastLFSine_init(&self->state,
+        self->signal.audioSettings->sampleRate);
+}
+
+struct sig_dsp_FastLFSineOscillator* sig_dsp_FastLFSineOscillator_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_FastLFSineOscillator* self = sig_MALLOC(allocator,
+        struct sig_dsp_FastLFSineOscillator);
+    sig_dsp_FastLFSineOscillator_init(self, context);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_dsp_FastLFSineOscillator_generate(void* signal) {
+    struct sig_dsp_FastLFSineOscillator* self =
+        (struct sig_dsp_FastLFSineOscillator*) signal;
+    float* frequency = FLOAT_ARRAY(self->inputs.frequency);
+    float* mul = FLOAT_ARRAY(self->inputs.mul);
+    float* add = FLOAT_ARRAY(self->inputs.add);
+    float* mainOutput = FLOAT_ARRAY(self->outputs.main);
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        sig_osc_FastLFSine_setFrequencyFast(&self->state, frequency[i]);
+        sig_osc_FastLFSine_generate(&self->state);
+        float sample = self->state.sinZ;
+        float scaledSample = sample * mul[i] + add[i];
+        mainOutput[i] = scaledSample;
+    }
+}
+
+void sig_dsp_FastLFSineOscillator_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_FastLFSineOscillator* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
+    self = NULL;
+}
+
 
 void sig_dsp_LFTriangle_init(struct sig_dsp_Oscillator* self,
     struct sig_SignalContext* context) {
@@ -3981,7 +4036,7 @@ void sig_dsp_Chorus_generate(void* signal) {
         // TODO: What kind of gain staging should we do here?
         // It seems likely that we can have up to 3x gain depending on
         // the values of feedbackGain, feedforwardGain, and blend.
-        FLOAT_ARRAY(self->outputs.main)[i] = tanhf(output / 3.0f);
+        FLOAT_ARRAY(self->outputs.main)[i] = sig_fastTanhf(output / 3.0f);
     }
 }
 

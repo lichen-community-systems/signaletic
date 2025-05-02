@@ -53,7 +53,7 @@
         "cwd": "${workspaceFolder}/hosts/daisy/examples/bluemchen/filter",
         "debuggerArgs": [
           "-d",
-          "${workspaceRoot}/hosts/daisy/examples/bluemchen/oscillfilterator"
+          "${workspaceRoot}/hosts/daisy/examples/bluemchen/filter"
         ],
         "executable": "${workspaceRoot}/hosts/daisy/examples/bluemchen/filter/build/signaletic-bluemchen-filter.elf",
         "interface": "swd",

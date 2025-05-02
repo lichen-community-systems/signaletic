@@ -117,7 +117,7 @@ void sig::libdaisy::seed::SeedBoard::InitDAC(
     daisy::DacHandle::Config cfg;
     cfg.bitdepth = daisy::DacHandle::BitDepth::BITS_12;
     cfg.buff_state = daisy::DacHandle::BufferState::ENABLED;
-    cfg.mode = daisy::DacHandle::Mode::POLLING;
+    cfg.mode = daisy::DacHandle::Mode::POLLING; // TODO: Use DMA
     cfg.chn = channel;
     dac.Init(cfg);
     dac.WriteValue(daisy::DacHandle::Channel::BOTH, 0);
