@@ -60,6 +60,10 @@
         "streambuf": "cpp",
         "typeinfo": "cpp",
         "variant": "cpp",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "stdint.h": "c",
+        "stdbool.h": "c",
+        "set": "cpp",
+        "unordered_set": "cpp"
     }
 }

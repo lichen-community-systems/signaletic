@@ -288,6 +288,15 @@ inline float sig_filter_smooth_calculateCoefficient(float time,
     return expf(sig_LOG0_001 / (time * sampleRate));
 }
 
+inline float sig_filter_dcBlock(float current, float previousInput,
+    float previousOutput, float r) {
+    return current - previousInput + r * previousOutput;
+}
+
+inline float sig_filter_dcBlock_calculateCoefficient(float frequency,
+    float sampleRate) {
+    return 1.0f - (sig_TWOPI * frequency / sampleRate);
+}
 
 void sig_filter_Smooth_init(struct sig_filter_Smooth* self, float coeff) {
     self->coeff = coeff;
@@ -300,6 +309,23 @@ inline float sig_filter_Smooth_generate(struct sig_filter_Smooth* self,
     self->previous = smoothed;
 
     return smoothed;
+}
+
+void sig_filter_DCBlock_init(struct sig_filter_DCBlock* self,
+    float frequency, float sampleRate) {
+    self->r = sig_filter_dcBlock_calculateCoefficient(frequency, sampleRate);
+    self->previousInput = 0.0f;
+    self->previousOutput = 0.0f;
+}
+
+inline float sig_filter_DCBlock_generate(struct sig_filter_DCBlock* self,
+    float value) {
+    float output = sig_filter_dcBlock(value,
+        self->previousInput, self->previousOutput, self->r);
+    self->previousInput = value;
+    self->previousOutput = output;
+
+    return output;
 }
 
 // TODO: Unit tests.
@@ -2185,6 +2211,56 @@ void sig_dsp_Smooth_generate(void* signal) {
 
 void sig_dsp_Smooth_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Smooth* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
+}
+
+
+void sig_dsp_DCBlock_init(struct sig_dsp_DCBlock* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_DCBlock_generate);
+    self->previousFrequency = 0.0f;
+    self->parameters.frequency = 2.0f;
+    sig_filter_DCBlock_init(&self->state, self->parameters.frequency,
+        context->audioSettings->sampleRate);
+
+    sig_CONNECT_TO_SILENCE(self, source, context);
+}
+
+struct sig_dsp_DCBlock* sig_dsp_DCBlock_new(struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
+    struct sig_dsp_DCBlock* self = sig_MALLOC(allocator,
+        struct sig_dsp_DCBlock);
+    sig_dsp_DCBlock_init(self, context);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+// TODO: Unit tests
+void sig_dsp_DCBlock_generate(void* signal) {
+    struct sig_dsp_DCBlock* self = (struct sig_dsp_DCBlock*) signal;
+
+    if (self->parameters.frequency != self->previousFrequency) {
+        self->state.r = sig_filter_dcBlock_calculateCoefficient(
+            self->parameters.frequency,
+            self->signal.audioSettings->sampleRate);
+        self->previousFrequency = self->parameters.frequency;
+    }
+
+    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+        float inputSample = FLOAT_ARRAY(self->inputs.source)[i];
+        float outputSample = sig_filter_DCBlock_generate(&self->state,
+            inputSample);
+
+        FLOAT_ARRAY(self->outputs.main)[i] = outputSample;
+    }
+}
+
+void sig_dsp_DCBlock_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_DCBlock* self) {
     sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);

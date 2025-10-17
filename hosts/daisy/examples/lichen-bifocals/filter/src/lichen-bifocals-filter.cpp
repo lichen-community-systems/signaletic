@@ -329,6 +329,8 @@ struct sig_dsp_ToggleGate* wavefolderPosition;
 struct sig_host_CVOut* led;
 struct sig_dsp_BifocalsLadder* leftFilter;
 struct sig_dsp_BifocalsLadder* rightFilter;
+struct sig_dsp_DCBlock* leftDCBlocker;
+struct sig_dsp_DCBlock* rightDCBlocker;
 struct sig_host_AudioOut* leftOut;
 struct sig_host_AudioOut* rightOut;
 
@@ -549,11 +551,16 @@ void buildSignalGraph(struct sig_SignalContext* context,
     leftFilter->inputs.wavefolderFactor = wavefolderFactor->outputs.main;
     leftFilter->inputs.wavefolderPosition = wavefolderPosition->outputs.main;
 
+    leftDCBlocker = sig_dsp_DCBlock_new(&allocator, context);
+    sig_List_append(&signals, leftDCBlocker, status);
+    leftDCBlocker->inputs.source = leftFilter->outputs.main;
+    leftDCBlocker->parameters.frequency = 5.0f;
+
     leftOut = sig_host_AudioOut_new(&allocator, context);
     leftOut->hardware = &host.device.hardware;
     sig_List_append(&signals, leftOut, status);
     leftOut->parameters.channel = sig_host_AUDIO_OUT_1;
-    leftOut->inputs.source = leftFilter->outputs.main;
+    leftOut->inputs.source = leftDCBlocker->outputs.main;
 
     rightIn = sig_host_AudioIn_new(&allocator, context);
     rightIn->hardware = &host.device.hardware;
@@ -580,11 +587,16 @@ void buildSignalGraph(struct sig_SignalContext* context,
     rightFilter->inputs.wavefolderFactor = wavefolderFactor->outputs.main;
     rightFilter->inputs.wavefolderPosition = wavefolderPosition->outputs.main;
 
+
+    rightDCBlocker = sig_dsp_DCBlock_new(&allocator, context);
+    sig_List_append(&signals, rightDCBlocker, status);
+    rightDCBlocker->inputs.source = rightFilter->outputs.main;
+
     rightOut = sig_host_AudioOut_new(&allocator, context);
     rightOut->hardware = &host.device.hardware;
     sig_List_append(&signals, rightOut, status);
     rightOut->parameters.channel = sig_host_AUDIO_OUT_2;
-    rightOut->inputs.source = rightFilter->outputs.main;
+    rightOut->inputs.source = rightDCBlocker->outputs.main;
 }
 
 int main(void) {

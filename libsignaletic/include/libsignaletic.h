@@ -410,6 +410,11 @@ float sig_filter_onepole_LPF_calculateB0(float a1);
  */
 float sig_filter_smooth(float current, float previous, float coeff);
 
+float sig_filter_dcBlock(float current, float previousInput,
+    float previousOutput, float r);
+
+float sig_filter_dcBlock_calculateCoefficient(float frequency, float sampleRate);
+
 /**
  * @brief Calculates the coefficient from a 60 dB convergence time for
  * a low pass one pole filter.
@@ -430,6 +435,18 @@ struct sig_filter_Smooth {
 void sig_filter_Smooth_init(struct sig_filter_Smooth* self, float coeff);
 
 float sig_filter_Smooth_generate(struct sig_filter_Smooth* self, float value);
+
+struct sig_filter_DCBlock {
+    float r;
+    float previousInput;
+    float previousOutput;
+};
+
+void sig_filter_DCBlock_init(
+    struct sig_filter_DCBlock* self, float frequency, float sampleRate);
+
+float sig_filter_DCBlock_generate(
+    struct sig_filter_DCBlock* self, float value);
 
 /**
  * Type definition for a waveform generator function.
@@ -1818,6 +1835,34 @@ struct sig_dsp_Smooth* sig_dsp_Smooth_new(
 void sig_dsp_Smooth_generate(void* signal);
 void sig_dsp_Smooth_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Smooth* self);
+
+
+
+struct sig_dsp_DCBlock_Inputs {
+    float_array_ptr source;
+};
+
+struct sig_dsp_DCBlock_Parameters {
+    float frequency;
+};
+
+struct sig_dsp_DCBlock {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_DCBlock_Inputs inputs;
+    struct sig_dsp_DCBlock_Parameters parameters;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+    struct sig_filter_DCBlock state;
+
+    float previousFrequency;
+};
+
+void sig_dsp_DCBlock_init(struct sig_dsp_DCBlock* self,
+    struct sig_SignalContext* context);
+struct sig_dsp_DCBlock* sig_dsp_DCBlock_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_DCBlock_generate(void* signal);
+void sig_dsp_DCBlock_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_DCBlock* self);
 
 
 
