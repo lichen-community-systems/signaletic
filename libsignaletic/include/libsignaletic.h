@@ -410,11 +410,6 @@ float sig_filter_onepole_LPF_calculateB0(float a1);
  */
 float sig_filter_smooth(float current, float previous, float coeff);
 
-float sig_filter_dcBlock(float current, float previousInput,
-    float previousOutput, float r);
-
-float sig_filter_dcBlock_calculateCoefficient(float frequency, float sampleRate);
-
 /**
  * @brief Calculates the coefficient from a 60 dB convergence time for
  * a low pass one pole filter.
@@ -425,6 +420,28 @@ float sig_filter_dcBlock_calculateCoefficient(float frequency, float sampleRate)
  */
 float sig_filter_smooth_calculateCoefficient(float timeSecs,
     float sampleRate);
+
+/**
+ * @brief Removes DC offset by subtracting 1-pole LPF from the input.
+ *
+ * @param current the current sample
+ * @param previousInput the previous input sample
+ * @param previousOutput the previous output sample
+ * @param r the filter coefficient
+ * @return float the filtered sample
+ */
+float sig_filter_dcBlock(float current, float previousInput,
+    float previousOutput, float r);
+
+/**
+ * @brief Calculates the R coefficient for a DC blocking filter.
+ *
+ * @param frequency the cutoff frequency of the filter
+ * @param sampleRate the current sample rate
+ * @return float the R coefficient
+ */
+float sig_filter_dcBlock_calculateCoefficient(float frequency, float sampleRate);
+
 
 // TODO: Documentation!
 struct sig_filter_Smooth {
