@@ -1262,6 +1262,52 @@ void test_sig_dsp_List_noList(void) {
 
 }
 
+void test_sig_dsp_DCBlock_AC(void) {
+    struct sig_dsp_DCBlock* dcBlock = sig_dsp_DCBlock_new(&allocator,
+        context);
+
+    // Test a signal at > 5Hz. It should pass through unattenuated.
+    struct sig_dsp_Oscillator* sine = sig_dsp_SineOscillator_new(
+        &allocator, context);
+    sine->inputs.freq = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, 10.0f);
+    dcBlock->inputs.source = sine->outputs.main;
+
+    // Generate some sample blocks,
+    // giving time for the filter to settle.
+    for (size_t i = 0; i < 4000; i++) {
+        sine->signal.generate(sine);
+        dcBlock->signal.generate(dcBlock);
+    }
+
+    // The filter is probably not phase-preserving, so we can't
+    // test for exact values, but we can at least check the basics.
+    // TODO: Implement an FFT analysis of the output
+    // to verify that the frequency content is as expected.
+    testAssertBufferNotSilent(&allocator,dcBlock->outputs.main,
+        context->audioSettings->blockSize);
+    testAssertBufferValuesInRange(dcBlock->outputs.main,
+        context->audioSettings->blockSize, -1.0f, 1.0f);
+}
+
+void test_sig_dsp_DCBlock_DC(void) {
+    struct sig_dsp_DCBlock* dcBlock = sig_dsp_DCBlock_new(&allocator,
+        context);
+
+    // A steady DC signal—output should be nearly silent.
+    dcBlock = sig_dsp_DCBlock_new(&allocator, context);
+    struct sig_dsp_ConstantValue* constant = sig_dsp_ConstantValue_new(
+        &allocator, context, 1.0f);
+    dcBlock->inputs.source = constant->outputs.main;
+
+    for (size_t i = 0; i < 4000; i++) {
+        dcBlock->signal.generate(dcBlock);
+    }
+
+    testAssertSamplesBelowDB(dcBlock->outputs.main,
+        -180.0f, 1.0f, context->audioSettings->blockSize);
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -1302,6 +1348,8 @@ int main(void) {
     RUN_TEST(test_sig_dsp_List_clamping);
     RUN_TEST(test_sig_dsp_List_interpolation);
     RUN_TEST(test_sig_dsp_List_noList);
+    RUN_TEST(test_sig_dsp_DCBlock_AC);
+    RUN_TEST(test_sig_dsp_DCBlock_DC);
 
     return UNITY_END();
 }

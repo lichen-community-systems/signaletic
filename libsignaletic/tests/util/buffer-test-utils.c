@@ -2,6 +2,8 @@
 #include <unity.h>
 #include <assert.h>
 
+#define DB_EPSILON 1e-10f  // Small value to prevent log(0)
+
 void testAssertBufferContainsValueOnly(struct sig_Allocator* allocator,
     float expectedValue, float* actual, size_t len) {
     float* expectedArray = (float*) allocator->impl->malloc(
@@ -41,6 +43,40 @@ void testAssertBuffersNoValuesEqual(float* first, float* second, size_t len) {
 void testAssertBufferIsSilent(struct sig_Allocator* allocator,
     float* buffer, size_t len) {
     testAssertBufferContainsValueOnly(allocator, 0.0f, buffer, len);
+}
+
+float toDecibels(float sample, float refLevel) {
+    return 20.0f * log10f(fabsf(sample) / refLevel + DB_EPSILON);
+}
+
+void testAssertSamplesBelowDB(float* buffer, float maxDb, float refLevel,
+    size_t len) {
+    int32_t failureIdx = -1;
+
+    for (int32_t i = 0; i < len; i++) {
+        if (toDecibels(buffer[i], refLevel) > maxDb) {
+            failureIdx = i;
+            break;
+        }
+    }
+
+    TEST_ASSERT_EQUAL_INT32_MESSAGE(-1, failureIdx,
+            "Value at index was higher than the expected level in dB.");
+}
+
+void testAssertSamplesAboveDB(float* buffer, float minDb, float refLevel,
+    size_t len) {
+    int32_t failureIdx = -1;
+
+    for (int32_t i = 0; i < len; i++) {
+        if (toDecibels(buffer[i], refLevel) < minDb) {
+            failureIdx = i;
+            break;
+        }
+    }
+
+    TEST_ASSERT_EQUAL_INT32_MESSAGE(-1, failureIdx,
+            "Value at index was lower than the expected level in dB.");
 }
 
 void testAssertBufferNotSilent(struct sig_Allocator* allocator,

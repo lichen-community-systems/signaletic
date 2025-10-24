@@ -1920,8 +1920,8 @@ void sig_dsp_SineOscillator_init(struct sig_dsp_Oscillator* self,
     sig_dsp_Oscillator_init(self, context, *sig_dsp_SineOscillator_generate);
 }
 
-struct sig_dsp_Oscillator* sig_dsp_SineOscillator_new(struct sig_Allocator* allocator,
-    struct sig_SignalContext* context) {
+struct sig_dsp_Oscillator* sig_dsp_SineOscillator_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
     return sig_dsp_Oscillator_new(allocator, context, *sig_dsp_SineOscillator_generate);
 }
 

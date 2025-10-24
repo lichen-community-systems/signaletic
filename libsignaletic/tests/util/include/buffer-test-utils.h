@@ -1,4 +1,5 @@
 #include <libsignaletic.h>
+#include <math.h>
 
 void testAssertBufferContainsValueOnly(struct sig_Allocator* allocator,
     float expectedValue, float* actual, size_t len);
@@ -12,6 +13,32 @@ void testAssertBufferIsSilent(struct sig_Allocator* allocator,
 
 void testAssertBufferNotSilent(struct sig_Allocator* allocator,
     float* buffer, size_t len);
+
+float toDecibels(float sample, float refLevel);
+
+/**
+ * @brief Asserts that all samples in the buffer are below
+ * the specified dB level.
+ *
+ * @param buffer the buffer to test
+ * @param maxDb the maximum dB level
+ * @param refLevel the reference level for dB calculations
+ * @param len the length of the buffer
+ */
+void testAssertSamplesBelowDB(float* buffer, float maxDb, float refLevel,
+    size_t len);
+
+/**
+ * @brief Asserts that all samples in the buffer are above
+ * the specified dB level.
+ *
+ * @param buffer the buffer to test
+ * @param minDb the minimum dB level
+ * @param refLevel the reference level for dB calculations
+ * @param len the length of the buffer
+ */
+void testAssertSamplesAboveDB(float* buffer, float maxDb, float refLevel,
+    size_t len);
 
 void testAssertBufferValuesInRange(float* buffer, size_t len, float min,
     float max);
