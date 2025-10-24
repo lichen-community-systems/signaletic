@@ -2239,7 +2239,6 @@ struct sig_dsp_DCBlock* sig_dsp_DCBlock_new(struct sig_Allocator* allocator,
     return self;
 }
 
-// TODO: Unit tests
 void sig_dsp_DCBlock_generate(void* signal) {
     struct sig_dsp_DCBlock* self = (struct sig_dsp_DCBlock*) signal;
 
