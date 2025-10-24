@@ -76,12 +76,9 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Install ARM toolchain
-        # We only install ARM GCC, since we don't need the other
-        # tools in the Daisy Toolchain and they're slow to install.
-        run: |
-          git clone https://github.com/electro-smith/DaisyToolchain.git
-          cd DaisyToolchain/macOS
-          brew install ./gcc-arm-embedded.rb --cask
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: '10.3-2021.10'
 
       - name: Build Daisy Host and Examples
         run: |
