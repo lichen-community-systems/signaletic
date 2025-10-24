@@ -461,6 +461,25 @@ public:
         return sig_dsp_Smooth_destroy(allocator, self);
     }
 
+    struct sig_dsp_DCBlock* DCBlock_new(struct sig_Allocator* allocator,
+        struct sig_SignalContext* context) {
+        return sig_dsp_DCBlock_new(allocator, context);
+    }
+
+    void DCBlock_init(struct sig_dsp_DCBlock* self,
+        struct sig_SignalContext* context) {
+        sig_dsp_DCBlock_init(self, context);
+    }
+
+    void DCBlock_generate(void* signal) {
+        sig_dsp_DCBlock_generate(signal);
+    }
+
+    void DCBlock_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_DCBlock* self) {
+        return sig_dsp_DCBlock_destroy(allocator, self);
+    }
+
     struct sig_dsp_EMA* EMA_new(struct sig_Allocator* allocator,
         struct sig_SignalContext* context) {
         return sig_dsp_EMA_new(allocator, context);
@@ -1268,12 +1287,32 @@ public:
         return sig_filter_smooth_calculateCoefficient(timeSecs, sampleRate);
     }
 
+    float filter_dcBlock(float current, float previousInput,
+        float previousOutput, float r) {
+        return sig_filter_dcBlock(current, previousInput, previousOutput, r);
+    }
+
+    float filter_dcBlock_calculateCoefficient(float frequency,
+        float sampleRate) {
+        return sig_filter_dcBlock_calculateCoefficient(frequency, sampleRate);
+    }
+
     void filter_Smooth_init(struct sig_filter_Smooth* self, float coeff) {
         sig_filter_Smooth_init(self, coeff);
     }
 
     float filter_Smooth_generate(struct sig_filter_Smooth* self, float value) {
         return sig_filter_Smooth_generate(self, value);
+    }
+
+    void filter_DCBlock_init(struct sig_filter_DCBlock* self,
+        float frequency, float sampleRate) {
+        sig_filter_DCBlock_init(self, frequency, sampleRate);
+    }
+
+    float filter_DCBlock_generate(struct sig_filter_DCBlock* self,
+        float value) {
+        return sig_filter_DCBlock_generate(self, value);
     }
 
     float waveform_sine(float phase) {

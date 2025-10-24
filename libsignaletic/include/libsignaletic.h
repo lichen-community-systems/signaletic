@@ -58,8 +58,7 @@ float sig_fminf(float a, float b);
  * Returns the larger of two floating point arguments.
  *
  * ARM-optimized 32-bit floating point implementation
- * from DaisySP (Copyright 2020 Electrosmith, Corp),
- * written by Stephen McCaul.
+ * from DaisySP written by Stephen McCaul.
  * https://github.com/electro-smith/DaisySP/blob/master/Source/Utility/dsp.h
  *
  * @param a the first value to compare

@@ -41,6 +41,12 @@ interface sig_filter_Smooth {
     attribute float previous;
 };
 
+interface sig_filter_DCBlock {
+    attribute float r;
+    attribute float previousInput;
+    attribute float previousOutput;
+};
+
 interface sig_osc_Oscillator {
     attribute float phaseAccumulator;
 };
@@ -304,6 +310,24 @@ interface sig_dsp_Smooth {
     attribute float a1;
     attribute float previousTime;
     attribute float previousSample;
+};
+
+interface sig_dsp_DCBlock_Inputs {
+    attribute any source;
+};
+
+interface sig_dsp_DCBlock_Parameters {
+    attribute float frequency;
+};
+
+interface sig_dsp_DCBlock {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_DCBlock_Inputs inputs;
+    [Value] attribute sig_dsp_DCBlock_Parameters parameters;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+    [Value] attribute sig_filter_DCBlock state;
+
+    attribute float previousFrequency;
 };
 
 interface sig_dsp_EMA_Inputs {
@@ -943,6 +967,12 @@ interface Signals {
     void Smooth_generate(any signal);
     void Smooth_destroy(sig_Allocator allocator, sig_dsp_Smooth signal);
 
+    void DCBlock_init(sig_dsp_DCBlock signal, sig_SignalContext context);
+    sig_dsp_DCBlock DCBlock_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void DCBlock_generate(any signal);
+    void DCBlock_destroy(sig_Allocator allocator, sig_dsp_DCBlock signal);
+
     void EMA_init(sig_dsp_EMA signal, sig_SignalContext context);
     sig_dsp_EMA EMA_new(sig_Allocator allocator, sig_SignalContext context);
     void EMA_generate(any signal);
@@ -1198,9 +1228,19 @@ interface Signaletic {
     float filter_onepole_LPF_calculateB0(float a1);
     float filter_smooth(float current, float previous, float coeff);
     float filter_smooth_calculateCoefficient(float timeSecs, float sampleRate);
+    float filter_dcBlock(float current, float previousInput,
+        float previousOutput, float r);
+    float filter_dcBlock_calculateCoefficient(float frequency,
+        float sampleRate);
 
     void filter_Smooth_init(sig_filter_Smooth smooth, float coeff);
     float filter_Smooth_generate(sig_filter_Smooth smooth, float value);
+
+    void filter_DCBlock_init(sig_filter_DCBlock dcBlock, float frequency,
+        float sampleRate);
+    float filter_DCBlock_generate(
+        sig_filter_DCBlock dcBlock, float value);
+
 
     float waveform_sine(float phase);
     float waveform_square(float phase);
