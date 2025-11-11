@@ -1,4 +1,4 @@
-#include <libsignaletic.h>
+#include "../include/bob-filter.h"
 #include "../../../../include/kxmx-bluemchen-device.hpp"
 
 FixedCapStr<20> displayStr;
@@ -90,8 +90,8 @@ struct sig_dsp_Branch* rightFrequencyCVSkewed;
 struct sig_dsp_LinearToFreq* rightFrequency;
 struct sig_host_AudioIn* leftIn;
 struct sig_host_AudioIn* rightIn;
-struct sig_dsp_Ladder* leftFilter;
-struct sig_dsp_Ladder* rightFilter;
+struct sig_dsp_Bob* leftFilter;
+struct sig_dsp_Bob* rightFilter;
 struct sig_dsp_Tanh* leftSaturation;
 struct sig_dsp_Tanh* rightSaturation;
 struct sig_host_AudioOut* leftOut;
@@ -101,7 +101,7 @@ void UpdateOled() {
     host.device.display.Fill(false);
 
     displayStr.Clear();
-    displayStr.Append(" Bifocals");
+    displayStr.Append(" Bobfocals");
     host.device.display.SetCursor(0, 0);
     host.device.display.WriteString(displayStr.Cstr(), Font_6x8, true);
 
@@ -264,16 +264,15 @@ void buildSignalGraph(struct sig_SignalContext* context,
     resonanceKnob->hardware = &host.device.hardware;
     sig_List_append(&signals, resonanceKnob, status);
     resonanceKnob->parameters.control = sig_host_KNOB_2;
-    resonanceKnob->parameters.scale = 1.8f; // 4.0f for Bob
+    resonanceKnob->parameters.scale = 4.0f; // 1.8f for Ladder
 
     leftIn = sig_host_AudioIn_new(&allocator, context);
     leftIn->hardware = &host.device.hardware;
     sig_List_append(&signals, leftIn, status);
     leftIn->parameters.channel = 0;
 
-    leftFilter = sig_dsp_Ladder_new(&allocator, context);
+    leftFilter = sig_dsp_Bob_new(&allocator, context);
     sig_List_append(&signals, leftFilter, status);
-    leftFilter->parameters.passbandGain = 0.5f;
     leftFilter->inputs.source = leftIn->outputs.main;
     leftFilter->inputs.frequency = leftFrequency->outputs.main;
     leftFilter->inputs.resonance = resonanceKnob->outputs.main;
@@ -298,9 +297,8 @@ void buildSignalGraph(struct sig_SignalContext* context,
     sig_List_append(&signals, rightIn, status);
     rightIn->parameters.channel = 1;
 
-    rightFilter = sig_dsp_Ladder_new(&allocator, context);
+    rightFilter = sig_dsp_Bob_new(&allocator, context);
     sig_List_append(&signals, rightFilter, status);
-    leftFilter->parameters.passbandGain = 0.5f;
     rightFilter->inputs.source = rightIn->outputs.main;
     rightFilter->inputs.frequency = rightFrequency->outputs.main;
     rightFilter->inputs.resonance = resonanceKnob->outputs.main;

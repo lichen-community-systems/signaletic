@@ -1,4 +1,4 @@
-#include <libsignaletic.h>
+#include "../include/looper.h"
 #include "../../../../include/kxmx-bluemchen-device.hpp"
 #include "../../../../include/looper-view.h"
 #include <string>

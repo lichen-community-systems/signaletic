@@ -5,7 +5,7 @@ DEBUG = 0
 OPT = -O3
 
 # Sources
-C_SOURCES += ../../../../../libsignaletic/vendor/tlsf/tlsf.c ../../../../../libsignaletic/src/libsignaletic.c ../../../src/signaletic-host.c
+C_SOURCES += ../../../../../libsignaletic/vendor/tlsf/tlsf.c ../../../../../libsignaletic/src/libsignaletic.c ../../../src/signaletic-host.c ./src/bob-filter.c
 C_INCLUDES += -I../../../../../libsignaletic/vendor/tlsf -I../../../../../libsignaletic/include
 
 CPP_SOURCES = ../../../src/signaletic-daisy-host.cpp ../../../src/sig-daisy-seed.cpp src/${TARGET}.cpp
