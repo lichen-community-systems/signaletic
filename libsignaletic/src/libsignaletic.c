@@ -3078,6 +3078,113 @@ void sig_dsp_List_destroy(struct sig_Allocator* allocator,
 
 
 
+void sig_dsp_Sequencer_Outputs_newAudioBlocks(struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_dsp_Sequencer_Outputs* outputs) {
+    outputs->main = sig_AudioBlock_newSilent(allocator, audioSettings);
+    outputs->index = sig_AudioBlock_newSilent(allocator, audioSettings);
+}
+
+void sig_dsp_Sequencer_Outputs_destroyAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_dsp_Sequencer_Outputs* outputs) {
+    sig_AudioBlock_destroy(allocator, outputs->main);
+    sig_AudioBlock_destroy(allocator, outputs->index);
+}
+
+struct sig_dsp_Sequencer* sig_dsp_Sequencer_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_Sequencer* self = sig_MALLOC(allocator,
+        struct sig_dsp_Sequencer);
+
+    sig_dsp_Sequencer_init(self, context);
+    sig_dsp_Sequencer_Outputs_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_dsp_Sequencer_init(struct sig_dsp_Sequencer* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_Sequencer_generate);
+    self->parameters.loop = 1.0f;
+    self->parameters.resetOnNext = 0.0f;
+    self->parameters.holdLastValue = 0.0f;
+    self->samplesRemaining = 0;
+    self->stepIndex = -1;
+    self->lastValue = 0.0f;
+
+    sig_CONNECT_TO_UNITY(self, mul, context);
+    sig_CONNECT_TO_SILENCE(self, add, context);
+}
+
+inline size_t samplesForDuration(float duration, float sampleRate) {
+    return (size_t) floor(duration * sampleRate);
+}
+
+inline float sig_dsp_Sequencer_startStage(struct sig_dsp_Sequencer* self) {
+    float duration = self->durations->samples[self->stepIndex];
+    self->samplesRemaining = samplesForDuration(duration,
+        self->signal.audioSettings->sampleRate);
+    self->samplesRemaining--;
+
+    return self->parameters.resetOnNext ?
+        0.0f : self->values->samples[self->stepIndex];
+};
+
+void sig_dsp_Sequencer_generate(void* signal) {
+    struct sig_dsp_Sequencer* self = (struct sig_dsp_Sequencer*) signal;
+    float* mul = FLOAT_ARRAY(self->inputs.mul);
+    float* add = FLOAT_ARRAY(self->inputs.add);
+    struct sig_Buffer* durations = self->durations;
+    struct sig_Buffer* values = self->values;
+    size_t blockSize = self->signal.audioSettings->blockSize;
+    size_t valuesLength = values->length;
+    size_t durationsLength = durations->length;
+    bool hasValidSequence = valuesLength == durationsLength &&
+        durationsLength > 0 && valuesLength > 0;
+
+    for (size_t i = 0; i < blockSize; i++) {
+        float sample = 0.0f;
+        if (hasValidSequence) {
+            if (self->samplesRemaining == 0) {
+                // We're at the start or end of a stage.
+                if (self->stepIndex < 0 ||
+                    (size_t)self->stepIndex < durationsLength - 1) {
+                    // Continue to the next value/duration pair.
+                    self->stepIndex++;
+                    sample = sig_dsp_Sequencer_startStage(self);
+                } else if (self->parameters.loop > 0.0f) {
+                    // Loop back to the first value/duration pair.
+                    self->stepIndex = 0;
+                    sample = sig_dsp_Sequencer_startStage(self);
+                } else {
+                    // Nothing left to do.
+                    sample = self->parameters.holdLastValue ?
+                        self->lastValue : 0.0;
+                }
+            } else {
+                // Still in the midst of a stage.
+                sample = values->samples[self->stepIndex];
+                self->samplesRemaining--;
+            }
+        }
+
+        FLOAT_ARRAY(self->outputs.main)[i] = self->lastValue = sample *
+            mul[i] + add[i];
+        FLOAT_ARRAY(self->outputs.index)[i] = (float) self->stepIndex;
+    }
+}
+
+void sig_dsp_Sequencer_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Sequencer* self) {
+    sig_dsp_Sequencer_Outputs_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, self);
+}
+
+
+
 struct sig_dsp_LinearMap* sig_dsp_LinearMap_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context) {
     struct sig_dsp_LinearMap* self = sig_MALLOC(allocator,

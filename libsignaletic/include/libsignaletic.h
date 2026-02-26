@@ -2301,6 +2301,84 @@ void sig_dsp_List_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_List* self);
 
 
+struct sig_dsp_Sequencer_Inputs {
+    float_array_ptr mul;
+    float_array_ptr add;
+};
+
+struct sig_dsp_Sequencer_Outputs {
+    /**
+     * @brief The sequencer's output.
+     */
+    float_array_ptr main;
+
+    /**
+     * @brief The current stage index.
+     */
+    float_array_ptr index;
+};
+
+void sig_dsp_Sequencer_Outputs_newAudioBlocks(struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_dsp_Sequencer_Outputs* outputs);
+
+void sig_dsp_Sequencer_Outputs_destroyAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_dsp_Sequencer_Outputs* outputs);
+
+struct sig_dsp_Sequencer_Parameters {
+    float loop;
+    float resetOnNext;
+    float holdLastValue;
+};
+
+/**
+ * Sequencer outputs a sequence of values
+ * for the specified durations.
+ *
+ * When the resetOnNext parameter is set,
+ * the sequencer will reset its value to 0.0 for one sample
+ * prior to moving to the next duration.
+ * This is useful for sequencing envelope gates, for example.
+ *
+ * Members:
+ *     durations: an array of durations (in seconds) to hold each value
+ *     values: an array of values to output
+ *
+ * Parameters:
+ *     loop: if > 0, the sequencer will loop back
+ *       to the first stage when it reaches the end;
+ *       defaults to 0.
+ *     resetOnNext: when high, output 0.0 prior to moving
+ *       to the next sequencer stage
+ *     holdLastValue: when high, the last value of the
+ *       will continue to be output after the
+ *       sequence has completed.
+ */
+struct sig_dsp_Sequencer {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_Sequencer_Inputs inputs;
+    struct sig_dsp_Sequencer_Parameters parameters;
+    struct sig_dsp_Sequencer_Outputs outputs;
+    struct sig_Buffer* durations;
+    struct sig_Buffer* values;
+    size_t samplesRemaining;
+    int32_t stepIndex;
+    float lastValue;
+};
+
+struct sig_dsp_Sequencer* sig_dsp_Sequencer_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_Sequencer_init(struct sig_dsp_Sequencer* self,
+    struct sig_SignalContext* context);
+size_t samplesForDuration(float duration, float sampleRate);
+float sig_dsp_Sequencer_startStage(struct sig_dsp_Sequencer* self);
+void sig_dsp_Sequencer_generate(void* signal);
+void sig_dsp_Sequencer_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Sequencer* self);
+
+
+
 struct sig_dsp_LinearMap_Inputs {
     float_array_ptr source;
 };

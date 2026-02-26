@@ -1308,6 +1308,237 @@ void test_sig_dsp_DCBlock_DC(void) {
         -180.0f, 1.0f, context->audioSettings->blockSize);
 }
 
+void test_sig_dsp_Sequencer_stepsInOrder(void) {
+    // With 1-sample steps, the output advances one value per sample,
+    // cycling through all values when looping.
+    struct sig_AudioSettings* localSettings = sig_AudioSettings_new(&allocator);
+    localSettings->blockSize = 9;
+    struct sig_SignalContext* localContext =
+        sig_SignalContext_new(&allocator, localSettings);
+
+    float oneSampleDur = 1.0f / localSettings->sampleRate;
+    float durations[3] = {oneSampleDur, oneSampleDur, oneSampleDur};
+    float values[3] = {1.0f, 2.0f, 3.0f};
+    struct sig_Buffer durationsBuffer = {.length = 3, .samples = durations};
+    struct sig_Buffer valuesBuffer = {.length = 3, .samples = values};
+
+    struct sig_dsp_Sequencer* seq =
+        sig_dsp_Sequencer_new(&allocator, localContext);
+    seq->durations = &durationsBuffer;
+    seq->values = &valuesBuffer;
+
+    seq->signal.generate(seq);
+
+    float expected[9] = {1, 2, 3, 1, 2, 3, 1, 2, 3};
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expected,
+        FLOAT_ARRAY(seq->outputs.main), 9);
+
+    sig_dsp_Sequencer_destroy(&allocator, seq);
+}
+
+void test_sig_dsp_Sequencer_stepDuration(void) {
+    // Each step's value should be held for the correct number of samples.
+    struct sig_AudioSettings* localSettings = sig_AudioSettings_new(&allocator);
+    localSettings->blockSize = 8;
+    struct sig_SignalContext* localContext =
+        sig_SignalContext_new(&allocator, localSettings);
+
+    float twoSampleDur = 2.0f / localSettings->sampleRate;
+    float durations[2] = {twoSampleDur, twoSampleDur};
+    float values[2] = {1.0f, 2.0f};
+    struct sig_Buffer durationsBuffer = {.length = 2, .samples = durations};
+    struct sig_Buffer valuesBuffer = {.length = 2, .samples = values};
+
+    struct sig_dsp_Sequencer* seq =
+        sig_dsp_Sequencer_new(&allocator, localContext);
+    seq->durations = &durationsBuffer;
+    seq->values = &valuesBuffer;
+
+    seq->signal.generate(seq);
+
+    float expected[8] = {1, 1, 2, 2, 1, 1, 2, 2};
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expected,
+        FLOAT_ARRAY(seq->outputs.main), 8);
+
+    sig_dsp_Sequencer_destroy(&allocator, seq);
+}
+
+void test_sig_dsp_Sequencer_looping(void) {
+    // When the sequencer loops, the output cycles through values
+    // in order indefinitely.
+    struct sig_AudioSettings* localSettings = sig_AudioSettings_new(&allocator);
+    localSettings->blockSize = 8;
+    struct sig_SignalContext* localContext =
+        sig_SignalContext_new(&allocator, localSettings);
+
+    float oneSampleDur = 1.0f / localSettings->sampleRate;
+    float durations[2] = {oneSampleDur, oneSampleDur};
+    float values[2] = {3.0f, 7.0f};
+    struct sig_Buffer durationsBuffer = {.length = 2, .samples = durations};
+    struct sig_Buffer valuesBuffer = {.length = 2, .samples = values};
+
+    struct sig_dsp_Sequencer* seq =
+        sig_dsp_Sequencer_new(&allocator, localContext);
+    seq->parameters.loop = 1.0f;
+    seq->durations = &durationsBuffer;
+    seq->values = &valuesBuffer;
+
+    seq->signal.generate(seq);
+
+    float expected[8] = {3, 7, 3, 7, 3, 7, 3, 7};
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expected,
+        FLOAT_ARRAY(seq->outputs.main), 8);
+
+    sig_dsp_Sequencer_destroy(&allocator, seq);
+}
+
+void test_sig_dsp_Sequencer_noLoop(void) {
+    // With loop disabled,
+    // the output should go silent after the last step ends.
+    struct sig_AudioSettings* localSettings = sig_AudioSettings_new(&allocator);
+    localSettings->blockSize = 6;
+    struct sig_SignalContext* localContext =
+        sig_SignalContext_new(&allocator, localSettings);
+
+    float oneSampleDur = 1.0f / localSettings->sampleRate;
+    float durations[2] = {oneSampleDur, oneSampleDur};
+    float values[2] = {1.0f, 2.0f};
+    struct sig_Buffer durationsBuffer = {.length = 2, .samples = durations};
+    struct sig_Buffer valuesBuffer = {.length = 2, .samples = values};
+
+    struct sig_dsp_Sequencer* seq =
+        sig_dsp_Sequencer_new(&allocator, localContext);
+    seq->durations = &durationsBuffer;
+    seq->values = &valuesBuffer;
+    seq->parameters.loop = 0.0f;
+
+    seq->signal.generate(seq);
+
+    float expected[6] = {1, 2, 0, 0, 0, 0};
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expected,
+        FLOAT_ARRAY(seq->outputs.main), 6);
+
+    sig_dsp_Sequencer_destroy(&allocator, seq);
+}
+
+void test_sig_dsp_Sequencer_holdLastValue(void) {
+    // With holdLastValue enabled and loop disabled,
+    // the last value should be held after the sequence ends,
+    // rather than going silent.
+    struct sig_AudioSettings* localSettings = sig_AudioSettings_new(&allocator);
+    localSettings->blockSize = 6;
+    struct sig_SignalContext* localContext =
+        sig_SignalContext_new(&allocator, localSettings);
+
+    float oneSampleDur = 1.0f / localSettings->sampleRate;
+    float durations[2] = {oneSampleDur, oneSampleDur};
+    float values[2] = {1.0f, 2.0f};
+    struct sig_Buffer durationsBuffer = {.length = 2, .samples = durations};
+    struct sig_Buffer valuesBuffer = {.length = 2, .samples = values};
+
+    struct sig_dsp_Sequencer* seq =
+        sig_dsp_Sequencer_new(&allocator, localContext);
+    seq->durations = &durationsBuffer;
+    seq->values = &valuesBuffer;
+    seq->parameters.loop = 0.0f;
+    seq->parameters.holdLastValue = 1.0f;
+
+    seq->signal.generate(seq);
+
+    float expected[6] = {1, 2, 2, 2, 2, 2};
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expected,
+        FLOAT_ARRAY(seq->outputs.main), 6);
+
+    sig_dsp_Sequencer_destroy(&allocator, seq);
+}
+
+void test_sig_dsp_Sequencer_resetOnNext(void) {
+    // With resetOnNext enabled,
+    // the first sample of each step is zero.
+    struct sig_AudioSettings* localSettings = sig_AudioSettings_new(&allocator);
+    localSettings->blockSize = 8;
+    struct sig_SignalContext* localContext =
+        sig_SignalContext_new(&allocator, localSettings);
+
+    float twoSampleDur = 2.0f / localSettings->sampleRate;
+    float durations[2] = {twoSampleDur, twoSampleDur};
+    float values[2] = {1.0f, 2.0f};
+    struct sig_Buffer durationsBuffer = {.length = 2, .samples = durations};
+    struct sig_Buffer valuesBuffer = {.length = 2, .samples = values};
+
+    struct sig_dsp_Sequencer* seq =
+        sig_dsp_Sequencer_new(&allocator, localContext);
+    seq->durations = &durationsBuffer;
+    seq->values = &valuesBuffer;
+    seq->parameters.resetOnNext = 1.0f;
+
+    seq->signal.generate(seq);
+
+    float expected[8] = {0, 1, 0, 2, 0, 1, 0, 2};
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expected,
+        FLOAT_ARRAY(seq->outputs.main), 8);
+
+    sig_dsp_Sequencer_destroy(&allocator, seq);
+}
+
+void test_sig_dsp_Sequencer_indexOutput(void) {
+    // The index output should reflect the current step index,
+    // cycling alongside the main output values.
+    struct sig_AudioSettings* localSettings = sig_AudioSettings_new(&allocator);
+    localSettings->blockSize = 9;
+    struct sig_SignalContext* localContext =
+        sig_SignalContext_new(&allocator, localSettings);
+
+    float oneSampleDur = 1.0f / localSettings->sampleRate;
+    float durations[3] = {oneSampleDur, oneSampleDur, oneSampleDur};
+    float values[3] = {1.0f, 2.0f, 3.0f};
+    struct sig_Buffer durationsBuffer = {.length = 3, .samples = durations};
+    struct sig_Buffer valuesBuffer = {.length = 3, .samples = values};
+
+    struct sig_dsp_Sequencer* seq =
+        sig_dsp_Sequencer_new(&allocator, localContext);
+    seq->durations = &durationsBuffer;
+    seq->values = &valuesBuffer;
+
+    seq->signal.generate(seq);
+
+    float expectedMain[9]  = {1, 2, 3, 1, 2, 3, 1, 2, 3};
+    float expectedIndex[9] = {0, 1, 2, 0, 1, 2, 0, 1, 2};
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expectedMain,
+        FLOAT_ARRAY(seq->outputs.main), 9);
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expectedIndex,
+        FLOAT_ARRAY(seq->outputs.index), 9);
+
+    sig_dsp_Sequencer_destroy(&allocator, seq);
+}
+
+void test_sig_dsp_Sequencer_invalidSequence(void) {
+    // Mismatched durations and values lengths should produce silence.
+    struct sig_AudioSettings* localSettings = sig_AudioSettings_new(&allocator);
+    localSettings->blockSize = 8;
+    struct sig_SignalContext* localContext =
+        sig_SignalContext_new(&allocator, localSettings);
+
+    float oneSampleDur = 1.0f / localSettings->sampleRate;
+    float durations[2] = {oneSampleDur, oneSampleDur};
+    float values[3] = {1.0f, 2.0f, 3.0f};
+    struct sig_Buffer durationsBuffer = {.length = 2, .samples = durations};
+    struct sig_Buffer valuesBuffer = {.length = 3, .samples = values};
+
+    struct sig_dsp_Sequencer* seq =
+        sig_dsp_Sequencer_new(&allocator, localContext);
+    seq->durations = &durationsBuffer;
+    seq->values = &valuesBuffer;
+
+    seq->signal.generate(seq);
+
+    float expected[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expected,
+        FLOAT_ARRAY(seq->outputs.main), 8);
+
+    sig_dsp_Sequencer_destroy(&allocator, seq);
+}
+
 int main(void) {
     UNITY_BEGIN();
 
@@ -1350,6 +1581,14 @@ int main(void) {
     RUN_TEST(test_sig_dsp_List_noList);
     RUN_TEST(test_sig_dsp_DCBlock_AC);
     RUN_TEST(test_sig_dsp_DCBlock_DC);
+    RUN_TEST(test_sig_dsp_Sequencer_stepsInOrder);
+    RUN_TEST(test_sig_dsp_Sequencer_stepDuration);
+    RUN_TEST(test_sig_dsp_Sequencer_looping);
+    RUN_TEST(test_sig_dsp_Sequencer_noLoop);
+    RUN_TEST(test_sig_dsp_Sequencer_holdLastValue);
+    RUN_TEST(test_sig_dsp_Sequencer_resetOnNext);
+    RUN_TEST(test_sig_dsp_Sequencer_indexOutput);
+    RUN_TEST(test_sig_dsp_Sequencer_invalidSequence);
 
     return UNITY_END();
 }
