@@ -356,32 +356,6 @@ interface sig_dsp_Tanh {
     [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
 };
 
-interface sig_dsp_Looper_Inputs {
-    attribute any source;
-    attribute any start;
-    attribute any end;
-    attribute any speed;
-    attribute any record;
-    attribute any clear;
-};
-
-interface sig_dsp_Looper_Loop {
-    attribute sig_Buffer buffer;
-    attribute unsigned long startIdx;
-    attribute unsigned long length;
-    attribute boolean isEmpty;
-};
-
-interface sig_dsp_Looper {
-    [Value] attribute sig_dsp_Signal signal;
-    [Value] attribute sig_dsp_Looper_Inputs inputs;
-    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
-    [Value] attribute sig_dsp_Looper_Loop loop;
-    attribute unsigned long loopLastIdx;
-    attribute float playbackPos;
-    attribute float previousRecord;
-    attribute float previousClear;
-};
 
 interface sig_dsp_Dust_Parameters {
     attribute float bipolar;
@@ -542,6 +516,37 @@ interface sig_dsp_List {
     attribute sig_Buffer list;
 };
 
+
+interface sig_dsp_Sequencer_Inputs {
+    attribute any mul;
+    attribute any add;
+};
+
+interface sig_dsp_Sequencer_Outputs {
+    attribute any main;
+    attribute any index;
+};
+
+interface sig_dsp_Sequencer_Parameters {
+    attribute float loop;
+    attribute float resetOnNext;
+    attribute float holdLastValue;
+};
+
+interface sig_dsp_Sequencer {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_Sequencer_Inputs inputs;
+    [Value] attribute sig_dsp_Sequencer_Parameters parameters;
+    [Value] attribute sig_dsp_Sequencer_Outputs outputs;
+    attribute sig_Buffer durations;
+    attribute sig_Buffer values;
+    attribute unsigned long samplesRemaining;
+    attribute long stepIndex;
+    attribute float lastValue;
+};
+
+
+
 interface sig_dsp_LinearMap_Inputs {
     attribute any source;
 };
@@ -629,22 +634,6 @@ interface sig_dsp_FourPoleFilter_Outputs {
     attribute any main;
     attribute any twoPole;
     attribute any fourPole;
-};
-
-interface sig_dsp_Bob {
-    [Value] attribute sig_dsp_Signal signal;
-    [Value] attribute sig_dsp_FourPoleFilter_Inputs inputs;
-    [Value] attribute sig_dsp_FourPoleFilter_Outputs outputs;
-    attribute float[] state;
-    attribute float[] deriv1;
-    attribute float[] deriv2;
-    attribute float[] deriv3;
-    attribute float[] deriv4;
-    attribute float[] tempState;
-    attribute float saturation;
-    attribute float saturationInv;
-    attribute octet oversample;
-    attribute float stepSize;
 };
 
 interface sig_dsp_Ladder_Parameters {
@@ -983,13 +972,6 @@ interface Signals {
     void Tanh_generate(any signal);
     void Tanh_destroy(sig_Allocator allocator, sig_dsp_Tanh signal);
 
-    void Looper_init(sig_dsp_Looper signal, sig_SignalContext context);
-    sig_dsp_Looper Looper_new(sig_Allocator allocator,
-        sig_SignalContext context);
-    void Looper_setBuffer(sig_dsp_Looper signal, sig_Buffer buffer);
-    void Looper_generate(any signal);
-    void Looper_destroy(sig_Allocator allocator, sig_dsp_Looper signal);
-
     void Dust_init(sig_dsp_Dust signal, sig_SignalContext context);
     sig_dsp_Dust Dust_new(sig_Allocator allocator, sig_SignalContext context);
     void Dust_generate(any signal);
@@ -1052,6 +1034,19 @@ interface Signals {
     void List_generate(any signal);
     void List_destroy(sig_Allocator allocator, sig_dsp_List signal);
 
+
+    void Sequencer_Outputs_newAudioBlocks(sig_Allocator allocator,
+        sig_AudioSettings audioSettings, sig_dsp_Sequencer_Outputs outputs);
+    void Sequencer_Outputs_destroyAudioBlocks(sig_Allocator allocator,
+        sig_dsp_Sequencer_Outputs outputs);
+    sig_dsp_Sequencer Sequencer_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void Sequencer_init(sig_dsp_Sequencer signal,sig_SignalContext context);
+    float Sequencer_startStage(sig_dsp_Sequencer signal);
+    void Sequencer_generate(any signal);
+    void Sequencer_destroy(sig_Allocator allocator, sig_dsp_Sequencer signal);
+
+
     sig_dsp_LinearMap LinearMap_new(sig_Allocator allocator,
         sig_SignalContext context);
     void LinearMap_init(sig_dsp_LinearMap signal, sig_SignalContext context);
@@ -1077,12 +1072,6 @@ interface Signals {
         sig_dsp_FourPoleFilter_Outputs outputs);
     void FourPoleFilter_Outputs_destroyAudioBlocks(sig_Allocator allocator,
          sig_dsp_FourPoleFilter_Outputs outputs);
-
-    sig_dsp_Bob Bob_new(sig_Allocator allocator, sig_SignalContext context);
-    void Bob_init(sig_dsp_Bob signal, sig_SignalContext context);
-    float Bob_clip(float value, float saturation, float saturationInv);
-    void Bob_generate(any signal);
-    void Bob_destroy(sig_Allocator allocator, sig_dsp_Bob signal);
 
     sig_dsp_Ladder Ladder_new(sig_Allocator allocator,
         sig_SignalContext context);

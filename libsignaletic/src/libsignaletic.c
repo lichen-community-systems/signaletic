@@ -3118,18 +3118,14 @@ void sig_dsp_Sequencer_init(struct sig_dsp_Sequencer* self,
     sig_CONNECT_TO_SILENCE(self, add, context);
 }
 
-inline size_t samplesForDuration(float duration, float sampleRate) {
-    return (size_t) floor(duration * sampleRate);
-}
-
 inline float sig_dsp_Sequencer_startStage(struct sig_dsp_Sequencer* self) {
-    float duration = self->durations->samples[self->stepIndex];
-    self->samplesRemaining = samplesForDuration(duration,
+    float duration = FLOAT_ARRAY(self->durations->samples)[self->stepIndex];
+    self->samplesRemaining = (size_t) floor(duration *
         self->signal.audioSettings->sampleRate);
     self->samplesRemaining--;
 
     return self->parameters.resetOnNext ?
-        0.0f : self->values->samples[self->stepIndex];
+        0.0f : FLOAT_ARRAY(self->values->samples)[self->stepIndex];
 };
 
 void sig_dsp_Sequencer_generate(void* signal) {
@@ -3165,7 +3161,7 @@ void sig_dsp_Sequencer_generate(void* signal) {
                 }
             } else {
                 // Still in the midst of a stage.
-                sample = values->samples[self->stepIndex];
+                sample = FLOAT_ARRAY(values->samples)[self->stepIndex];
                 self->samplesRemaining--;
             }
         }

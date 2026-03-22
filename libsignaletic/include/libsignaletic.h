@@ -2371,7 +2371,6 @@ struct sig_dsp_Sequencer* sig_dsp_Sequencer_new(
     struct sig_Allocator* allocator, struct sig_SignalContext* context);
 void sig_dsp_Sequencer_init(struct sig_dsp_Sequencer* self,
     struct sig_SignalContext* context);
-size_t samplesForDuration(float duration, float sampleRate);
 float sig_dsp_Sequencer_startStage(struct sig_dsp_Sequencer* self);
 void sig_dsp_Sequencer_generate(void* signal);
 void sig_dsp_Sequencer_destroy(struct sig_Allocator* allocator,

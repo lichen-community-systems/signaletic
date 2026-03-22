@@ -542,29 +542,6 @@ public:
         return sig_dsp_Tanh_destroy(allocator, self);
     }
 
-    struct sig_dsp_Looper* Looper_new(struct sig_Allocator* allocator,
-        struct sig_SignalContext* context) {
-        return sig_dsp_Looper_new(allocator, context);
-    }
-
-    void Looper_init(struct sig_dsp_Looper* self,
-        struct sig_SignalContext* context) {
-        sig_dsp_Looper_init(self, context);
-    }
-
-    void Looper_setBuffer(struct sig_dsp_Looper* self,
-        struct sig_Buffer* buffer) {
-        sig_dsp_Looper_setBuffer(self, buffer);
-    }
-
-    void Looper_generate(void* signal) {
-        sig_dsp_Looper_generate(signal);
-    }
-
-    void Looper_destroy(struct sig_Allocator* allocator,
-        struct sig_dsp_Looper* self) {
-        return sig_dsp_Looper_destroy(allocator, self);
-    }
 
     struct sig_dsp_Dust* Dust_new(struct sig_Allocator* allocator,
         struct sig_SignalContext* context) {
@@ -752,6 +729,41 @@ public:
         return sig_dsp_List_destroy(allocator, self);
     }
 
+    void Sequencer_Outputs_newAudioBlocks(struct sig_Allocator* allocator,
+        struct sig_AudioSettings* audioSettings,
+        struct sig_dsp_Sequencer_Outputs* outputs) {
+        sig_dsp_Sequencer_Outputs_newAudioBlocks(allocator, audioSettings,
+            outputs);
+    }
+
+    void Sequencer_Outputs_destroyAudioBlocks(struct sig_Allocator* allocator,
+        struct sig_dsp_Sequencer_Outputs* outputs) {
+        sig_dsp_Sequencer_Outputs_destroyAudioBlocks(allocator, outputs);
+    }
+
+    struct sig_dsp_Sequencer* Sequencer_new(struct sig_Allocator* allocator,
+        struct sig_SignalContext* context) {
+        return sig_dsp_Sequencer_new(allocator, context);
+    }
+
+    void Sequencer_init(struct sig_dsp_Sequencer* self,
+        struct sig_SignalContext* context) {
+        sig_dsp_Sequencer_init(self, context);
+    }
+
+    float Sequencer_startStage(struct sig_dsp_Sequencer* self) {
+        return sig_dsp_Sequencer_startStage(self);
+    }
+
+    void Sequencer_generate(void* signal) {
+        sig_dsp_Sequencer_generate(signal);
+    }
+
+    void Sequencer_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_Sequencer* self) {
+        sig_dsp_Sequencer_destroy(allocator, self);
+    }
+
     struct sig_dsp_LinearMap* LinearMap_new(
         struct sig_Allocator* allocator,
         struct sig_SignalContext* context) {
@@ -804,31 +816,6 @@ public:
         struct sig_Allocator* allocator,
         struct sig_dsp_FourPoleFilter_Outputs* outputs) {
         sig_dsp_FourPoleFilter_Outputs_destroyAudioBlocks(allocator, outputs);
-    }
-
-    struct sig_dsp_Bob* Bob_new(
-        struct sig_Allocator* allocator,
-        struct sig_SignalContext* context) {
-        return sig_dsp_Bob_new(allocator, context);
-    }
-
-    void Bob_init(struct sig_dsp_Bob* self,
-        struct sig_SignalContext* context) {
-        sig_dsp_Bob_init(self, context);
-    }
-
-    float Bob_clip(float value, float saturation,
-        float saturationInv) {
-        return sig_dsp_Bob_clip(value, saturation, saturationInv);
-    }
-
-    void Bob_generate(void* signal) {
-        sig_dsp_Bob_generate(signal);
-    }
-
-    void Bob_destroy(struct sig_Allocator* allocator,
-        struct sig_dsp_Bob* self) {
-        return sig_dsp_Bob_destroy(allocator, self);
     }
 
     struct sig_dsp_Ladder* Ladder_new(
