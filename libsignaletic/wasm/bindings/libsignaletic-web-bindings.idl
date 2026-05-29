@@ -293,6 +293,19 @@ interface sig_dsp_WavetableBankOscillator {
     attribute sig_WavetableBank wavetables;
 };
 
+interface sig_dsp_FastLFSineOscillator_Inputs {
+    attribute any frequency;
+    attribute any mul;
+    attribute any add;
+};
+
+interface sig_dsp_FastLFSineOscillator {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_FastLFSineOscillator_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+    [Value] attribute sig_osc_FastLFSine state;
+};
+
 
 interface sig_dsp_Smooth_Inputs {
     attribute any source;
@@ -844,6 +857,12 @@ interface Signals {
     void Abs_generate(any signal);
     void Abs_destroy(sig_Allocator allocator, sig_dsp_Abs signal);
 
+    sig_dsp_Clamp Clamp_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void Clamp_init(sig_dsp_Clamp signal, sig_SignalContext context);
+    void Clamp_generate(any signal);
+    void Clamp_destroy(sig_Allocator allocator, sig_dsp_Clamp signal);
+
     sig_dsp_ScaleOffset ScaleOffset_new(sig_Allocator allocator,
         sig_SignalContext context);
     void ScaleOffset_init(sig_dsp_ScaleOffset signal, sig_SignalContext context);
@@ -949,6 +968,14 @@ interface Signals {
     void WavetableBankOscillator_generate(any signal);
     void WavetableBankOscillator_destroy(sig_Allocator allocator,
         sig_dsp_WavetableBankOscillator signal);
+
+    void FastLFSineOscillator_init(sig_dsp_FastLFSineOscillator signal,
+        sig_SignalContext context);
+    sig_dsp_FastLFSineOscillator FastLFSineOscillator_new(
+        sig_Allocator allocator, sig_SignalContext context);
+    void FastLFSineOscillator_generate(any signal);
+    void FastLFSineOscillator_destroy(sig_Allocator allocator,
+        sig_dsp_FastLFSineOscillator signal);
 
     void Smooth_init(sig_dsp_Smooth signal, sig_SignalContext context);
     sig_dsp_Smooth Smooth_new(sig_Allocator allocator,
@@ -1205,6 +1232,14 @@ interface Signaletic {
     float randomFill(unsigned long i, any array);
     void fillWithValue(any array, unsigned long length, float value);
     void fillWithSilence(any array, unsigned long length);
+
+    // NOTE: sig_fill() is not bound because it takes a
+    // sig_array_filler C function pointer,
+    // which the WebIDL binder cannot marshal from JavaScript.
+    // TODO: Use Emscripten's addFunction() on the JavaScript side
+    // create a wrapper for these functions that will support
+    // passsing JS function pointers.
+
     float interpolate_linear(float idx, any table, unsigned long length);
     float interpolate_cubic(float idx, any table, unsigned long length);
     float filter_mean(any values, unsigned long length);
@@ -1248,6 +1283,12 @@ interface Signaletic {
     float osc_Wavetable_generate(sig_osc_Wavetable oscillator,
         float frequency, float phaseOffset, float sampleRate, any eocOut);
 
+    void osc_WavetableBank_init(sig_osc_WavetableBank signal,
+        sig_WavetableBank wavetables);
+    float osc_WavetableBank_generate(sig_osc_WavetableBank signal,
+        float frequency, float phaseOffset, float tableIndex,
+        float sampleRate, any eocOut);
+
     void osc_FastLFSine_init(sig_osc_FastLFSine signal, float sampleRate);
     void osc_FastLFSine_setFrequency(sig_osc_FastLFSine signal,
         float frequency);
@@ -1279,11 +1320,20 @@ interface Signaletic {
         sig_SignalContext context);
 
     sig_Buffer Buffer_new(sig_Allocator allocator, unsigned long length);
+
+    // NOTE: sig_Buffer_fill() and sig_Buffer_fillWithWaveform()
+    // are not bound because they take C function pointers,
+    // which the WebIDL binder cannot marshal from JavaScript.
+    // TODO: Use Emscripten's addFunction() on the JavaScript side
+    // create a wrapper that will support passing
+    // JS function pointers.
+
     void Buffer_fillWithValue(sig_Buffer buffer, float value);
     void Buffer_fillWithSilence(sig_Buffer buffer);
     float Buffer_read(sig_Buffer buffer, float idx);
     float Buffer_readLinear(sig_Buffer buffer, float idx);
     float Buffer_readCubic(sig_Buffer buffer, float idx);
+    float Buffer_readLinearAtPhase(sig_Buffer buffer, float phase);
     void Buffer_destroy(sig_Allocator allocator, sig_Buffer buffer);
 
     sig_Buffer BufferView_new(sig_Allocator allocator, sig_Buffer buffer,

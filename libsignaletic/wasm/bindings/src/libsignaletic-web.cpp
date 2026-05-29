@@ -442,6 +442,26 @@ public:
         sig_dsp_WavetableBankOscillator_destroy(allocator, self);
     }
 
+    void FastLFSineOscillator_init(
+        struct sig_dsp_FastLFSineOscillator* self,
+        struct sig_SignalContext* context) {
+        sig_dsp_FastLFSineOscillator_init(self, context);
+    }
+
+    struct sig_dsp_FastLFSineOscillator* FastLFSineOscillator_new(
+        struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+        return sig_dsp_FastLFSineOscillator_new(allocator, context);
+    }
+
+    void FastLFSineOscillator_generate(void* signal) {
+        sig_dsp_FastLFSineOscillator_generate(signal);
+    }
+
+    void FastLFSineOscillator_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_FastLFSineOscillator* self) {
+        sig_dsp_FastLFSineOscillator_destroy(allocator, self);
+    }
+
     struct sig_dsp_Smooth* Smooth_new(struct sig_Allocator* allocator,
         struct sig_SignalContext* context) {
         return sig_dsp_Smooth_new(allocator, context);
@@ -1352,6 +1372,18 @@ public:
             sampleRate, (float*) eocOut);
     }
 
+    void osc_WavetableBank_init(struct sig_osc_WavetableBank* self,
+        struct sig_WavetableBank* wavetables) {
+        sig_osc_WavetableBank_init(self, wavetables);
+    }
+
+    float osc_WavetableBank_generate(struct sig_osc_WavetableBank* self,
+        float frequency, float phaseOffset, float tableIndex,
+        float sampleRate, void* eocOut) {
+        return sig_osc_WavetableBank_generate(self, frequency, phaseOffset,
+            tableIndex, sampleRate, (float*) eocOut);
+    }
+
 
     void osc_FastLFSine_init(struct sig_osc_FastLFSine* self,
         float sampleRate) {
@@ -1491,6 +1523,10 @@ public:
 
     float Buffer_readCubic(struct sig_Buffer* buffer, float idx) {
         return sig_Buffer_readCubic(buffer, idx);
+    }
+
+    float Buffer_readLinearAtPhase(struct sig_Buffer* buffer, float phase) {
+        return sig_Buffer_readLinearAtPhase(buffer, phase);
     }
 
     void Buffer_destroy(struct sig_Allocator* allocator,
