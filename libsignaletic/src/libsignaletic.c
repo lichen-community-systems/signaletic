@@ -4,7 +4,7 @@
                     // stdio.h, stdlib.h, string.h (for errors etc.)
 #include <libsignaletic.h>
 
-inline float sig_fminf(float a, float b) {
+extern inline float sig_fminf(float a, float b) {
     float r;
 #ifdef __arm__
     asm("vminnm.f32 %[d], %[n], %[m]" : [d] "=t"(r) : [n] "t"(a), [m] "t"(b) :);
@@ -14,7 +14,7 @@ inline float sig_fminf(float a, float b) {
     return r;
 }
 
-inline float sig_fmaxf(float a, float b) {
+extern inline float sig_fmaxf(float a, float b) {
     float r;
 #ifdef __arm__
     asm("vmaxnm.f32 %[d], %[n], %[m]" : [d] "=t"(r) : [n] "t"(a), [m] "t"(b) :);
@@ -32,7 +32,7 @@ inline float sig_clamp(float value, float min, float max) {
 // TODO: Implement a fast fmodf
 // See: https://github.com/electro-smith/DaisySP/blob/0cc02b37579e3619efde73be49a1fa01ffee5cf6/Source/Utility/dsp.h#L89-L95
 // TODO: Unit tests
-inline float sig_flooredfmodf(float numer, float denom) {
+extern inline float sig_flooredfmodf(float numer, float denom) {
     float remain = fmodf(numer, denom);
     if ((remain > 0.0f && denom < 0.0f) ||
         (remain < 0.0f && denom > 0.0f)) {
@@ -54,7 +54,7 @@ float sig_randf(void) {
     return (float) ((double) rand() / ((double) RAND_MAX + 1));
 }
 
-inline float sig_fastTanhf(float x) {
+extern inline float sig_fastTanhf(float x) {
     // From https://gist.github.com/ndonald2/534831b639b8c78d40279b5007e06e5b
     if (x > 3.0f) {
         return 1.0f;
@@ -69,7 +69,7 @@ inline float sig_fastTanhf(float x) {
 }
 
 // TODO: Unit tests.
-inline float sig_linearMap(float value,
+extern inline float sig_linearMap(float value,
     float fromMin, float fromMax, float toMin, float toMax) {
     float clamped = sig_clamp(value, fromMin, fromMax);
     float mapped = (clamped - fromMin) * (toMax - toMin) /
@@ -125,7 +125,8 @@ float sig_freqToLinear(float freq, float middleFreq) {
 }
 
 // TODO: Unit tests.
-inline float sig_sum(float_array_ptr values, size_t length) {
+extern inline float sig_sum(float_array_ptr values,
+    size_t length) {
     float sum = 0;
     for (size_t i = 0; i < length; i++) {
         sum += FLOAT_ARRAY(values)[i];
@@ -135,7 +136,8 @@ inline float sig_sum(float_array_ptr values, size_t length) {
 }
 
 // TODO: Unit tests.
-inline size_t sig_indexOfMin(float_array_ptr values, size_t length) {
+extern inline size_t sig_indexOfMin(float_array_ptr values,
+    size_t length) {
     size_t indexOfMin = 0;
 
     if (length < 1) {
@@ -155,7 +157,8 @@ inline size_t sig_indexOfMin(float_array_ptr values, size_t length) {
 }
 
 // TODO: Unit tests.
-inline size_t sig_indexOfMax(float_array_ptr values, size_t length) {
+extern inline size_t sig_indexOfMax(float_array_ptr values,
+    size_t length) {
     size_t indexOfMax = 0;
 
     if (length < 1) {
@@ -228,14 +231,15 @@ float sig_interpolate_cubic(float idx, float_array_ptr table,
 }
 
 // TODO: Unit tests.
-inline float sig_filter_mean(float_array_ptr values, size_t length) {
+extern inline float sig_filter_mean(float_array_ptr values,
+    size_t length) {
     float sum = sig_sum(values, length);
     return sum / (float) length;
 }
 
 // TODO: Unit tests.
-inline float sig_filter_meanExcludeMinMax(float_array_ptr values,
-    size_t length) {
+extern inline float sig_filter_meanExcludeMinMax(
+    float_array_ptr values, size_t length) {
     if (length < 1) {
         return 0.0f;
     } else if (length < 3) {
@@ -250,61 +254,64 @@ inline float sig_filter_meanExcludeMinMax(float_array_ptr values,
 }
 
 // TODO: Unit tests.
-inline float sig_filter_ema(float current, float previous, float a) {
+extern inline float sig_filter_ema(float current, float previous,
+    float a) {
     return (a * current) + (1 - a) * previous;
 }
 
-inline float sig_filter_onepole(float current, float previous, float b0,
-    float a1) {
+extern inline float sig_filter_onepole(float current,
+    float previous, float b0, float a1) {
     return b0 * current - a1 * previous;
 }
 
-inline float sig_filter_onepole_HPF_calculateA1(
+extern inline float sig_filter_onepole_HPF_calculateA1(
     float frequency, float sampleRate) {
     float fc = frequency / sampleRate;
     return -expf(-2.0f * sig_PI * (0.5f - fc));
 }
 
-inline float sig_filter_onepole_HPF_calculateB0(float a1) {
+extern inline float sig_filter_onepole_HPF_calculateB0(float a1) {
     return 1.0f + a1;
 }
 
-inline float sig_filter_onepole_LPF_calculateA1(
+extern inline float sig_filter_onepole_LPF_calculateA1(
     float frequency, float sampleRate) {
     float fc = frequency / sampleRate;
     return expf(-2.0f * sig_PI * fc);
 }
 
-inline float sig_filter_onepole_LPF_calculateB0(float a1) {
+extern inline float sig_filter_onepole_LPF_calculateB0(float a1) {
     return 1.0f - a1;
 }
 
-inline float sig_filter_smooth(float current, float previous, float coeff) {
+extern inline float sig_filter_smooth(float current,
+    float previous, float coeff) {
     return current + coeff * (previous - current);
 }
 
-inline float sig_filter_smooth_calculateCoefficient(float time,
-    float sampleRate) {
+extern inline float sig_filter_smooth_calculateCoefficient(
+    float time, float sampleRate) {
     return expf(sig_LOG0_001 / (time * sampleRate));
 }
 
-inline float sig_filter_dcBlock(float current, float previousInput,
-    float previousOutput, float r) {
+extern inline float sig_filter_dcBlock(float current,
+    float previousInput, float previousOutput, float r) {
     return current - previousInput + r * previousOutput;
 }
 
-inline float sig_filter_dcBlock_calculateCoefficient(float frequency,
-    float sampleRate) {
+extern inline float sig_filter_dcBlock_calculateCoefficient(
+    float frequency, float sampleRate) {
     return 1.0f - (sig_TWOPI * frequency / sampleRate);
 }
 
-void sig_filter_Smooth_init(struct sig_filter_Smooth* self, float coeff) {
+void sig_filter_Smooth_init(struct sig_filter_Smooth* self,
+    float coeff) {
     self->coeff = coeff;
     self->previous = 0;
 }
 
-inline float sig_filter_Smooth_generate(struct sig_filter_Smooth* self,
-    float value) {
+extern inline float sig_filter_Smooth_generate(
+    struct sig_filter_Smooth* self, float value) {
     float smoothed = sig_filter_smooth(value, self->previous, self->coeff);
     self->previous = smoothed;
 
@@ -318,8 +325,8 @@ void sig_filter_DCBlock_init(struct sig_filter_DCBlock* self,
     self->previousOutput = 0.0f;
 }
 
-inline float sig_filter_DCBlock_generate(struct sig_filter_DCBlock* self,
-    float value) {
+extern inline float sig_filter_DCBlock_generate(
+    struct sig_filter_DCBlock* self, float value) {
     float output = sig_filter_dcBlock(value,
         self->previousInput, self->previousOutput, self->r);
     self->previousInput = value;
@@ -364,16 +371,16 @@ void sig_osc_Oscillator_init(struct sig_osc_Oscillator* self) {
     self->phaseAccumulator = 0.0f;
 }
 
-inline float sig_osc_Oscillator_eoc(float phase) {
+extern inline float sig_osc_Oscillator_eoc(float phase) {
     return phase < 0.0f || phase > 1.0f ? 1.0f : 0.0f;
 }
 
-inline float sig_osc_Oscillator_wrapPhase(float phase) {
+extern inline float sig_osc_Oscillator_wrapPhase(float phase) {
     return sig_flooredfmodf(phase, 1.0f);
 }
 
-inline void sig_osc_Oscillator_accumulatePhase(float* phaseAccumulator,
-    float frequency, float sampleRate) {
+extern inline void sig_osc_Oscillator_accumulatePhase(
+    float* phaseAccumulator, float frequency, float sampleRate) {
     float phaseStep = frequency / sampleRate;
     float phase = *phaseAccumulator + phaseStep;
 
@@ -386,8 +393,9 @@ void sig_osc_Wavetable_init(struct sig_osc_Wavetable* self,
     self->wavetable = wavetable;
 }
 
-inline float sig_osc_Wavetable_generate(struct sig_osc_Wavetable* self,
-    float frequency, float phaseOffset, float sampleRate, float* eocOut) {
+extern inline float sig_osc_Wavetable_generate(
+    struct sig_osc_Wavetable* self, float frequency,
+    float phaseOffset, float sampleRate, float* eocOut) {
     float modulatedPhase = self->phaseAccumulator + phaseOffset;
     *eocOut = sig_osc_Oscillator_eoc(modulatedPhase);
     modulatedPhase = sig_osc_Oscillator_wrapPhase(modulatedPhase);
@@ -406,9 +414,10 @@ void sig_osc_WavetableBank_init(struct sig_osc_WavetableBank* self,
     self->wavetables = wavetables;
 }
 
-inline float sig_osc_WavetableBank_generate(struct sig_osc_WavetableBank* self,
-    float frequency, float phaseOffset, float tableIndex, float sampleRate,
-    float* eocOut) {
+extern inline float sig_osc_WavetableBank_generate(
+    struct sig_osc_WavetableBank* self,
+    float frequency, float phaseOffset, float tableIndex,
+    float sampleRate, float* eocOut) {
         // TODO: Precompute this.
         float lastWaveTableIdx = (float) (self->wavetables->length - 1);
         // TODO: Reduce duplication with sig_osc_Wavetable
@@ -433,17 +442,17 @@ void sig_osc_FastLFSine_init(struct sig_osc_FastLFSine* self,
     sig_osc_FastLFSine_setFrequency(self, 1.0f);
 }
 
-inline void sig_osc_FastLFSine_setFrequency(struct sig_osc_FastLFSine* self,
-    float frequency) {
+extern inline void sig_osc_FastLFSine_setFrequency(
+    struct sig_osc_FastLFSine* self, float frequency) {
     self->f = 2.0f * sinf(sig_PI * frequency / self->sampleRate);
 }
 
-inline void sig_osc_FastLFSine_setFrequencyFast(struct sig_osc_FastLFSine* self,
-    float frequency) {
+extern inline void sig_osc_FastLFSine_setFrequencyFast(
+    struct sig_osc_FastLFSine* self, float frequency) {
     self->f = sig_TWOPI * frequency / self->sampleRate;
 }
 
-inline void sig_osc_FastLFSine_generate(struct sig_osc_FastLFSine* self) {
+extern inline void sig_osc_FastLFSine_generate(struct sig_osc_FastLFSine* self) {
     // TODO: Oversample for stability at higher frequencies.
     // Depending on the Q setting, but stability is roughly 1/6
     // of the sample rate.
@@ -498,8 +507,8 @@ void sig_Status_reset(struct sig_Status* status) {
     status->result = SIG_RESULT_NONE;
 }
 
-inline void sig_Status_reportResult(struct sig_Status* status,
-    enum sig_Result result) {
+extern inline void sig_Status_reportResult(
+    struct sig_Status* status, enum sig_Result result) {
     if (status != NULL) {
         status->result = result;
     }
@@ -519,7 +528,8 @@ struct sig_List* sig_List_new(struct sig_Allocator* allocator,
 }
 
 // TODO: Unit tests.
-void sig_List_init(struct sig_List* self, void** items, size_t capacity) {
+void sig_List_init(struct sig_List* self, void** items,
+    size_t capacity) {
     self->items = items;
     self->length = 0;
     self->capacity = capacity;
@@ -572,7 +582,8 @@ void sig_List_append(struct sig_List* self, void* item,
 }
 
 // TODO: Unit tests.
-void* sig_List_pop(struct sig_List* self, struct sig_Status* status) {
+void* sig_List_pop(struct sig_List* self,
+    struct sig_Status* status) {
     if (self->length < 1) {
         sig_Status_reportResult(status, SIG_ERROR_INDEX_OUT_OF_BOUNDS);
         return NULL;
@@ -624,7 +635,6 @@ void sig_List_destroy(struct sig_Allocator* allocator,
 
 struct sig_AudioSettings* sig_AudioSettings_new(
     struct sig_Allocator* allocator) {
-
     struct sig_AudioSettings* settings =
         (struct sig_AudioSettings*)allocator->impl->malloc(
             allocator, sizeof(struct sig_AudioSettings));
@@ -644,7 +654,8 @@ void sig_AudioSettings_destroy(struct sig_Allocator* allocator,
 
 
 struct sig_SignalContext* sig_SignalContext_new(
-    struct sig_Allocator* allocator, struct sig_AudioSettings* audioSettings) {
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings) {
     struct sig_SignalContext* self = sig_MALLOC(allocator,
         struct sig_SignalContext);
 
@@ -736,7 +747,8 @@ void sig_Buffer_fill(struct sig_Buffer* self,
     sig_fill(self->samples, self->length, filler);
 }
 
-void sig_Buffer_fillWithValue(struct sig_Buffer* self, float value) {
+void sig_Buffer_fillWithValue(struct sig_Buffer* self,
+    float value) {
     sig_fillWithValue(self->samples, self->length, value);
 }
 
@@ -769,7 +781,8 @@ float sig_Buffer_readLinear(struct sig_Buffer* self, float idx) {
     return sig_interpolate_linear(idx, self->samples, self->length);
 }
 
-inline float sig_Buffer_readLinearAtPhase(struct sig_Buffer* self,
+extern inline float sig_Buffer_readLinearAtPhase(
+    struct sig_Buffer* self,
     float phase) {
     size_t tableLength = self->length;
     float tableIdx = phase * tableLength;
@@ -781,7 +794,8 @@ float sig_Buffer_readCubic(struct sig_Buffer* self, float idx) {
     return sig_interpolate_cubic(idx, self->samples, self->length);
 }
 
-void sig_Buffer_destroy(struct sig_Allocator* allocator, struct sig_Buffer* self) {
+void sig_Buffer_destroy(struct sig_Allocator* allocator,
+    struct sig_Buffer* self) {
     allocator->impl->free(allocator, self->samples);
     allocator->impl->free(allocator, self);
 };
@@ -813,7 +827,8 @@ void sig_BufferView_destroy(struct sig_Allocator* allocator,
 }
 
 
-struct sig_WavetableBank* sig_WavetableBank_new(struct sig_Allocator* allocator,
+struct sig_WavetableBank* sig_WavetableBank_new(
+    struct sig_Allocator* allocator,
     size_t numTables, size_t tableLength) {
     struct sig_WavetableBank* self = sig_MALLOC(allocator,
         struct sig_WavetableBank);
@@ -829,7 +844,8 @@ struct sig_WavetableBank* sig_WavetableBank_new(struct sig_Allocator* allocator,
     return self;
 }
 
-inline float sig_WavetableBank_readLinearAtPhase(struct sig_WavetableBank* self,
+extern inline float sig_WavetableBank_readLinearAtPhase(
+    struct sig_WavetableBank* self,
     float tableIdx, float phase) {
         int32_t tableIdxIntegral = (int32_t) tableIdx;
         float tableIdxFractional = tableIdx - (float) tableIdxIntegral;
@@ -867,7 +883,8 @@ struct sig_DelayLine* sig_DelayLine_new(struct sig_Allocator* allocator,
     return self;
 }
 
-struct sig_DelayLine* sig_DelayLine_newSeconds(struct sig_Allocator* allocator,
+struct sig_DelayLine* sig_DelayLine_newSeconds(
+    struct sig_Allocator* allocator,
     struct sig_AudioSettings* audioSettings, float maxDelaySecs) {
     size_t maxDelayLength = (size_t) roundf(
         maxDelaySecs * audioSettings->sampleRate);
@@ -889,13 +906,14 @@ void sig_DelayLine_init(struct sig_DelayLine* self) {
     sig_Buffer_fillWithSilence(self->buffer); // Zero the delay line.
 }
 
-inline float sig_DelayLine_readAt(struct sig_DelayLine* self, size_t readPos) {
+extern inline float sig_DelayLine_readAt(
+    struct sig_DelayLine* self, size_t readPos) {
     size_t idx = (self->writeIdx + readPos) % self->buffer->length;
     return FLOAT_ARRAY(self->buffer->samples)[idx];
 }
 
-inline float sig_DelayLine_linearReadAt(struct sig_DelayLine* self,
-    float readPos) {
+extern inline float sig_DelayLine_linearReadAt(
+    struct sig_DelayLine* self, float readPos) {
     size_t maxDelayLength = self->buffer->length;
     float* delayLineSamples = self->buffer->samples;
     int32_t integ = (int32_t) readPos;
@@ -906,8 +924,8 @@ inline float sig_DelayLine_linearReadAt(struct sig_DelayLine* self,
     return a + (b - a) * frac;
 }
 
-inline float sig_DelayLine_cubicReadAt(struct sig_DelayLine* self,
-    float readPos) {
+extern inline float sig_DelayLine_cubicReadAt(
+    struct sig_DelayLine* self, float readPos) {
     size_t maxDelayLength = self->buffer->length;
     float* delayLineSamples = self->buffer->samples;
 
@@ -927,8 +945,9 @@ inline float sig_DelayLine_cubicReadAt(struct sig_DelayLine* self,
     return (((a * frac) - bNeg) * frac + c) * frac + x0;
 }
 
-inline float sig_DelayLine_allpassReadAt(struct sig_DelayLine* self,
-    float readPos, float previousSample) {
+extern inline float sig_DelayLine_allpassReadAt(
+    struct sig_DelayLine* self, float readPos,
+    float previousSample) {
     size_t maxDelayLength = self->buffer->length;
     float* delayLineSamples = self->buffer->samples;
     int32_t integ = (int32_t) readPos;
@@ -940,8 +959,8 @@ inline float sig_DelayLine_allpassReadAt(struct sig_DelayLine* self,
     return b + invFrac * a - invFrac * previousSample;
 }
 
-#define sig_DelayLine_readAtTime_IMPL(self, source, tapTime, sampleRate,\
-    readFn)\
+#define sig_DelayLine_readAtTime_IMPL(self, source, tapTime,\
+    sampleRate, readFn)\
     float sample;\
     if (tapTime <= 0.0f) {\
         sample = source;\
@@ -955,26 +974,30 @@ inline float sig_DelayLine_allpassReadAt(struct sig_DelayLine* self,
     }\
     return sample
 
-inline float sig_DelayLine_readAtTime(struct sig_DelayLine* self, float source,
+extern inline float sig_DelayLine_readAtTime(
+    struct sig_DelayLine* self, float source,
     float tapTime, float sampleRate) {
     sig_DelayLine_readAtTime_IMPL(self, source, tapTime, sampleRate,
         sig_DelayLine_readAt);
 }
 
-inline float sig_DelayLine_linearReadAtTime(struct sig_DelayLine* self,
-    float source, float tapTime, float sampleRate) {
+extern inline float sig_DelayLine_linearReadAtTime(
+    struct sig_DelayLine* self, float source, float tapTime,
+    float sampleRate) {
     sig_DelayLine_readAtTime_IMPL(self, source, tapTime, sampleRate,
         sig_DelayLine_linearReadAt);
 }
 
-inline float sig_DelayLine_cubicReadAtTime(struct sig_DelayLine* self,
-    float source, float tapTime, float sampleRate) {
+extern inline float sig_DelayLine_cubicReadAtTime(
+    struct sig_DelayLine* self, float source, float tapTime,
+    float sampleRate) {
     sig_DelayLine_readAtTime_IMPL(self, source, tapTime, sampleRate,
         sig_DelayLine_cubicReadAt);
 }
 
-inline float sig_DelayLine_allpassReadAtTime(struct sig_DelayLine* self,
-    float source, float tapTime, float sampleRate, float previousSample) {
+extern inline float sig_DelayLine_allpassReadAtTime(
+    struct sig_DelayLine* self, float source, float tapTime,
+    float sampleRate, float previousSample) {
     // TODO: Cut and pasted from the sig_DelayLine_readAtTime_IMPL macro above.
     float sample;
     if (tapTime <= 0.0f) {
@@ -991,8 +1014,8 @@ inline float sig_DelayLine_allpassReadAtTime(struct sig_DelayLine* self,
     return sample;
 }
 
-#define sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes, tapGains,\
-    numTaps, sampleRate, timeScale, readFn)\
+#define sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,\
+    tapGains, numTaps, sampleRate, timeScale, readFn)\
     float tapSum = 0;\
     for (size_t i = 0; i < numTaps; i++) {\
         float tapTime = FLOAT_ARRAY(tapTimes)[i];\
@@ -1013,34 +1036,39 @@ inline float sig_DelayLine_allpassReadAtTime(struct sig_DelayLine* self,
     }\
     return tapSum
 
-inline float sig_DelayLine_readAtTimes(struct sig_DelayLine* self,
-    float source, float_array_ptr tapTimes, float_array_ptr tapGains,
+extern inline float sig_DelayLine_readAtTimes(
+    struct sig_DelayLine* self, float source,
+    float_array_ptr tapTimes, float_array_ptr tapGains,
     size_t numTaps, float sampleRate, float timeScale) {
     sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,
         tapGains, numTaps, sampleRate, timeScale, sig_DelayLine_readAt);
 }
 
-inline float sig_DelayLine_linearReadAtTimes(struct sig_DelayLine* self,
-    float source, float_array_ptr tapTimes, float_array_ptr tapGains,
+extern inline float sig_DelayLine_linearReadAtTimes(
+    struct sig_DelayLine* self, float source,
+    float_array_ptr tapTimes, float_array_ptr tapGains,
     size_t numTaps, float sampleRate, float timeScale) {
     sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,
         tapGains, numTaps, sampleRate, timeScale, sig_DelayLine_linearReadAt);
 }
 
-inline float sig_DelayLine_cubicReadAtTimes(struct sig_DelayLine* self,
-    float source, float_array_ptr tapTimes, float_array_ptr tapGains,
+extern inline float sig_DelayLine_cubicReadAtTimes(
+    struct sig_DelayLine* self, float source,
+    float_array_ptr tapTimes, float_array_ptr tapGains,
     size_t numTaps, float sampleRate, float timeScale) {
     sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,
         tapGains,numTaps, sampleRate, timeScale, sig_DelayLine_cubicReadAt);
 }
 
-inline void sig_DelayLine_write(struct sig_DelayLine* self, float sample) {
+extern inline void sig_DelayLine_write(struct sig_DelayLine* self,
+    float sample) {
     size_t maxDelayLength = self->buffer->length;
     FLOAT_ARRAY(self->buffer->samples)[self->writeIdx] = sample;
     self->writeIdx = (self->writeIdx - 1 + maxDelayLength) % maxDelayLength;
 }
 
-inline float sig_DelayLine_calcFeedbackGain(float delayTime, float decayTime) {
+extern inline float sig_DelayLine_calcFeedbackGain(float delayTime,
+    float decayTime) {
     // Convert 60dB time in secs to feedback gain (g) coefficient
     // (also why is the equation in Dodge and Jerse wrong?)
     if (delayTime <= 0.0f || decayTime <= 0.0f) {
@@ -1050,7 +1078,8 @@ inline float sig_DelayLine_calcFeedbackGain(float delayTime, float decayTime) {
     return expf(sig_LOG0_001 * delayTime / decayTime);
 }
 
-inline float sig_DelayLine_feedback(float sample, float read, float g) {
+extern inline float sig_DelayLine_feedback(float sample,
+    float read, float g) {
     return sample + (g * read);
 }
 
@@ -1060,42 +1089,48 @@ inline float sig_DelayLine_feedback(float sample, float read, float g) {
     sig_DelayLine_write(self, toWrite); \
     return read
 
-inline float sig_DelayLine_comb(struct sig_DelayLine* self, float sample,
-    size_t readPos, float g) {
+extern inline float sig_DelayLine_comb(struct sig_DelayLine* self,
+    float sample, size_t readPos, float g) {
     sig_DelayLine_comb_IMPL(self, sample, readPos, g, sig_DelayLine_readAt);
 }
 
-inline float sig_DelayLine_linearComb(struct sig_DelayLine* self, float sample,
-    float readPos, float g) {
+extern inline float sig_DelayLine_linearComb(
+    struct sig_DelayLine* self, float sample, float readPos,
+    float g) {
     sig_DelayLine_comb_IMPL(self, sample, readPos, g,
         sig_DelayLine_linearReadAt);
 }
 
-inline float sig_DelayLine_cubicComb(struct sig_DelayLine* self, float sample,
-    float readPos, float g) {
+extern inline float sig_DelayLine_cubicComb(
+    struct sig_DelayLine* self, float sample, float readPos,
+    float g) {
     sig_DelayLine_comb_IMPL(self, sample, readPos, g,
         sig_DelayLine_cubicReadAt);
 }
 
-#define sig_DelayLine_allpass_IMPL(self, sample, readPos, g, readFn) \
+#define sig_DelayLine_allpass_IMPL(self, sample, readPos, g,\
+    readFn) \
     float read = readFn(self, readPos); \
     float toWrite = sample + (g * read); \
     sig_DelayLine_write(self, toWrite); \
     return read - (g * toWrite) \
 
-inline float sig_DelayLine_allpass(struct sig_DelayLine* self, float sample,
-    size_t readPos, float g) {
+extern inline float sig_DelayLine_allpass(
+    struct sig_DelayLine* self, float sample, size_t readPos,
+    float g) {
     sig_DelayLine_allpass_IMPL(self, sample, readPos, g, sig_DelayLine_readAt);
 }
 
-inline float sig_DelayLine_linearAllpass(struct sig_DelayLine* self,
-    float sample, float readPos, float g) {
+extern inline float sig_DelayLine_linearAllpass(
+    struct sig_DelayLine* self, float sample, float readPos,
+    float g) {
     sig_DelayLine_allpass_IMPL(self, sample, readPos, g,
         sig_DelayLine_linearReadAt);
 }
 
-inline float sig_DelayLine_cubicAllpass(struct sig_DelayLine* self,
-    float sample, float readPos, float g) {
+extern inline float sig_DelayLine_cubicAllpass(
+    struct sig_DelayLine* self, float sample, float readPos,
+    float g) {
     sig_DelayLine_allpass_IMPL(self, sample, readPos, g,
         sig_DelayLine_cubicReadAt);
 }
@@ -1106,7 +1141,8 @@ void sig_DelayLine_destroy(struct sig_Allocator* allocator,
     allocator->impl->free(allocator, self);
 }
 
-inline float sig_linearXFade(float left, float right, float mix) {
+extern inline float sig_linearXFade(float left, float right,
+    float mix) {
     float clipped = sig_clamp(mix, -1.0f, 1.0f);
     // At -1.0f, left gain should be 1.0 and right gain should be 0.0;
     // at 0.0, left and right gains should be 0.5;
@@ -1117,12 +1153,14 @@ inline float sig_linearXFade(float left, float right, float mix) {
     return sample;
 }
 
-inline float sig_sineWavefolder(float x, float gain, float factor) {
+extern inline float sig_sineWavefolder(float x, float gain,
+    float factor) {
     float sample = x + gain * sinf(factor * x);
     return sample;
 }
 
-void sig_dsp_Signal_init(void* signal, struct sig_SignalContext* context,
+void sig_dsp_Signal_init(void* signal,
+    struct sig_SignalContext* context,
     sig_dsp_generateFn generate) {
     struct sig_dsp_Signal* self = (struct sig_dsp_Signal*) signal;
 
@@ -1154,7 +1192,8 @@ void sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(
 }
 
 
-inline void sig_dsp_evaluateSignals(struct sig_List* signalList) {
+extern inline void sig_dsp_evaluateSignals(
+    struct sig_List* signalList) {
     for (size_t i = 0; i < signalList->length; i++) {
         struct sig_dsp_Signal* signal =
             (struct sig_dsp_Signal*) signalList->items[i];
@@ -1172,7 +1211,8 @@ struct sig_dsp_SignalListEvaluator* sig_dsp_SignalListEvaluator_new(
 }
 
 void sig_dsp_SignalListEvaluator_init(
-    struct sig_dsp_SignalListEvaluator* self, struct sig_List* signalList) {
+    struct sig_dsp_SignalListEvaluator* self,
+    struct sig_List* signalList) {
     self->evaluate = sig_dsp_SignalListEvaluator_evaluate;
     self->signalList = signalList;
 }
@@ -1185,12 +1225,14 @@ void sig_dsp_SignalListEvaluator_evaluate(
     sig_dsp_evaluateSignals(self->signalList);
 }
 
-void sig_dsp_SignalListEvaluator_destroy(struct sig_Allocator* allocator,
+void sig_dsp_SignalListEvaluator_destroy(
+    struct sig_Allocator* allocator,
     struct sig_dsp_SignalListEvaluator* self) {
     allocator->impl->free(allocator, self);
 }
 
-struct sig_dsp_Value* sig_dsp_Value_new(struct sig_Allocator* allocator,
+struct sig_dsp_Value* sig_dsp_Value_new(
+    struct sig_Allocator* allocator,
     struct sig_SignalContext* context) {
     struct sig_dsp_Value* self = sig_MALLOC(allocator, struct sig_dsp_Value);
     sig_dsp_Value_init(self, context);
@@ -1212,7 +1254,8 @@ void sig_dsp_Value_init(struct sig_dsp_Value* self,
     self->parameters = params;
 }
 
-void sig_dsp_Value_destroy(struct sig_Allocator* allocator, struct sig_dsp_Value* self) {
+void sig_dsp_Value_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_Value* self) {
     sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
@@ -1234,7 +1277,8 @@ void sig_dsp_Value_generate(void* signal) {
 
 
 struct sig_dsp_ConstantValue* sig_dsp_ConstantValue_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context,
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context,
     float value) {
     struct sig_dsp_ConstantValue* self = sig_MALLOC(allocator,
         struct sig_dsp_ConstantValue);
@@ -1261,7 +1305,8 @@ void sig_dsp_ConstantValue_destroy(struct sig_Allocator* allocator,
 
 
 struct sig_dsp_Abs* sig_dsp_Abs_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_Abs* self = sig_MALLOC(allocator,
         struct sig_dsp_Abs);
     sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
@@ -1297,7 +1342,8 @@ void sig_dsp_Abs_destroy(struct sig_Allocator* allocator,
 
 
 struct sig_dsp_Clamp* sig_dsp_Clamp_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_Clamp* self = sig_MALLOC(allocator,
         struct sig_dsp_Clamp);
     sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
@@ -1339,7 +1385,8 @@ void sig_dsp_Clamp_destroy(struct sig_Allocator* allocator,
 
 
 struct sig_dsp_ScaleOffset* sig_dsp_ScaleOffset_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_ScaleOffset* self = sig_MALLOC(allocator,
         struct sig_dsp_ScaleOffset);
     sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
@@ -1382,7 +1429,8 @@ void sig_dsp_ScaleOffset_destroy(struct sig_Allocator* allocator,
 
 
 struct sig_dsp_Sine* sig_dsp_Sine_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_Sine* self = sig_MALLOC(allocator,
         struct sig_dsp_Sine);
     sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
@@ -1416,8 +1464,10 @@ void sig_dsp_Sine_destroy(struct sig_Allocator* allocator,
 }
 
 
-struct sig_dsp_BinaryOp* sig_dsp_BinaryOp_new(struct sig_Allocator* allocator,
-    struct sig_SignalContext* context, sig_dsp_generateFn generate) {
+struct sig_dsp_BinaryOp* sig_dsp_BinaryOp_new(
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context,
+    sig_dsp_generateFn generate) {
     struct sig_dsp_BinaryOp* self = sig_MALLOC(allocator,
         struct sig_dsp_BinaryOp);
     sig_dsp_BinaryOp_init(self, context, generate);
@@ -1428,7 +1478,8 @@ struct sig_dsp_BinaryOp* sig_dsp_BinaryOp_new(struct sig_Allocator* allocator,
 }
 
 void sig_dsp_BinaryOp_init(struct sig_dsp_BinaryOp* self,
-    struct sig_SignalContext* context, sig_dsp_generateFn generate) {
+    struct sig_SignalContext* context,
+    sig_dsp_generateFn generate) {
     sig_dsp_Signal_init(self, context, generate);
 
     sig_CONNECT_TO_SILENCE(self, left, context);
@@ -1443,7 +1494,8 @@ void sig_dsp_BinaryOp_destroy(struct sig_Allocator* allocator,
 }
 
 struct sig_dsp_BinaryOp* sig_dsp_Add_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     return sig_dsp_BinaryOp_new(allocator, context, *sig_dsp_Add_generate);
 }
 
@@ -1473,7 +1525,8 @@ void sig_dsp_Add_destroy(struct sig_Allocator* allocator,
 
 
 struct sig_dsp_BinaryOp* sig_dsp_Sub_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     return sig_dsp_BinaryOp_new(allocator, context, *sig_dsp_Sub_generate);
 }
 
@@ -1502,7 +1555,8 @@ void sig_dsp_Sub_destroy(struct sig_Allocator* allocator,
 
 
 
-struct sig_dsp_BinaryOp* sig_dsp_Mul_new(struct sig_Allocator* allocator,
+struct sig_dsp_BinaryOp* sig_dsp_Mul_new(
+    struct sig_Allocator* allocator,
     struct sig_SignalContext* context) {
     return sig_dsp_BinaryOp_new(allocator, context, *sig_dsp_Mul_generate);
 }
@@ -1530,7 +1584,8 @@ void sig_dsp_Mul_generate(void* signal) {
 
 
 struct sig_dsp_BinaryOp* sig_dsp_Div_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     return sig_dsp_BinaryOp_new(allocator, context, *sig_dsp_Div_generate);
 }
 
@@ -1557,7 +1612,8 @@ void sig_dsp_Div_destroy(struct sig_Allocator* allocator,
 
 
 struct sig_dsp_Invert* sig_dsp_Invert_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_Invert* self = sig_MALLOC(allocator, struct sig_dsp_Invert);
     sig_dsp_Invert_init(self, context);
     sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
@@ -1591,7 +1647,8 @@ void sig_dsp_Invert_destroy(struct sig_Allocator* allocator,
 
 
 struct sig_dsp_Accumulate* sig_dsp_Accumulate_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_Accumulate* self = sig_MALLOC(allocator,
         struct sig_dsp_Accumulate);
     sig_dsp_Accumulate_init(self, context);
@@ -1661,7 +1718,8 @@ void sig_dsp_Accumulate_destroy(struct sig_Allocator* allocator,
 
 
 struct sig_dsp_GatedTimer* sig_dsp_GatedTimer_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_GatedTimer* self = sig_MALLOC(allocator,
         struct sig_dsp_GatedTimer);
     sig_dsp_GatedTimer_init(self, context);
@@ -1886,7 +1944,8 @@ void sig_dsp_Oscillator_Outputs_destroyAudioBlocks(
 }
 
 struct sig_dsp_Oscillator* sig_dsp_Oscillator_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context,
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context,
     sig_dsp_generateFn generate) {
     struct sig_dsp_Oscillator* self = sig_MALLOC(allocator,
         struct sig_dsp_Oscillator);
@@ -1904,7 +1963,8 @@ void sig_dsp_Oscillator_destroy(struct sig_Allocator* allocator,
 }
 
 void sig_dsp_Oscillator_init(struct sig_dsp_Oscillator* self,
-    struct sig_SignalContext* context, sig_dsp_generateFn generate) {
+    struct sig_SignalContext* context,
+    sig_dsp_generateFn generate) {
     sig_dsp_Signal_init(self, context, generate);
 
     sig_CONNECT_TO_SILENCE(self, freq, context);
@@ -1921,7 +1981,8 @@ void sig_dsp_SineOscillator_init(struct sig_dsp_Oscillator* self,
 }
 
 struct sig_dsp_Oscillator* sig_dsp_SineOscillator_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     return sig_dsp_Oscillator_new(allocator, context, *sig_dsp_SineOscillator_generate);
 }
 
@@ -1973,7 +2034,8 @@ void sig_dsp_FastLFSineOscillator_init(
 }
 
 struct sig_dsp_FastLFSineOscillator* sig_dsp_FastLFSineOscillator_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_FastLFSineOscillator* self = sig_MALLOC(allocator,
         struct sig_dsp_FastLFSineOscillator);
     sig_dsp_FastLFSineOscillator_init(self, context);
@@ -2000,7 +2062,8 @@ void sig_dsp_FastLFSineOscillator_generate(void* signal) {
     }
 }
 
-void sig_dsp_FastLFSineOscillator_destroy(struct sig_Allocator* allocator,
+void sig_dsp_FastLFSineOscillator_destroy(
+    struct sig_Allocator* allocator,
     struct sig_dsp_FastLFSineOscillator* self) {
     sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
         &self->outputs);
@@ -2055,7 +2118,8 @@ void sig_dsp_LFTriangle_destroy(struct sig_Allocator* allocator,
 }
 
 
-void sig_dsp_WavetableOscillator_init(struct sig_dsp_WavetableOscillator* self,
+void sig_dsp_WavetableOscillator_init(
+    struct sig_dsp_WavetableOscillator* self,
     struct sig_SignalContext* context) {
     sig_dsp_Signal_init(self, context, *sig_dsp_WavetableOscillator_generate);
 
@@ -2068,7 +2132,8 @@ void sig_dsp_WavetableOscillator_init(struct sig_dsp_WavetableOscillator* self,
 }
 
 struct sig_dsp_WavetableOscillator* sig_dsp_WavetableOscillator_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_WavetableOscillator* self = sig_MALLOC(allocator,
         struct sig_dsp_WavetableOscillator);
     sig_dsp_WavetableOscillator_init(self, context);
@@ -2102,7 +2167,8 @@ void sig_dsp_WavetableOscillator_generate(void* signal) {
     }
 }
 
-void sig_dsp_WavetableOscillator_destroy(struct sig_Allocator* allocator,
+void sig_dsp_WavetableOscillator_destroy(
+    struct sig_Allocator* allocator,
     struct sig_dsp_WavetableOscillator* self) {
     sig_dsp_Oscillator_Outputs_destroyAudioBlocks(allocator, &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
@@ -2111,7 +2177,8 @@ void sig_dsp_WavetableOscillator_destroy(struct sig_Allocator* allocator,
 
 
 
-void sig_dsp_WavetableBankOscillator_init(struct sig_dsp_WavetableBankOscillator* self,
+void sig_dsp_WavetableBankOscillator_init(
+    struct sig_dsp_WavetableBankOscillator* self,
     struct sig_SignalContext* context) {
     sig_dsp_Signal_init(self, context, *sig_dsp_WavetableBankOscillator_generate);
 
@@ -2125,7 +2192,8 @@ void sig_dsp_WavetableBankOscillator_init(struct sig_dsp_WavetableBankOscillator
 }
 
 struct sig_dsp_WavetableBankOscillator* sig_dsp_WavetableBankOscillator_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_WavetableBankOscillator* self = sig_MALLOC(allocator,
         struct sig_dsp_WavetableBankOscillator);
     sig_dsp_WavetableBankOscillator_init(self, context);
@@ -2135,7 +2203,8 @@ struct sig_dsp_WavetableBankOscillator* sig_dsp_WavetableBankOscillator_new(
     return self;
 }
 
-inline void sig_dsp_WavetableBankOscillator_generate(void* signal) {
+extern inline void sig_dsp_WavetableBankOscillator_generate(
+    void* signal) {
     struct sig_dsp_WavetableBankOscillator* self =
         (struct sig_dsp_WavetableBankOscillator*) signal;
     self->state.wavetables = self->wavetables;
@@ -2157,7 +2226,8 @@ inline void sig_dsp_WavetableBankOscillator_generate(void* signal) {
     }
 }
 
-void sig_dsp_WavetableBankOscillator_destroy(struct sig_Allocator* allocator,
+void sig_dsp_WavetableBankOscillator_destroy(
+    struct sig_Allocator* allocator,
     struct sig_dsp_WavetableBankOscillator* self) {
     sig_dsp_Oscillator_Outputs_destroyAudioBlocks(allocator, &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
@@ -2175,7 +2245,8 @@ void sig_dsp_Smooth_init(struct sig_dsp_Smooth* self,
     sig_CONNECT_TO_SILENCE(self, source, context);
 }
 
-struct sig_dsp_Smooth* sig_dsp_Smooth_new(struct sig_Allocator* allocator,
+struct sig_dsp_Smooth* sig_dsp_Smooth_new(
+    struct sig_Allocator* allocator,
     struct sig_SignalContext* context) {
     struct sig_dsp_Smooth* self = sig_MALLOC(allocator,
         struct sig_dsp_Smooth);
@@ -2228,7 +2299,8 @@ void sig_dsp_DCBlock_init(struct sig_dsp_DCBlock* self,
     sig_CONNECT_TO_SILENCE(self, source, context);
 }
 
-struct sig_dsp_DCBlock* sig_dsp_DCBlock_new(struct sig_Allocator* allocator,
+struct sig_dsp_DCBlock* sig_dsp_DCBlock_new(
+    struct sig_Allocator* allocator,
     struct sig_SignalContext* context) {
     struct sig_dsp_DCBlock* self = sig_MALLOC(allocator,
         struct sig_dsp_DCBlock);
@@ -2281,7 +2353,8 @@ void sig_dsp_OnePole_init(struct sig_dsp_OnePole* self,
     sig_CONNECT_TO_SILENCE(self, frequency, context);
 }
 
-struct sig_dsp_OnePole* sig_dsp_OnePole_new(struct sig_Allocator* allocator,
+struct sig_dsp_OnePole* sig_dsp_OnePole_new(
+    struct sig_Allocator* allocator,
     struct sig_SignalContext* context) {
     struct sig_dsp_OnePole* self = sig_MALLOC(allocator,
         struct sig_dsp_OnePole);
@@ -2292,7 +2365,7 @@ struct sig_dsp_OnePole* sig_dsp_OnePole_new(struct sig_Allocator* allocator,
     return self;
 }
 
-inline void sig_dsp_OnePole_recalculateCoefficients(
+extern inline void sig_dsp_OnePole_recalculateCoefficients(
     struct sig_dsp_OnePole* self, float frequency) {
     float sampleRate = self->signal.audioSettings->sampleRate;
     enum sig_dsp_OnePole_Mode mode = self->parameters.mode;
@@ -2348,7 +2421,8 @@ void sig_dsp_EMA_init(struct sig_dsp_EMA* self,
 }
 
 struct sig_dsp_EMA* sig_dsp_EMA_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_EMA* self = sig_MALLOC(allocator,
         struct sig_dsp_EMA);
     sig_dsp_EMA_init(self, context);
@@ -2388,7 +2462,8 @@ void sig_dsp_Tanh_init(struct sig_dsp_Tanh* self,
     sig_CONNECT_TO_SILENCE(self, source, context);
 }
 
-struct sig_dsp_Tanh* sig_dsp_Tanh_new(struct sig_Allocator* allocator,
+struct sig_dsp_Tanh* sig_dsp_Tanh_new(
+    struct sig_Allocator* allocator,
     struct sig_SignalContext* context) {
     struct sig_dsp_Tanh* self = sig_MALLOC(allocator, struct sig_dsp_Tanh);
     sig_dsp_Tanh_init(self, context);
@@ -2433,7 +2508,8 @@ void sig_dsp_Dust_init(struct sig_dsp_Dust* self,
     sig_CONNECT_TO_SILENCE(self, density, context);
 }
 
-struct sig_dsp_Dust* sig_dsp_Dust_new(struct sig_Allocator* allocator,
+struct sig_dsp_Dust* sig_dsp_Dust_new(
+    struct sig_Allocator* allocator,
     struct sig_SignalContext* context) {
 
     struct sig_dsp_Dust* self = sig_MALLOC(allocator, struct sig_dsp_Dust);
@@ -2496,7 +2572,8 @@ void sig_dsp_TimedGate_init(struct sig_dsp_TimedGate* self,
 }
 
 struct sig_dsp_TimedGate* sig_dsp_TimedGate_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_TimedGate* self = sig_MALLOC(allocator,
         struct sig_dsp_TimedGate);
     sig_dsp_TimedGate_init(self, context);
@@ -2506,14 +2583,14 @@ struct sig_dsp_TimedGate* sig_dsp_TimedGate_new(
     return self;
 }
 
-static inline void sig_dsp_TimedGate_outputHigh(struct sig_dsp_TimedGate* self,
-    size_t index) {
+static inline void sig_dsp_TimedGate_outputHigh(
+    struct sig_dsp_TimedGate* self, size_t index) {
     FLOAT_ARRAY(self->outputs.main)[index] = self->gateValue;
     self->samplesRemaining--;
 }
 
-static inline void sig_dsp_TimedGate_outputLow(struct sig_dsp_TimedGate* self,
-    size_t index) {
+static inline void sig_dsp_TimedGate_outputLow(
+    struct sig_dsp_TimedGate* self, size_t index) {
     FLOAT_ARRAY(self->outputs.main)[index] = 0.0f;
 }
 
@@ -2567,7 +2644,8 @@ void sig_dsp_TimedGate_destroy(struct sig_Allocator* allocator,
 }
 
 
-struct sig_dsp_DustGate* sig_dsp_DustGate_new(struct sig_Allocator* allocator,
+struct sig_dsp_DustGate* sig_dsp_DustGate_new(
+    struct sig_Allocator* allocator,
     struct sig_SignalContext* context) {
     struct sig_dsp_DustGate* self = sig_MALLOC(allocator,
         struct sig_dsp_DustGate);
@@ -2634,8 +2712,7 @@ void sig_dsp_DustGate_destroy(struct sig_Allocator* allocator,
 }
 
 
-void sig_dsp_ClockSource_init(
-    struct sig_dsp_ClockSource* self,
+void sig_dsp_ClockSource_init(struct sig_dsp_ClockSource* self,
     struct sig_SignalContext* context) {
     sig_dsp_Signal_init(self, context, *sig_dsp_ClockSource_generate);
 
@@ -2656,7 +2733,8 @@ void sig_dsp_ClockSource_init(
 }
 
 struct sig_dsp_ClockSource* sig_dsp_ClockSource_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_ClockSource* self = sig_MALLOC(allocator,
         struct sig_dsp_ClockSource);
     sig_dsp_ClockSource_init(self, context);
@@ -2892,7 +2970,8 @@ void sig_dsp_ClockDetector_destroy(struct sig_Allocator* allocator,
 
 
 struct sig_dsp_LinearToFreq* sig_dsp_LinearToFreq_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_LinearToFreq* self = sig_MALLOC(allocator,
         struct sig_dsp_LinearToFreq);
     sig_dsp_LinearToFreq_init(self, context);
@@ -2930,7 +3009,8 @@ void sig_dsp_LinearToFreq_destroy(struct sig_Allocator* allocator,
 
 
 struct sig_dsp_Branch* sig_dsp_Branch_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_Branch* self = sig_MALLOC(allocator, struct sig_dsp_Branch);
     sig_dsp_Branch_init(self, context);
     sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
@@ -2975,7 +3055,8 @@ void sig_dsp_List_Outputs_newAudioBlocks(struct sig_Allocator* allocator,
     outputs->length = sig_AudioBlock_newSilent(allocator, audioSettings);
 }
 
-void sig_dsp_List_Outputs_destroyAudioBlocks(struct sig_Allocator* allocator,
+void sig_dsp_List_Outputs_destroyAudioBlocks(
+    struct sig_Allocator* allocator,
     struct sig_dsp_List_Outputs* outputs) {
     sig_AudioBlock_destroy(allocator, outputs->main);
     sig_AudioBlock_destroy(allocator, outputs->index);
@@ -2983,7 +3064,8 @@ void sig_dsp_List_Outputs_destroyAudioBlocks(struct sig_Allocator* allocator,
 }
 
 struct sig_dsp_List* sig_dsp_List_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_List* self = sig_MALLOC(allocator, struct sig_dsp_List);
     sig_dsp_List_init(self, context);
     sig_dsp_List_Outputs_newAudioBlocks(allocator,
@@ -3001,8 +3083,8 @@ void sig_dsp_List_init(struct sig_dsp_List* self,
     sig_CONNECT_TO_SILENCE(self, index, context);
 }
 
-inline float sig_dsp_List_constrain(bool shouldWrap, float index,
-    float lastIndex, float listLength) {
+extern inline float sig_dsp_List_constrain(bool shouldWrap,
+    float index, float lastIndex, float listLength) {
     if (shouldWrap) {
         while (index < 0.0f) {
             index = listLength + index;
@@ -3078,7 +3160,8 @@ void sig_dsp_List_destroy(struct sig_Allocator* allocator,
 
 
 
-void sig_dsp_Sequencer_Outputs_newAudioBlocks(struct sig_Allocator* allocator,
+void sig_dsp_Sequencer_Outputs_newAudioBlocks(
+    struct sig_Allocator* allocator,
     struct sig_AudioSettings* audioSettings,
     struct sig_dsp_Sequencer_Outputs* outputs) {
     outputs->main = sig_AudioBlock_newSilent(allocator, audioSettings);
@@ -3093,7 +3176,8 @@ void sig_dsp_Sequencer_Outputs_destroyAudioBlocks(
 }
 
 struct sig_dsp_Sequencer* sig_dsp_Sequencer_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_Sequencer* self = sig_MALLOC(allocator,
         struct sig_dsp_Sequencer);
 
@@ -3118,7 +3202,8 @@ void sig_dsp_Sequencer_init(struct sig_dsp_Sequencer* self,
     sig_CONNECT_TO_SILENCE(self, add, context);
 }
 
-inline float sig_dsp_Sequencer_startStage(struct sig_dsp_Sequencer* self) {
+extern inline float sig_dsp_Sequencer_startStage(
+    struct sig_dsp_Sequencer* self) {
     float duration = FLOAT_ARRAY(self->durations->samples)[self->stepIndex];
     self->samplesRemaining = (size_t) floor(duration *
         self->signal.audioSettings->sampleRate);
@@ -3182,7 +3267,8 @@ void sig_dsp_Sequencer_destroy(struct sig_Allocator* allocator,
 
 
 struct sig_dsp_LinearMap* sig_dsp_LinearMap_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_LinearMap* self = sig_MALLOC(allocator,
         struct sig_dsp_LinearMap);
     sig_dsp_LinearMap_init(self, context);
@@ -3247,7 +3333,8 @@ void sig_dsp_TwoOpFM_Outputs_destroyAudioBlocks(
     outputs->modulatorEOC = NULL;
 }
 
-struct sig_dsp_TwoOpFM* sig_dsp_TwoOpFM_new(struct sig_Allocator* allocator,
+struct sig_dsp_TwoOpFM* sig_dsp_TwoOpFM_new(
+    struct sig_Allocator* allocator,
     struct sig_SignalContext* context) {
     struct sig_dsp_TwoOpFM* self = sig_MALLOC(allocator,
         struct sig_dsp_TwoOpFM);
@@ -3344,7 +3431,8 @@ void sig_dsp_FourPoleFilter_Outputs_destroyAudioBlocks(
 
 
 struct sig_dsp_Ladder* sig_dsp_Ladder_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_Ladder* self = sig_MALLOC(allocator,
         struct sig_dsp_Ladder);
     sig_dsp_Ladder_init(self, context);
@@ -3386,7 +3474,7 @@ void sig_dsp_Ladder_init(
     sig_CONNECT_TO_UNITY(self, pole4Gain, context);
 }
 
-inline void sig_dsp_Ladder_calcCoefficients(
+extern inline void sig_dsp_Ladder_calcCoefficients(
     struct sig_dsp_Ladder* self, float freq) {
     float sampleRate = self->signal.audioSettings->sampleRate;
     freq = sig_clamp(freq, 5.0f, sampleRate * 0.425f);
@@ -3398,7 +3486,7 @@ inline void sig_dsp_Ladder_calcCoefficients(
     self->qAdjust = 1.006f + 0.0536f * wc - 0.095f * wc2 - 0.05f * wc2 * wc2;
 }
 
-inline float sig_dsp_Ladder_calcStage(
+extern inline float sig_dsp_Ladder_calcStage(
     struct sig_dsp_Ladder* self, float s, uint8_t i) {
     float ft = s * (1.0f/1.3f) + (0.3f/1.3f) * self->z0[i] - self->z1[i];
     ft = ft * self->alpha + self->z1[i];
@@ -3465,7 +3553,8 @@ void sig_dsp_Ladder_destroy(struct sig_Allocator* allocator,
 
 
 struct sig_dsp_TiltEQ* sig_dsp_TiltEQ_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_TiltEQ* self = sig_MALLOC(allocator,
         struct sig_dsp_TiltEQ);
     sig_dsp_TiltEQ_init(self, context);
@@ -3533,7 +3622,8 @@ void sig_dsp_TiltEQ_destroy(struct sig_Allocator* allocator,
 
 
 struct sig_dsp_Delay* sig_dsp_Delay_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_Delay* self = sig_MALLOC(allocator, struct sig_dsp_Delay);
     // TODO: Improve buffer management throughout Signaletic.
     self->delayLine = context->oneSampleDelayLine;
@@ -3552,8 +3642,8 @@ void sig_dsp_Delay_init(struct sig_dsp_Delay* self,
     sig_CONNECT_TO_SILENCE(self, delayTime, context);
 }
 
-inline void sig_dsp_Delay_read(struct sig_dsp_Delay* self, float source,
-    size_t i) {
+extern inline void sig_dsp_Delay_read(struct sig_dsp_Delay* self,
+    float source, size_t i) {
     float delayTime = FLOAT_ARRAY(self->inputs.delayTime)[i];
 
     FLOAT_ARRAY(self->outputs.main)[i] = sig_DelayLine_cubicReadAtTime(
@@ -3584,7 +3674,8 @@ void sig_dsp_Delay_destroy(struct sig_Allocator* allocator,
 
 
 struct sig_dsp_Delay* sig_dsp_DelayTap_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     // TODO: Copy-pasted from sig_dsp_Delay but we have a different
     // initialization function we need to call here. Seems like it's time to
     // decompose Signals into more function pointers!
@@ -3623,7 +3714,8 @@ void sig_dsp_DelayTap_destroy(struct sig_Allocator* allocator,
 
 
 struct sig_dsp_DelayWrite* sig_dsp_DelayWrite_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_DelayWrite* self = sig_MALLOC(allocator,
         struct sig_dsp_DelayWrite);
     // TODO: Improve buffer management throughout Signaletic.
@@ -3665,7 +3757,8 @@ void sig_dsp_DelayWrite_destroy(struct sig_Allocator* allocator,
 
 // TODO: Resolve duplication with sig_dsp_Delay
 struct sig_dsp_Comb* sig_dsp_Comb_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_Comb* self = sig_MALLOC(allocator, struct sig_dsp_Comb);
      // TODO: Improve buffer management throughout Signaletic.
     self->delayLine = context->oneSampleDelayLine;
@@ -3726,7 +3819,8 @@ void sig_dsp_Comb_destroy(struct sig_Allocator* allocator,
 
 // TODO: Resolve duplication with sig_dsp_Delay and Comb
 struct sig_dsp_Allpass* sig_dsp_Allpass_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_Allpass* self = sig_MALLOC(allocator,
         struct sig_dsp_Allpass);
      // TODO: Improve buffer management throughout Signaletic.
@@ -3795,7 +3889,8 @@ void sig_dsp_Chorus_Outputs_destroyAudioBlocks(
 }
 
 struct sig_dsp_Chorus* sig_dsp_Chorus_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_Chorus* self = sig_MALLOC(allocator,
         struct sig_dsp_Chorus);
      // TODO: Improve buffer management throughout Signaletic.
@@ -3878,7 +3973,8 @@ void sig_dsp_Chorus_destroy(struct sig_Allocator* allocator,
 
 
 struct sig_dsp_LinearXFade* sig_dsp_LinearXFade_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_LinearXFade* self = sig_MALLOC(allocator,
         struct sig_dsp_LinearXFade);
     sig_dsp_LinearXFade_init(self, context);
@@ -3918,7 +4014,8 @@ void sig_dsp_LinearXFade_destroy(struct sig_Allocator* allocator,
 
 
 struct sig_dsp_Calibrator* sig_dsp_Calibrator_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_Calibrator* self = sig_MALLOC(allocator,
         struct sig_dsp_Calibrator);
     sig_dsp_Calibrator_init(self, context);
@@ -3928,7 +4025,7 @@ struct sig_dsp_Calibrator* sig_dsp_Calibrator_new(
     return self;
 }
 
-inline void sig_dsp_Calibrator_Node_init(
+extern inline void sig_dsp_Calibrator_Node_init(
     struct sig_dsp_Calibrator_Node* nodes,
     float_array_ptr targetValues, size_t numNodes) {
     for (size_t i = 0; i < numNodes; i++) {
@@ -3957,8 +4054,9 @@ void sig_dsp_Calibrator_init(struct sig_dsp_Calibrator* self,
     sig_CONNECT_TO_SILENCE(self, gate, context);
 }
 
-inline size_t sig_dsp_Calibrator_locateIntervalForValue(float x,
-    struct sig_dsp_Calibrator_Node* nodes, size_t numNodes) {
+extern inline size_t sig_dsp_Calibrator_locateIntervalForValue(
+    float x, struct sig_dsp_Calibrator_Node* nodes,
+    size_t numNodes) {
     size_t lastNodeIdx = numNodes - 1;
     size_t intervalEndIdx = lastNodeIdx;
     for (size_t i = 0; i < lastNodeIdx - 1; i++) {
@@ -3973,8 +4071,9 @@ inline size_t sig_dsp_Calibrator_locateIntervalForValue(float x,
     return intervalEndIdx;
 }
 
-inline float sig_dsp_Calibrator_fitValueToCalibrationData(float x,
-    struct sig_dsp_Calibrator_Node* nodes, size_t numNodes) {
+extern inline float sig_dsp_Calibrator_fitValueToCalibrationData(
+    float x, struct sig_dsp_Calibrator_Node* nodes,
+    size_t numNodes) {
         // Calibrate using piecewise linear fit from
         // readings sampled at 0.0, 1.0, 2.0, 3.0, 4.0 and 4.75V.
         // The ADC tops out slightly before 5 volts,
@@ -4047,7 +4146,8 @@ void sig_dsp_Calibrator_destroy(struct sig_Allocator* allocator,
 }
 
 struct sig_dsp_SineWavefolder* sig_dsp_SineWavefolder_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_SineWavefolder* self = sig_MALLOC(allocator,
         struct sig_dsp_SineWavefolder);
     sig_dsp_SineWavefolder_init(self, context);
@@ -4057,7 +4157,8 @@ struct sig_dsp_SineWavefolder* sig_dsp_SineWavefolder_new(
     return self;
 }
 
-void sig_dsp_SineWavefolder_init(struct sig_dsp_SineWavefolder* self,
+void sig_dsp_SineWavefolder_init(
+    struct sig_dsp_SineWavefolder* self,
     struct sig_SignalContext* context) {
     sig_dsp_Signal_init(self, context, *sig_dsp_SineWavefolder_generate);
 
@@ -4090,7 +4191,8 @@ void sig_dsp_SineWavefolder_destroy(struct sig_Allocator* allocator,
 
 
 struct sig_dsp_NoiseGate* sig_dsp_NoiseGate_new(
-    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
     struct sig_dsp_NoiseGate* self = sig_MALLOC(allocator,
         struct sig_dsp_NoiseGate);
     sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
