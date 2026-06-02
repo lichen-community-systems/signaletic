@@ -78,8 +78,19 @@ float sig_fmaxf(float a, float b);
 float sig_clamp(float value, float min, float max);
 
 /**
+ * @brief Computes the fractional part of a value,
+ * wrapped to the range 0.0-1.0.
+ * This is useful as a faster alternative to sig_flooredfmodf
+ * for phase normalization.
+ *
+ * @param x the input value
+ * @return float the wrapped fractional part
+ */
+float sig_fastMod1f(float x);
+
+/**
  * @brief Computes the remainder of the floored division of two arguments.
- * This is useful when implementing "through zero" wrap arounds.
+ * This is useful when implementing through zero wrap arounds.
  * See https://en.wikipedia.org/wiki/Modulo#Variants_of_the_definition
  * for more information.
  *
@@ -90,11 +101,19 @@ float sig_clamp(float value, float min, float max);
 float sig_flooredfmodf(float num, float denom);
 
 /**
- * Generates a random float between 0.0 and 1.0.
+ * Generates a random float between 0.0 and 1.0
+ * using the global default xoshiro128+ generator.
  *
  * @return a random value
  */
 float sig_randf(void);
+
+/**
+ * @brief Seeds the global default generator used by sig_randf.
+ *
+ * @param seed the seed value
+ */
+void sig_randf_seed(uint32_t seed);
 
 /**
  * @brief A fast tanh approximation
@@ -796,6 +815,71 @@ void sig_TLSFAllocator_free(struct sig_Allocator* allocator,
  * Matt Conte's TLSF library.
  */
 extern struct sig_AllocatorImpl sig_TLSFAllocatorImpl;
+
+
+/**
+ * @brief An xoshiro128+-based pseudo-random number generator.
+ *
+ * xoshiro128+ 1.0 by David Blackman and
+ * Sebastiano Vigna (public domain, https://prng.di.unimi.it/).
+ */
+struct sig_Random {
+    uint32_t seed;
+    uint32_t state[4];
+};
+
+/**
+ * @brief Allocates and initializes a new random number generator,
+ * seeded with the specified value.
+ *
+ * @param allocator the allocator to use
+ * @param seed the seed value
+ * @return a pointer to the new generator
+ */
+struct sig_Random* sig_Random_new(struct sig_Allocator* allocator,
+    uint32_t seed);
+
+/**
+ * @brief Initializes a random number generator and seeds it.
+ *
+ * @param self the generator to initialize
+ * @param seed the seed value
+ */
+void sig_Random_init(struct sig_Random* self, uint32_t seed);
+
+/**
+ * @brief Seeds the generator's state.
+ *
+ * @param self the generator to seed
+ * @param seed the seed value
+ */
+void sig_Random_seed(struct sig_Random* self, uint32_t seed);
+
+/**
+ * @brief Generates the next 32-bit unsisgned integer
+ * in the sequence.
+ *
+ * @param self the generator
+ * @return a pseudo-random 32-bit unsigned integer
+ */
+uint32_t sig_Random_next(struct sig_Random* self);
+
+/**
+ * @brief Generates a random float between 0.0 and 1.0 exclusive.
+ *
+ * @param self the generator
+ * @return a pseudo-random float
+ */
+float sig_Random_generate(struct sig_Random* self);
+
+/**
+ * @brief Destroys the random number generator.
+ *
+ * @param allocator the allocator to use
+ * @param self the generator to destroy
+ */
+void sig_Random_destroy(struct sig_Allocator* allocator,
+    struct sig_Random* self);
 
 
 enum sig_Result {

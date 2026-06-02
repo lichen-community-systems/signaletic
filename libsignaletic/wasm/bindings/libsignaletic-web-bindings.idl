@@ -9,6 +9,12 @@ interface sig_Status {
     attribute sig_Result result;
 };
 
+// The sig_Random state array is not exposed as an attribute because
+// the WebIDL binder cannot marshal fixed C array members.
+interface sig_Random {
+    attribute unsigned long seed;
+};
+
 interface sig_AudioSettings {
     attribute float sampleRate;
     attribute unsigned long numChannels;
@@ -1211,7 +1217,17 @@ interface Signaletic {
     float fmaxf(float a, float b);
     float clamp(float value, float min, float max);
     float flooredfmodf(float num, float denom);
+    float fastMod1f(float x);
     float randf();
+    void randf_seed(unsigned long seed);
+
+    sig_Random Random_new(sig_Allocator allocator, unsigned long seed);
+    void Random_init(sig_Random random, unsigned long seed);
+    void Random_seed(sig_Random random, unsigned long seed);
+    unsigned long Random_next(sig_Random random);
+    float Random_generate(sig_Random random);
+    void Random_destroy(sig_Allocator allocator, sig_Random random);
+
     float fastTanhf(float x);
     float linearMap(float value, float fromMin, float fromMax, float toMin,
         float toMax);

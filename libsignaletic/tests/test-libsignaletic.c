@@ -41,6 +41,48 @@ void tearDown(void) {
     sig_SignalContext_destroy(&allocator, context);
 }
 
+void test_sig_flooredfmodf(void) {
+    TEST_ASSERT_EQUAL_FLOAT(0.7f, sig_flooredfmodf(-0.3f, 1.0f));
+    TEST_ASSERT_EQUAL_FLOAT(0.5f, sig_flooredfmodf(-1.5f, 1.0f));
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, sig_flooredfmodf(-2.0f, 1.0f));
+    TEST_ASSERT_EQUAL_FLOAT(0.3f, sig_flooredfmodf(0.3f, 1.0f));
+    TEST_ASSERT_EQUAL_FLOAT(0.8f, sig_flooredfmodf(1.8f, 1.0f));
+}
+
+void test_sig_fastMod1f(void) {
+    TEST_ASSERT_EQUAL_FLOAT(0.7f, sig_fastMod1f(-0.3f));
+    TEST_ASSERT_EQUAL_FLOAT(0.5f, sig_fastMod1f(-1.5f));
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, sig_fastMod1f(-2.0f));
+    TEST_ASSERT_EQUAL_FLOAT(0.3f, sig_fastMod1f(0.3f));
+    TEST_ASSERT_EQUAL_FLOAT(0.8f, sig_fastMod1f(1.8f));
+}
+
+void test_sig_clamp(void) {
+    // Value within range.
+    TEST_ASSERT_EQUAL_FLOAT(0.5f, sig_clamp(0.5f, -1.0f, 1.0f));
+
+    // Too small.
+    TEST_ASSERT_EQUAL_FLOAT(-1.0f, sig_clamp(-2.0f, -1.0f, 1.0f));
+
+    // Too big.
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, sig_clamp(2.0f, -1.0f, 1.0f));
+
+    // Equal to min.
+    TEST_ASSERT_EQUAL_FLOAT(-1.0f, sig_clamp(-1.0f, -1.0f, 1.0f));
+
+    // Equal to max.
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, sig_clamp(1.0f, -1.0f, 1.0f));
+
+    // Negative range
+    TEST_ASSERT_EQUAL_FLOAT(-0.5f, sig_clamp(-0.5f, -1.0f, 0.0f));
+
+    // Negative value in a positive-only range
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, sig_clamp(-0.5f, 0.0f, 1.0f));
+
+    // Min equals max.
+    TEST_ASSERT_EQUAL_FLOAT(3.0f, sig_clamp(100.0f, 3.0f, 3.0f));
+}
+
 void test_sig_unipolarToUint12(void) {
     TEST_ASSERT_EQUAL_UINT16(2047, sig_unipolarToUint12(0.5f));
     TEST_ASSERT_EQUAL_UINT16(0, sig_unipolarToUint12(0.0f));
@@ -86,13 +128,135 @@ void test_sig_randf(void) {
         numSamples);
     struct sig_Buffer* fourthRun = sig_Buffer_new(&allocator,
         numSamples);
-    srand(1);
+    sig_randf_seed(1);
     sig_Buffer_fill(thirdRun, sig_randomFill);
 
-    srand(1);
+    sig_randf_seed(1);
     sig_Buffer_fill(fourthRun, sig_randomFill);
     TEST_ASSERT_EQUAL_FLOAT_ARRAY(thirdRun->samples,
         fourthRun->samples, numSamples);
+}
+
+void test_sig_randf_seed(void) {
+    // The precomputed static state behind sig_randf must match a fresh
+    // seed of 1, so the Option B initializer can never drift out of
+    // sync with sig_Random_seed.
+    struct sig_Random expected;
+    sig_Random_seed(&expected, 1);
+
+    sig_randf_seed(1);
+    for (size_t i = 0; i < 16; i++) {
+        // Store values in local variables because
+        // Unity's TEST_ASSERT_EQUAL_FLOAT evaluates its
+        // expected argument twice.
+        float expectedValue = sig_Random_generate(&expected);
+        float actualValue = sig_randf();
+        TEST_ASSERT_EQUAL_FLOAT(expectedValue, actualValue);
+    }
+}
+
+void test_sig_Random_withinRange(void) {
+    size_t numSamples = 8192;
+    struct sig_Random rng;
+    sig_Random_init(&rng, 42);
+
+    // All values should be between 0.0 and 1.0,
+    // upper bound exclusive.
+    int32_t failureIdx = -1;
+    for (int32_t i = 0; i < numSamples; i++) {
+        float value = sig_Random_generate(&rng);
+        if (value < 0.0f || value >= 1.0f) {
+            failureIdx = i;
+            break;
+        }
+    }
+
+    TEST_ASSERT_EQUAL_INT32_MESSAGE(-1, failureIdx,
+        "Value at index was not within [0.0, 1.0).");
+}
+
+void test_sig_Random_mean(void) {
+    size_t numSamples = 32768;
+    struct sig_Random rng;
+    sig_Random_init(&rng, 42);
+
+    // The mean of a uniform generator between 0.0 and 1.0 should
+    // be approximately 0.5.
+    double sum = 0.0;
+    for (size_t i = 0; i < numSamples; i++) {
+        sum += (double) sig_Random_generate(&rng);
+    }
+    float mean = (float) (sum / (double) numSamples);
+
+    TEST_ASSERT_FLOAT_WITHIN_MESSAGE(0.01f, 0.5f, mean,
+        "The mean of many random values should be approximately 0.5");
+}
+
+void test_sig_Random_reproducibility(void) {
+    size_t numSamples = 1024;
+
+    // Two generators seeded identically should produce
+    // the exact same sequences.
+    struct sig_Random* first = sig_Random_new(&allocator, 99);
+    struct sig_Random* second = sig_Random_new(&allocator, 99);
+    for (size_t i = 0; i < numSamples; i++) {
+        uint32_t firstValue = sig_Random_next(first);
+        uint32_t secondValue = sig_Random_next(second);
+        TEST_ASSERT_EQUAL_HEX32(firstValue, secondValue);
+    }
+    sig_Random_destroy(&allocator, first);
+    sig_Random_destroy(&allocator, second);
+
+    // Re-seeding a generator mid-stream restarts
+    // the sequence, confirming that the same seed
+    // will reproduce the sequence.
+    struct sig_Random* roving = sig_Random_new(&allocator, 7);
+    uint32_t reference[16];
+    for (size_t i = 0; i < 16; i++) {
+        reference[i] = sig_Random_next(roving);
+    }
+    for (size_t i = 0; i < 100; i++) {
+        sig_Random_next(roving);
+    }
+    sig_Random_seed(roving, 7);
+    for (size_t i = 0; i < 16; i++) {
+        uint32_t value = sig_Random_next(roving);
+        TEST_ASSERT_EQUAL_HEX32(reference[i], value);
+    }
+    sig_Random_destroy(&allocator, roving);
+}
+
+void test_sig_Random_independence(void) {
+    size_t numSamples = 256;
+    uint32_t referenceA[256];
+    uint32_t referenceB[256];
+
+    // Capture each generator's sequence in isolation.
+    struct sig_Random* soloA = sig_Random_new(&allocator, 11);
+    for (size_t i = 0; i < numSamples; i++) {
+        referenceA[i] = sig_Random_next(soloA);
+    }
+    sig_Random_destroy(&allocator, soloA);
+
+    struct sig_Random* soloB = sig_Random_new(&allocator, 22);
+    for (size_t i = 0; i < numSamples; i++) {
+        referenceB[i] = sig_Random_next(soloB);
+    }
+    sig_Random_destroy(&allocator, soloB);
+
+    // sig_Random instances should to be isolated from each other.
+    // Confirm this by generating interleaving numbers,
+    // and the sequence should be as expected.
+    struct sig_Random* a = sig_Random_new(&allocator, 11);
+    struct sig_Random* b = sig_Random_new(&allocator, 22);
+    for (size_t i = 0; i < numSamples; i++) {
+        uint32_t aValue = sig_Random_next(a);
+        uint32_t bValue = sig_Random_next(b);
+        TEST_ASSERT_EQUAL_HEX32(referenceA[i], aValue);
+        TEST_ASSERT_EQUAL_HEX32(referenceB[i], bValue);
+    }
+    sig_Random_destroy(&allocator, a);
+    sig_Random_destroy(&allocator, b);
 }
 
 void test_sig_midiToFreq(void) {
@@ -1542,10 +1706,18 @@ void test_sig_dsp_Sequencer_invalidSequence(void) {
 int main(void) {
     UNITY_BEGIN();
 
+    RUN_TEST(test_sig_fastMod1f);
+    RUN_TEST(test_sig_flooredfmodf);
+    RUN_TEST(test_sig_clamp);
     RUN_TEST(test_sig_unipolarToUint12);
     RUN_TEST(test_sig_bipolarToUint12);
     RUN_TEST(test_sig_bipolarToInvUint12);
     RUN_TEST(test_sig_randf);
+    RUN_TEST(test_sig_randf_seed);
+    RUN_TEST(test_sig_Random_withinRange);
+    RUN_TEST(test_sig_Random_mean);
+    RUN_TEST(test_sig_Random_reproducibility);
+    RUN_TEST(test_sig_Random_independence);
     RUN_TEST(test_sig_midiToFreq);
     RUN_TEST(test_sig_freqToMidi);
     RUN_TEST(test_sig_sig_linearToFreq);

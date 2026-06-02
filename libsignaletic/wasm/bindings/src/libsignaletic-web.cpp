@@ -1163,8 +1163,42 @@ public:
         return sig_flooredfmodf(num, denom);
     }
 
+    float fastMod1f(float x) {
+        return sig_fastMod1f(x);
+    }
+
     float randf() {
         return sig_randf();
+    }
+
+    void randf_seed(uint32_t seed) {
+        return sig_randf_seed(seed);
+    }
+
+    struct sig_Random* Random_new(struct sig_Allocator* allocator,
+        uint32_t seed) {
+        return sig_Random_new(allocator, seed);
+    }
+
+    void Random_init(struct sig_Random* random, uint32_t seed) {
+        return sig_Random_init(random, seed);
+    }
+
+    void Random_seed(struct sig_Random* random, uint32_t seed) {
+        return sig_Random_seed(random, seed);
+    }
+
+    uint32_t Random_next(struct sig_Random* random) {
+        return sig_Random_next(random);
+    }
+
+    float Random_generate(struct sig_Random* random) {
+        return sig_Random_generate(random);
+    }
+
+    void Random_destroy(struct sig_Allocator* allocator,
+        struct sig_Random* random) {
+        return sig_Random_destroy(allocator, random);
     }
 
     float fastTanhf(float x) {

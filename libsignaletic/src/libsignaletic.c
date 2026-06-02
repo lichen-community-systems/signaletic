@@ -1,5 +1,5 @@
-#include <math.h>   // For powf, fmodf, sinf, roundf, fabsf, rand
-#include <stdlib.h> // For RAND_MAX
+#include <math.h>   // For powf, fmodf, sinf, roundf, fabsf
+#include <stdlib.h> // For labs
 #include <tlsf.h>   // Includes assert.h, limits.h, stddef.h
                     // stdio.h, stdlib.h, string.h (for errors etc.)
 #include <libsignaletic.h>
@@ -24,14 +24,16 @@ extern inline float sig_fmaxf(float a, float b) {
     return r;
 }
 
-// TODO: Unit tests
 inline float sig_clamp(float value, float min, float max) {
     return sig_fminf(sig_fmaxf(value, min), max);
 }
 
-// TODO: Implement a fast fmodf
-// See: https://github.com/electro-smith/DaisySP/blob/0cc02b37579e3619efde73be49a1fa01ffee5cf6/Source/Utility/dsp.h#L89-L95
-// TODO: Unit tests
+extern inline float sig_fastMod1f(float x) {
+    int32_t ix = (int32_t)x;
+    float r = x - (float)ix;
+    return r + (r < 0.0f);
+}
+
 extern inline float sig_flooredfmodf(float numer, float denom) {
     float remain = fmodf(numer, denom);
     if ((remain > 0.0f && denom < 0.0f) ||
@@ -42,16 +44,75 @@ extern inline float sig_flooredfmodf(float numer, float denom) {
     return remain;
 }
 
-// TODO: Replace this with an object that implements
-// the quick and dirty LCR method from Numerical Recipes:
-//     unsigned long jran = seed,
-//                   ia = 4096,
-//                   ic = 150889,
-//                   im = 714025;
-//     jran=(jran*ia+ic) % im;
-//     float ran=(float) jran / (float) im;
+struct sig_Random* sig_Random_new(struct sig_Allocator* allocator,
+    uint32_t seed) {
+    struct sig_Random* self = allocator->impl->malloc(allocator,
+        sizeof(struct sig_Random));
+    sig_Random_init(self, seed);
+
+    return self;
+}
+
+void sig_Random_init(struct sig_Random* self, uint32_t seed) {
+    sig_Random_seed(self, seed);
+}
+
+void sig_Random_seed(struct sig_Random* self, uint32_t seed) {
+    self->seed = seed;
+    // Expand and diffuse the seed into four state words
+    // using SplitMix32.
+    // Implementation from Kaito Udagawa's CC0 splitmix32.c
+    // https://github.com/umireon/my-random-stuff/blob/master/xorshift/splitmix32.c
+    for (size_t i = 0; i < 4; i++) {
+        seed += 0x9e3779b9;
+        uint32_t z = seed;
+        z = (z ^ (z >> 16)) * 0x85ebca6b;
+        z = (z ^ (z >> 13)) * 0xc2b2ae35;
+        self->state[i] = z ^ (z >> 16);
+    }
+}
+
+uint32_t sig_Random_next(struct sig_Random* self) {
+    uint32_t* s = self->state;
+    const uint32_t result = s[0] + s[3];
+	const uint32_t t = s[1] << 9;
+
+	s[2] ^= s[0];
+	s[3] ^= s[1];
+	s[1] ^= s[2];
+	s[0] ^= s[3];
+	s[2] ^= t;
+	s[3] = (s[3] << 11) | (s[3] >> (32 - 11));
+
+	return result;
+}
+
+float sig_Random_generate(struct sig_Random* self) {
+    // Only take the top 24 bits because:
+    // 1. xoshiro128+ has low linear complexity in
+    // the lowest four bits.
+    // 2. so that every output is an exact multiple
+    // of 2^-24, avoiding float rounding artifacts.
+    return (sig_Random_next(self) >> 8) * (1.0f / 16777216.0f);
+}
+
+void sig_Random_destroy(struct sig_Allocator* allocator,
+    struct sig_Random* self) {
+    allocator->impl->free(allocator, self);
+}
+
+// The global default generator used by sig_randf.
+static struct sig_Random sig_Random_GLOBAL_GENERATOR = {
+    .seed = 1,
+    .state = {0x5E2D1772, 0x14E498F0, 0xD20EA1FD, 0xB382F339}
+};
+
 float sig_randf(void) {
-    return (float) ((double) rand() / ((double) RAND_MAX + 1));
+    return sig_Random_generate(&sig_Random_GLOBAL_GENERATOR);
+}
+
+void sig_randf_seed(uint32_t seed) {
+    sig_Random_seed(&sig_Random_GLOBAL_GENERATOR, seed);
 }
 
 extern inline float sig_fastTanhf(float x) {
@@ -376,7 +437,7 @@ extern inline float sig_osc_Oscillator_eoc(float phase) {
 }
 
 extern inline float sig_osc_Oscillator_wrapPhase(float phase) {
-    return sig_flooredfmodf(phase, 1.0f);
+    return sig_fastMod1f(phase);
 }
 
 extern inline void sig_osc_Oscillator_accumulatePhase(
@@ -423,7 +484,7 @@ extern inline float sig_osc_WavetableBank_generate(
         // TODO: Reduce duplication with sig_osc_Wavetable
         float modulatedPhase = self->phaseAccumulator + phaseOffset;
         *eocOut = sig_osc_Oscillator_eoc(modulatedPhase);
-        modulatedPhase = sig_flooredfmodf(modulatedPhase, 1.0f);
+        modulatedPhase = sig_fastMod1f(modulatedPhase);
         float scaledTableIdx = tableIndex * lastWaveTableIdx;
         float sample = sig_WavetableBank_readLinearAtPhase(
             self->wavetables, scaledTableIdx, modulatedPhase);
