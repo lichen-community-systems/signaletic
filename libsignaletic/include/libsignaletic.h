@@ -856,16 +856,25 @@ void sig_Random_init(struct sig_Random* self, uint32_t seed);
 void sig_Random_seed(struct sig_Random* self, uint32_t seed);
 
 /**
- * @brief Generates the next 32-bit unsisgned integer
+ * @brief Generates the next 32-bit unsigned integer
  * in the sequence.
  *
  * @param self the generator
  * @return a pseudo-random 32-bit unsigned integer
  */
-uint32_t sig_Random_next(struct sig_Random* self);
+uint32_t sig_Random_nextU32(struct sig_Random* self);
 
 /**
  * @brief Generates a random float between 0.0 and 1.0 exclusive.
+ * Every output is an exact multiple of 2^-24.
+ *
+ * @param self the generator
+ * @return a pseudo-random unquantized float
+ */
+float sig_Random_nextFloat(struct sig_Random* self);
+
+/**
+ * @brief Generates a random float between 0.0 and 1.0 inclusive.
  *
  * @param self the generator
  * @return a pseudo-random float

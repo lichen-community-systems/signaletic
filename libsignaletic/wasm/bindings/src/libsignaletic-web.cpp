@@ -1188,8 +1188,12 @@ public:
         return sig_Random_seed(random, seed);
     }
 
-    uint32_t Random_next(struct sig_Random* random) {
-        return sig_Random_next(random);
+    uint32_t Random_nextU32(struct sig_Random* random) {
+        return sig_Random_nextU32(random);
+    }
+
+    float Random_nextFloat(struct sig_Random* random) {
+        return sig_Random_nextFloat(random);
     }
 
     float Random_generate(struct sig_Random* random) {

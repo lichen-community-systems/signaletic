@@ -29,8 +29,8 @@ inline float sig_clamp(float value, float min, float max) {
 }
 
 extern inline float sig_fastMod1f(float x) {
-    int32_t ix = (int32_t)x;
-    float r = x - (float)ix;
+    int32_t ix = (int32_t) x;
+    float r = x - (float) ix;
     return r + (r < 0.0f);
 }
 
@@ -46,8 +46,8 @@ extern inline float sig_flooredfmodf(float numer, float denom) {
 
 struct sig_Random* sig_Random_new(struct sig_Allocator* allocator,
     uint32_t seed) {
-    struct sig_Random* self = allocator->impl->malloc(allocator,
-        sizeof(struct sig_Random));
+    struct sig_Random* self = sig_MALLOC(allocator,
+        struct sig_Random);
     sig_Random_init(self, seed);
 
     return self;
@@ -72,7 +72,9 @@ void sig_Random_seed(struct sig_Random* self, uint32_t seed) {
     }
 }
 
-uint32_t sig_Random_next(struct sig_Random* self) {
+uint32_t sig_Random_nextU32(struct sig_Random* self) {
+    // Directly from Black & Vigna's public domain implementation:
+    // https://prng.di.unimi.it/xoshiro128plus.c
     uint32_t* s = self->state;
     const uint32_t result = s[0] + s[3];
 	const uint32_t t = s[1] << 9;
@@ -87,13 +89,17 @@ uint32_t sig_Random_next(struct sig_Random* self) {
 	return result;
 }
 
-float sig_Random_generate(struct sig_Random* self) {
-    // Only take the top 24 bits because:
-    // 1. xoshiro128+ has low linear complexity in
+float sig_Random_nextFloat(struct sig_Random* self) {
+    // Only take the top 24 bits:
+    // 1. because xoshiro128+ has low linear complexity in
     // the lowest four bits.
     // 2. so that every output is an exact multiple
     // of 2^-24, avoiding float rounding artifacts.
-    return (sig_Random_next(self) >> 8) * (1.0f / 16777216.0f);
+    return (sig_Random_nextU32(self) >> 8) * (1.0f / 16777216.0f);
+}
+
+float sig_Random_generate(struct sig_Random* self) {
+    return (sig_Random_nextU32(self) >> 8) * (1.0f / 16777215.0f);
 }
 
 void sig_Random_destroy(struct sig_Allocator* allocator,

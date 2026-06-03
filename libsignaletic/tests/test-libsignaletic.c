@@ -160,19 +160,18 @@ void test_sig_Random_withinRange(void) {
     struct sig_Random rng;
     sig_Random_init(&rng, 42);
 
-    // All values should be between 0.0 and 1.0,
-    // upper bound exclusive.
+    // All values should be between 0.0 and 1.0, inclusive.
     int32_t failureIdx = -1;
     for (int32_t i = 0; i < numSamples; i++) {
         float value = sig_Random_generate(&rng);
-        if (value < 0.0f || value >= 1.0f) {
+        if (value < 0.0f || value > 1.0f) {
             failureIdx = i;
             break;
         }
     }
 
     TEST_ASSERT_EQUAL_INT32_MESSAGE(-1, failureIdx,
-        "Value at index was not within [0.0, 1.0).");
+        "Value at index was not within [0.0, 1.0].");
 }
 
 void test_sig_Random_mean(void) {
@@ -200,8 +199,8 @@ void test_sig_Random_reproducibility(void) {
     struct sig_Random* first = sig_Random_new(&allocator, 99);
     struct sig_Random* second = sig_Random_new(&allocator, 99);
     for (size_t i = 0; i < numSamples; i++) {
-        uint32_t firstValue = sig_Random_next(first);
-        uint32_t secondValue = sig_Random_next(second);
+        uint32_t firstValue = sig_Random_nextU32(first);
+        uint32_t secondValue = sig_Random_nextU32(second);
         TEST_ASSERT_EQUAL_HEX32(firstValue, secondValue);
     }
     sig_Random_destroy(&allocator, first);
@@ -213,14 +212,14 @@ void test_sig_Random_reproducibility(void) {
     struct sig_Random* roving = sig_Random_new(&allocator, 7);
     uint32_t reference[16];
     for (size_t i = 0; i < 16; i++) {
-        reference[i] = sig_Random_next(roving);
+        reference[i] = sig_Random_nextU32(roving);
     }
     for (size_t i = 0; i < 100; i++) {
-        sig_Random_next(roving);
+        sig_Random_nextU32(roving);
     }
     sig_Random_seed(roving, 7);
     for (size_t i = 0; i < 16; i++) {
-        uint32_t value = sig_Random_next(roving);
+        uint32_t value = sig_Random_nextU32(roving);
         TEST_ASSERT_EQUAL_HEX32(reference[i], value);
     }
     sig_Random_destroy(&allocator, roving);
@@ -234,13 +233,13 @@ void test_sig_Random_independence(void) {
     // Capture each generator's sequence in isolation.
     struct sig_Random* soloA = sig_Random_new(&allocator, 11);
     for (size_t i = 0; i < numSamples; i++) {
-        referenceA[i] = sig_Random_next(soloA);
+        referenceA[i] = sig_Random_nextU32(soloA);
     }
     sig_Random_destroy(&allocator, soloA);
 
     struct sig_Random* soloB = sig_Random_new(&allocator, 22);
     for (size_t i = 0; i < numSamples; i++) {
-        referenceB[i] = sig_Random_next(soloB);
+        referenceB[i] = sig_Random_nextU32(soloB);
     }
     sig_Random_destroy(&allocator, soloB);
 
@@ -250,8 +249,8 @@ void test_sig_Random_independence(void) {
     struct sig_Random* a = sig_Random_new(&allocator, 11);
     struct sig_Random* b = sig_Random_new(&allocator, 22);
     for (size_t i = 0; i < numSamples; i++) {
-        uint32_t aValue = sig_Random_next(a);
-        uint32_t bValue = sig_Random_next(b);
+        uint32_t aValue = sig_Random_nextU32(a);
+        uint32_t bValue = sig_Random_nextU32(b);
         TEST_ASSERT_EQUAL_HEX32(referenceA[i], aValue);
         TEST_ASSERT_EQUAL_HEX32(referenceB[i], bValue);
     }
