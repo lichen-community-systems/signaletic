@@ -3,83 +3,82 @@ name: build-and-run
 on: [push, pull_request]
 
 jobs:
-  build-libsignaletic:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+    build-libsignaletic:
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [windows-latest, ubuntu-latest, macos-latest]
 
-    runs-on: ${{ matrix.os }}
+        runs-on: ${{ matrix.os }}
 
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - uses: BSFishy/pip-action@v1
-        with:
-          packages: |
-            meson
-            ninja
+        steps:
+            - uses: actions/checkout@v2
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: "3.12"
+            - uses: BSFishy/pip-action@v1
+              with:
+                  packages: |
+                      meson
+                      ninja
 
-      - name: Prepare MSVC (Windows-only)
-        if: runner.os == 'Windows'
-        uses: bus1/cabuild/action/msdevshell@v1
+            - name: Prepare MSVC (Windows-only)
+              if: runner.os == 'Windows'
+              uses: bus1/cabuild/action/msdevshell@v1
 
-      # Build libsignaletic for the native architecture
-      - name: Native build
-        run: |
-          cd libsignaletic
-          meson setup build/native
-          meson compile -C build/native
+            # Build libsignaletic for the native architecture
+            - name: Native build
+              run: |
+                  cd libsignaletic
+                  meson setup build/native
+                  meson compile -C build/native
 
-      # Tests
-      - name: Run native unit tests
-        run: |
-          cd libsignaletic
-          meson test -C build/native -v
+            # Tests
+            - name: Run native unit tests
+              run: |
+                  cd libsignaletic
+                  meson test -C build/native -v
 
-      # Run examples
-      - name: run console example
-        run: ./libsignaletic/build/native/libsignaletic-console-example
+            # Run examples
+            - name: run console example
+              run: ./libsignaletic/build/native/libsignaletic-console-example
 
-  build-wasm:
-    runs-on: ubuntu-latest
+    build-wasm:
+        runs-on: ubuntu-latest
 
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - uses: BSFishy/pip-action@v1
-        with:
-          packages: |
-            meson
-            ninja
-      - uses: mymindstorm/setup-emsdk@v11
+        steps:
+            - uses: actions/checkout@v2
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: "3.12"
+            - uses: BSFishy/pip-action@v1
+              with:
+                  packages: |
+                      meson
+                      ninja
+            - uses: mymindstorm/setup-emsdk@v11
+            - name: Web Assembly build
+              run: |
+                  ./cross-build-wasm.sh
 
-      - name: Web Assembly build
-        run: |
-          ./cross-build-wasm.sh
+            - name: Run unit tests in Node.js
+              run: |
+                  ./libsignaletic/run-wasm-tests.sh
 
-      - name: Run unit tests in Node.js
-        run: |
-          ./run-wasm-tests.sh
+            - name: run console example in Node.js
+              run: node ./libsignaletic/build/wasm/libsignaletic-console-example.js
 
-      - name: run console example in Node.js
-        run: node ./libsignaletic/build/wasm/libsignaletic-console-example.js
+    build-daisy-host:
+        runs-on: macos-latest
 
-  build-daisy-host:
-    runs-on: macos-latest
+        steps:
+            - uses: actions/checkout@v2
 
-    steps:
-      - uses: actions/checkout@v2
+            - name: Install ARM toolchain
+              uses: carlosperate/arm-none-eabi-gcc-action@v1
+              with:
+                  release: "10.3-2021.10"
 
-      - name: Install ARM toolchain
-        uses: carlosperate/arm-none-eabi-gcc-action@v1
-        with:
-          release: '10.3-2021.10'
-
-      - name: Build Daisy Host and Examples
-        run: |
-          ./cross-build-arm.sh
+            - name: Build Daisy Host and Examples
+              run: |
+                  ./cross-build-arm.sh

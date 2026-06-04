@@ -1224,7 +1224,8 @@ interface Signaletic {
     sig_Random Random_new(sig_Allocator allocator, unsigned long seed);
     void Random_init(sig_Random random, unsigned long seed);
     void Random_seed(sig_Random random, unsigned long seed);
-    unsigned long Random_next(sig_Random random);
+    unsigned long Random_nextU32(sig_Random random);
+    float Random_nextFloat(sig_Random random);
     float Random_generate(sig_Random random);
     void Random_destroy(sig_Allocator allocator, sig_Random random);
 
