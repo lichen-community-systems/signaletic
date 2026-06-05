@@ -135,9 +135,12 @@ extern inline float sig_fastTanhf(float x) {
     return x * (27.0f + x2) / (27.0f + 9.0f * x2);
 }
 
-// TODO: Unit tests.
 extern inline float sig_linearMap(float value,
     float fromMin, float fromMax, float toMin, float toMax) {
+    if (fromMin == fromMax) {
+        return toMin;
+    }
+
     float clamped = sig_clamp(value, fromMin, fromMax);
     float mapped = (clamped - fromMin) * (toMax - toMin) /
         (fromMax - fromMin) + toMin;

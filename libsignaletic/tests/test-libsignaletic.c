@@ -83,6 +83,102 @@ void test_sig_clamp(void) {
     TEST_ASSERT_EQUAL_FLOAT(3.0f, sig_clamp(100.0f, 3.0f, 3.0f));
 }
 
+void test_sig_linearMap_zeroSourceRange(void) {
+    // If the source range's length is zero, linearMap should return toMin.
+    TEST_ASSERT_EQUAL_FLOAT(7.0f,
+        sig_linearMap(100.0f, 3.0f, 3.0f, 7.0f, 42.0f));
+    TEST_ASSERT_EQUAL_FLOAT(7.0f,
+        sig_linearMap(3.0f, 3.0f, 3.0f, 7.0f, 42.0f));
+    TEST_ASSERT_EQUAL_FLOAT(7.0f,
+        sig_linearMap(-1000.0f, 3.0f, 3.0f, 7.0f, 42.0f));
+}
+
+void test_sig_linearMap_zeroTargetRange(void) {
+    // Mapping to a zero-length target range should return toMin.
+    TEST_ASSERT_EQUAL_FLOAT(5.0f,
+        sig_linearMap(0.0f, 0.0f, 1.0f, 5.0f, 5.0f));
+    TEST_ASSERT_EQUAL_FLOAT(5.0f,
+        sig_linearMap(0.5f, 0.0f, 1.0f, 5.0f, 5.0f));
+    TEST_ASSERT_EQUAL_FLOAT(5.0f,
+        sig_linearMap(1.0f, 0.0f, 1.0f, 5.0f, 5.0f));
+}
+
+void test_sig_linearMap_identity(void) {
+    // [0, 1] -> [0, 1] is an identity transform.
+    TEST_ASSERT_EQUAL_FLOAT(0.0f,
+        sig_linearMap(0.0f, 0.0f, 1.0f, 0.0f, 1.0f));
+    TEST_ASSERT_EQUAL_FLOAT(0.5f,
+        sig_linearMap(0.5f, 0.0f, 1.0f, 0.0f, 1.0f));
+    TEST_ASSERT_EQUAL_FLOAT(1.0f,
+        sig_linearMap(1.0f, 0.0f, 1.0f, 0.0f, 1.0f));
+}
+
+void test_sig_linearMap_scaling(void) {
+    // Map [0, 1] -> [0, 100].
+    TEST_ASSERT_EQUAL_FLOAT(0.0f,
+        sig_linearMap(0.0f, 0.0f, 1.0f, 0.0f, 100.0f));
+    TEST_ASSERT_EQUAL_FLOAT(50.0f,
+        sig_linearMap(0.5f, 0.0f, 1.0f, 0.0f, 100.0f));
+    TEST_ASSERT_EQUAL_FLOAT(100.0f,
+        sig_linearMap(1.0f, 0.0f, 1.0f, 0.0f, 100.0f));
+}
+
+void test_sig_linearMap_offset(void) {
+    // Map [0, 1] -> [10, 20].
+    TEST_ASSERT_EQUAL_FLOAT(10.0f,
+        sig_linearMap(0.0f, 0.0f, 1.0f, 10.0f, 20.0f));
+    TEST_ASSERT_EQUAL_FLOAT(15.0f,
+        sig_linearMap(0.5f, 0.0f, 1.0f, 10.0f, 20.0f));
+    TEST_ASSERT_EQUAL_FLOAT(20.0f,
+        sig_linearMap(1.0f, 0.0f, 1.0f, 10.0f, 20.0f));
+}
+
+void test_sig_linearMap_inverted(void) {
+    // Map [0, 1] -> [1, 0] (descending target range).
+    TEST_ASSERT_EQUAL_FLOAT(1.0f,
+        sig_linearMap(0.0f, 0.0f, 1.0f, 1.0f, 0.0f));
+    TEST_ASSERT_EQUAL_FLOAT(0.5f,
+        sig_linearMap(0.5f, 0.0f, 1.0f, 1.0f, 0.0f));
+    TEST_ASSERT_EQUAL_FLOAT(0.0f,
+        sig_linearMap(1.0f, 0.0f, 1.0f, 1.0f, 0.0f));
+}
+
+void test_sig_linearMap_negativeRange(void) {
+    // Map [-1, 1] -> [0, 10].
+    TEST_ASSERT_EQUAL_FLOAT(0.0f,
+        sig_linearMap(-1.0f, -1.0f, 1.0f, 0.0f, 10.0f));
+    TEST_ASSERT_EQUAL_FLOAT(5.0f,
+        sig_linearMap(0.0f, -1.0f, 1.0f, 0.0f, 10.0f));
+    TEST_ASSERT_EQUAL_FLOAT(10.0f,
+        sig_linearMap(1.0f, -1.0f, 1.0f, 0.0f, 10.0f));
+}
+
+void test_sig_linearMap_bothNegative(void) {
+    // Map [-5, -1] -> [-10, -4].
+    TEST_ASSERT_EQUAL_FLOAT(-10.0f,
+        sig_linearMap(-5.0f, -5.0f, -1.0f, -10.0f, -4.0f));
+    TEST_ASSERT_EQUAL_FLOAT(-7.0f,
+        sig_linearMap(-3.0f, -5.0f, -1.0f, -10.0f, -4.0f));
+    TEST_ASSERT_EQUAL_FLOAT(-4.0f,
+        sig_linearMap(-1.0f, -5.0f, -1.0f, -10.0f, -4.0f));
+}
+
+void test_sig_linearMap_clampedBelow(void) {
+    // Value below fromMin should clamp to toMin.
+    TEST_ASSERT_EQUAL_FLOAT(10.0f,
+        sig_linearMap(-10.0f, 0.0f, 1.0f, 10.0f, 20.0f));
+    TEST_ASSERT_EQUAL_FLOAT(10.0f,
+        sig_linearMap(-1.0f, 0.0f, 1.0f, 10.0f, 20.0f));
+}
+
+void test_sig_linearMap_clampedAbove(void) {
+    // Value above fromMax should clamp to toMax.
+    TEST_ASSERT_EQUAL_FLOAT(20.0f,
+        sig_linearMap(2.0f, 0.0f, 1.0f, 10.0f, 20.0f));
+    TEST_ASSERT_EQUAL_FLOAT(20.0f,
+        sig_linearMap(100.0f, 0.0f, 1.0f, 10.0f, 20.0f));
+}
+
 void test_sig_unipolarToUint12(void) {
     TEST_ASSERT_EQUAL_UINT16(2047, sig_unipolarToUint12(0.5f));
     TEST_ASSERT_EQUAL_UINT16(0, sig_unipolarToUint12(0.0f));
@@ -1708,6 +1804,16 @@ int main(void) {
     RUN_TEST(test_sig_fastMod1f);
     RUN_TEST(test_sig_flooredfmodf);
     RUN_TEST(test_sig_clamp);
+    RUN_TEST(test_sig_linearMap_zeroSourceRange);
+    RUN_TEST(test_sig_linearMap_identity);
+    RUN_TEST(test_sig_linearMap_scaling);
+    RUN_TEST(test_sig_linearMap_offset);
+    RUN_TEST(test_sig_linearMap_inverted);
+    RUN_TEST(test_sig_linearMap_negativeRange);
+    RUN_TEST(test_sig_linearMap_bothNegative);
+    RUN_TEST(test_sig_linearMap_clampedBelow);
+    RUN_TEST(test_sig_linearMap_clampedAbove);
+    RUN_TEST(test_sig_linearMap_zeroTargetRange);
     RUN_TEST(test_sig_unipolarToUint12);
     RUN_TEST(test_sig_bipolarToUint12);
     RUN_TEST(test_sig_bipolarToInvUint12);
