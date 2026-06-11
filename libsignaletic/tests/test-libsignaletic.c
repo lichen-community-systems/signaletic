@@ -2,7 +2,6 @@
 #include <unity.h>
 #include <tlsf.h>
 #include <libsignaletic.h>
-#include <stdlib.h> // TODO: Remove when a custom RNG is implemented.
 #include <buffer-test-utils.h>
 
 #define FLOAT_EPSILON powf(2, -23)
