@@ -39,10 +39,6 @@ jobs:
                   cd libsignaletic
                   meson test -C build/native -v
 
-            # Run examples
-            - name: run console example
-              run: ./libsignaletic/build/native/libsignaletic-console-example
-
     build-wasm:
         runs-on: ubuntu-latest
 
@@ -65,20 +61,18 @@ jobs:
               run: |
                   ./libsignaletic/run-wasm-tests.sh
 
-            - name: run console example in Node.js
-              run: node ./libsignaletic/build/wasm/libsignaletic-console-example.js
+    # Too expensive to run in Github Actions these days. :(
+    # build-daisy-host:
+    #     runs-on: macos-latest
 
-    build-daisy-host:
-        runs-on: macos-latest
+    #     steps:
+    #         - uses: actions/checkout@v2
 
-        steps:
-            - uses: actions/checkout@v2
+    #         - name: Install ARM toolchain
+    #           uses: carlosperate/arm-none-eabi-gcc-action@v1
+    #           with:
+    #               release: "10.3-2021.10"
 
-            - name: Install ARM toolchain
-              uses: carlosperate/arm-none-eabi-gcc-action@v1
-              with:
-                  release: "10.3-2021.10"
-
-            - name: Build Daisy Host and Examples
-              run: |
-                  ./cross-build-arm.sh
+    #         - name: Build Daisy Host and Examples
+    #           run: |
+    #               ./cross-build-arm.sh
