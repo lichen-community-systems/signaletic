@@ -16,6 +16,26 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h> // For int32_t, uint32_t
 
+// Macro for the restrict keyword for
+// C++ and C compilers that support it.
+#if defined(__cplusplus)
+    #if defined(__GNUC__) || defined(__clang__)
+        #define SIG_RESTRICT __restrict__
+    #elif defined(_MSC_VER)
+        #define SIG_RESTRICT __restrict
+    #else
+        #define SIG_RESTRICT
+    #endif
+#else
+    #if __STDC_VERSION__ >= 199901L
+        #define SIG_RESTRICT restrict
+    #elif defined(__GNUC__) || defined(__clang__)
+        #define SIG_RESTRICT __restrict__
+    #else
+        #define SIG_RESTRICT
+    #endif
+#endif
+
 // This typedef is necessary because Emscripten's
 // WebIDL binder is unable to produce viable
 // (i.e. performant and bug-free) bindings for
@@ -1303,12 +1323,12 @@ float sig_DelayLine_cubicReadAtTime(struct sig_DelayLine* self, float source,
     float tapTime, float sampleRate);
 
 /**
- * @brief Reads from the delay line at the specified time
- * (in seconds) using allpass interpolation.
- * This function supports fractional delay times.
+ * @brief Reads from the delay line at the specified time using allpass interpolation.
+ *
+ * This function supports fractional delay times. All times are in seconds.
  *
  * @param self the delay line to read from
- * @param tapTime the time (in seconds) at which to read from the delay
+ * @param tapTime the time at which to read from the delay
  * @param sampleRate the current sample rate
  * @param previousSample the previous interpolated sample from the delay line
  * @return float the output of the delay line
@@ -1317,15 +1337,18 @@ float sig_DelayLine_allpassReadAtTime(struct sig_DelayLine* self,
     float source, float tapTime, float sampleRate, float previousSample);
 
 float sig_DelayLine_readAtTimes(struct sig_DelayLine* self, float source,
-    float_array_ptr tapTimes, float_array_ptr tapGains, size_t numTaps,
+    float_array_ptr SIG_RESTRICT tapTimes,
+    float_array_ptr SIG_RESTRICT tapGains, size_t numTaps,
     float sampleRate, float timeScale);
 
 float sig_DelayLine_linearReadAtTimes(struct sig_DelayLine* self,
-    float source, float_array_ptr tapTimes, float_array_ptr tapGains,
+    float source, float_array_ptr SIG_RESTRICT tapTimes,
+    float_array_ptr SIG_RESTRICT tapGains,
     size_t numTaps, float sampleRate, float timeScale);
 
 float sig_DelayLine_cubicReadAtTimes(struct sig_DelayLine* self,
-    float source, float_array_ptr tapTimes, float_array_ptr tapGains,
+    float source, float_array_ptr SIG_RESTRICT tapTimes,
+    float_array_ptr SIG_RESTRICT tapGains,
     size_t numTaps, float sampleRate, float timeScale);
 
 void sig_DelayLine_write(struct sig_DelayLine* self, float sample);
@@ -1336,6 +1359,21 @@ float sig_DelayLine_feedback(float sample, float read, float g);
 
 float sig_DelayLine_comb(struct sig_DelayLine* self, float sample,
     size_t readPos, float g);
+
+/**
+ * @brief A linearly interpolated feedback comb filter.
+ *
+ * This function supports fractional read positions.
+ *
+ * @param self the delay line to read from and write to
+ * @param sample the input sample
+ * @param readPos the sample position in the delay line to read from, relative to the last write
+ * @param g the feedback gain applied to the delayed sample before it is
+ * mixed with the input and written back into the delay line
+ * @return float the delayed sample read from the delay line
+ */
+float sig_DelayLine_linearComb(struct sig_DelayLine* self, float sample,
+    float readPos, float g);
 
 float sig_DelayLine_cubicComb(struct sig_DelayLine* self, float sample,
     float readPos, float g);

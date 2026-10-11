@@ -1717,6 +1717,11 @@ public:
         return sig_DelayLine_comb(self, sample, readPos, g);
     }
 
+    float DelayLine_linearComb(struct sig_DelayLine* self, float sample,
+        float readPos, float g) {
+        return sig_DelayLine_linearComb(self, sample, readPos, g);
+    }
+
     float DelayLine_cubicComb(struct sig_DelayLine* self, float sample,
         float readPos, float g) {
         return sig_DelayLine_cubicComb(self, sample, readPos, g);

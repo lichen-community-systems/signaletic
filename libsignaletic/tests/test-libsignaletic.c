@@ -642,6 +642,42 @@ void test_sig_linearXFade(void) {
         "50 percent to the left.");
 }
 
+void test_sig_DelayLine_linearComb_fractionalDelay(void) {
+    // A delay of 1.5 samples with no feedback should split an impulse
+    // evenly between the one- and two-sample delayed outputs.
+    struct sig_DelayLine* delayLine = sig_DelayLine_new(&allocator, 8);
+    float impulse[5] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    float expected[5] = {0.0f, 0.5f, 0.5f, 0.0f, 0.0f};
+    float actual[5];
+
+    for (size_t i = 0; i < 5; i++) {
+        actual[i] = sig_DelayLine_linearComb(delayLine, impulse[i],
+            1.5f, 0.0f);
+    }
+
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expected, actual, 5);
+
+    sig_DelayLine_destroy(&allocator, delayLine);
+}
+
+void test_sig_DelayLine_linearComb_feedback(void) {
+    // A two-sample delay with a feedback gain of 0.5 should repeat
+    // an impulse every two samples, halving it on each repetition.
+    struct sig_DelayLine* delayLine = sig_DelayLine_new(&allocator, 8);
+    float impulse[7] = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    float expected[7] = {0.0f, 0.0f, 1.0f, 0.0f, 0.5f, 0.0f, 0.25f};
+    float actual[7];
+
+    for (size_t i = 0; i < 7; i++) {
+        actual[i] = sig_DelayLine_linearComb(delayLine, impulse[i],
+            2.0f, 0.5f);
+    }
+
+    TEST_ASSERT_EQUAL_FLOAT_ARRAY(expected, actual, 7);
+
+    sig_DelayLine_destroy(&allocator, delayLine);
+}
+
 void test_sig_dsp_Value(void) {
     struct sig_dsp_Value* value = sig_dsp_Value_new(&allocator, context);
     value->parameters.value = 123.45f;
@@ -1834,6 +1870,8 @@ int main(void) {
     RUN_TEST(test_sig_Buffer);
     RUN_TEST(test_sig_BufferView);
     RUN_TEST(test_sig_linearXFade);
+    RUN_TEST(test_sig_DelayLine_linearComb_fractionalDelay);
+    RUN_TEST(test_sig_DelayLine_linearComb_feedback);
     RUN_TEST(test_sig_dsp_Value);
     RUN_TEST(test_sig_dsp_ConstantValue);
     RUN_TEST(test_sig_dsp_TimedTriggerCounter);

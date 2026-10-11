@@ -1406,6 +1406,8 @@ interface Signaletic {
     float DelayLine_feedback(float sample, float read, float g);
     float DelayLine_comb(sig_DelayLine delayLine, float sample,
         unsigned long readPos, float g);
+    float DelayLine_linearComb(sig_DelayLine delayLine, float sample,
+        float readPos, float g);
     float DelayLine_cubicComb(sig_DelayLine delayLine, float sample,
         float readPos, float g);
     float DelayLine_allpass(sig_DelayLine delayLine, float sample,

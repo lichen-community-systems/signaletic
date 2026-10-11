@@ -24,7 +24,7 @@ extern inline float sig_fmaxf(float a, float b) {
     return r;
 }
 
-inline float sig_clamp(float value, float min, float max) {
+extern inline float sig_clamp(float value, float min, float max) {
     return sig_fminf(sig_fmaxf(value, min), max);
 }
 
@@ -1086,11 +1086,13 @@ extern inline float sig_DelayLine_allpassReadAtTime(
 
 #define sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,\
     tapGains, numTaps, sampleRate, timeScale, readFn)\
+    const float* SIG_RESTRICT restrictTapTimes = FLOAT_ARRAY(tapTimes);\
+    const float* SIG_RESTRICT restrictTapGains = FLOAT_ARRAY(tapGains);\
     float tapSum = 0;\
     for (size_t i = 0; i < numTaps; i++) {\
-        float tapTime = FLOAT_ARRAY(tapTimes)[i];\
+        float tapTime = restrictTapTimes[i];\
         float scaledTapTime = tapTime * timeScale;\
-        float gain = FLOAT_ARRAY(tapGains)[i];\
+        float gain = restrictTapGains[i];\
         float sample;\
         if (tapTime <= 0.0f) {\
             sample = source;\
@@ -1108,7 +1110,8 @@ extern inline float sig_DelayLine_allpassReadAtTime(
 
 extern inline float sig_DelayLine_readAtTimes(
     struct sig_DelayLine* self, float source,
-    float_array_ptr tapTimes, float_array_ptr tapGains,
+    float_array_ptr SIG_RESTRICT tapTimes,
+    float_array_ptr SIG_RESTRICT tapGains,
     size_t numTaps, float sampleRate, float timeScale) {
     sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,
         tapGains, numTaps, sampleRate, timeScale, sig_DelayLine_readAt);
@@ -1116,7 +1119,8 @@ extern inline float sig_DelayLine_readAtTimes(
 
 extern inline float sig_DelayLine_linearReadAtTimes(
     struct sig_DelayLine* self, float source,
-    float_array_ptr tapTimes, float_array_ptr tapGains,
+    float_array_ptr SIG_RESTRICT tapTimes,
+    float_array_ptr SIG_RESTRICT tapGains,
     size_t numTaps, float sampleRate, float timeScale) {
     sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,
         tapGains, numTaps, sampleRate, timeScale, sig_DelayLine_linearReadAt);
@@ -1124,10 +1128,11 @@ extern inline float sig_DelayLine_linearReadAtTimes(
 
 extern inline float sig_DelayLine_cubicReadAtTimes(
     struct sig_DelayLine* self, float source,
-    float_array_ptr tapTimes, float_array_ptr tapGains,
+    float_array_ptr SIG_RESTRICT tapTimes,
+    float_array_ptr SIG_RESTRICT tapGains,
     size_t numTaps, float sampleRate, float timeScale) {
     sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,
-        tapGains,numTaps, sampleRate, timeScale, sig_DelayLine_cubicReadAt);
+        tapGains, numTaps, sampleRate, timeScale, sig_DelayLine_cubicReadAt);
 }
 
 extern inline void sig_DelayLine_write(struct sig_DelayLine* self,
@@ -1338,8 +1343,11 @@ void sig_dsp_Value_generate(void* signal) {
         return;
     }
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        FLOAT_ARRAY(self->outputs.main)[i] = self->parameters.value;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float value = self->parameters.value;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    for (size_t i = 0; i < blockSize; i++) {
+        out[i] = value;
     }
 
     self->lastSample = self->parameters.value;
@@ -1395,10 +1403,11 @@ void sig_dsp_Abs_init(struct sig_dsp_Abs* self,
 void sig_dsp_Abs_generate(void* signal) {
     struct sig_dsp_Abs* self = (struct sig_dsp_Abs*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float source = FLOAT_ARRAY(self->inputs.source)[i];
-        float rectified = fabsf(source);
-        FLOAT_ARRAY(self->outputs.main)[i] = rectified;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    for (size_t i = 0; i < blockSize; i++) {
+        out[i] = fabsf(in[i]);
     }
 }
 
@@ -1435,13 +1444,14 @@ void sig_dsp_Clamp_init(struct sig_dsp_Clamp* self,
 
 void sig_dsp_Clamp_generate(void* signal) {
     struct sig_dsp_Clamp* self = (struct sig_dsp_Clamp*) signal;
-    float min = self->parameters.min;
-    float max = self->parameters.max;
+    const float min = self->parameters.min;
+    const float max = self->parameters.max;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float source = FLOAT_ARRAY(self->inputs.source)[i];
-        float sample = sig_clamp(source, min, max);
-        FLOAT_ARRAY(self->outputs.main)[i] = sample;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    for (size_t i = 0; i < blockSize; i++) {
+        out[i] = sig_clamp(in[i], min, max);
     }
 }
 
@@ -1482,11 +1492,13 @@ void sig_dsp_ScaleOffset_init(struct sig_dsp_ScaleOffset* self,
 void sig_dsp_ScaleOffset_generate(void* signal) {
     struct sig_dsp_ScaleOffset* self = (struct sig_dsp_ScaleOffset*) signal;
 
-    float scale = self->parameters.scale;
-    float offset = self->parameters.offset;
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float source = FLOAT_ARRAY(self->inputs.source)[i];
-        FLOAT_ARRAY(self->outputs.main)[i] = source * scale + offset;
+    const float scale = self->parameters.scale;
+    const float offset = self->parameters.offset;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    for (size_t i = 0; i < blockSize; i++) {
+        out[i] = in[i] * scale + offset;
     }
 }
 
@@ -1520,9 +1532,11 @@ void sig_dsp_Sine_init(struct sig_dsp_Sine* self,
 void sig_dsp_Sine_generate(void* signal) {
     struct sig_dsp_Sine* self = (struct sig_dsp_Sine*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float source = FLOAT_ARRAY(self->inputs.source)[i];
-        FLOAT_ARRAY(self->outputs.main)[i] = sinf(source);
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    for (size_t i = 0; i < blockSize; i++) {
+        out[i] = sinf(in[i]);
     }
 }
 
@@ -1578,12 +1592,12 @@ void sig_dsp_Add_init(struct sig_dsp_BinaryOp* self,
 void sig_dsp_Add_generate(void* signal) {
     struct sig_dsp_BinaryOp* self = (struct sig_dsp_BinaryOp*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float left = FLOAT_ARRAY(self->inputs.left)[i];
-        float right = FLOAT_ARRAY(self->inputs.right)[i];
-        float val = left + right;
-
-        FLOAT_ARRAY(self->outputs.main)[i] = val;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT left = FLOAT_ARRAY(self->inputs.left);
+    const float* SIG_RESTRICT right = FLOAT_ARRAY(self->inputs.right);
+    for (size_t i = 0; i < blockSize; i++) {
+        out[i] = left[i] + right[i];
     }
 }
 
@@ -1609,12 +1623,12 @@ void sig_dsp_Sub_init(struct sig_dsp_BinaryOp* self,
 void sig_dsp_Sub_generate(void* signal) {
     struct sig_dsp_BinaryOp* self = (struct sig_dsp_BinaryOp*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float left = FLOAT_ARRAY(self->inputs.left)[i];
-        float right = FLOAT_ARRAY(self->inputs.right)[i];
-        float val = left - right;
-
-        FLOAT_ARRAY(self->outputs.main)[i] = val;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT left = FLOAT_ARRAY(self->inputs.left);
+    const float* SIG_RESTRICT right = FLOAT_ARRAY(self->inputs.right);
+    for (size_t i = 0; i < blockSize; i++) {
+        out[i] = left[i] - right[i];
     }
 }
 
@@ -1644,11 +1658,12 @@ void sig_dsp_Mul_destroy(struct sig_Allocator* allocator,
 void sig_dsp_Mul_generate(void* signal) {
     struct sig_dsp_BinaryOp* self = (struct sig_dsp_BinaryOp*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float left = FLOAT_ARRAY(self->inputs.left)[i];
-        float right = FLOAT_ARRAY(self->inputs.right)[i];
-        float val = left * right;
-        FLOAT_ARRAY(self->outputs.main)[i] = val;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT left = FLOAT_ARRAY(self->inputs.left);
+    const float* SIG_RESTRICT right = FLOAT_ARRAY(self->inputs.right);
+    for (size_t i = 0; i < blockSize; i++) {
+        out[i] = left[i] * right[i];
     }
 }
 
@@ -1667,11 +1682,12 @@ void sig_dsp_Div_init(struct sig_dsp_BinaryOp* self,
 void sig_dsp_Div_generate(void* signal) {
     struct sig_dsp_BinaryOp* self = (struct sig_dsp_BinaryOp*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float left = FLOAT_ARRAY(self->inputs.left)[i];
-        float right = FLOAT_ARRAY(self->inputs.right)[i];
-        float val = left / right;
-        FLOAT_ARRAY(self->outputs.main)[i] = val;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT left = FLOAT_ARRAY(self->inputs.left);
+    const float* SIG_RESTRICT right = FLOAT_ARRAY(self->inputs.right);
+    for (size_t i = 0; i < blockSize; i++) {
+        out[i] = left[i] / right[i];
     }
 }
 
@@ -1702,9 +1718,11 @@ void sig_dsp_Invert_init(struct sig_dsp_Invert* self,
 void sig_dsp_Invert_generate(void* signal) {
     struct sig_dsp_Invert* self = (struct sig_dsp_Invert*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float inSamp = FLOAT_ARRAY(self->inputs.source)[i];
-        FLOAT_ARRAY(self->outputs.main)[i] = -inSamp;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    for (size_t i = 0; i < blockSize; i++) {
+        out[i] = -in[i];
     }
 }
 
@@ -1757,8 +1775,8 @@ void sig_dsp_Accumulate_generate(void* signal) {
     self->accumulator += FLOAT_ARRAY(self->inputs.source)[0];
 
     float reset = FLOAT_ARRAY(self->inputs.reset)[0];
-    float wrap = self->parameters.wrap;
-    float maxValue = self->parameters.maxValue;
+    const float wrap = self->parameters.wrap;
+    const float maxValue = self->parameters.maxValue;
 
     // Reset the accumulator if we received a trigger
     // or if we're wrapping and we've gone past the min/max value.
@@ -1772,8 +1790,10 @@ void sig_dsp_Accumulate_generate(void* signal) {
         }
     }
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        FLOAT_ARRAY(self->outputs.main)[i] = self->accumulator;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    for (size_t i = 0; i < blockSize; i++) {
+        out[i] = self->accumulator;
     }
 
     self->previousReset = reset;
@@ -1816,23 +1836,30 @@ void sig_dsp_GatedTimer_generate(void* signal) {
     struct sig_dsp_GatedTimer* self =
         (struct sig_dsp_GatedTimer*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float sampleRate = self->signal.audioSettings->sampleRate;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT durationIn = FLOAT_ARRAY(self->inputs.duration);
+    const float* SIG_RESTRICT gateIn = FLOAT_ARRAY(self->inputs.gate);
+    const float* SIG_RESTRICT loopIn = FLOAT_ARRAY(self->inputs.loop);
+
+    for (size_t i = 0; i < blockSize; i++) {
         // TODO: MSVC compiler warning loss of precision.
         unsigned long durationSamps = (unsigned long)
-            (FLOAT_ARRAY(self->inputs.duration)[i] *
-            self->signal.audioSettings->sampleRate);
-        float gate = FLOAT_ARRAY(self->inputs.gate)[i];
+            (durationIn[i] *
+            sampleRate);
+        float gate = gateIn[i];
 
         if (gate > 0.0f) {
             // Gate is open.
             if (!self->hasFired ||
-                FLOAT_ARRAY(self->inputs.loop)[i] > 0.0f) {
+                loopIn[i] > 0.0f) {
                 self->timer++;
             }
 
             if (self->timer >= durationSamps) {
                 // We reached the duration time.
-                FLOAT_ARRAY(self->outputs.main)[i] = 1.0f;
+                out[i] = 1.0f;
 
                 // Reset the timer counter and note
                 // that we've already fired while
@@ -1848,7 +1875,7 @@ void sig_dsp_GatedTimer_generate(void* signal) {
             self->hasFired = false;
         }
 
-        FLOAT_ARRAY(self->outputs.main)[i] = 0.0f;
+        out[i] = 0.0f;
         self->prevGate = gate;
     }
 }
@@ -1891,8 +1918,15 @@ void sig_dsp_TimedTriggerCounter_generate(void* signal) {
     struct sig_dsp_TimedTriggerCounter* self =
         (struct sig_dsp_TimedTriggerCounter*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float source = FLOAT_ARRAY(self->inputs.source)[i];
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float sampleRate = self->signal.audioSettings->sampleRate;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT sourceIn = FLOAT_ARRAY(self->inputs.source);
+    const float* SIG_RESTRICT durationIn = FLOAT_ARRAY(self->inputs.duration);
+    const float* SIG_RESTRICT countIn = FLOAT_ARRAY(self->inputs.count);
+
+    for (size_t i = 0; i < blockSize; i++) {
+        float source = sourceIn[i];
         float outputSample = 0.0f;
 
         if (source > 0.0f && self->previousSource == 0.0f) {
@@ -1915,16 +1949,15 @@ void sig_dsp_TimedTriggerCounter_generate(void* signal) {
             self->timer++;
 
             // Truncate the duration to the nearest sample.
-            long durSamps = (long) (FLOAT_ARRAY(
-                self->inputs.duration)[i] *
-                self->signal.audioSettings->sampleRate);
+            long durSamps = (long) (durationIn[i] *
+                sampleRate);
 
             if (self->timer >= durSamps) {
                 // Time's up.
                 // Fire a trigger if we've the right number of
                 // incoming triggers, otherwise just reset.
                 if (self->numTriggers ==
-                    (int) FLOAT_ARRAY(self->inputs.count)[i]) {
+                    (int) countIn[i]) {
                     outputSample = 1.0f;
                 }
 
@@ -1935,7 +1968,7 @@ void sig_dsp_TimedTriggerCounter_generate(void* signal) {
         }
 
         self->previousSource = source;
-        FLOAT_ARRAY(self->outputs.main)[i] = outputSample;
+        out[i] = outputSample;
     }
 }
 
@@ -1975,16 +2008,19 @@ void sig_dsp_ToggleGate_generate(void* signal) {
     struct sig_dsp_ToggleGate* self =
         (struct sig_dsp_ToggleGate*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float trigger = FLOAT_ARRAY(self->inputs.trigger)[i];
-        if (trigger > 0.0f && self->prevTrig <= 0.0f) {
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT trigger = FLOAT_ARRAY(self->inputs.trigger);
+    for (size_t i = 0; i < blockSize; i++) {
+        float trig = trigger[i];
+        if (trig > 0.0f && self->prevTrig <= 0.0f) {
             // Received a trigger, toggle the gate.
             self->isGateOpen = !self->isGateOpen;
         }
 
-        FLOAT_ARRAY(self->outputs.main)[i] = (float) self->isGateOpen;
+        out[i] = (float) self->isGateOpen;
 
-        self->prevTrig = trigger;
+        self->prevTrig = trig;
     }
 }
 
@@ -2063,15 +2099,16 @@ void sig_dsp_SineOscillator_destroy(struct sig_Allocator* allocator,
 
 void sig_dsp_SineOscillator_generate(void* signal) {
     struct sig_dsp_Oscillator* self = (struct sig_dsp_Oscillator*) signal;
-    float sampleRate = self->signal.audioSettings->sampleRate;
-    float* frequency = FLOAT_ARRAY(self->inputs.freq);
-    float* phaseOffset = FLOAT_ARRAY(self->inputs.phaseOffset);
-    float* mul = FLOAT_ARRAY(self->inputs.mul);
-    float* add = FLOAT_ARRAY(self->inputs.add);
-    float* mainOutput = FLOAT_ARRAY(self->outputs.main);
-    float* eocOutput = FLOAT_ARRAY(self->outputs.eoc);
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float sampleRate = self->signal.audioSettings->sampleRate;
+    const float* SIG_RESTRICT frequency = FLOAT_ARRAY(self->inputs.freq);
+    const float* SIG_RESTRICT phaseOffset = FLOAT_ARRAY(self->inputs.phaseOffset);
+    const float* SIG_RESTRICT mul = FLOAT_ARRAY(self->inputs.mul);
+    const float* SIG_RESTRICT add = FLOAT_ARRAY(self->inputs.add);
+    float* SIG_RESTRICT mainOutput = FLOAT_ARRAY(self->outputs.main);
+    float* SIG_RESTRICT eocOutput = FLOAT_ARRAY(self->outputs.eoc);
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+    for (size_t i = 0; i < blockSize; i++) {
         float modulatedPhase = self->state.phaseAccumulator +
             phaseOffset[i];
         float eoc = sig_osc_Oscillator_eoc(modulatedPhase);
@@ -2118,12 +2155,13 @@ struct sig_dsp_FastLFSineOscillator* sig_dsp_FastLFSineOscillator_new(
 void sig_dsp_FastLFSineOscillator_generate(void* signal) {
     struct sig_dsp_FastLFSineOscillator* self =
         (struct sig_dsp_FastLFSineOscillator*) signal;
-    float* frequency = FLOAT_ARRAY(self->inputs.frequency);
-    float* mul = FLOAT_ARRAY(self->inputs.mul);
-    float* add = FLOAT_ARRAY(self->inputs.add);
-    float* mainOutput = FLOAT_ARRAY(self->outputs.main);
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float* SIG_RESTRICT frequency = FLOAT_ARRAY(self->inputs.frequency);
+    const float* SIG_RESTRICT mul = FLOAT_ARRAY(self->inputs.mul);
+    const float* SIG_RESTRICT add = FLOAT_ARRAY(self->inputs.add);
+    float* SIG_RESTRICT mainOutput = FLOAT_ARRAY(self->outputs.main);
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+    for (size_t i = 0; i < blockSize; i++) {
         sig_osc_FastLFSine_setFrequencyFast(&self->state, frequency[i]);
         sig_osc_FastLFSine_generate(&self->state);
         float sample = self->state.sinZ;
@@ -2156,15 +2194,16 @@ struct sig_dsp_Oscillator* sig_dsp_LFTriangle_new(
 
 void sig_dsp_LFTriangle_generate(void* signal) {
     struct sig_dsp_Oscillator* self = (struct sig_dsp_Oscillator*) signal;
-    float sampleRate = self->signal.audioSettings->sampleRate;
-    float* frequency = FLOAT_ARRAY(self->inputs.freq);
-    float* phaseOffset = FLOAT_ARRAY(self->inputs.phaseOffset);
-    float* mul = FLOAT_ARRAY(self->inputs.mul);
-    float* add = FLOAT_ARRAY(self->inputs.add);
-    float* mainOutput = FLOAT_ARRAY(self->outputs.main);
-    float* eocOutput = FLOAT_ARRAY(self->outputs.eoc);
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float sampleRate = self->signal.audioSettings->sampleRate;
+    const float* SIG_RESTRICT frequency = FLOAT_ARRAY(self->inputs.freq);
+    const float* SIG_RESTRICT phaseOffset = FLOAT_ARRAY(self->inputs.phaseOffset);
+    const float* SIG_RESTRICT mul = FLOAT_ARRAY(self->inputs.mul);
+    const float* SIG_RESTRICT add = FLOAT_ARRAY(self->inputs.add);
+    float* SIG_RESTRICT mainOutput = FLOAT_ARRAY(self->outputs.main);
+    float* SIG_RESTRICT eocOutput = FLOAT_ARRAY(self->outputs.eoc);
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+    for (size_t i = 0; i < blockSize; i++) {
         float modulatedPhase = self->state.phaseAccumulator +
             phaseOffset[i];
         float eoc = sig_osc_Oscillator_eoc(modulatedPhase);
@@ -2216,19 +2255,20 @@ struct sig_dsp_WavetableOscillator* sig_dsp_WavetableOscillator_new(
 void sig_dsp_WavetableOscillator_generate(void* signal) {
     struct sig_dsp_WavetableOscillator* self =
         (struct sig_dsp_WavetableOscillator*) signal;
-    float sampleRate = self->signal.audioSettings->sampleRate;
-    float* frequency = FLOAT_ARRAY(self->inputs.freq);
-    float* phaseOffset = FLOAT_ARRAY(self->inputs.phaseOffset);
-    float* mul = FLOAT_ARRAY(self->inputs.mul);
-    float* add = FLOAT_ARRAY(self->inputs.add);
-    float* eocOutput = FLOAT_ARRAY(self->outputs.eoc);
-    float* mainOutput = FLOAT_ARRAY(self->outputs.main);
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float sampleRate = self->signal.audioSettings->sampleRate;
+    const float* SIG_RESTRICT frequency = FLOAT_ARRAY(self->inputs.freq);
+    const float* SIG_RESTRICT phaseOffset = FLOAT_ARRAY(self->inputs.phaseOffset);
+    const float* SIG_RESTRICT mul = FLOAT_ARRAY(self->inputs.mul);
+    const float* SIG_RESTRICT add = FLOAT_ARRAY(self->inputs.add);
+    float* SIG_RESTRICT eocOutput = FLOAT_ARRAY(self->outputs.eoc);
+    float* SIG_RESTRICT mainOutput = FLOAT_ARRAY(self->outputs.main);
 
     // TODO: This has to be assigned because we don't know when
     // it is been updated by the user.
     self->state.wavetable = self->wavetable;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+    for (size_t i = 0; i < blockSize; i++) {
         float sample = sig_osc_Wavetable_generate(&self->state,
             frequency[i], phaseOffset[i], sampleRate, &eocOutput[i]);
         float scaledSample = sample * mul[i] + add[i];
@@ -2278,15 +2318,16 @@ extern inline void sig_dsp_WavetableBankOscillator_generate(
     struct sig_dsp_WavetableBankOscillator* self =
         (struct sig_dsp_WavetableBankOscillator*) signal;
     self->state.wavetables = self->wavetables;
-    float sampleRate = self->signal.audioSettings->sampleRate;
-    float* frequency = FLOAT_ARRAY(self->inputs.freq);
-    float* phaseOffset = FLOAT_ARRAY(self->inputs.phaseOffset);
-    float* tableIndex = FLOAT_ARRAY(self->inputs.tableIndex);
-    float* mul = FLOAT_ARRAY(self->inputs.mul);
-    float* add = FLOAT_ARRAY(self->inputs.add);
-    float* eocOutput = FLOAT_ARRAY(self->outputs.eoc);
-    float* mainOutput = FLOAT_ARRAY(self->outputs.main);
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float sampleRate = self->signal.audioSettings->sampleRate;
+    const float* SIG_RESTRICT frequency = FLOAT_ARRAY(self->inputs.freq);
+    const float* SIG_RESTRICT phaseOffset = FLOAT_ARRAY(self->inputs.phaseOffset);
+    const float* SIG_RESTRICT tableIndex = FLOAT_ARRAY(self->inputs.tableIndex);
+    const float* SIG_RESTRICT mul = FLOAT_ARRAY(self->inputs.mul);
+    const float* SIG_RESTRICT add = FLOAT_ARRAY(self->inputs.add);
+    float* SIG_RESTRICT eocOutput = FLOAT_ARRAY(self->outputs.eoc);
+    float* SIG_RESTRICT mainOutput = FLOAT_ARRAY(self->outputs.main);
+    for (size_t i = 0; i < blockSize; i++) {
         float sample = sig_osc_WavetableBank_generate(&self->state,
             frequency[i], phaseOffset[i], tableIndex[i], sampleRate,
             &eocOutput[i]);
@@ -2341,10 +2382,13 @@ void sig_dsp_Smooth_generate(void* signal) {
         self->previousTime = time;
     }
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        FLOAT_ARRAY(self->outputs.main)[i] = previousSample =
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    for (size_t i = 0; i < blockSize; i++) {
+        out[i] = previousSample =
             sig_filter_smooth(
-                FLOAT_ARRAY(self->inputs.source)[i], previousSample, a1);
+                in[i], previousSample, a1);
     }
 
     self->previousSample = previousSample;
@@ -2391,12 +2435,14 @@ void sig_dsp_DCBlock_generate(void* signal) {
         self->previousFrequency = self->parameters.frequency;
     }
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float inputSample = FLOAT_ARRAY(self->inputs.source)[i];
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    for (size_t i = 0; i < blockSize; i++) {
         float outputSample = sig_filter_DCBlock_generate(&self->state,
-            inputSample);
+            in[i]);
 
-        FLOAT_ARRAY(self->outputs.main)[i] = outputSample;
+        out[i] = outputSample;
     }
 }
 
@@ -2455,17 +2501,21 @@ extern inline void sig_dsp_OnePole_recalculateCoefficients(
 void sig_dsp_OnePole_generate(void* signal) {
     struct sig_dsp_OnePole* self = (struct sig_dsp_OnePole*) signal;
 
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    const float* SIG_RESTRICT freqIn = FLOAT_ARRAY(self->inputs.frequency);
     float previousSample = self->previousSample;
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float frequency = FLOAT_ARRAY(self->inputs.frequency)[i];
+    for (size_t i = 0; i < blockSize; i++) {
+        float frequency = freqIn[i];
         if (self->previousFrequency != frequency ||
             self->previousMode != self->parameters.mode) {
             sig_dsp_OnePole_recalculateCoefficients(self, frequency);
         }
 
-        float sample = sig_filter_onepole(FLOAT_ARRAY(self->inputs.source)[i],
+        float sample = sig_filter_onepole(in[i],
             previousSample, self->b0, self->a1);
-        FLOAT_ARRAY(self->outputs.main)[i] = sample;
+        out[i] = sample;
         previousSample = sample;
 
     }
@@ -2505,11 +2555,13 @@ struct sig_dsp_EMA* sig_dsp_EMA_new(
 void sig_dsp_EMA_generate(void* signal) {
     struct sig_dsp_EMA* self = (struct sig_dsp_EMA*) signal;
     float previousSample = self->previousSample;
-    float alpha = self->parameters.alpha;
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float source = FLOAT_ARRAY(self->inputs.source)[i];
-        float sample = sig_filter_ema(source, previousSample, alpha);
-        FLOAT_ARRAY(self->outputs.main)[i] = sample;
+    const float alpha = self->parameters.alpha;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    for (size_t i = 0; i < blockSize; i++) {
+        float sample = sig_filter_ema(in[i], previousSample, alpha);
+        out[i] = sample;
         previousSample = sample;
     }
 
@@ -2547,10 +2599,11 @@ struct sig_dsp_Tanh* sig_dsp_Tanh_new(
 void sig_dsp_Tanh_generate(void* signal) {
     struct sig_dsp_Tanh* self = (struct sig_dsp_Tanh*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float inSamp = FLOAT_ARRAY(self->inputs.source)[i];
-        float outSamp = tanhf(inSamp);
-        FLOAT_ARRAY(self->outputs.main)[i] = outSamp;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    for (size_t i = 0; i < blockSize; i++) {
+        out[i] = tanhf(in[i]);
     }
 }
 
@@ -2593,11 +2646,14 @@ struct sig_dsp_Dust* sig_dsp_Dust_new(
 void sig_dsp_Dust_generate(void* signal) {
     struct sig_dsp_Dust* self = (struct sig_dsp_Dust*) signal;
 
-    float scaleDiv = self->parameters.bipolar > 0.0f ? 2.0f : 1.0f;
-    float scaleSub = self->parameters.bipolar > 0.0f ? 1.0f : 0.0f;
+    const float scaleDiv = self->parameters.bipolar > 0.0f ? 2.0f : 1.0f;
+    const float scaleSub = self->parameters.bipolar > 0.0f ? 1.0f : 0.0f;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT densityIn = FLOAT_ARRAY(self->inputs.density);
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float density = FLOAT_ARRAY(self->inputs.density)[i];
+    for (size_t i = 0; i < blockSize; i++) {
+        float density = densityIn[i];
 
         if (density != self->previousDensity) {
             self->previousDensity = density;
@@ -2609,7 +2665,7 @@ void sig_dsp_Dust_generate(void* signal) {
         float rand = sig_randf();
         float val = rand < self->threshold ?
             rand * self->scale - scaleSub : 0.0f;
-        FLOAT_ARRAY(self->outputs.main)[i] = val;
+        out[i] = val;
     }
 }
 
@@ -2654,23 +2710,31 @@ struct sig_dsp_TimedGate* sig_dsp_TimedGate_new(
 }
 
 static inline void sig_dsp_TimedGate_outputHigh(
-    struct sig_dsp_TimedGate* self, size_t index) {
-    FLOAT_ARRAY(self->outputs.main)[index] = self->gateValue;
+    struct sig_dsp_TimedGate* self, float* SIG_RESTRICT out,
+    size_t index) {
+    out[index] = self->gateValue;
     self->samplesRemaining--;
 }
 
 static inline void sig_dsp_TimedGate_outputLow(
-    struct sig_dsp_TimedGate* self, size_t index) {
-    FLOAT_ARRAY(self->outputs.main)[index] = 0.0f;
+    struct sig_dsp_TimedGate* self, float* SIG_RESTRICT out,
+    size_t index) {
+    out[index] = 0.0f;
 }
 
 void sig_dsp_TimedGate_generate(void* signal) {
     struct sig_dsp_TimedGate* self = (struct sig_dsp_TimedGate*)
         signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float currentTrigger = FLOAT_ARRAY(self->inputs.trigger)[i];
-        float duration = FLOAT_ARRAY(self->inputs.duration)[i];
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float sampleRate = self->signal.audioSettings->sampleRate;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT triggerIn = FLOAT_ARRAY(self->inputs.trigger);
+    const float* SIG_RESTRICT durationIn = FLOAT_ARRAY(self->inputs.duration);
+
+    for (size_t i = 0; i < blockSize; i++) {
+        float currentTrigger = triggerIn[i];
+        float duration = durationIn[i];
 
         if ((currentTrigger > 0.0f && self->previousTrigger <= 0.0f) ||
             (self->parameters.bipolar > 0.0 && currentTrigger < 0.0f && self->previousTrigger >= 0.0f)) {
@@ -2680,7 +2744,7 @@ void sig_dsp_TimedGate_generate(void* signal) {
             if (duration != self->previousDuration) {
                 // The duration input has changed.
                 self->durationSamps = lroundf(duration *
-                    self->signal.audioSettings->sampleRate);
+                    sampleRate);
                 self->previousDuration = duration;
             }
 
@@ -2690,16 +2754,16 @@ void sig_dsp_TimedGate_generate(void* signal) {
                 // Close the gate for one sample,
                 // and don't count down the duration
                 // until next time.
-                sig_dsp_TimedGate_outputLow(self, i);
+                sig_dsp_TimedGate_outputLow(self, out, i);
                 self->samplesRemaining = self->durationSamps;
             } else {
                 self->samplesRemaining = self->durationSamps;
-                sig_dsp_TimedGate_outputHigh(self, i);
+                sig_dsp_TimedGate_outputHigh(self, out, i);
             }
         } else if (self->samplesRemaining > 0) {
-            sig_dsp_TimedGate_outputHigh(self, i);
+            sig_dsp_TimedGate_outputHigh(self, out, i);
         } else {
-            sig_dsp_TimedGate_outputLow(self, i);
+            sig_dsp_TimedGate_outputLow(self, out, i);
         }
 
         self->previousTrigger = currentTrigger;
@@ -2868,13 +2932,15 @@ static inline void handleTap(struct sig_dsp_ClockSource* self) {
 
 void sig_dsp_ClockSource_generate(void* signal) {
     struct sig_dsp_ClockSource* self = (struct sig_dsp_ClockSource*) signal;
-    float_array_ptr pulse = self->inputs.pulse;
-    float_array_ptr tap = self->inputs.tap;
-    float threshold = self->parameters.threshold;
+    const float threshold = self->parameters.threshold;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT pulse = FLOAT_ARRAY(self->inputs.pulse);
+    const float* SIG_RESTRICT tap = FLOAT_ARRAY(self->inputs.tap);
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float pulseValue = FLOAT_ARRAY(pulse)[i];
-        float tapValue = FLOAT_ARRAY(tap)[i];
+    for (size_t i = 0; i < blockSize; i++) {
+        float pulseValue = pulse[i];
+        float tapValue = tap[i];
 
         float sample = 0.0f;
         if (pulseValue >= threshold) {
@@ -2903,7 +2969,7 @@ void sig_dsp_ClockSource_generate(void* signal) {
             }
         }
 
-        FLOAT_ARRAY(self->outputs.main)[i] = sample;
+        out[i] = sample;
         self->previousTapValue = tapValue;
     }
 }
@@ -2976,21 +3042,25 @@ static inline float sig_dsp_ClockDetector_calcClockFreq(
 void sig_dsp_ClockDetector_generate(void* signal) {
     struct sig_dsp_ClockDetector* self =
         (struct sig_dsp_ClockDetector*) signal;
-    float_array_ptr source = self->inputs.source;
+
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float sampleRate = self->signal.audioSettings->sampleRate;
+    const float threshold = self->parameters.threshold;
+    float* SIG_RESTRICT mainOut = FLOAT_ARRAY(self->outputs.main);
+    float* SIG_RESTRICT bpmOut = FLOAT_ARRAY(self->outputs.bpm);
+    const float* SIG_RESTRICT source = FLOAT_ARRAY(self->inputs.source);
 
     float previousTrigger = self->previousTrigger;
     float clockFreq = self->clockFreq;
     bool isRisingEdge = self->isRisingEdge;
     uint32_t numPulsesDetected = self->numPulsesDetected;
     uint32_t samplesSinceLastPulse = self->samplesSinceLastPulse;
-    float sampleRate = self->signal.audioSettings->sampleRate;
-    float threshold = self->parameters.threshold;
     uint32_t pulseDurSamples = self->pulseDurSamples;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+    for (size_t i = 0; i < blockSize; i++) {
         samplesSinceLastPulse++;
 
-        float sourceSamp = FLOAT_ARRAY(source)[i];
+        float sourceSamp = source[i];
         if (sourceSamp > 0.0f && previousTrigger < threshold) {
             // Start of rising edge.
             isRisingEdge = true;
@@ -3016,8 +3086,8 @@ void sig_dsp_ClockDetector_generate(void* signal) {
             isRisingEdge = false;
         }
 
-        FLOAT_ARRAY(self->outputs.main)[i] = clockFreq;
-        FLOAT_ARRAY(self->outputs.bpm)[i] = clockFreq * 60.0f;
+        mainOut[i] = clockFreq;
+        bpmOut[i] = clockFreq * 60.0f;
 
         previousTrigger = sourceSamp;
     }
@@ -3060,13 +3130,13 @@ void sig_dsp_LinearToFreq_init(struct sig_dsp_LinearToFreq* self,
 
 void sig_dsp_LinearToFreq_generate(void* signal) {
     struct sig_dsp_LinearToFreq* self = (struct sig_dsp_LinearToFreq*) signal;
-    float_array_ptr source = self->inputs.source;
-    float_array_ptr output = self->outputs.main;
-    float middleFreq = self->parameters.middleFreq;
+    const float middleFreq = self->parameters.middleFreq;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float inputSample = FLOAT_ARRAY(source)[i];
-        FLOAT_ARRAY(output)[i] = sig_linearToFreq(inputSample, middleFreq);
+    for (size_t i = 0; i < blockSize; i++) {
+        out[i] = sig_linearToFreq(in[i], middleFreq);
     }
 }
 
@@ -3100,12 +3170,13 @@ void sig_dsp_Branch_init(struct sig_dsp_Branch* self,
 void sig_dsp_Branch_generate(void* signal) {
     struct sig_dsp_Branch* self = (struct sig_dsp_Branch*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float condition = FLOAT_ARRAY(self->inputs.condition)[i];
-        float off = FLOAT_ARRAY(self->inputs.off)[i];
-        float on = FLOAT_ARRAY(self->inputs.on)[i];
-
-        FLOAT_ARRAY(self->outputs.main)[i] = condition > 0.0f ? on : off;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT condition = FLOAT_ARRAY(self->inputs.condition);
+    const float* SIG_RESTRICT off = FLOAT_ARRAY(self->inputs.off);
+    const float* SIG_RESTRICT on = FLOAT_ARRAY(self->inputs.on);
+    for (size_t i = 0; i < blockSize; i++) {
+        out[i] = condition[i] > 0.0f ? on[i] : off[i];
     }
 }
 
@@ -3173,7 +3244,7 @@ extern inline float sig_dsp_List_constrain(bool shouldWrap,
 void sig_dsp_List_generate(void* signal) {
     struct sig_dsp_List* self = (struct sig_dsp_List*) signal;
     struct sig_Buffer* list = self->list;
-    size_t blockSize = self->signal.audioSettings->blockSize;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
 
     // List buffers can only be updated at control rate.
     // TODO: Cache these and only recalculate when
@@ -3186,16 +3257,21 @@ void sig_dsp_List_generate(void* signal) {
     bool shouldInterpolate = self->parameters.interpolate > 0.0f;
     bool shouldNormalize = self->parameters.normalizeIndex > 0.0f;
 
+    float* SIG_RESTRICT mainOut = FLOAT_ARRAY(self->outputs.main);
+    float* SIG_RESTRICT indexOut = FLOAT_ARRAY(self->outputs.index);
+    float* SIG_RESTRICT lengthOut = FLOAT_ARRAY(self->outputs.length);
+    const float* SIG_RESTRICT indexIn = FLOAT_ARRAY(self->inputs.index);
+
     if (listLength < 1) {
         // There's nothing in the list; just output silence.
         for (size_t i = 0; i < blockSize; i++) {
-            FLOAT_ARRAY(self->outputs.main)[i] = 0.0f;
-            FLOAT_ARRAY(self->outputs.index)[i] = -1.0f;
-            FLOAT_ARRAY(self->outputs.length)[i] = listLengthF;
+            mainOut[i] = 0.0f;
+            indexOut[i] = -1.0f;
+            lengthOut[i] = listLengthF;
         }
     } else {
         for (size_t i = 0; i < blockSize; i++) {
-            float index = FLOAT_ARRAY(self->inputs.index)[i];
+            float index = indexIn[i];
             float sample = 0.0f;
 
             if (shouldNormalize) {
@@ -3214,9 +3290,9 @@ void sig_dsp_List_generate(void* signal) {
                 sample = FLOAT_ARRAY(list->samples)[(size_t) index];
             }
 
-            FLOAT_ARRAY(self->outputs.main)[i] = sample;
-            FLOAT_ARRAY(self->outputs.index)[i] = index;
-            FLOAT_ARRAY(self->outputs.length)[i] = listLengthF;
+            mainOut[i] = sample;
+            indexOut[i] = index;
+            lengthOut[i] = listLengthF;
         }
     }
 }
@@ -3285,15 +3361,17 @@ extern inline float sig_dsp_Sequencer_startStage(
 
 void sig_dsp_Sequencer_generate(void* signal) {
     struct sig_dsp_Sequencer* self = (struct sig_dsp_Sequencer*) signal;
-    float* mul = FLOAT_ARRAY(self->inputs.mul);
-    float* add = FLOAT_ARRAY(self->inputs.add);
+    const float* SIG_RESTRICT mul = FLOAT_ARRAY(self->inputs.mul);
+    const float* SIG_RESTRICT add = FLOAT_ARRAY(self->inputs.add);
     struct sig_Buffer* durations = self->durations;
     struct sig_Buffer* values = self->values;
-    size_t blockSize = self->signal.audioSettings->blockSize;
-    size_t valuesLength = values->length;
-    size_t durationsLength = durations->length;
-    bool hasValidSequence = valuesLength == durationsLength &&
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const size_t valuesLength = values->length;
+    const size_t durationsLength = durations->length;
+    const bool hasValidSequence = valuesLength == durationsLength &&
         durationsLength > 0 && valuesLength > 0;
+    float* SIG_RESTRICT mainOut = FLOAT_ARRAY(self->outputs.main);
+    float* SIG_RESTRICT indexOut = FLOAT_ARRAY(self->outputs.index);
 
     for (size_t i = 0; i < blockSize; i++) {
         float sample = 0.0f;
@@ -3321,9 +3399,9 @@ void sig_dsp_Sequencer_generate(void* signal) {
             }
         }
 
-        FLOAT_ARRAY(self->outputs.main)[i] = self->lastValue = sample *
+        mainOut[i] = self->lastValue = sample *
             mul[i] + add[i];
-        FLOAT_ARRAY(self->outputs.index)[i] = (float) self->stepIndex;
+        indexOut[i] = (float) self->stepIndex;
     }
 }
 
@@ -3361,13 +3439,15 @@ void sig_dsp_LinearMap_init(struct sig_dsp_LinearMap* self,
 void sig_dsp_LinearMap_generate(void* signal) {
     struct sig_dsp_LinearMap* self = (struct sig_dsp_LinearMap*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        FLOAT_ARRAY(self->outputs.main)[i] = sig_linearMap(
-            FLOAT_ARRAY(self->inputs.source)[i],
-            self->parameters.fromMin,
-            self->parameters.fromMax,
-            self->parameters.toMin,
-            self->parameters.toMax);
+    const float fromMin = self->parameters.fromMin;
+    const float fromMax = self->parameters.fromMax;
+    const float toMin = self->parameters.toMin;
+    const float toMax = self->parameters.toMax;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    for (size_t i = 0; i < blockSize; i++) {
+        out[i] = sig_linearMap(in[i], fromMin, fromMax, toMin, toMax);
     }
 }
 
@@ -3438,21 +3518,22 @@ void sig_dsp_TwoOpFM_init(struct sig_dsp_TwoOpFM* self,
 
 void sig_dsp_TwoOpFM_generate(void* signal) {
     struct sig_dsp_TwoOpFM* self = (struct sig_dsp_TwoOpFM*) signal;
-    float* frequency = FLOAT_ARRAY(self->inputs.frequency);
-    float* index = FLOAT_ARRAY(self->inputs.index);
-    float* ratio = FLOAT_ARRAY(self->inputs.ratio);
-    float* feedbackGain = FLOAT_ARRAY(self->inputs.feedbackGain);
-    float* phaseOffset = FLOAT_ARRAY(self->inputs.phaseOffset);
-    float* modulatorPhaseOffset = FLOAT_ARRAY(
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float sampleRate = self->signal.audioSettings->sampleRate;
+    const float* SIG_RESTRICT frequency = FLOAT_ARRAY(self->inputs.frequency);
+    const float* SIG_RESTRICT index = FLOAT_ARRAY(self->inputs.index);
+    const float* SIG_RESTRICT ratio = FLOAT_ARRAY(self->inputs.ratio);
+    const float* SIG_RESTRICT feedbackGain = FLOAT_ARRAY(self->inputs.feedbackGain);
+    const float* SIG_RESTRICT phaseOffset = FLOAT_ARRAY(self->inputs.phaseOffset);
+    const float* SIG_RESTRICT modulatorPhaseOffset = FLOAT_ARRAY(
         self->inputs.modulatorPhaseOffset);
-    float sampleRate = self->signal.audioSettings->sampleRate;
-    float* modulatorEOCOut = FLOAT_ARRAY(self->outputs.modulatorEOC);
-    float* carrierEOCOut = FLOAT_ARRAY(self->outputs.carrierEOC);
-    float* mainOut = FLOAT_ARRAY(self->outputs.main);
-    float* modulatorOut = FLOAT_ARRAY(self->outputs.modulator);
+    float* SIG_RESTRICT modulatorEOCOut = FLOAT_ARRAY(self->outputs.modulatorEOC);
+    float* SIG_RESTRICT carrierEOCOut = FLOAT_ARRAY(self->outputs.carrierEOC);
+    float* SIG_RESTRICT mainOut = FLOAT_ARRAY(self->outputs.main);
+    float* SIG_RESTRICT modulatorOut = FLOAT_ARRAY(self->outputs.modulator);
     struct sig_Buffer* feedbackBuffer = self->feedbackDelay.buffer;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
+    for (size_t i = 0; i < blockSize; i++) {
         float fundamental = frequency[i];
         float feedback = sig_filter_mean(feedbackBuffer->samples,
             feedbackBuffer->length) * feedbackGain[i];
@@ -3568,12 +3649,24 @@ extern inline float sig_dsp_Ladder_calcStage(
 void sig_dsp_Ladder_generate(void* signal) {
     struct sig_dsp_Ladder* self =
         (struct sig_dsp_Ladder*) signal;
-    float interpolationRecip = self->interpolationRecip;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float interpolationRecip = self->interpolationRecip;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    float* SIG_RESTRICT twoPoleOut = FLOAT_ARRAY(self->outputs.twoPole);
+    float* SIG_RESTRICT fourPoleOut = FLOAT_ARRAY(self->outputs.fourPole);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    const float* SIG_RESTRICT freqIn = FLOAT_ARRAY(self->inputs.frequency);
+    const float* SIG_RESTRICT resIn = FLOAT_ARRAY(self->inputs.resonance);
+    const float* SIG_RESTRICT inputGainIn = FLOAT_ARRAY(self->inputs.inputGain);
+    const float* SIG_RESTRICT pole1GainIn = FLOAT_ARRAY(self->inputs.pole1Gain);
+    const float* SIG_RESTRICT pole2GainIn = FLOAT_ARRAY(self->inputs.pole2Gain);
+    const float* SIG_RESTRICT pole3GainIn = FLOAT_ARRAY(self->inputs.pole3Gain);
+    const float* SIG_RESTRICT pole4GainIn = FLOAT_ARRAY(self->inputs.pole4Gain);
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float input = FLOAT_ARRAY(self->inputs.source)[i];
-        float frequency = FLOAT_ARRAY(self->inputs.frequency)[i];
-        float resonance = FLOAT_ARRAY(self->inputs.resonance)[i];
+    for (size_t i = 0; i < blockSize; i++) {
+        float input = in[i];
+        float frequency = freqIn[i];
+        float resonance = resIn[i];
         float totals[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
         float interp = 0.0f;
 
@@ -3602,14 +3695,14 @@ void sig_dsp_Ladder_generate(void* signal) {
             interp += interpolationRecip;
         }
         self->prevInput = input;
-        FLOAT_ARRAY(self->outputs.main)[i] =
-            (totals[0] * FLOAT_ARRAY(self->inputs.inputGain)[i]) +
-            (totals[1] * FLOAT_ARRAY(self->inputs.pole1Gain)[i]) +
-            (totals[2] * FLOAT_ARRAY(self->inputs.pole2Gain)[i]) +
-            (totals[3] * FLOAT_ARRAY(self->inputs.pole3Gain)[i]) +
-            (totals[4] * FLOAT_ARRAY(self->inputs.pole4Gain)[i]);
-        FLOAT_ARRAY(self->outputs.twoPole)[i] = totals[2];
-        FLOAT_ARRAY(self->outputs.fourPole)[i] = totals[4];
+        out[i] =
+            (totals[0] * inputGainIn[i]) +
+            (totals[1] * pole1GainIn[i]) +
+            (totals[2] * pole2GainIn[i]) +
+            (totals[3] * pole3GainIn[i]) +
+            (totals[4] * pole4GainIn[i]);
+        twoPoleOut[i] = totals[2];
+        fourPoleOut[i] = totals[4];
     }
 }
 
@@ -3647,15 +3740,20 @@ void sig_dsp_TiltEQ_init(struct sig_dsp_TiltEQ* self,
 
 void sig_dsp_TiltEQ_generate(void* signal) {
     struct sig_dsp_TiltEQ* self = (struct sig_dsp_TiltEQ*) signal;
-    float amp = 8.656170f; // 6.0f / log(2)
-    float gfactor = 5.0f; // Proportional gain.
-    float sr3 = self->sr3;
+    const float amp = 8.656170f; // 6.0f / log(2)
+    const float gfactor = 5.0f; // Proportional gain.
+    const float sr3 = self->sr3;
     float lpOut = self->lpOut;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    const float* SIG_RESTRICT freqIn = FLOAT_ARRAY(self->inputs.frequency);
+    const float* SIG_RESTRICT gainIn = FLOAT_ARRAY(self->inputs.gain);
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float source = FLOAT_ARRAY(self->inputs.source)[i];
-        float f0 = FLOAT_ARRAY(self->inputs.frequency)[i];
-        float gain = FLOAT_ARRAY(self->inputs.gain)[i] * 6.0f; // Convert to dB.
+    for (size_t i = 0; i < blockSize; i++) {
+        float source = in[i];
+        float f0 = freqIn[i];
+        float gain = gainIn[i] * 6.0f; // Convert to dB.
         float g1, g2;
 
         if (gain > 0.0f) {
@@ -3675,7 +3773,7 @@ void sig_dsp_TiltEQ_generate(void* signal) {
         float b1 = (sr3 - omega) * n;
 
         lpOut = a0 * source + b1 * lpOut;
-        FLOAT_ARRAY(self->outputs.main)[i] = source + lgain * lpOut +
+        out[i] = source + lgain * lpOut +
             hgain * (source - lpOut);
     }
 
@@ -3726,9 +3824,19 @@ extern inline void sig_dsp_Delay_read(struct sig_dsp_Delay* self,
 void sig_dsp_Delay_generate(void* signal) {
     struct sig_dsp_Delay* self = (struct sig_dsp_Delay*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float source = FLOAT_ARRAY(self->inputs.source)[i];
-        sig_dsp_Delay_read(self, source, i);
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    const float* SIG_RESTRICT delayTime = FLOAT_ARRAY(self->inputs.delayTime);
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float sampleRate = self->signal.audioSettings->sampleRate;
+
+    for (size_t i = 0; i < blockSize; i++) {
+        float source = in[i];
+        out[i] = sig_DelayLine_cubicReadAtTime(
+            self->delayLine,
+            source,
+            delayTime[i],
+            sampleRate);
         sig_DelayLine_write(self->delayLine, source);
     }
 }
@@ -3769,9 +3877,19 @@ void sig_dsp_DelayTap_init(struct sig_dsp_Delay* self,
 void sig_dsp_DelayTap_generate(void* signal) {
     struct sig_dsp_Delay* self = (struct sig_dsp_Delay*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float source = FLOAT_ARRAY(self->inputs.source)[i];
-        sig_dsp_Delay_read(self, source, i);
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    const float* SIG_RESTRICT delayTime = FLOAT_ARRAY(self->inputs.delayTime);
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float sampleRate = self->signal.audioSettings->sampleRate;
+
+    for (size_t i = 0; i < blockSize; i++) {
+        float source = in[i];
+        out[i] = sig_DelayLine_cubicReadAtTime(
+            self->delayLine,
+            source,
+            delayTime[i],
+            sampleRate);
     }
 }
 
@@ -3808,9 +3926,11 @@ void sig_dsp_DelayWrite_init(struct sig_dsp_DelayWrite* self,
 void sig_dsp_DelayWrite_generate(void* signal) {
     struct sig_dsp_DelayWrite* self = (struct sig_dsp_DelayWrite*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float source = FLOAT_ARRAY(self->inputs.source)[i];
-        sig_DelayLine_write(self->delayLine, source);
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+
+    for (size_t i = 0; i < blockSize; i++) {
+        sig_DelayLine_write(self->delayLine, in[i]);
     }
 
 }
@@ -3854,13 +3974,21 @@ void sig_dsp_Comb_init(struct sig_dsp_Comb* self,
 void sig_dsp_Comb_generate(void* signal) {
     struct sig_dsp_Comb* self = (struct sig_dsp_Comb*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float maxDelayLength = (float) self->delayLine->buffer->length;
-        float source = FLOAT_ARRAY(self->inputs.source)[i];
-        float feedbackGain = FLOAT_ARRAY(self->inputs.feedbackGain)[i];
-        float delayTime = FLOAT_ARRAY(self->inputs.delayTime)[i];
-        float lpfCoefficient = FLOAT_ARRAY(self->inputs.lpfCoefficient)[i];
-        float readPos = (delayTime * self->signal.audioSettings->sampleRate);
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float maxDelayLength = (float) self->delayLine->buffer->length;
+    const float sampleRate = self->signal.audioSettings->sampleRate;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    const float* SIG_RESTRICT feedbackGainIn = FLOAT_ARRAY(self->inputs.feedbackGain);
+    const float* SIG_RESTRICT delayTimeIn = FLOAT_ARRAY(self->inputs.delayTime);
+    const float* SIG_RESTRICT lpfCoefficientIn = FLOAT_ARRAY(self->inputs.lpfCoefficient);
+
+    for (size_t i = 0; i < blockSize; i++) {
+        float source = in[i];
+        float feedbackGain = feedbackGainIn[i];
+        float delayTime = delayTimeIn[i];
+        float lpfCoefficient = lpfCoefficientIn[i];
+        float readPos = (delayTime * sampleRate);
         if (readPos >= maxDelayLength) {
             readPos = maxDelayLength - 1;
         }
@@ -3872,7 +4000,7 @@ void sig_dsp_Comb_generate(void* signal) {
         float toWrite = sig_DelayLine_feedback(source, outputSample,
             feedbackGain);
         sig_DelayLine_write(self->delayLine, toWrite);
-        FLOAT_ARRAY(self->outputs.main)[i] = outputSample;
+        out[i] = outputSample;
         self->previousSample = outputSample;
     }
 }
@@ -3915,20 +4043,27 @@ void sig_dsp_Allpass_init(struct sig_dsp_Allpass* self,
 void sig_dsp_Allpass_generate(void* signal) {
     struct sig_dsp_Allpass* self = (struct sig_dsp_Allpass*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float maxDelayLength = (float) self->delayLine->buffer->length;
-        float source = FLOAT_ARRAY(self->inputs.source)[i];
-        float delayTime = FLOAT_ARRAY(self->inputs.delayTime)[i];
-        float g = FLOAT_ARRAY(self->inputs.g)[i];
-        float readPos = (delayTime * self->signal.audioSettings->sampleRate);
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float maxDelayLength = (float) self->delayLine->buffer->length;
+    const float sampleRate = self->signal.audioSettings->sampleRate;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    const float* SIG_RESTRICT delayTimeIn = FLOAT_ARRAY(self->inputs.delayTime);
+    const float* SIG_RESTRICT gIn = FLOAT_ARRAY(self->inputs.g);
+
+    for (size_t i = 0; i < blockSize; i++) {
+        float source = in[i];
+        float delayTime = delayTimeIn[i];
+        float g = gIn[i];
+        float readPos = (delayTime * sampleRate);
         if (readPos >= maxDelayLength) {
             readPos = maxDelayLength - 1;
         }
 
         if (delayTime <= 0.0f || g <= 0.0f) {
-            FLOAT_ARRAY(self->outputs.main)[i] = source;
+            out[i] = source;
         } else {
-            FLOAT_ARRAY(self->outputs.main)[i] = sig_DelayLine_linearAllpass(
+            out[i] = sig_DelayLine_linearAllpass(
                 self->delayLine, source, readPos, g);
         }
     }
@@ -3995,24 +4130,36 @@ void sig_dsp_Chorus_init(struct sig_dsp_Chorus* self,
 void sig_dsp_Chorus_generate(void* signal) {
     struct sig_dsp_Chorus* self = (struct sig_dsp_Chorus*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float source = FLOAT_ARRAY(self->inputs.source)[i];
-        float delayTime = FLOAT_ARRAY(self->inputs.delayTime)[i];
-        float speed = FLOAT_ARRAY(self->inputs.speed)[i];
-        float width = FLOAT_ARRAY(self->inputs.width)[i];
-        float feedbackGain = FLOAT_ARRAY(self->inputs.feedbackGain)[i];
-        float feedforwardGain = FLOAT_ARRAY(self->inputs.feedforwardGain)[i];
-        float blend = FLOAT_ARRAY(self->inputs.blend)[i];
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float sampleRate = self->signal.audioSettings->sampleRate;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    float* SIG_RESTRICT modulatorOut = FLOAT_ARRAY(self->outputs.modulator);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    const float* SIG_RESTRICT delayTimeIn = FLOAT_ARRAY(self->inputs.delayTime);
+    const float* SIG_RESTRICT speedIn = FLOAT_ARRAY(self->inputs.speed);
+    const float* SIG_RESTRICT widthIn = FLOAT_ARRAY(self->inputs.width);
+    const float* SIG_RESTRICT feedbackGainIn = FLOAT_ARRAY(self->inputs.feedbackGain);
+    const float* SIG_RESTRICT feedforwardGainIn = FLOAT_ARRAY(self->inputs.feedforwardGain);
+    const float* SIG_RESTRICT blendIn = FLOAT_ARRAY(self->inputs.blend);
+
+    for (size_t i = 0; i < blockSize; i++) {
+        float source = in[i];
+        float delayTime = delayTimeIn[i];
+        float speed = speedIn[i];
+        float width = widthIn[i];
+        float feedbackGain = feedbackGainIn[i];
+        float feedforwardGain = feedforwardGainIn[i];
+        float blend = blendIn[i];
 
         sig_osc_FastLFSine_setFrequencyFast(&self->modulator, speed);
         sig_osc_FastLFSine_generate(&self->modulator);
-        FLOAT_ARRAY(self->outputs.modulator)[i] = self->modulator.sinZ;
+        modulatorOut[i] = self->modulator.sinZ;
 
         // TODO: Add one pole low pass filters in both the feedback and
         // feedforward lines to support echo.
 
         float fixedRead = sig_DelayLine_allpassReadAtTime(self->delayLine,
-            source, delayTime, self->signal.audioSettings->sampleRate,
+            source, delayTime, sampleRate,
             self->previousFixedOutput);
         self->previousFixedOutput = fixedRead;
         float toWrite = source - (fixedRead * feedbackGain);
@@ -4020,7 +4167,7 @@ void sig_dsp_Chorus_generate(void* signal) {
 
         float modulatedDelayTime = self->modulator.sinZ * width + delayTime;
         float modulatedRead = sig_DelayLine_allpassReadAtTime(self->delayLine,
-            source, modulatedDelayTime, self->signal.audioSettings->sampleRate,
+            source, modulatedDelayTime, sampleRate,
             self->previousModulatedOutput);
         self->previousModulatedOutput = modulatedRead;
         float feedforwardSample = modulatedRead * feedforwardGain;
@@ -4029,7 +4176,7 @@ void sig_dsp_Chorus_generate(void* signal) {
         // TODO: What kind of gain staging should we do here?
         // It seems likely that we can have up to 3x gain depending on
         // the values of feedbackGain, feedforwardGain, and blend.
-        FLOAT_ARRAY(self->outputs.main)[i] = sig_fastTanhf(output / 3.0f);
+        out[i] = sig_fastTanhf(output / 3.0f);
     }
 }
 
@@ -4066,11 +4213,13 @@ void sig_dsp_LinearXFade_init(struct sig_dsp_LinearXFade* self,
 void sig_dsp_LinearXFade_generate(void* signal) {
     struct sig_dsp_LinearXFade* self = (struct sig_dsp_LinearXFade*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float left = FLOAT_ARRAY(self->inputs.left)[i];
-        float right = FLOAT_ARRAY(self->inputs.right)[i];
-        float mix = FLOAT_ARRAY(self->inputs.mix)[i];
-        FLOAT_ARRAY(self->outputs.main)[i] = sig_linearXFade(left, right, mix);
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT left = FLOAT_ARRAY(self->inputs.left);
+    const float* SIG_RESTRICT right = FLOAT_ARRAY(self->inputs.right);
+    const float* SIG_RESTRICT mix = FLOAT_ARRAY(self->inputs.mix);
+    for (size_t i = 0; i < blockSize; i++) {
+        out[i] = sig_linearXFade(left[i], right[i], mix[i]);
     }
 }
 
@@ -4170,9 +4319,14 @@ extern inline float sig_dsp_Calibrator_fitValueToCalibrationData(
 void sig_dsp_Calibrator_generate(void* signal) {
     struct sig_dsp_Calibrator* self = (struct sig_dsp_Calibrator*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float source = FLOAT_ARRAY(self->inputs.source)[i];
-        float gate = FLOAT_ARRAY(self->inputs.gate)[i];
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT sourceIn = FLOAT_ARRAY(self->inputs.source);
+    const float* SIG_RESTRICT gateIn = FLOAT_ARRAY(self->inputs.gate);
+
+    for (size_t i = 0; i < blockSize; i++) {
+        float source = sourceIn[i];
+        float gate = gateIn[i];
         size_t stage = self->stage;
         struct sig_dsp_Calibrator_Node* node = &self->nodes[stage];
 
@@ -4202,7 +4356,7 @@ void sig_dsp_Calibrator_generate(void* signal) {
 
         float px = sig_dsp_Calibrator_fitValueToCalibrationData(source,
             self->nodes, sig_dsp_Calibrator_NUM_STAGES);
-        FLOAT_ARRAY(self->outputs.main)[i] = px;
+        out[i] = px;
 
         self->previousGate = gate;
     }
@@ -4241,14 +4395,13 @@ void sig_dsp_SineWavefolder_generate(void* signal) {
     struct sig_dsp_SineWavefolder* self =
         (struct sig_dsp_SineWavefolder*) signal;
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float source = FLOAT_ARRAY(self->inputs.source)[i];
-        float gain = FLOAT_ARRAY(self->inputs.gain)[i];
-        float factor = FLOAT_ARRAY(self->inputs.factor)[i];
-
-        float sample = sig_sineWavefolder(source, gain, factor);
-
-        FLOAT_ARRAY(self->outputs.main)[i] = sample;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    const float* SIG_RESTRICT gain = FLOAT_ARRAY(self->inputs.gain);
+    const float* SIG_RESTRICT factor = FLOAT_ARRAY(self->inputs.factor);
+    for (size_t i = 0; i < blockSize; i++) {
+        out[i] = sig_sineWavefolder(in[i], gain[i], factor[i]);
     }
 }
 
@@ -4288,14 +4441,17 @@ void sig_dsp_NoiseGate_init(struct sig_dsp_NoiseGate* self,
 void sig_dsp_NoiseGate_generate(void* signal) {
     struct sig_dsp_NoiseGate* self = (struct sig_dsp_NoiseGate*) signal;
 
-    float scale = self->parameters.scale;
-    float offset = self->parameters.offset;
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float source = FLOAT_ARRAY(self->inputs.source)[i];
-        float threshold = FLOAT_ARRAY(self->inputs.threshold)[i];
+    const float scale = self->parameters.scale;
+    const float offset = self->parameters.offset;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    const float* SIG_RESTRICT threshold = FLOAT_ARRAY(self->inputs.threshold);
+    for (size_t i = 0; i < blockSize; i++) {
+        float source = in[i];
 
-        float sample = source >= threshold ? source * scale + offset : 0.0f;
-        FLOAT_ARRAY(self->outputs.main)[i] = sample;
+        float sample = source >= threshold[i] ? source * scale + offset : 0.0f;
+        out[i] = sample;
     }
 }
 
