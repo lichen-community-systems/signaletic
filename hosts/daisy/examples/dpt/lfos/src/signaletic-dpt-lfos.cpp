@@ -1,11 +1,12 @@
 #include <libsignaletic.h>
-#include "../../../shared/include/clocked-lfo.h"
+#include "../../../shared/include/scaled-clock-frequency.h"
 #include "../../../../include/dspcoffee-dpt-device.hpp"
 
 #define SAMPLERATE 48000
 #define HEAP_SIZE 1024 * 256 // 256KB
 #define MAX_NUM_SIGNALS 128
 #define NUM_LFOS 4
+
 uint8_t memory[HEAP_SIZE];
 struct sig_AllocatorHeap heap = {
     .length = HEAP_SIZE,
@@ -30,7 +31,7 @@ struct sig_dsp_SignalListEvaluator* evaluator;
 struct sig_host_GateIn* clockIn;
 struct sig_host_CVIn* lfoFrequency[NUM_LFOS];
 struct sig_host_CVIn* lfoScale[NUM_LFOS];
-struct sig_dsp_ClockedLFO* lfo[NUM_LFOS];
+struct sig_dsp_Oscillator* lfo[NUM_LFOS];
 struct sig_host_CVOut* out[NUM_LFOS];
 struct sig_dsp_BinaryOp* lfo1PlusLFO3;
 struct sig_dsp_BinaryOp* lfo2PlusLFO4;
@@ -57,22 +58,27 @@ void makeCVInputs(struct sig_SignalContext* context,
     }
 }
 
-struct sig_dsp_ClockedLFO* makeLFO(struct sig_SignalContext* context,
+struct sig_dsp_Oscillator* makeLFO(struct sig_SignalContext* context,
     struct sig_Status* status,
     struct sig_host_CVIn* frequencyInput,
     struct sig_host_CVIn* scaleInput) {
-    struct sig_dsp_ClockedLFO* lfo = sig_dsp_ClockedLFO_new(&allocator,
+    struct sig_dsp_ScaledClockFrequency* frequency =
+        sig_dsp_ScaledClockFrequency_new(&allocator, context);
+    sig_List_append(&signals, frequency, status);
+    frequency->inputs.clock = clockIn->outputs.main;
+    frequency->inputs.scale = frequencyInput->outputs.main;
+
+    struct sig_dsp_Oscillator* lfo = sig_dsp_LFTriangle_new(&allocator,
         context);
     sig_List_append(&signals, lfo, status);
-    lfo->inputs.clock = clockIn->outputs.main;
-    lfo->inputs.frequencyScale = frequencyInput->outputs.main;
-    lfo->inputs.scale = scaleInput->outputs.main;
+    lfo->inputs.freq = frequency->outputs.main;
+    lfo->inputs.mul = scaleInput->outputs.main;
 
     return lfo;
 }
 
 void makeLFOs(struct sig_SignalContext* context,
-    struct sig_Status* status, struct sig_dsp_ClockedLFO** lfos,
+    struct sig_Status* status, struct sig_dsp_Oscillator** lfos,
     struct sig_host_CVIn** frequencyInputs,
     struct sig_host_CVIn** scaleInputs, size_t numLFOs) {
     for (size_t i = 0; i < numLFOs; i++) {
@@ -82,7 +88,7 @@ void makeLFOs(struct sig_SignalContext* context,
 
 struct sig_host_CVOut* makeCVOutput(struct sig_SignalContext* context,
     struct sig_Status* status, uint8_t control,
-    struct sig_dsp_ClockedLFO* lfo) {
+    struct sig_dsp_Oscillator* lfo) {
     struct sig_host_CVOut* output = sig_host_CVOut_new(&allocator, context);
     output->hardware = &host.device.hardware;
     sig_List_append(&signals, output, status);
@@ -94,7 +100,7 @@ struct sig_host_CVOut* makeCVOutput(struct sig_SignalContext* context,
 
 void makeCVOutputs(struct sig_SignalContext* context,
     struct sig_Status* status, struct sig_host_CVOut** outputs,
-    struct sig_dsp_ClockedLFO** lfos,
+    struct sig_dsp_Oscillator** lfos,
     uint8_t* controls, size_t numOutputs) {
     for (size_t i = 0; i < numOutputs; i++) {
         outputs[i] = makeCVOutput(context, status, controls[i], lfos[i]);

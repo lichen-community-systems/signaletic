@@ -274,8 +274,9 @@ float sig_interpolate_linear(float idx, float_array_ptr table,
     size_t length) {
     int32_t idxIntegral = (int32_t) idx;
     float idxFractional = idx - (float) idxIntegral;
-    float a = FLOAT_ARRAY(table)[idxIntegral];
-    float b = FLOAT_ARRAY(table)[(idxIntegral + 1) % length];
+    size_t aIdx = (size_t) idxIntegral % length;
+    float a = FLOAT_ARRAY(table)[aIdx];
+    float b = FLOAT_ARRAY(table)[(aIdx + 1) % length];
 
     return a + (b - a) * idxFractional;
 }
@@ -435,6 +436,77 @@ float sig_waveform_triangle(float phase) {
     return 2.0f * (val - 0.5f);
 }
 
+float sig_waveform_sineHarmonicGain(size_t harmonic) {
+    return harmonic == 1 ? 1.0f : 0.0f;
+}
+
+float sig_waveform_triangleHarmonicGain(size_t harmonic) {
+    float k = (float) harmonic;
+
+    return harmonic % 2 == 1 ? 8.0f / (sig_PI * sig_PI * k * k) : 0.0f;
+}
+
+float sig_waveform_sawHarmonicGain(size_t harmonic) {
+    return -2.0f / (sig_PI * (float) harmonic);
+}
+
+float sig_waveform_squareHarmonicGain(size_t harmonic) {
+    return harmonic % 2 == 1 ? 4.0f / (sig_PI * (float) harmonic) : 0.0f;
+}
+
+float sig_waveform_reverseSawHarmonicGain(size_t harmonic) {
+    return -sig_waveform_sawHarmonicGain(harmonic);
+}
+
+// Triangle harmonics are cosines, which start a quarter cycle into a sine.
+const struct sig_WaveformShape
+    sig_STANDARD_WAVEFORMS[sig_StandardWaveform_COUNT] = {
+    {
+        .generate = sig_waveform_sine,
+        .harmonic = sig_waveform_sineHarmonicGain,
+        .harmonicPhase = 0.0f
+    },
+    {
+        .generate = sig_waveform_triangle,
+        .harmonic = sig_waveform_triangleHarmonicGain,
+        .harmonicPhase = 0.25f
+    },
+    {
+        .generate = sig_waveform_saw,
+        .harmonic = sig_waveform_sawHarmonicGain,
+        .harmonicPhase = 0.0f
+    },
+    {
+        .generate = sig_waveform_square,
+        .harmonic = sig_waveform_squareHarmonicGain,
+        .harmonicPhase = 0.0f
+    },
+    {
+        .generate = sig_waveform_reverseSaw,
+        .harmonic = sig_waveform_reverseSawHarmonicGain,
+        .harmonicPhase = 0.0f
+    }
+};
+
+float sig_waveform_harmonicGain(enum sig_StandardWaveform waveform,
+    size_t harmonic) {
+    return sig_STANDARD_WAVEFORMS[waveform].harmonic(harmonic);
+}
+
+float sig_waveform_harmonicPhase(enum sig_StandardWaveform waveform) {
+    return sig_STANDARD_WAVEFORMS[waveform].harmonicPhase;
+}
+
+float sig_waveform_harmonicTaper(enum sig_HarmonicTaper taper,
+    size_t harmonic, size_t numHarmonics) {
+    if (taper != sig_HarmonicTaper_LANCZOS) {
+        return 1.0f;
+    }
+
+    float x = sig_PI * (float) harmonic / (float) (numHarmonics + 1);
+
+    return sinf(x) / x;
+}
 
 
 void sig_osc_Oscillator_init(struct sig_osc_Oscillator* self) {
@@ -484,23 +556,60 @@ void sig_osc_WavetableBank_init(struct sig_osc_WavetableBank* self,
     self->wavetables = wavetables;
 }
 
+float sig_osc_WavetableBank_tableIndex(size_t table, size_t numTables) {
+    return (float) table / (float) numTables;
+}
+
 extern inline float sig_osc_WavetableBank_generate(
     struct sig_osc_WavetableBank* self,
     float frequency, float phaseOffset, float tableIndex,
     float sampleRate, float* eocOut) {
         // TODO: Precompute this.
-        float lastWaveTableIdx = (float) (self->wavetables->length - 1);
+        float numTables = (float) self->wavetables->length;
         // TODO: Reduce duplication with sig_osc_Wavetable
         float modulatedPhase = self->phaseAccumulator + phaseOffset;
         *eocOut = sig_osc_Oscillator_eoc(modulatedPhase);
         modulatedPhase = sig_fastMod1f(modulatedPhase);
-        float scaledTableIdx = tableIndex * lastWaveTableIdx;
+        float scaledTableIdx = tableIndex * numTables;
         float sample = sig_WavetableBank_readLinearAtPhase(
             self->wavetables, scaledTableIdx, modulatedPhase);
         sig_osc_Oscillator_accumulatePhase(&self->phaseAccumulator,
             frequency, sampleRate);
 
         return sample;
+}
+
+void sig_osc_AdditiveWavetableBank_init(
+    struct sig_osc_AdditiveWavetableBank* self,
+    struct sig_AdditiveWavetableBank* wavetables) {
+    self->phaseAccumulator = 0.0f;
+    self->wavetables = wavetables;
+    self->previousFrequency = 0.0f;
+    self->level = 0.0f;
+}
+
+extern inline float sig_osc_AdditiveWavetableBank_generate(
+    struct sig_osc_AdditiveWavetableBank* self, float frequency,
+    float phaseOffset, float tableIndex, float sampleRate, float* eocOut) {
+    float waveIdx = tableIndex * (float) self->wavetables->numShapes;
+    float modulatedPhase = self->phaseAccumulator + phaseOffset;
+    *eocOut = sig_osc_Oscillator_eoc(modulatedPhase);
+    modulatedPhase = sig_osc_Oscillator_wrapPhase(modulatedPhase);
+
+    // Logarithms are expensive, so the level is only
+    // recalculated when the frequency changes.
+    if (frequency != self->previousFrequency) {
+        self->level = sig_AdditiveWavetableBank_levelForFrequency(
+            self->wavetables, frequency);
+        self->previousFrequency = frequency;
+    }
+
+    float sample = sig_AdditiveWavetableBank_readLinearAtPhase(
+        self->wavetables, self->level, waveIdx, modulatedPhase);
+    sig_osc_Oscillator_accumulatePhase(&self->phaseAccumulator,
+        frequency, sampleRate);
+
+    return sample;
 }
 
 
@@ -864,6 +973,37 @@ float sig_Buffer_readCubic(struct sig_Buffer* self, float idx) {
     return sig_interpolate_cubic(idx, self->samples, self->length);
 }
 
+void sig_Buffer_addHarmonic(struct sig_Buffer* self,
+    struct sig_Buffer* sineTable, size_t harmonic, float gain, float phase) {
+    const size_t length = self->length;
+    float* SIG_RESTRICT samples = FLOAT_ARRAY(self->samples);
+    const float* SIG_RESTRICT sine = FLOAT_ARRAY(sineTable->samples);
+    size_t sineIdx = ((size_t) (phase * (float) length)) % length;
+
+    for (size_t i = 0; i < length; i++) {
+        samples[i] += gain * sine[sineIdx];
+        sineIdx += harmonic;
+        if (sineIdx >= length) {
+            sineIdx -= length;
+        }
+    }
+}
+
+void sig_Buffer_fillWithHarmonics(struct sig_Buffer* self,
+    struct sig_Buffer* sineTable, const struct sig_WaveformShape* shape,
+    size_t numHarmonics, enum sig_HarmonicTaper taper) {
+    const float phase = shape->harmonicPhase;
+
+    sig_Buffer_fillWithSilence(self);
+    for (size_t harmonic = 1; harmonic <= numHarmonics; harmonic++) {
+        float gain = shape->harmonic(harmonic) *
+            sig_waveform_harmonicTaper(taper, harmonic, numHarmonics);
+        if (gain != 0.0f) {
+            sig_Buffer_addHarmonic(self, sineTable, harmonic, gain, phase);
+        }
+    }
+}
+
 void sig_Buffer_destroy(struct sig_Allocator* allocator,
     struct sig_Buffer* self) {
     allocator->impl->free(allocator, self->samples);
@@ -917,11 +1057,23 @@ struct sig_WavetableBank* sig_WavetableBank_new(
 extern inline float sig_WavetableBank_readLinearAtPhase(
     struct sig_WavetableBank* self,
     float tableIdx, float phase) {
-        int32_t tableIdxIntegral = (int32_t) tableIdx;
+        const size_t length = self->length;
+        const float lengthF = (float) length;
+
+        // Wrapping requires a division, so it is skipped for the
+        // usual case where the index is already within the bank.
+        if (tableIdx < 0.0f || tableIdx >= lengthF) {
+            tableIdx = sig_flooredfmodf(tableIdx, lengthF);
+        }
+
+        size_t tableIdxIntegral = (size_t) tableIdx;
         float tableIdxFractional = tableIdx - (float) tableIdxIntegral;
-        size_t aTableIndex = tableIdxIntegral % self->length;
+
+        // Tiny negative indices can wrap to exactly the length,
+        // which is the start of the bank.
+        size_t aTableIndex = tableIdxIntegral % length;
         struct sig_Buffer* aTable = self->waves[aTableIndex];
-        size_t bTableIndex = (tableIdxIntegral + 1) % self->length;
+        size_t bTableIndex = (aTableIndex + 1) % length;
         struct sig_Buffer* bTable = self->waves[bTableIndex];
 
         float a = sig_Buffer_readLinearAtPhase(aTable, phase);
@@ -942,6 +1094,105 @@ void sig_WavetableBank_destroy(struct sig_Allocator* allocator,
     self->waves = NULL;
     allocator->impl->free(allocator, self);
     self = NULL;
+}
+
+struct sig_AdditiveWavetableBank* sig_AdditiveWavetableBank_new(
+    struct sig_Allocator* allocator, const struct sig_WaveformShape* shapes,
+    size_t numShapes, size_t numLevels, size_t tableLength,
+    float lowestFrequency, float maxHarmonicFrequency,
+    enum sig_HarmonicTaper taper) {
+    struct sig_AdditiveWavetableBank* self = sig_MALLOC(allocator,
+        struct sig_AdditiveWavetableBank);
+    self->shapes = (struct sig_WaveformShape*) allocator->impl->malloc(
+        allocator, sizeof(struct sig_WaveformShape) * numShapes);
+    for (size_t i = 0; i < numShapes; i++) {
+        self->shapes[i] = shapes[i];
+    }
+    self->numShapes = numShapes;
+    self->numLevels = numLevels;
+    self->tableLength = tableLength;
+    self->lowestFrequency = lowestFrequency;
+    self->maxHarmonicFrequency = maxHarmonicFrequency;
+    self->taper = taper;
+    self->levels = (struct sig_WavetableBank**) allocator->impl->malloc(
+        allocator, sizeof(struct sig_WavetableBank*) * numLevels);
+
+    for (size_t level = 0; level < numLevels; level++) {
+        self->levels[level] = sig_WavetableBank_new(allocator, numShapes,
+            tableLength);
+    }
+
+    struct sig_Buffer* sineTable = sig_Buffer_new(allocator, tableLength);
+    sig_Buffer_fillWithWaveform(sineTable, sig_waveform_sine,
+        (float) tableLength, 0.0f, 1.0f);
+    sig_AdditiveWavetableBank_fill(self, sineTable);
+    sig_Buffer_destroy(allocator, sineTable);
+
+    return self;
+}
+
+size_t sig_AdditiveWavetableBank_numHarmonics(
+    struct sig_AdditiveWavetableBank* self, size_t level) {
+    float topOfOctave = self->lowestFrequency *
+        powf(2.0f, (float) (level + 1));
+    size_t numHarmonics = (size_t) (self->maxHarmonicFrequency / topOfOctave);
+    size_t maxHarmonics = self->tableLength / 2 - 1;
+
+    if (numHarmonics < 1) {
+        return 1;
+    }
+
+    return numHarmonics > maxHarmonics ? maxHarmonics : numHarmonics;
+}
+
+void sig_AdditiveWavetableBank_fill(
+    struct sig_AdditiveWavetableBank* self, struct sig_Buffer* sineTable) {
+    for (size_t level = 0; level < self->numLevels; level++) {
+        size_t numHarmonics = sig_AdditiveWavetableBank_numHarmonics(self,
+            level);
+        for (size_t shape = 0; shape < self->numShapes; shape++) {
+            sig_Buffer_fillWithHarmonics(self->levels[level]->waves[shape],
+                sineTable, &self->shapes[shape], numHarmonics, self->taper);
+        }
+    }
+}
+
+extern inline float sig_AdditiveWavetableBank_levelForFrequency(
+    struct sig_AdditiveWavetableBank* self, float frequency) {
+    float highestLevel = (float) (self->numLevels - 1);
+    float level = log2f(fabsf(frequency) / self->lowestFrequency);
+
+    return sig_clamp(level, 0.0f, highestLevel);
+}
+
+extern inline float sig_AdditiveWavetableBank_readLinearAtPhase(
+    struct sig_AdditiveWavetableBank* self, float level, float tableIdx,
+    float phase) {
+    size_t lowerLevel = (size_t) level;
+    size_t upperLevel = lowerLevel + 1 < self->numLevels ?
+        lowerLevel + 1 : lowerLevel;
+    float levelMix = level - (float) lowerLevel;
+
+    float lower = sig_WavetableBank_readLinearAtPhase(
+        self->levels[lowerLevel], tableIdx, phase);
+    float upper = sig_WavetableBank_readLinearAtPhase(
+        self->levels[upperLevel], tableIdx, phase);
+
+    return lower + (upper - lower) * levelMix;
+}
+
+void sig_AdditiveWavetableBank_destroy(struct sig_Allocator* allocator,
+    struct sig_AdditiveWavetableBank* self) {
+    for (size_t level = 0; level < self->numLevels; level++) {
+        sig_WavetableBank_destroy(allocator, self->levels[level]);
+        self->levels[level] = NULL;
+    }
+
+    allocator->impl->free(allocator, self->levels);
+    self->levels = NULL;
+    allocator->impl->free(allocator, self->shapes);
+    self->shapes = NULL;
+    allocator->impl->free(allocator, self);
 }
 
 struct sig_DelayLine* sig_DelayLine_new(struct sig_Allocator* allocator,
@@ -2343,6 +2594,66 @@ void sig_dsp_WavetableBankOscillator_destroy(
     sig_dsp_Oscillator_Outputs_destroyAudioBlocks(allocator, &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
     self = NULL;
+}
+
+void sig_dsp_AdditiveWavetableBankOscillator_init(
+    struct sig_dsp_AdditiveWavetableBankOscillator* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context,
+        *sig_dsp_AdditiveWavetableBankOscillator_generate);
+    self->wavetables = NULL;
+    sig_osc_AdditiveWavetableBank_init(&self->state, self->wavetables);
+
+    sig_CONNECT_TO_SILENCE(self, freq, context);
+    sig_CONNECT_TO_SILENCE(self, phaseOffset, context);
+    sig_CONNECT_TO_UNITY(self, mul, context);
+    sig_CONNECT_TO_SILENCE(self, add, context);
+    sig_CONNECT_TO_SILENCE(self, tableIndex, context);
+}
+
+struct sig_dsp_AdditiveWavetableBankOscillator*
+    sig_dsp_AdditiveWavetableBankOscillator_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_AdditiveWavetableBankOscillator* self = sig_MALLOC(
+        allocator, struct sig_dsp_AdditiveWavetableBankOscillator);
+    sig_dsp_AdditiveWavetableBankOscillator_init(self, context);
+    sig_dsp_Oscillator_Outputs_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+extern inline void sig_dsp_AdditiveWavetableBankOscillator_generate(
+    void* signal) {
+    struct sig_dsp_AdditiveWavetableBankOscillator* self =
+        (struct sig_dsp_AdditiveWavetableBankOscillator*) signal;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float sampleRate = self->signal.audioSettings->sampleRate;
+    const float* SIG_RESTRICT frequency = FLOAT_ARRAY(self->inputs.freq);
+    const float* SIG_RESTRICT phaseOffset = FLOAT_ARRAY(self->inputs.phaseOffset);
+    const float* SIG_RESTRICT tableIndex = FLOAT_ARRAY(self->inputs.tableIndex);
+    const float* SIG_RESTRICT mul = FLOAT_ARRAY(self->inputs.mul);
+    const float* SIG_RESTRICT add = FLOAT_ARRAY(self->inputs.add);
+    float* SIG_RESTRICT eocOutput = FLOAT_ARRAY(self->outputs.eoc);
+    float* SIG_RESTRICT mainOutput = FLOAT_ARRAY(self->outputs.main);
+
+    // The wavetables are assigned after construction,
+    // so they have to be read on every block.
+    self->state.wavetables = self->wavetables;
+
+    for (size_t i = 0; i < blockSize; i++) {
+        float sample = sig_osc_AdditiveWavetableBank_generate(&self->state,
+            frequency[i], phaseOffset[i], tableIndex[i], sampleRate,
+            &eocOutput[i]);
+        mainOutput[i] = sample * mul[i] + add[i];
+    }
+}
+
+void sig_dsp_AdditiveWavetableBankOscillator_destroy(
+    struct sig_Allocator* allocator,
+    struct sig_dsp_AdditiveWavetableBankOscillator* self) {
+    sig_dsp_Oscillator_Outputs_destroyAudioBlocks(allocator, &self->outputs);
+    sig_dsp_Signal_destroy(allocator, (void*) self);
 }
 
 

@@ -1,16 +1,32 @@
 #include <libsignaletic.h>
 #include "../../../../include/lichen-four-device.hpp"
-#include "../include/clock-dividing-lfo.h"
+#include "../../../shared/include/summed-cv-in.h"
+#include "../../../shared/include/scaled-clock-frequency.h"
 
 using namespace lichen::four;
 using namespace sig::libdaisy;
 
 #define SAMPLERATE 48000
 #define WAVETABLE_SIZE 2048
-#define NUM_WAVES 5
 #define HEAP_SIZE 1024 * 384 // 384 KB
-#define MAX_NUM_SIGNALS 32
-#define NUM_CLOCK_STEPS 25
+#define MAX_NUM_SIGNALS 64
+#define NUM_CLOCK_STEPS 37
+
+// The index of the 1:1 ratio in each clock list. The slider covers this
+// many ratios above 1:1, and CV can push it this many ratios in either
+// direction.
+// Each list needs this many ratios below 1:1 and twice as many above it.
+#define UNITY_CLOCK_STEP 12
+
+#define WAVETABLE_HEAP_SIZE 1024 * 1024 // 1 MB
+
+// LFOs 1 and 4 go up to audio rate, so their wavetables are bandlimited.
+// Below about 10 Hz, the table length limits the number of harmonics that
+// can be represented, so the lowest level starts at 8 Hz.
+// The highest level covers 8-16 kHz, and harmonics are always below 20 kHz.
+#define NUM_BANDLIMITED_LEVELS 11
+#define LOWEST_BANDLIMITED_FREQUENCY 8.0f
+#define MAX_HARMONIC_FREQUENCY 20000.0f
 
 uint8_t memory[HEAP_SIZE];
 struct sig_AllocatorHeap heap = {
@@ -23,12 +39,37 @@ struct sig_Allocator allocator = {
     .heap = &heap
 };
 
+uint8_t DSY_SDRAM_BSS wavetableMemory[WAVETABLE_HEAP_SIZE];
+struct sig_AllocatorHeap wavetableHeap = {
+    .length = WAVETABLE_HEAP_SIZE,
+    .memory = (void*) wavetableMemory
+};
+
+struct sig_Allocator wavetableAllocator = {
+    .impl = &sig_TLSFAllocatorImpl,
+    .heap = &wavetableHeap
+};
+
 struct sig_dsp_Signal* listStorage[MAX_NUM_SIGNALS];
 struct sig_List signals;
 struct sig_dsp_SignalListEvaluator* evaluator;
 DaisyHost<FourDevice> host;
 
+// Below 1:1, the slow LFOs speed up through more closely spaced ratios,
+// stopping at 5:1 so that their CV outputs stay well below audio rate.
 float clockDivisions[NUM_CLOCK_STEPS] = {
+    5.0f,
+    9.0f/2.0f,
+    4.0f,
+    7.0f/2.0f,
+    3.0f,
+    5.0f/2.0f,
+    2.0f,
+    5.0f/3.0f,
+    3.0f/2.0f,
+    4.0f/3.0f,
+    5.0f/4.0f,
+    6.0f/5.0f,
     1.0f,
     1.0f/2.0f,
     1.0f/3.0f,
@@ -61,7 +102,20 @@ struct sig_Buffer clockDivisionsBuffer = {
     .samples = clockDivisions
 };
 
+// Below 1:1, the fast LFOs slow down, mirroring the ratios above it.
 float clockMultiplications[NUM_CLOCK_STEPS] = {
+    1.0f/17.0f,
+    1.0f/13.0f,
+    1.0f/11.0f,
+    1.0f/10.0f,
+    1.0f/9.0f,
+    1.0f/8.0f,
+    1.0f/7.0f,
+    1.0f/6.0f,
+    1.0f/5.0f,
+    1.0f/4.0f,
+    1.0f/3.0f,
+    1.0f/2.0f,
     1.0f,
     2.0f,
     3.0f,
@@ -94,22 +148,15 @@ struct sig_Buffer clockMultiplicationsBuffer = {
     .samples = clockMultiplications
 };
 
-float (*waveGenerators[NUM_WAVES]) (float) = {
-    sig_waveform_sine,
-    sig_waveform_triangle,
-    sig_waveform_saw,
-    sig_waveform_square,
-    sig_waveform_reverseSaw
-};
-
 struct sig_WavetableBank* lfoWavetables;
+struct sig_AdditiveWavetableBank* bandlimitedWavetables;
 struct sig_host_GateIn* clockIn;
 struct sig_host_SwitchIn* tapTempoButton;
 struct sig_dsp_ClockSource* clock;
-struct sig_host_ClockDividingLFO* lfo1;
-struct sig_host_ClockDividingLFO* lfo2;
-struct sig_host_ClockDividingLFO* lfo3;
-struct sig_host_ClockDividingLFO* lfo4;
+struct sig_dsp_AdditiveWavetableBankOscillator* lfo1;
+struct sig_dsp_WavetableBankOscillator* lfo2;
+struct sig_dsp_WavetableBankOscillator* lfo3;
+struct sig_dsp_AdditiveWavetableBankOscillator* lfo4;
 struct sig_host_AudioOut* out1;
 struct sig_host_CVOut* out2;
 struct sig_host_CVOut* out3;
@@ -119,13 +166,115 @@ struct sig_host_GateOut* led;
 
 // TODO: Refactor this into a library function.
 void buildWavetables() {
-    lfoWavetables = sig_WavetableBank_new(&allocator, NUM_WAVES, WAVETABLE_SIZE);
+    lfoWavetables = sig_WavetableBank_new(&allocator,
+        sig_StandardWaveform_COUNT, WAVETABLE_SIZE);
 
     for (size_t i = 0; i < lfoWavetables->length; i++) {
         struct sig_Buffer* wavetable = lfoWavetables->waves[i];
-        sig_Buffer_fillWithWaveform(wavetable, waveGenerators[i],
-            WAVETABLE_SIZE, 0.0f, 1.0f);
+        sig_Buffer_fillWithWaveform(wavetable,
+            sig_STANDARD_WAVEFORMS[i].generate, WAVETABLE_SIZE, 0.0f, 1.0f);
     }
+
+    // The SDRAM is only available after the board has been initialized.
+    wavetableAllocator.impl->init(&wavetableAllocator);
+    bandlimitedWavetables = sig_AdditiveWavetableBank_new(
+        &wavetableAllocator, sig_STANDARD_WAVEFORMS,
+        sig_StandardWaveform_COUNT, NUM_BANDLIMITED_LEVELS, WAVETABLE_SIZE,
+        LOWEST_BANDLIMITED_FREQUENCY, MAX_HARMONIC_FREQUENCY,
+        sig_HarmonicTaper_LANCZOS);
+}
+
+struct sig_host_SummedCVIn* buildSummedCVIn(
+    struct sig_SignalContext* context, struct sig_Status* status,
+    int knob, int cv, float scale) {
+    struct sig_host_SummedCVIn* summedCVIn = sig_host_SummedCVIn_new(
+        &allocator, context);
+    summedCVIn->hardware = &host.device.hardware;
+    sig_List_append(&signals, summedCVIn, status);
+    summedCVIn->leftCVIn->parameters.control = knob;
+    summedCVIn->rightCVIn->parameters.control = cv;
+    summedCVIn->leftCVIn->parameters.scale = scale;
+    summedCVIn->rightCVIn->parameters.scale = scale;
+
+    return summedCVIn;
+}
+
+// The wavetable index is cyclic, so the waveform knob and CV span
+// up to the last table rather than crossfading back to the first.
+struct sig_host_SummedCVIn* buildWaveformCV(
+    struct sig_SignalContext* context, struct sig_Status* status,
+    int knob, int cv, size_t numTables) {
+    float lastTable = sig_osc_WavetableBank_tableIndex(numTables - 1,
+        numTables);
+
+    return buildSummedCVIn(context, status, knob, cv, lastTable);
+}
+
+// An LFO's frequency is the clock's frequency scaled by a ratio
+// selected by the knob and CV from clockScales.
+struct sig_dsp_ScaledClockFrequency* buildLFOFrequency(
+    struct sig_SignalContext* context, struct sig_Status* status,
+    struct sig_Buffer* clockScales, int knob, int cv) {
+    // TODO: Add greater audio rate range for LFO1 and LFO4,
+    // which are connected to DC-coupled audio outputs.
+    float unityIndex = (float) UNITY_CLOCK_STEP /
+        (float) (NUM_CLOCK_STEPS - 1);
+    struct sig_host_SummedCVIn* frequencyCV = buildSummedCVIn(context,
+        status, knob, cv, unityIndex);
+    frequencyCV->rightCVIn->parameters.offset = unityIndex;
+
+    struct sig_dsp_List* clockScale = sig_dsp_List_new(&allocator, context);
+    sig_List_append(&signals, clockScale, status);
+    clockScale->list = clockScales;
+    clockScale->parameters.wrap = 0.0f;
+    clockScale->parameters.interpolate = 1.0f;
+    clockScale->inputs.index = frequencyCV->outputs.main;
+
+    struct sig_dsp_ScaledClockFrequency* frequency =
+        sig_dsp_ScaledClockFrequency_new(&allocator, context);
+    sig_List_append(&signals, frequency, status);
+    frequency->inputs.clock = clock->outputs.main;
+    frequency->inputs.scale = clockScale->outputs.main;
+
+    return frequency;
+}
+
+struct sig_dsp_WavetableBankOscillator* buildLFO(
+    struct sig_SignalContext* context, struct sig_Status* status,
+    struct sig_Buffer* clockScales, int frequencyKnob, int frequencyCV,
+    int waveformKnob, int waveformCV) {
+    struct sig_dsp_ScaledClockFrequency* frequency = buildLFOFrequency(
+        context, status, clockScales, frequencyKnob, frequencyCV);
+    struct sig_host_SummedCVIn* waveform = buildWaveformCV(context, status,
+        waveformKnob, waveformCV, sig_StandardWaveform_COUNT);
+
+    struct sig_dsp_WavetableBankOscillator* lfo =
+        sig_dsp_WavetableBankOscillator_new(&allocator, context);
+    sig_List_append(&signals, lfo, status);
+    lfo->wavetables = lfoWavetables;
+    lfo->inputs.freq = frequency->outputs.main;
+    lfo->inputs.tableIndex = waveform->outputs.main;
+
+    return lfo;
+}
+
+struct sig_dsp_AdditiveWavetableBankOscillator* buildBandlimitedLFO(
+    struct sig_SignalContext* context, struct sig_Status* status,
+    struct sig_Buffer* clockScales, int frequencyKnob, int frequencyCV,
+    int waveformKnob, int waveformCV) {
+    struct sig_dsp_ScaledClockFrequency* frequency = buildLFOFrequency(
+        context, status, clockScales, frequencyKnob, frequencyCV);
+    struct sig_host_SummedCVIn* waveform = buildWaveformCV(context, status,
+        waveformKnob, waveformCV, sig_StandardWaveform_COUNT);
+
+    struct sig_dsp_AdditiveWavetableBankOscillator* lfo =
+        sig_dsp_AdditiveWavetableBankOscillator_new(&allocator, context);
+    sig_List_append(&signals, lfo, status);
+    lfo->wavetables = bandlimitedWavetables;
+    lfo->inputs.freq = frequency->outputs.main;
+    lfo->inputs.tableIndex = waveform->outputs.main;
+
+    return lfo;
 }
 
 void buildSignalGraph(struct sig_SignalContext* context,
@@ -147,23 +296,8 @@ void buildSignalGraph(struct sig_SignalContext* context,
 
     buildWavetables();
 
-    lfo1 = sig_host_ClockDividingLFO_new(&allocator, context);
-    lfo1->hardware = &host.device.hardware;
-    sig_List_append(&signals, lfo1, status);
-    lfo1->lfo->wavetables = lfoWavetables;
-    lfo1->clockScaleBuffer = &clockMultiplicationsBuffer;
-    lfo1->inputs.clock = clock->outputs.main;
-    lfo1->frequencyCV->leftCVIn->parameters.control = sig_host_KNOB_1;
-    lfo1->frequencyCV->rightCVIn->parameters.control = sig_host_CV_IN_8;
-    // TODO: These scalings result a deadzone at the bottom of the
-    // range when the bipolar CV input is in the negative and the
-    // slider is at the bottom (0.0f).
-    // TODO: Add greater audio rate range for LFO1 and LFO4,
-    // which are connected to DC-coupled audio outputs.
-    lfo1->frequencyCV->leftCVIn->parameters.scale = 0.5f;
-    lfo1->frequencyCV->rightCVIn->parameters.scale = 0.5f;
-    lfo1->waveform->leftCVIn->parameters.control = sig_host_KNOB_5;
-    lfo1->waveform->rightCVIn->parameters.control = sig_host_CV_IN_1;
+    lfo1 = buildBandlimitedLFO(context, status, &clockMultiplicationsBuffer,
+        sig_host_KNOB_1, sig_host_CV_IN_8, sig_host_KNOB_5, sig_host_CV_IN_1);
 
     out1 = sig_host_AudioOut_new(&allocator, context);
     out1->hardware = &host.device.hardware;
@@ -171,18 +305,8 @@ void buildSignalGraph(struct sig_SignalContext* context,
     out1->parameters.channel = sig_host_AUDIO_OUT_1;
     out1->inputs.source = lfo1->outputs.main;
 
-    lfo2 = sig_host_ClockDividingLFO_new(&allocator, context);
-    lfo2->hardware = &host.device.hardware;
-    sig_List_append(&signals, lfo2, status);
-    lfo2->lfo->wavetables = lfoWavetables;
-    lfo2->clockScaleBuffer = &clockDivisionsBuffer;
-    lfo2->inputs.clock = clock->outputs.main;
-    lfo2->frequencyCV->leftCVIn->parameters.control = sig_host_KNOB_2;
-    lfo2->frequencyCV->rightCVIn->parameters.control = sig_host_CV_IN_7;
-    lfo2->frequencyCV->leftCVIn->parameters.scale = 0.5f;
-    lfo2->frequencyCV->rightCVIn->parameters.scale = 0.5f;
-    lfo2->waveform->leftCVIn->parameters.control = sig_host_KNOB_6;
-    lfo2->waveform->rightCVIn->parameters.control = sig_host_CV_IN_2;
+    lfo2 = buildLFO(context, status, &clockDivisionsBuffer,
+        sig_host_KNOB_2, sig_host_CV_IN_7, sig_host_KNOB_6, sig_host_CV_IN_2);
 
     out2 = sig_host_CVOut_new(&allocator, context);
     out2->hardware = &host.device.hardware;
@@ -190,18 +314,8 @@ void buildSignalGraph(struct sig_SignalContext* context,
     out2->parameters.control = sig_host_CV_OUT_1;
     out2->inputs.source = lfo2->outputs.main;
 
-    lfo3 = sig_host_ClockDividingLFO_new(&allocator, context);
-    lfo3->hardware = &host.device.hardware;
-    sig_List_append(&signals, lfo3, status);
-    lfo3->lfo->wavetables = lfoWavetables;
-    lfo3->clockScaleBuffer = &clockDivisionsBuffer;
-    lfo3->inputs.clock = clock->outputs.main;
-    lfo3->frequencyCV->leftCVIn->parameters.control = sig_host_KNOB_3;
-    lfo3->frequencyCV->rightCVIn->parameters.control = sig_host_CV_IN_5;
-    lfo3->frequencyCV->leftCVIn->parameters.scale = 0.5f;
-    lfo3->frequencyCV->rightCVIn->parameters.scale = 0.5f;
-    lfo3->waveform->leftCVIn->parameters.control = sig_host_KNOB_7;
-    lfo3->waveform->rightCVIn->parameters.control = sig_host_CV_IN_3;
+    lfo3 = buildLFO(context, status, &clockDivisionsBuffer,
+        sig_host_KNOB_3, sig_host_CV_IN_5, sig_host_KNOB_7, sig_host_CV_IN_3);
 
     out3 = sig_host_CVOut_new(&allocator, context);
     out3->hardware = &host.device.hardware;
@@ -209,18 +323,8 @@ void buildSignalGraph(struct sig_SignalContext* context,
     out3->parameters.control = sig_host_CV_OUT_2;
     out3->inputs.source = lfo3->outputs.main;
 
-    lfo4 = sig_host_ClockDividingLFO_new(&allocator, context);
-    lfo4->hardware = &host.device.hardware;
-    sig_List_append(&signals, lfo4, status);
-    lfo4->lfo->wavetables = lfoWavetables;
-    lfo4->clockScaleBuffer = &clockMultiplicationsBuffer;
-    lfo4->inputs.clock = clock->outputs.main;
-    lfo4->frequencyCV->leftCVIn->parameters.control = sig_host_KNOB_4;
-    lfo4->frequencyCV->rightCVIn->parameters.control = sig_host_CV_IN_6;
-    lfo4->frequencyCV->leftCVIn->parameters.scale = 0.5f;
-    lfo4->frequencyCV->rightCVIn->parameters.scale = 0.5f;
-    lfo4->waveform->leftCVIn->parameters.control = sig_host_KNOB_8;
-    lfo4->waveform->rightCVIn->parameters.control = sig_host_CV_IN_4;
+    lfo4 = buildBandlimitedLFO(context, status, &clockMultiplicationsBuffer,
+        sig_host_KNOB_4, sig_host_CV_IN_6, sig_host_KNOB_8, sig_host_CV_IN_4);
 
     out4 = sig_host_AudioOut_new(&allocator, context);
     out4->hardware = &host.device.hardware;

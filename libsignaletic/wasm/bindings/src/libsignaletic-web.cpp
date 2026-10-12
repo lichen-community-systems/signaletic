@@ -442,6 +442,29 @@ public:
         sig_dsp_WavetableBankOscillator_destroy(allocator, self);
     }
 
+    void AdditiveWavetableBankOscillator_init(
+        struct sig_dsp_AdditiveWavetableBankOscillator* self,
+        struct sig_SignalContext* context) {
+        sig_dsp_AdditiveWavetableBankOscillator_init(self, context);
+    }
+
+    struct sig_dsp_AdditiveWavetableBankOscillator*
+        AdditiveWavetableBankOscillator_new(
+        struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+        return sig_dsp_AdditiveWavetableBankOscillator_new(allocator,
+            context);
+    }
+
+    void AdditiveWavetableBankOscillator_generate(void* signal) {
+        sig_dsp_AdditiveWavetableBankOscillator_generate(signal);
+    }
+
+    void AdditiveWavetableBankOscillator_destroy(
+        struct sig_Allocator* allocator,
+        struct sig_dsp_AdditiveWavetableBankOscillator* self) {
+        sig_dsp_AdditiveWavetableBankOscillator_destroy(allocator, self);
+    }
+
     void FastLFSineOscillator_init(
         struct sig_dsp_FastLFSineOscillator* self,
         struct sig_SignalContext* context) {
@@ -1380,6 +1403,44 @@ public:
         return sig_waveform_triangle(phase);
     }
 
+    float waveform_sineHarmonicGain(size_t harmonic) {
+        return sig_waveform_sineHarmonicGain(harmonic);
+    }
+
+    float waveform_triangleHarmonicGain(size_t harmonic) {
+        return sig_waveform_triangleHarmonicGain(harmonic);
+    }
+
+    float waveform_sawHarmonicGain(size_t harmonic) {
+        return sig_waveform_sawHarmonicGain(harmonic);
+    }
+
+    float waveform_squareHarmonicGain(size_t harmonic) {
+        return sig_waveform_squareHarmonicGain(harmonic);
+    }
+
+    float waveform_reverseSawHarmonicGain(size_t harmonic) {
+        return sig_waveform_reverseSawHarmonicGain(harmonic);
+    }
+
+    const struct sig_WaveformShape* STANDARD_WAVEFORMS(size_t index) {
+        return &sig_STANDARD_WAVEFORMS[index];
+    }
+
+    float waveform_harmonicGain(enum sig_StandardWaveform waveform,
+        size_t harmonic) {
+        return sig_waveform_harmonicGain(waveform, harmonic);
+    }
+
+    float waveform_harmonicPhase(enum sig_StandardWaveform waveform) {
+        return sig_waveform_harmonicPhase(waveform);
+    }
+
+    float waveform_harmonicTaper(enum sig_HarmonicTaper taper,
+        size_t harmonic, size_t numHarmonics) {
+        return sig_waveform_harmonicTaper(taper, harmonic, numHarmonics);
+    }
+
 
     void osc_Oscillator_init(struct sig_osc_Oscillator* self) {
         sig_osc_Oscillator_init(self);
@@ -1420,6 +1481,23 @@ public:
         float sampleRate, void* eocOut) {
         return sig_osc_WavetableBank_generate(self, frequency, phaseOffset,
             tableIndex, sampleRate, (float*) eocOut);
+    }
+
+    float osc_WavetableBank_tableIndex(size_t table, size_t numTables) {
+        return sig_osc_WavetableBank_tableIndex(table, numTables);
+    }
+
+    void osc_AdditiveWavetableBank_init(
+        struct sig_osc_AdditiveWavetableBank* self,
+        struct sig_AdditiveWavetableBank* wavetables) {
+        sig_osc_AdditiveWavetableBank_init(self, wavetables);
+    }
+
+    float osc_AdditiveWavetableBank_generate(
+        struct sig_osc_AdditiveWavetableBank* self, float frequency,
+        float phaseOffset, float tableIndex, float sampleRate, void* eocOut) {
+        return sig_osc_AdditiveWavetableBank_generate(self, frequency,
+            phaseOffset, tableIndex, sampleRate, (float*) eocOut);
     }
 
 
@@ -1567,6 +1645,19 @@ public:
         return sig_Buffer_readLinearAtPhase(buffer, phase);
     }
 
+    void Buffer_addHarmonic(struct sig_Buffer* buffer,
+        struct sig_Buffer* sineTable, size_t harmonic, float gain,
+        float phase) {
+        sig_Buffer_addHarmonic(buffer, sineTable, harmonic, gain, phase);
+    }
+
+    void Buffer_fillWithHarmonics(struct sig_Buffer* buffer,
+        struct sig_Buffer* sineTable, const struct sig_WaveformShape* shape,
+        size_t numHarmonics, enum sig_HarmonicTaper taper) {
+        sig_Buffer_fillWithHarmonics(buffer, sineTable, shape,
+            numHarmonics, taper);
+    }
+
     void Buffer_destroy(struct sig_Allocator* allocator,
         struct sig_Buffer* buffer) {
         return sig_Buffer_destroy(allocator, buffer);
@@ -1601,6 +1692,45 @@ public:
     void WavetableBank_destroy(struct sig_Allocator* allocator,
         struct sig_WavetableBank* wavetable) {
         return sig_WavetableBank_destroy(allocator, wavetable);
+    }
+
+    struct sig_AdditiveWavetableBank* AdditiveWavetableBank_new(
+        struct sig_Allocator* allocator,
+        const struct sig_WaveformShape* shapes, size_t numShapes,
+        size_t numLevels, size_t tableLength, float lowestFrequency,
+        float maxHarmonicFrequency, enum sig_HarmonicTaper taper) {
+        return sig_AdditiveWavetableBank_new(allocator, shapes, numShapes,
+            numLevels, tableLength, lowestFrequency, maxHarmonicFrequency,
+            taper);
+    }
+
+    size_t AdditiveWavetableBank_numHarmonics(
+        struct sig_AdditiveWavetableBank* wavetables, size_t level) {
+        return sig_AdditiveWavetableBank_numHarmonics(wavetables, level);
+    }
+
+    void AdditiveWavetableBank_fill(
+        struct sig_AdditiveWavetableBank* wavetables,
+        struct sig_Buffer* sineTable) {
+        sig_AdditiveWavetableBank_fill(wavetables, sineTable);
+    }
+
+    float AdditiveWavetableBank_levelForFrequency(
+        struct sig_AdditiveWavetableBank* wavetables, float frequency) {
+        return sig_AdditiveWavetableBank_levelForFrequency(wavetables,
+            frequency);
+    }
+
+    float AdditiveWavetableBank_readLinearAtPhase(
+        struct sig_AdditiveWavetableBank* wavetables, float level,
+        float tableIdx, float phase) {
+        return sig_AdditiveWavetableBank_readLinearAtPhase(wavetables,
+            level, tableIdx, phase);
+    }
+
+    void AdditiveWavetableBank_destroy(struct sig_Allocator* allocator,
+        struct sig_AdditiveWavetableBank* wavetables) {
+        sig_AdditiveWavetableBank_destroy(allocator, wavetables);
     }
 
     float_array_ptr AudioBlock_newWithValue(

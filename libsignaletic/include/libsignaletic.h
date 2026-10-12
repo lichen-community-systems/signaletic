@@ -551,6 +551,150 @@ float sig_waveform_reverseSaw(float phase);
  */
 float sig_waveform_triangle(float phase);
 
+/**
+ * Type definition for a harmonic series generator function, which
+ * calculates the gain of one harmonic in a waveform's Fourier series.
+ *
+ * @param harmonic the harmonic number, starting at 1 for the fundamental
+ * @return the harmonic's gain, or 0.0 if the waveform does not contain it
+ */
+typedef float (*sig_waveform_harmonicGenerator)(size_t harmonic);
+
+/**
+ * @brief Calculates the gain of one harmonic of a sine wave.
+ *
+ * @param harmonic the harmonic number, starting at 1 for the fundamental
+ * @return 1.0 for the fundamental, and 0.0 for every other harmonic
+ */
+float sig_waveform_sineHarmonicGain(size_t harmonic);
+
+/**
+ * @brief Calculates the gain of one harmonic of a triangle wave.
+ *
+ * The harmonics are cosines, matching the shape of sig_waveform_triangle.
+ *
+ * @param harmonic the harmonic number, starting at 1 for the fundamental
+ * @return the harmonic's gain, or 0.0 for even harmonics
+ */
+float sig_waveform_triangleHarmonicGain(size_t harmonic);
+
+/**
+ * @brief Calculates the gain of one harmonic of a saw wave.
+ *
+ * @param harmonic the harmonic number, starting at 1 for the fundamental
+ * @return the harmonic's gain
+ */
+float sig_waveform_sawHarmonicGain(size_t harmonic);
+
+/**
+ * @brief Calculates the gain of one harmonic of a square wave.
+ *
+ * @param harmonic the harmonic number, starting at 1 for the fundamental
+ * @return the harmonic's gain, or 0.0 for even harmonics
+ */
+float sig_waveform_squareHarmonicGain(size_t harmonic);
+
+/**
+ * @brief Calculates the gain of one harmonic of a reverse saw wave.
+ *
+ * @param harmonic the harmonic number, starting at 1 for the fundamental
+ * @return the harmonic's gain
+ */
+float sig_waveform_reverseSawHarmonicGain(size_t harmonic);
+
+/**
+ * @brief A waveform, described both by its shape over one cycle and by
+ * its harmonic series.
+ *
+ * Both descriptions must produce the same shape and polarity.
+ */
+struct sig_WaveformShape {
+    /**
+     * @brief The function that generates the waveform's shape.
+     *
+     * Its phase is in radians.
+     */
+    sig_waveform_generator generate;
+
+    /**
+     * @brief The function that calculates the gain of each harmonic.
+     *
+     */
+    sig_waveform_harmonicGenerator harmonic;
+
+    /**
+     * @brief The phase at which every harmonic starts.
+     *
+     * In cycles. Sine harmonics start at 0.0, and cosine harmonics at 0.25.
+     */
+    float harmonicPhase;
+};
+
+/**
+ * @brief The standard waveforms, which index sig_STANDARD_WAVEFORMS.
+ */
+enum sig_StandardWaveform {
+    sig_StandardWaveform_SINE = 0,
+    sig_StandardWaveform_TRIANGLE,
+    sig_StandardWaveform_SAW,
+    sig_StandardWaveform_SQUARE,
+    sig_StandardWaveform_REVERSE_SAW,
+    sig_StandardWaveform_COUNT
+};
+
+/**
+ * @brief The shapes of the standard waveforms, in the order of
+ * sig_StandardWaveform.
+ */
+extern const struct sig_WaveformShape
+    sig_STANDARD_WAVEFORMS[sig_StandardWaveform_COUNT];
+
+/**
+ * @brief Calculates the gain of a harmonic in a standard waveform's
+ * Fourier series.
+ *
+ * @param waveform the standard waveform
+ * @param harmonic the harmonic number, starting at 1 for the fundamental
+ * @return the harmonic's gain
+ */
+float sig_waveform_harmonicGain(enum sig_StandardWaveform waveform,
+    size_t harmonic);
+
+/**
+ * @brief Calculates the phase at which every harmonic of a waveform starts.
+ *
+ * @param waveform the waveform to synthesize
+ * @return the starting phase of a sine-shaped harmonic, in cycles
+ */
+float sig_waveform_harmonicPhase(enum sig_StandardWaveform waveform);
+
+/**
+ * @brief Taper types for the harmonics of a bandlimited waveform.
+ *
+ * Summing a truncated series of harmonics makes waveforms with
+ * discontinuities, such as squares and saws, overshoot each jump by about
+ * 9% (the Gibbs phenomenon). Tapering the upper harmonics reduces the
+ * overshoot at the cost of slower edges and a slightly darker tone.
+ */
+enum sig_HarmonicTaper {
+    sig_HarmonicTaper_NONE = 0,
+    sig_HarmonicTaper_LANCZOS
+};
+
+/**
+ * @brief Calculates the weight that a taper applies to one harmonic.
+ *
+ * sig_HarmonicTaper_LANCZOS applies Lanczos sigma factors,
+ * sinc(harmonic / (numHarmonics + 1)), which reduce the overshoot of
+ * a square wave to about 1.2% of each jump.
+ *
+ * @param taper the taper to apply
+ * @param harmonic the harmonic number, starting at 1 for the fundamental
+ * @param numHarmonics the number of harmonics in the series
+ * @return the harmonic's weight, between 0.0 and 1.0
+ */
+float sig_waveform_harmonicTaper(enum sig_HarmonicTaper taper,
+    size_t harmonic, size_t numHarmonics);
 
 /**
  * @brief State for an oscillator.
@@ -605,8 +749,7 @@ struct sig_osc_Wavetable {
 };
 
 /**
- * @brief Initializes a wavetable oscillator's state
- * with the supplied wavetable.
+ * @brief Initializes a wavetable oscillator's state with the supplied wavetable.
  *
  * @param self the wavetable oscillator to initialize
  * @param wavetable the wavetable buffer to use
@@ -616,9 +759,6 @@ void sig_osc_Wavetable_init(struct sig_osc_Wavetable* self,
 
 /**
  * @brief Generates a single sample of the wavetable oscillator's output.
- * Note that this function has side effects, in that in addition to returning
- * the oscillator's output sample, it will also write the current end of cycle
- * sample to the eocOut pointer.
  *
  * @param self the wavetable oscillator state
  * @param frequency the current frequency
@@ -640,9 +780,9 @@ struct sig_osc_WavetableBank {
 };
 
 /**
- * @brief Initializes the state of the WavetableBank oscillator.
+ * @brief Initializes the state of a WavetableBank oscillator.
  *
- * @param self the wavetable bank oscillator state
+ * @param self the wavetable bank state
  * @param wavetables a pointer to a bank of wavetables to use
  */
 void sig_osc_WavetableBank_init(struct sig_osc_WavetableBank* self,
@@ -650,16 +790,15 @@ void sig_osc_WavetableBank_init(struct sig_osc_WavetableBank* self,
 
 /**
  * @brief Generates a single sample of the wavetable bank's output.
- * Using the normalized (0..1) tableIndex input, his oscillator will
- * linearly inteprlate between tables in the bank.
- * This function has side effects, in that in addition to returning
- * the oscillator's output sample, it will also write the current end of
- * cycle sample to the eocOut pointer.
+ *
+ * The tableIndex input is cyclic: each table occupies an equal share of
+ * one cycle, and the oscillator linearly interpolates between neighbouring
+ * tables, including from the last table back to the first.
  *
  * @param self the wavetable bank oscillator state
  * @param frequency the oscillator's frequency
  * @param phaseOffset the phase offset to apply
- * @param tableIndex normalized index of the wavetable to sample from, which will be scaled to the number of tables in the bank
+ * @param tableIndex the table to read, in cycles of the bank
  * @param sampleRate the sample rate
  * @param eocOut a float pointer into which the end of cycle sample will be written
  * @return float the oscillator's output sample
@@ -667,6 +806,89 @@ void sig_osc_WavetableBank_init(struct sig_osc_WavetableBank* self,
 float sig_osc_WavetableBank_generate(struct sig_osc_WavetableBank* self,
     float frequency, float phaseOffset, float tableIndex, float sampleRate,
     float* eocOut);
+
+/**
+ * @brief Calculates the cyclic table index at which a wavetable bank
+ * oscillator reads exactly one of its tables.
+ *
+ * Passing the last table index (i.e. numTables - 1) gives the span that a
+ * control should cover in order to reach every table without crossfading
+ * from the last back to the first. This applies to both
+ * sig_osc_WavetableBank and sig_osc_AdditiveWavetableBank, whose bank
+ * contains numShapes tables.
+ *
+ * @param table the number of the table to read, starting at 0
+ * @param numTables the number of tables in the bank
+ * @return the table index, in cycles of the bank
+ */
+float sig_osc_WavetableBank_tableIndex(size_t table, size_t numTables);
+
+/**
+ * @brief The state for an oscillator that reads from a band-limited
+ * wavetable bank, choosing tables by the octave of its frequency.
+ */
+struct sig_osc_AdditiveWavetableBank {
+    /**
+     * @brief The oscillator's current phase.
+     *
+     * Normalized to 0.0-1.0.
+     */
+    float phaseAccumulator;
+
+    /**
+     * @brief The additive wavetable bank to read from.
+     *
+     */
+    struct sig_AdditiveWavetableBank* wavetables;
+
+    /**
+     * @brief The frequency at which the current level was calculated.
+     *
+     * In Hz.
+     */
+    float previousFrequency;
+
+    /**
+     * @brief The octave level to read for the current frequency.
+     *
+     */
+    float level;
+};
+
+/**
+ * @brief Initializes the state of a additive wavetable bank oscillator.
+ *
+ * @param self the oscillator state
+ * @param wavetables the additive wavetable bank to read from
+ */
+void sig_osc_AdditiveWavetableBank_init(
+    struct sig_osc_AdditiveWavetableBank* self,
+    struct sig_AdditiveWavetableBank* wavetables);
+
+/**
+ * @brief Generates a single sample of the additive wavetable bank's
+ * output.
+ *
+ * The bank contains one set of tables for each of its octaves. The
+ * oscillator reads the set for the octave that contains its frequency,
+ * interpolating linearly with the set for the octave above. Within the
+ * bank's octaves, this keeps its harmonics at or below the bank's maximum
+ * harmonic frequency. Phase modulation through phaseOffset can still push
+ * harmonics above that limit, because the oscillator chooses tables by
+ * frequency alone.
+ *
+ * @param self the oscillator state
+ * @param frequency the oscillator's frequency, in Hz
+ * @param phaseOffset the phase offset to apply, in cycles
+ * @param tableIndex the waveform to read, in cycles of the bank
+ * @param sampleRate the sample rate, in Hz
+ * @param eocOut a float pointer into which the end of cycle sample will be
+ * written
+ * @return the oscillator's output sample
+ */
+float sig_osc_AdditiveWavetableBank_generate(
+    struct sig_osc_AdditiveWavetableBank* self, float frequency,
+    float phaseOffset, float tableIndex, float sampleRate, float* eocOut);
 
 /**
  * @brief A fast sine approximation implemented using a Chamberlin SVF.
@@ -1140,6 +1362,36 @@ float sig_Buffer_readLinear(struct sig_Buffer* self, float idx);
 float sig_Buffer_readLinearAtPhase(struct sig_Buffer* self, float phase);
 
 /**
+ * @brief Adds one harmonic of a sine table into a Buffer.
+ *
+ * @param self the buffer to add into
+ * @param sineTable a buffer containing exactly one cycle of a sine wave,
+ * the same length as self
+ * @param harmonic the harmonic number, which must be less than half the
+ * length of the buffer
+ * @param gain the gain to apply to the harmonic
+ * @param phase the starting phase of the harmonic, in cycles
+ */
+void sig_Buffer_addHarmonic(struct sig_Buffer* self,
+    struct sig_Buffer* sineTable, size_t harmonic, float gain, float phase);
+
+/**
+ * @brief Fills a Buffer with one cycle of a band-limited waveform by
+ * summing its first numHarmonics harmonics.
+ *
+ * @param self the buffer to fill
+ * @param sineTable a buffer containing exactly one cycle of a sine wave,
+ * the same length as self
+ * @param shape the waveform to synthesize
+ * @param numHarmonics the number of harmonics to sum, which must be less
+ * than half the length of the buffer
+ * @param taper the taper to apply to the harmonics
+ */
+void sig_Buffer_fillWithHarmonics(struct sig_Buffer* self,
+    struct sig_Buffer* sineTable, const struct sig_WaveformShape* shape,
+    size_t numHarmonics, enum sig_HarmonicTaper taper);
+
+/**
  * Reads from the buffer using cubic interpolation.
  *
  * @param self the buffer from which to read
@@ -1198,11 +1450,157 @@ struct sig_WavetableBank {
 struct sig_WavetableBank* sig_WavetableBank_new(struct sig_Allocator* allocator,
     size_t numTables, size_t tableLength);
 
+/**
+ * @brief Reads from the bank using linear interpolation between samples
+ * and between tables.
+ *
+ * @param self the wavetable bank
+ * @param tableIdx the index of the table to read; fractional values
+ * crossfade between neighbouring tables, the last table crossfades back
+ * into the first, and values outside 0 to length wrap around
+ * @param phase the phase to read at, normalized to 0.0-1.0
+ * @return the interpolated sample
+ */
 float sig_WavetableBank_readLinearAtPhase(struct sig_WavetableBank* self,
     float tableIdx, float phase);
 
 void sig_WavetableBank_destroy(struct sig_Allocator* allocator,
     struct sig_WavetableBank* self);
+
+/**
+ * @brief A set of wavetable banks, one per octave, whose tables are
+ * band-limited for the frequencies in that octave.
+ *
+ * The bank synthesizes its tables additively from each shape's harmonic
+ * series, so it can only contain shapes whose harmonic series is known,
+ * such as the shapes in sig_STANDARD_WAVEFORMS.
+ * Each level contains one table for each of the bank's shapes, in the
+ * order they were supplied. Level n is used for frequencies from
+ * lowestFrequency * 2^n up to lowestFrequency * 2^(n + 1), and contains
+ * only the harmonics that remain at or below maxHarmonicFrequency at the
+ * top of that octave.
+ */
+struct sig_AdditiveWavetableBank {
+    /**
+     * @brief The shapes whose tables the bank contains.
+     *
+     * The bank allocates its own copy of the shapes it was created with.
+     */
+    struct sig_WaveformShape* shapes;
+
+    /**
+     * @brief The number of shapes.
+     *
+     */
+    size_t numShapes;
+
+    /**
+     * @brief The number of octave levels.
+     *
+     */
+    size_t numLevels;
+
+    /**
+     * @brief The number of samples in each table.
+     *
+     */
+    size_t tableLength;
+
+    /**
+     * @brief The lowest frequency in the bottom octave.
+     */
+    float lowestFrequency;
+
+    /**
+     * @brief The highest frequency that any harmonic may reach.
+     */
+    float maxHarmonicFrequency;
+
+    /**
+     * @brief The taper applied to each level's harmonics.
+     */
+    enum sig_HarmonicTaper taper;
+
+    /**
+     * @brief The wavetable bank for each octave level, lowest first.
+     */
+    struct sig_WavetableBank** levels;
+};
+
+/**
+ * @brief Allocates an additive wavetable bank and generates its tables.
+ *
+ * The tables require a total of numLevels * numShapes * tableLength
+ * samples.
+ *
+ * @param allocator the allocator to use
+ * @param shapes the shapes to synthesize, such as sig_STANDARD_WAVEFORMS;
+ * the bank copies them
+ * @param numShapes the number of shapes
+ * @param numLevels the number of octave levels
+ * @param tableLength the number of samples in each table
+ * @param lowestFrequency the frequency at the bottom of the lowest level
+ * @param maxHarmonicFrequency the highest frequency any harmonic may
+ * reach, in Hz
+ * @param taper the taper to apply to each level's harmonics
+ * @return the new additive wavetable bank
+ */
+struct sig_AdditiveWavetableBank* sig_AdditiveWavetableBank_new(
+    struct sig_Allocator* allocator, const struct sig_WaveformShape* shapes,
+    size_t numShapes, size_t numLevels, size_t tableLength,
+    float lowestFrequency, float maxHarmonicFrequency,
+    enum sig_HarmonicTaper taper);
+
+/**
+ * @brief Calculates how many harmonics a level's tables contain.
+ *
+ * @param self the additive wavetable bank
+ * @param level the octave level
+ * @return the number of harmonics, which is at least one and less than
+ * half the table length
+ */
+size_t sig_AdditiveWavetableBank_numHarmonics(
+    struct sig_AdditiveWavetableBank* self, size_t level);
+
+/**
+ * @brief Synthesizes the tables for all shapes at all levels.
+ *
+ * @param self the additive wavetable bank
+ * @param sineTable a buffer containing one cycle of a sine wave
+ */
+void sig_AdditiveWavetableBank_fill(
+    struct sig_AdditiveWavetableBank* self, struct sig_Buffer* sineTable);
+
+/**
+ * @brief Calculates which octave level to read for a frequency.
+ *
+ * @param self the additive wavetable bank
+ * @param frequency the frequency; negative frequencies use the level of their magnitude
+ * @return the level, where fractional values fall between two levels,
+ * clamped to the range of available levels
+ */
+float sig_AdditiveWavetableBank_levelForFrequency(
+    struct sig_AdditiveWavetableBank* self, float frequency);
+
+/**
+ * @brief Reads from the bank using linear interpolation between samples,
+ * waveforms, and octave levels.
+ *
+ * @param self the additive wavetable bank
+ * @param level the octave level to read, which must be between 0 and
+ * numLevels - 1; fractional values crossfade between two levels
+ * @param tableIdx the index of the shape to read; fractional values
+ * crossfade between neighbouring shapes, and values outside 0 to
+ * numShapes wrap around
+ * @param phase the phase to read at, normalized to 0.0-1.0
+ * @return the interpolated sample
+ */
+float sig_AdditiveWavetableBank_readLinearAtPhase(
+    struct sig_AdditiveWavetableBank* self, float level, float tableIdx,
+    float phase);
+
+void sig_AdditiveWavetableBank_destroy(struct sig_Allocator* allocator,
+    struct sig_AdditiveWavetableBank* self);
 
 
 float_array_ptr sig_AudioBlock_new(struct sig_Allocator* allocator,
@@ -1955,6 +2353,62 @@ struct sig_dsp_WavetableBankOscillator* sig_dsp_WavetableBankOscillator_new(
 void sig_dsp_WavetableBankOscillator_generate(void* signal);
 void sig_dsp_WavetableBankOscillator_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_WavetableBankOscillator* self);
+
+/**
+ * @brief An oscillator that crossfades between band-limited waveforms,
+ * reading from the tables for the octave of its frequency.
+ *
+ * Inputs:
+ *  - freq: the frequency, in Hz
+ *  - phaseOffset: the phase offset, in cycles
+ *  - mul: the gain applied to the output
+ *  - add: the offset added to the output
+ *  - tableIndex: the shape, in cycles of the bank; each of the bank's
+ *    shapes occupies an equal share of one cycle, and values wrap around
+ */
+struct sig_dsp_AdditiveWavetableBankOscillator {
+    /**
+     * @brief The signal's base state.
+     *
+     */
+    struct sig_dsp_Signal signal;
+
+    /**
+     * @brief The oscillator's inputs.
+     *
+     */
+    struct sig_dsp_WavetableBankOscillator_Inputs inputs;
+
+    /**
+     * @brief The oscillator's main and end of cycle outputs.
+     *
+     */
+    struct sig_dsp_Oscillator_Outputs outputs;
+
+    /**
+     * @brief The oscillator's state.
+     *
+     */
+    struct sig_osc_AdditiveWavetableBank state;
+
+    /**
+     * @brief The additive wavetable bank to read from.
+     *
+     * Must be assigned before the oscillator is first generated.
+     */
+    struct sig_AdditiveWavetableBank* wavetables;
+};
+
+void sig_dsp_AdditiveWavetableBankOscillator_init(
+    struct sig_dsp_AdditiveWavetableBankOscillator* self,
+    struct sig_SignalContext* context);
+struct sig_dsp_AdditiveWavetableBankOscillator*
+    sig_dsp_AdditiveWavetableBankOscillator_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_AdditiveWavetableBankOscillator_generate(void* signal);
+void sig_dsp_AdditiveWavetableBankOscillator_destroy(
+    struct sig_Allocator* allocator,
+    struct sig_dsp_AdditiveWavetableBankOscillator* self);
 
 
 struct sig_dsp_Smooth_Inputs {

@@ -553,6 +553,722 @@ void test_sig_AudioBlock_newWithValue(void) {
     sig_AudioSettings_destroy(&localAlloc, customSettings);
 }
 
+void test_sig_interpolate_linear_wrapsAtEnd(void) {
+    // The table is the first four samples. The rest of the array
+    // contains recognizable values that would be returned if the
+    // implementation reads past the end.
+    float samples[8] = {
+        0.0f, 1.0f, 2.0f, 3.0f, 100.0f, 100.0f, 100.0f, 100.0f
+    };
+    size_t length = 4;
+
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 3.0f,
+        sig_interpolate_linear(3.0f, samples, length));
+
+    // Between the last sample and the first.
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 1.5f,
+        sig_interpolate_linear(3.5f, samples, length));
+
+    // Exactly at the end of the table, which is the start of the next cycle.
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f,
+        sig_interpolate_linear(4.0f, samples, length));
+}
+
+void test_sig_osc_Wavetable_negativePhaseStaysWithinTable(void) {
+    // The table is the first four samples. The rest of the array
+    // contains recognizable values that would be returned if the
+    // implementation reads past the end.
+    float samples[8] = {
+        5.0f, 5.0f, 5.0f, 5.0f, 100.0f, 100.0f, 100.0f, 100.0f
+    };
+    struct sig_Buffer table = {
+        .length = 4,
+        .samples = samples
+    };
+    struct sig_osc_Wavetable osc;
+    sig_osc_Wavetable_init(&osc, &table);
+    float eoc = 0.0f;
+
+    // A phase just below zero, as produced by through-zero or negative
+    // phase modulation, wraps to the very end of the cycle.
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 5.0f,
+        sig_osc_Wavetable_generate(&osc, 0.0f, -1.0e-9f, 44100.0f, &eoc));
+}
+
+void test_sig_waveform_harmonicGain(void) {
+    // A sine contains only its fundamental.
+    TEST_ASSERT_EQUAL_FLOAT(1.0f,
+        sig_waveform_harmonicGain(sig_StandardWaveform_SINE, 1));
+    TEST_ASSERT_EQUAL_FLOAT(0.0f,
+        sig_waveform_harmonicGain(sig_StandardWaveform_SINE, 2));
+    TEST_ASSERT_EQUAL_FLOAT(0.0f,
+        sig_waveform_harmonicGain(sig_StandardWaveform_SINE, 3));
+
+    // Triangles contain only odd harmonics, falling by 1/k^2.
+    TEST_ASSERT_EQUAL_FLOAT(8.0f / (sig_PI * sig_PI),
+        sig_waveform_harmonicGain(sig_StandardWaveform_TRIANGLE, 1));
+    TEST_ASSERT_EQUAL_FLOAT(0.0f,
+        sig_waveform_harmonicGain(sig_StandardWaveform_TRIANGLE, 2));
+    TEST_ASSERT_EQUAL_FLOAT(8.0f / (9.0f * sig_PI * sig_PI),
+        sig_waveform_harmonicGain(sig_StandardWaveform_TRIANGLE, 3));
+
+    // Rising saws contain every harmonic, falling by 1/k,
+    // with negative sine gains.
+    TEST_ASSERT_EQUAL_FLOAT(-2.0f / sig_PI,
+        sig_waveform_harmonicGain(sig_StandardWaveform_SAW, 1));
+    TEST_ASSERT_EQUAL_FLOAT(-1.0f / sig_PI,
+        sig_waveform_harmonicGain(sig_StandardWaveform_SAW, 2));
+    TEST_ASSERT_EQUAL_FLOAT(-2.0f / (3.0f * sig_PI),
+        sig_waveform_harmonicGain(sig_StandardWaveform_SAW, 3));
+
+    // Squares contain only odd harmonics, falling by 1/k.
+    TEST_ASSERT_EQUAL_FLOAT(4.0f / sig_PI,
+        sig_waveform_harmonicGain(sig_StandardWaveform_SQUARE, 1));
+    TEST_ASSERT_EQUAL_FLOAT(0.0f,
+        sig_waveform_harmonicGain(sig_StandardWaveform_SQUARE, 2));
+    TEST_ASSERT_EQUAL_FLOAT(4.0f / (3.0f * sig_PI),
+        sig_waveform_harmonicGain(sig_StandardWaveform_SQUARE, 3));
+
+    // Reverse saws are inverted saws.
+    for (size_t k = 1; k <= 3; k++) {
+        TEST_ASSERT_EQUAL_FLOAT(
+            -sig_waveform_harmonicGain(sig_StandardWaveform_SAW, k),
+            sig_waveform_harmonicGain(sig_StandardWaveform_REVERSE_SAW, k));
+    }
+}
+
+void test_sig_waveform_harmonicTaper(void) {
+    // Without a taper, every harmonic keeps its full gain.
+    for (size_t k = 1; k <= 3; k++) {
+        TEST_ASSERT_EQUAL_FLOAT(1.0f,
+            sig_waveform_harmonicTaper(sig_HarmonicTaper_NONE, k, 3));
+    }
+
+    // Lanczos sigma factors fall smoothly towards zero
+    // just beyond the highest harmonic.
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.9003163f,
+        sig_waveform_harmonicTaper(sig_HarmonicTaper_LANCZOS, 1, 3));
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.6366198f,
+        sig_waveform_harmonicTaper(sig_HarmonicTaper_LANCZOS, 2, 3));
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.3001054f,
+        sig_waveform_harmonicTaper(sig_HarmonicTaper_LANCZOS, 3, 3));
+}
+
+void test_sig_STANDARD_WAVEFORMS(void) {
+    // Each standard waveform pairs its naive generator
+    // with the generator for its harmonic series.
+    sig_waveform_generator generators[sig_StandardWaveform_COUNT] = {
+        sig_waveform_sine,
+        sig_waveform_triangle,
+        sig_waveform_saw,
+        sig_waveform_square,
+        sig_waveform_reverseSaw
+    };
+    sig_waveform_harmonicGenerator harmonics[sig_StandardWaveform_COUNT] = {
+        sig_waveform_sineHarmonicGain,
+        sig_waveform_triangleHarmonicGain,
+        sig_waveform_sawHarmonicGain,
+        sig_waveform_squareHarmonicGain,
+        sig_waveform_reverseSawHarmonicGain
+    };
+
+    for (size_t i = 0; i < sig_StandardWaveform_COUNT; i++) {
+        TEST_ASSERT_TRUE(sig_STANDARD_WAVEFORMS[i].generate == generators[i]);
+        TEST_ASSERT_TRUE(sig_STANDARD_WAVEFORMS[i].harmonic == harmonics[i]);
+    }
+
+    // Triangle harmonics are cosines; the others are sines.
+    for (size_t i = 0; i < sig_StandardWaveform_COUNT; i++) {
+        float expectedPhase = i == sig_StandardWaveform_TRIANGLE ?
+            0.25f : 0.0f;
+        TEST_ASSERT_EQUAL_FLOAT(expectedPhase,
+            sig_STANDARD_WAVEFORMS[i].harmonicPhase);
+    }
+}
+
+struct sig_Buffer* newSineTable(size_t length) {
+    struct sig_Buffer* sineTable = sig_Buffer_new(&allocator, length);
+    sig_Buffer_fillWithWaveform(sineTable, sig_waveform_sine,
+        (float) length, 0.0f, 1.0f);
+
+    return sineTable;
+}
+
+bool isNearDiscontinuity(float phase) {
+    float distance = 0.05f;
+    return phase < distance || phase > 1.0f - distance ||
+        fabsf(phase - 0.5f) < distance;
+}
+
+void test_sig_Buffer_fillWithHarmonics_matchesWaveforms(void) {
+    size_t length = 4096;
+    struct sig_Buffer* sineTable = newSineTable(length);
+    struct sig_Buffer* table = sig_Buffer_new(&allocator, length);
+
+    for (size_t waveform = 0; waveform < sig_StandardWaveform_COUNT; waveform++) {
+        sig_Buffer_fillWithHarmonics(table, sineTable,
+            &sig_STANDARD_WAVEFORMS[waveform], 500, sig_HarmonicTaper_NONE);
+
+        // Away from discontinuities, where band-limited waveforms ring,
+        // the table should match the naive waveform.
+        for (size_t i = 0; i < length; i++) {
+            float phase = (float) i / (float) length;
+            if (isNearDiscontinuity(phase)) {
+                continue;
+            }
+
+            float expected = sig_STANDARD_WAVEFORMS[waveform].generate(
+                phase * sig_TWOPI);
+            TEST_ASSERT_FLOAT_WITHIN(0.01f, expected,
+                FLOAT_ARRAY(table->samples)[i]);
+        }
+    }
+
+    sig_Buffer_destroy(&allocator, table);
+    sig_Buffer_destroy(&allocator, sineTable);
+}
+
+float maxSample(float* samples, size_t length) {
+    float max = samples[0];
+    for (size_t i = 1; i < length; i++) {
+        if (samples[i] > max) {
+            max = samples[i];
+        }
+    }
+
+    return max;
+}
+
+void test_sig_Buffer_fillWithHarmonics_lanczosLimitsOvershoot(void) {
+    size_t length = 4096;
+    struct sig_Buffer* sineTable = newSineTable(length);
+    struct sig_Buffer* table = sig_Buffer_new(&allocator, length);
+
+    // Without a taper, a square overshoots each jump of 2.0
+    // by about 9%, peaking near 1.18.
+    sig_Buffer_fillWithHarmonics(table, sineTable,
+        &sig_STANDARD_WAVEFORMS[sig_StandardWaveform_SQUARE], 64,
+        sig_HarmonicTaper_NONE);
+    TEST_ASSERT_TRUE(maxSample(table->samples, length) > 1.15f);
+
+    // Lanczos sigma factors reduce the overshoot to about 1.2%.
+    sig_Buffer_fillWithHarmonics(table, sineTable,
+        &sig_STANDARD_WAVEFORMS[sig_StandardWaveform_SQUARE], 64,
+        sig_HarmonicTaper_LANCZOS);
+    TEST_ASSERT_TRUE(maxSample(table->samples, length) < 1.03f);
+
+    sig_Buffer_destroy(&allocator, table);
+    sig_Buffer_destroy(&allocator, sineTable);
+}
+
+// Measures the amplitude of one harmonic of a single-cycle table
+// using a single bin of a discrete Fourier transform.
+// Sums are accumulated in double precision so that the measurement
+// can resolve components far quieter than the signal.
+double harmonicAmplitude(float* samples, size_t length, size_t harmonic) {
+    double re = 0.0;
+    double im = 0.0;
+    for (size_t i = 0; i < length; i++) {
+        double angle = 6.283185307179586 *
+            (double) ((harmonic * i) % length) / (double) length;
+        re += samples[i] * cos(angle);
+        im += samples[i] * sin(angle);
+    }
+
+    return 2.0 * sqrt(re * re + im * im) / (double) length;
+}
+
+void test_sig_Buffer_fillWithHarmonics_isBandlimited(void) {
+    size_t length = 4096;
+    size_t numHarmonics = 20;
+    struct sig_Buffer* sineTable = newSineTable(length);
+    struct sig_Buffer* table = sig_Buffer_new(&allocator, length);
+    enum sig_HarmonicTaper tapers[2] = {
+        sig_HarmonicTaper_NONE,
+        sig_HarmonicTaper_LANCZOS
+    };
+
+    for (size_t i = 0; i < 2; i++) {
+        sig_Buffer_fillWithHarmonics(table, sineTable,
+            &sig_STANDARD_WAVEFORMS[sig_StandardWaveform_SAW], numHarmonics,
+            tapers[i]);
+
+        // The highest harmonic is present, weighted by the taper.
+        float expected = 2.0f / (sig_PI * numHarmonics) *
+            sig_waveform_harmonicTaper(tapers[i], numHarmonics,
+                numHarmonics);
+        TEST_ASSERT_FLOAT_WITHIN(0.0001f, expected,
+            harmonicAmplitude(table->samples, length, numHarmonics));
+
+        for (size_t harmonic = numHarmonics + 1; harmonic < length / 2;
+            harmonic++) {
+            TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f,
+                harmonicAmplitude(table->samples, length, harmonic));
+        }
+    }
+
+    sig_Buffer_destroy(&allocator, table);
+    sig_Buffer_destroy(&allocator, sineTable);
+}
+
+// Creates a bank whose tables each contain a single value,
+// ten times their index, so the table being read is easy to identify.
+struct sig_WavetableBank* newConstantWavetableBank(size_t numTables) {
+    struct sig_WavetableBank* bank = sig_WavetableBank_new(&allocator,
+        numTables, 16);
+    for (size_t i = 0; i < numTables; i++) {
+        sig_Buffer_fillWithValue(bank->waves[i], (float) i * 10.0f);
+    }
+
+    return bank;
+}
+
+void test_sig_WavetableBank_readLinearAtPhase_wrapsTableIndex(void) {
+    struct sig_WavetableBank* bank = newConstantWavetableBank(4);
+    float phase = 0.3f;
+
+    // Indices within the bank crossfade between neighbouring tables.
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 15.0f,
+        sig_WavetableBank_readLinearAtPhase(bank, 1.5f, phase));
+
+    // The last table crossfades back into the first.
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 15.0f,
+        sig_WavetableBank_readLinearAtPhase(bank, 3.5f, phase));
+
+    // Indices beyond the end wrap around to the start.
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f,
+        sig_WavetableBank_readLinearAtPhase(bank, 4.0f, phase));
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 12.5f,
+        sig_WavetableBank_readLinearAtPhase(bank, 5.25f, phase));
+
+    // Negative indices wrap around to the end.
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 30.0f,
+        sig_WavetableBank_readLinearAtPhase(bank, -1.0f, phase));
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 15.0f,
+        sig_WavetableBank_readLinearAtPhase(bank, -0.5f, phase));
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 22.5f,
+        sig_WavetableBank_readLinearAtPhase(bank, -4.75f, phase));
+
+    // Tiny negative indices, which round to the length of the bank
+    // when wrapped, read the first table.
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f,
+        sig_WavetableBank_readLinearAtPhase(bank, -1.0e-9f, phase));
+
+    sig_WavetableBank_destroy(&allocator, bank);
+}
+
+void test_sig_osc_WavetableBank_tableIndexIsCyclic(void) {
+    struct sig_WavetableBank* bank = newConstantWavetableBank(4);
+    struct sig_osc_WavetableBank osc;
+    sig_osc_WavetableBank_init(&osc, bank);
+    float eoc = 0.0f;
+
+    // Each table occupies an equal share of one cycle of the index,
+    // and the last table crossfades back into the first.
+    float tableIndices[9] = {
+        0.0f, 0.25f, 0.5f, 0.75f, 0.875f, 1.0f, 1.25f, -0.25f, -0.125f
+    };
+    float expected[9] = {
+        0.0f, 10.0f, 20.0f, 30.0f, 15.0f, 0.0f, 10.0f, 30.0f, 15.0f
+    };
+
+    for (size_t i = 0; i < 9; i++) {
+        TEST_ASSERT_FLOAT_WITHIN(0.0001f, expected[i],
+            sig_osc_WavetableBank_generate(&osc, 440.0f, 0.0f,
+                tableIndices[i], 44100.0f, &eoc));
+    }
+
+    sig_WavetableBank_destroy(&allocator, bank);
+}
+
+void test_sig_osc_WavetableBank_tableIndex(void) {
+    struct sig_WavetableBank* bank = newConstantWavetableBank(4);
+    struct sig_osc_WavetableBank osc;
+    sig_osc_WavetableBank_init(&osc, bank);
+    float eoc = 0.0f;
+
+    // Each table's index reads exactly that table,
+    // including the last, which does not wrap back to the first.
+    for (size_t table = 0; table < 4; table++) {
+        float tableIndex = sig_osc_WavetableBank_tableIndex(table, 4);
+        TEST_ASSERT_FLOAT_WITHIN(0.0001f, (float) table * 10.0f,
+            sig_osc_WavetableBank_generate(&osc, 440.0f, 0.0f, tableIndex,
+                44100.0f, &eoc));
+    }
+
+    sig_WavetableBank_destroy(&allocator, bank);
+}
+
+size_t highestHarmonic(float* samples, size_t length) {
+    size_t highest = 0;
+    for (size_t harmonic = 1; harmonic < length / 2; harmonic++) {
+        if (harmonicAmplitude(samples, length, harmonic) > 0.0001f) {
+            highest = harmonic;
+        }
+    }
+
+    return highest;
+}
+
+struct sig_AdditiveWavetableBank* newStandardWavetableBank(size_t numLevels,
+    size_t tableLength, float lowestFrequency, float maxHarmonicFrequency,
+    enum sig_HarmonicTaper taper) {
+    return sig_AdditiveWavetableBank_new(&allocator, sig_STANDARD_WAVEFORMS,
+        sig_StandardWaveform_COUNT, numLevels, tableLength, lowestFrequency,
+        maxHarmonicFrequency, taper);
+}
+
+void test_sig_AdditiveWavetableBank_harmonicsStayBelowMax(void) {
+    size_t numLevels = 6;
+    size_t tableLength = 2048;
+    float lowestFrequency = 20.0f;
+    float maxHarmonicFrequency = 2000.0f;
+    struct sig_AdditiveWavetableBank* bank =
+        newStandardWavetableBank(numLevels, tableLength,
+            lowestFrequency, maxHarmonicFrequency, sig_HarmonicTaper_NONE);
+
+    for (size_t level = 0; level < numLevels; level++) {
+        float topOfOctave = lowestFrequency * powf(2.0f, (float) level + 1);
+        size_t expectedHarmonics = (size_t) (maxHarmonicFrequency /
+            topOfOctave);
+        if (expectedHarmonics < 1) {
+            expectedHarmonics = 1;
+        }
+
+        // Each level contains as many harmonics as fit below the maximum
+        // at the top of its octave, and always at least the fundamental.
+        struct sig_Buffer* saw =
+            bank->levels[level]->waves[sig_StandardWaveform_SAW];
+        TEST_ASSERT_EQUAL_size_t(expectedHarmonics,
+            highestHarmonic(saw->samples, tableLength));
+
+        struct sig_Buffer* sine =
+            bank->levels[level]->waves[sig_StandardWaveform_SINE];
+        TEST_ASSERT_FLOAT_WITHIN(0.0001f, 1.0f,
+            harmonicAmplitude(sine->samples, tableLength, 1));
+        TEST_ASSERT_EQUAL_size_t(1,
+            highestHarmonic(sine->samples, tableLength));
+    }
+
+    sig_AdditiveWavetableBank_destroy(&allocator, bank);
+}
+
+// A custom shape that contains only its second harmonic.
+float secondHarmonicGenerate(float phase) {
+    return sinf(2.0f * phase);
+}
+
+float secondHarmonicGain(size_t harmonic) {
+    return harmonic == 2 ? 1.0f : 0.0f;
+}
+
+void test_sig_AdditiveWavetableBank_customShapes(void) {
+    size_t numLevels = 4;
+    size_t tableLength = 2048;
+    struct sig_WaveformShape shapes[2] = {
+        sig_STANDARD_WAVEFORMS[sig_StandardWaveform_SINE],
+        {
+            .generate = secondHarmonicGenerate,
+            .harmonic = secondHarmonicGain,
+            .harmonicPhase = 0.0f
+        }
+    };
+    struct sig_AdditiveWavetableBank* bank = sig_AdditiveWavetableBank_new(
+        &allocator, shapes, 2, numLevels, tableLength, 20.0f, 2000.0f,
+        sig_HarmonicTaper_NONE);
+
+    // Each level contains one table for each shape.
+    for (size_t level = 0; level < numLevels; level++) {
+        TEST_ASSERT_EQUAL_size_t(2, bank->levels[level]->length);
+    }
+
+    // The custom shape's table contains only its second harmonic.
+    struct sig_Buffer* custom = bank->levels[0]->waves[1];
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 1.0f,
+        harmonicAmplitude(custom->samples, tableLength, 2));
+    TEST_ASSERT_EQUAL_size_t(2, highestHarmonic(custom->samples, tableLength));
+
+    // The oscillator divides each cycle of its table index between the
+    // bank's shapes, so an index of 0.5 reads the custom shape.
+    for (size_t i = 0; i < 16; i++) {
+        float phase = (float) i / 16.0f;
+        struct sig_osc_AdditiveWavetableBank osc;
+        sig_osc_AdditiveWavetableBank_init(&osc, bank);
+        float eoc = 0.0f;
+        float sample = sig_osc_AdditiveWavetableBank_generate(&osc, 100.0f,
+            phase, 0.5f, 44100.0f, &eoc);
+        TEST_ASSERT_FLOAT_WITHIN(0.001f, secondHarmonicGenerate(
+            phase * sig_TWOPI), sample);
+    }
+
+    sig_AdditiveWavetableBank_destroy(&allocator, bank);
+}
+
+void test_sig_AdditiveWavetableBank_tapersEachLevel(void) {
+    size_t numLevels = 6;
+    size_t tableLength = 2048;
+    struct sig_AdditiveWavetableBank* untapered =
+        newStandardWavetableBank(numLevels, tableLength,
+            20.0f, 2000.0f, sig_HarmonicTaper_NONE);
+    struct sig_AdditiveWavetableBank* tapered =
+        newStandardWavetableBank(numLevels, tableLength,
+            20.0f, 2000.0f, sig_HarmonicTaper_LANCZOS);
+
+    // The lowest level's untapered square shows the full overshoot.
+    TEST_ASSERT_TRUE(maxSample(
+        untapered->levels[0]->waves[sig_StandardWaveform_SQUARE]->samples,
+        tableLength) > 1.15f);
+
+    // Every tapered level limits it.
+    for (size_t level = 0; level < numLevels; level++) {
+        TEST_ASSERT_TRUE(maxSample(
+            tapered->levels[level]->waves[sig_StandardWaveform_SQUARE]->samples,
+            tableLength) < 1.03f);
+    }
+
+    sig_AdditiveWavetableBank_destroy(&allocator, tapered);
+    sig_AdditiveWavetableBank_destroy(&allocator, untapered);
+}
+
+void test_sig_AdditiveWavetableBank_levelForFrequency(void) {
+    struct sig_AdditiveWavetableBank* bank =
+        newStandardWavetableBank(6, 256, 20.0f, 2000.0f,
+            sig_HarmonicTaper_NONE);
+
+    // Each octave above the lowest frequency is one level higher.
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f,
+        sig_AdditiveWavetableBank_levelForFrequency(bank, 20.0f));
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 1.0f,
+        sig_AdditiveWavetableBank_levelForFrequency(bank, 40.0f));
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 3.0f,
+        sig_AdditiveWavetableBank_levelForFrequency(bank, 160.0f));
+
+    // Frequencies within an octave fall between levels.
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 2.5f,
+        sig_AdditiveWavetableBank_levelForFrequency(bank,
+            20.0f * powf(2.0f, 2.5f)));
+
+    // Negative frequencies use the level of their magnitude.
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 1.0f,
+        sig_AdditiveWavetableBank_levelForFrequency(bank, -40.0f));
+
+    // Frequencies outside the bank use the nearest level.
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f,
+        sig_AdditiveWavetableBank_levelForFrequency(bank, 5.0f));
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f,
+        sig_AdditiveWavetableBank_levelForFrequency(bank, 0.0f));
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 5.0f,
+        sig_AdditiveWavetableBank_levelForFrequency(bank, 20000.0f));
+
+    sig_AdditiveWavetableBank_destroy(&allocator, bank);
+}
+
+void test_sig_AdditiveWavetableBank_readLinearAtPhase(void) {
+    struct sig_AdditiveWavetableBank* bank =
+        newStandardWavetableBank(6, 2048, 20.0f, 2000.0f,
+            sig_HarmonicTaper_NONE);
+    float sawIdx = (float) sig_StandardWaveform_SAW;
+
+    for (size_t i = 0; i < 64; i++) {
+        float phase = (float) i / 64.0f;
+        float levelTwo = sig_WavetableBank_readLinearAtPhase(
+            bank->levels[2], sawIdx, phase);
+        float levelThree = sig_WavetableBank_readLinearAtPhase(
+            bank->levels[3], sawIdx, phase);
+        float levelFive = sig_WavetableBank_readLinearAtPhase(
+            bank->levels[5], sawIdx, phase);
+
+        // Whole levels read from a single octave's tables.
+        TEST_ASSERT_FLOAT_WITHIN(0.00001f, levelTwo,
+            sig_AdditiveWavetableBank_readLinearAtPhase(bank, 2.0f,
+                sawIdx, phase));
+
+        // Fractional levels crossfade between neighbouring octaves.
+        TEST_ASSERT_FLOAT_WITHIN(0.00001f,
+            levelTwo * 0.75f + levelThree * 0.25f,
+            sig_AdditiveWavetableBank_readLinearAtPhase(bank, 2.25f,
+                sawIdx, phase));
+
+        // The highest level has no neighbour above it.
+        TEST_ASSERT_FLOAT_WITHIN(0.00001f, levelFive,
+            sig_AdditiveWavetableBank_readLinearAtPhase(bank, 5.0f,
+                sawIdx, phase));
+    }
+
+    sig_AdditiveWavetableBank_destroy(&allocator, bank);
+}
+
+void test_sig_osc_AdditiveWavetableBank_sine(void) {
+    float sampleRate = 44100.0f;
+    float frequency = 440.0f;
+    struct sig_AdditiveWavetableBank* bank =
+        newStandardWavetableBank(10, 4096, 20.0f,
+            20000.0f, sig_HarmonicTaper_NONE);
+    struct sig_osc_AdditiveWavetableBank osc;
+    sig_osc_AdditiveWavetableBank_init(&osc, bank);
+
+    float eoc = 0.0f;
+    for (size_t i = 0; i < 256; i++) {
+        float expected = sinf(sig_TWOPI * frequency * (float) i / sampleRate);
+        float actual = sig_osc_AdditiveWavetableBank_generate(&osc,
+            frequency, 0.0f, 0.0f, sampleRate, &eoc);
+        TEST_ASSERT_FLOAT_WITHIN(0.001f, expected, actual);
+    }
+
+    sig_AdditiveWavetableBank_destroy(&allocator, bank);
+}
+
+// Measures the power of a periodic signal that is not at its harmonics,
+// relative to the power at its harmonics, in dB.
+// The signal must contain exactly numCycles cycles of its fundamental.
+float aliasedPowerRatio(float* samples, size_t length, size_t numCycles) {
+    double totalPower = 0.0;
+    for (size_t i = 0; i < length; i++) {
+        totalPower += (double) samples[i] * (double) samples[i];
+    }
+    totalPower /= (double) length;
+
+    double harmonicPower = 0.0;
+    for (size_t harmonic = 1; harmonic * numCycles < length / 2;
+        harmonic++) {
+        double amplitude = harmonicAmplitude(samples, length,
+            harmonic * numCycles);
+        harmonicPower += amplitude * amplitude / 2.0;
+    }
+
+    return (float) (10.0 * log10((totalPower - harmonicPower) /
+        harmonicPower));
+}
+
+void test_sig_osc_AdditiveWavetableBank_aliasesLess(void) {
+    float sampleRate = 44100.0f;
+    size_t length = 4410;
+    size_t numCycles = 123;
+    float frequency = (float) numCycles * sampleRate / (float) length;
+    float* bandlimited = (float*) allocator.impl->malloc(&allocator,
+        sizeof(float) * length);
+    float* naive = (float*) allocator.impl->malloc(&allocator,
+        sizeof(float) * length);
+    float sawIdx = sig_osc_WavetableBank_tableIndex(sig_StandardWaveform_SAW,
+        sig_StandardWaveform_COUNT);
+    float eoc = 0.0f;
+
+    struct sig_AdditiveWavetableBank* bank =
+        newStandardWavetableBank(10, 2048, 20.0f,
+            20000.0f, sig_HarmonicTaper_NONE);
+    struct sig_osc_AdditiveWavetableBank bandlimitedOsc;
+    sig_osc_AdditiveWavetableBank_init(&bandlimitedOsc, bank);
+
+    struct sig_WavetableBank* naiveBank = sig_WavetableBank_new(&allocator,
+        sig_StandardWaveform_COUNT, 2048);
+    for (size_t waveform = 0; waveform < sig_StandardWaveform_COUNT; waveform++) {
+        sig_Buffer_fillWithWaveform(naiveBank->waves[waveform],
+            sig_STANDARD_WAVEFORMS[waveform].generate, 2048.0f, 0.0f, 1.0f);
+    }
+    struct sig_osc_WavetableBank naiveOsc;
+    sig_osc_WavetableBank_init(&naiveOsc, naiveBank);
+
+    for (size_t i = 0; i < length; i++) {
+        bandlimited[i] = sig_osc_AdditiveWavetableBank_generate(
+            &bandlimitedOsc, frequency, 0.0f, sawIdx, sampleRate, &eoc);
+        naive[i] = sig_osc_WavetableBank_generate(&naiveOsc, frequency,
+            0.0f, sawIdx, sampleRate, &eoc);
+    }
+
+    float bandlimitedAliasing = aliasedPowerRatio(bandlimited, length,
+        numCycles);
+    float naiveAliasing = aliasedPowerRatio(naive, length, numCycles);
+    char message[96];
+    snprintf(message, sizeof(message),
+        "Band-limited aliasing was %.1f dB; naive aliasing was %.1f dB.",
+        bandlimitedAliasing, naiveAliasing);
+    TEST_ASSERT_TRUE_MESSAGE(bandlimitedAliasing < -60.0f, message);
+    TEST_ASSERT_TRUE_MESSAGE(bandlimitedAliasing < naiveAliasing - 30.0f,
+        message);
+
+    sig_WavetableBank_destroy(&allocator, naiveBank);
+    sig_AdditiveWavetableBank_destroy(&allocator, bank);
+    allocator.impl->free(&allocator, naive);
+    allocator.impl->free(&allocator, bandlimited);
+}
+
+// Generates the first sample of a new band-limited oscillator,
+// read at the specified phase.
+float firstBandlimitedSample(struct sig_AdditiveWavetableBank* bank,
+    float tableIndex, float phase) {
+    struct sig_osc_AdditiveWavetableBank osc;
+    sig_osc_AdditiveWavetableBank_init(&osc, bank);
+    float eoc = 0.0f;
+
+    return sig_osc_AdditiveWavetableBank_generate(&osc, 100.0f, phase,
+        tableIndex, 44100.0f, &eoc);
+}
+
+void test_sig_osc_AdditiveWavetableBank_tableIndexIsCyclic(void) {
+    struct sig_AdditiveWavetableBank* bank =
+        newStandardWavetableBank(6, 2048, 20.0f, 2000.0f,
+            sig_HarmonicTaper_NONE);
+    float tableIndices[3] = {0.0f, 0.3f, 0.9f};
+
+    for (size_t i = 0; i < 64; i++) {
+        float phase = (float) i / 64.0f;
+
+        // Shifting the index by whole cycles reads the same waveform.
+        for (size_t j = 0; j < 3; j++) {
+            float sample = firstBandlimitedSample(bank, tableIndices[j],
+                phase);
+            TEST_ASSERT_FLOAT_WITHIN(0.0001f, sample,
+                firstBandlimitedSample(bank, tableIndices[j] + 1.0f, phase));
+            TEST_ASSERT_FLOAT_WITHIN(0.0001f, sample,
+                firstBandlimitedSample(bank, tableIndices[j] - 1.0f, phase));
+        }
+
+        // The last waveform crossfades back into the first.
+        float reverseSaw = firstBandlimitedSample(bank,
+            sig_osc_WavetableBank_tableIndex(sig_StandardWaveform_REVERSE_SAW,
+                sig_StandardWaveform_COUNT), phase);
+        float sine = firstBandlimitedSample(bank, 0.0f, phase);
+        TEST_ASSERT_FLOAT_WITHIN(0.0001f, (reverseSaw + sine) / 2.0f,
+            firstBandlimitedSample(bank, 0.9f, phase));
+    }
+
+    sig_AdditiveWavetableBank_destroy(&allocator, bank);
+}
+
+void test_sig_dsp_AdditiveWavetableBankOscillator(void) {
+    float sampleRate = audioSettings->sampleRate;
+    size_t blockSize = audioSettings->blockSize;
+    float frequency = 440.0f;
+    struct sig_AdditiveWavetableBank* bank =
+        newStandardWavetableBank(10, 4096, 20.0f,
+            20000.0f, sig_HarmonicTaper_NONE);
+
+    struct sig_dsp_AdditiveWavetableBankOscillator* osc =
+        sig_dsp_AdditiveWavetableBankOscillator_new(&allocator, context);
+    osc->wavetables = bank;
+    osc->inputs.freq = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, frequency);
+    osc->inputs.mul = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, 0.5f);
+    osc->inputs.add = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, 0.25f);
+
+    // The output is a scaled and offset sine,
+    // whose phase continues across blocks.
+    for (size_t block = 0; block < 2; block++) {
+        osc->signal.generate(osc);
+        for (size_t i = 0; i < blockSize; i++) {
+            float t = (float) (block * blockSize + i) / sampleRate;
+            float expected = 0.5f * sinf(sig_TWOPI * frequency * t) + 0.25f;
+            TEST_ASSERT_FLOAT_WITHIN(0.001f, expected,
+                FLOAT_ARRAY(osc->outputs.main)[i]);
+        }
+    }
+
+    sig_dsp_AdditiveWavetableBankOscillator_destroy(&allocator, osc);
+    sig_AdditiveWavetableBank_destroy(&allocator, bank);
+}
+
 void test_sig_Buffer(void) {
     size_t len = 1024;
     struct sig_Buffer* b = sig_Buffer_new(&allocator, len);
@@ -1867,6 +2583,26 @@ int main(void) {
     RUN_TEST(test_sig_AudioSettings_new);
     RUN_TEST(test_sig_samplesToSeconds);
     RUN_TEST(test_sig_AudioBlock_newWithValue);
+    RUN_TEST(test_sig_interpolate_linear_wrapsAtEnd);
+    RUN_TEST(test_sig_osc_Wavetable_negativePhaseStaysWithinTable);
+    RUN_TEST(test_sig_waveform_harmonicGain);
+    RUN_TEST(test_sig_waveform_harmonicTaper);
+    RUN_TEST(test_sig_STANDARD_WAVEFORMS);
+    RUN_TEST(test_sig_Buffer_fillWithHarmonics_matchesWaveforms);
+    RUN_TEST(test_sig_Buffer_fillWithHarmonics_lanczosLimitsOvershoot);
+    RUN_TEST(test_sig_Buffer_fillWithHarmonics_isBandlimited);
+    RUN_TEST(test_sig_WavetableBank_readLinearAtPhase_wrapsTableIndex);
+    RUN_TEST(test_sig_osc_WavetableBank_tableIndexIsCyclic);
+    RUN_TEST(test_sig_osc_WavetableBank_tableIndex);
+    RUN_TEST(test_sig_AdditiveWavetableBank_harmonicsStayBelowMax);
+    RUN_TEST(test_sig_AdditiveWavetableBank_customShapes);
+    RUN_TEST(test_sig_AdditiveWavetableBank_tapersEachLevel);
+    RUN_TEST(test_sig_AdditiveWavetableBank_levelForFrequency);
+    RUN_TEST(test_sig_AdditiveWavetableBank_readLinearAtPhase);
+    RUN_TEST(test_sig_osc_AdditiveWavetableBank_sine);
+    RUN_TEST(test_sig_osc_AdditiveWavetableBank_aliasesLess);
+    RUN_TEST(test_sig_osc_AdditiveWavetableBank_tableIndexIsCyclic);
+    RUN_TEST(test_sig_dsp_AdditiveWavetableBankOscillator);
     RUN_TEST(test_sig_Buffer);
     RUN_TEST(test_sig_BufferView);
     RUN_TEST(test_sig_linearXFade);

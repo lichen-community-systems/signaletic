@@ -9,6 +9,25 @@ interface sig_Status {
     attribute sig_Result result;
 };
 
+enum sig_StandardWaveform {
+    "sig_StandardWaveform_SINE",
+    "sig_StandardWaveform_TRIANGLE",
+    "sig_StandardWaveform_SAW",
+    "sig_StandardWaveform_SQUARE",
+    "sig_StandardWaveform_REVERSE_SAW",
+    "sig_StandardWaveform_COUNT"
+};
+
+// sig_WaveformShape is opaque because its members are function pointers,
+// which the WebIDL binder cannot marshal.
+interface sig_WaveformShape {
+};
+
+enum sig_HarmonicTaper {
+    "sig_HarmonicTaper_NONE",
+    "sig_HarmonicTaper_LANCZOS"
+};
+
 // The sig_Random state array is not exposed as an attribute because
 // the WebIDL binder cannot marshal fixed C array members.
 interface sig_Random {
@@ -67,6 +86,13 @@ interface sig_osc_WavetableBank {
     attribute sig_WavetableBank wavetables;
 };
 
+interface sig_osc_AdditiveWavetableBank {
+    attribute float phaseAccumulator;
+    attribute sig_AdditiveWavetableBank wavetables;
+    attribute float previousFrequency;
+    attribute float level;
+};
+
 interface sig_osc_FastLFSine {
     attribute float sampleRate;
     attribute float f;
@@ -90,6 +116,17 @@ interface sig_Buffer {
 
 interface sig_WavetableBank {
     attribute unsigned long length;
+};
+
+// The levels array is not exposed because the WebIDL binder
+// cannot marshal arrays of pointers.
+interface sig_AdditiveWavetableBank {
+    attribute unsigned long numShapes;
+    attribute unsigned long numLevels;
+    attribute unsigned long tableLength;
+    attribute float lowestFrequency;
+    attribute float maxHarmonicFrequency;
+    attribute sig_HarmonicTaper taper;
 };
 
 
@@ -297,6 +334,14 @@ interface sig_dsp_WavetableBankOscillator {
     [Value] attribute sig_dsp_Oscillator_Outputs outputs;
     [Value] attribute sig_osc_WavetableBank state;
     attribute sig_WavetableBank wavetables;
+};
+
+interface sig_dsp_AdditiveWavetableBankOscillator {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_WavetableBankOscillator_Inputs inputs;
+    [Value] attribute sig_dsp_Oscillator_Outputs outputs;
+    [Value] attribute sig_osc_AdditiveWavetableBank state;
+    attribute sig_AdditiveWavetableBank wavetables;
 };
 
 interface sig_dsp_FastLFSineOscillator_Inputs {
@@ -975,6 +1020,16 @@ interface Signals {
     void WavetableBankOscillator_destroy(sig_Allocator allocator,
         sig_dsp_WavetableBankOscillator signal);
 
+    void AdditiveWavetableBankOscillator_init(
+        sig_dsp_AdditiveWavetableBankOscillator signal,
+        sig_SignalContext context);
+    sig_dsp_AdditiveWavetableBankOscillator
+        AdditiveWavetableBankOscillator_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void AdditiveWavetableBankOscillator_generate(any signal);
+    void AdditiveWavetableBankOscillator_destroy(sig_Allocator allocator,
+        sig_dsp_AdditiveWavetableBankOscillator signal);
+
     void FastLFSineOscillator_init(sig_dsp_FastLFSineOscillator signal,
         sig_SignalContext context);
     sig_dsp_FastLFSineOscillator FastLFSineOscillator_new(
@@ -1288,6 +1343,22 @@ interface Signaletic {
     float waveform_saw(float phase);
     float waveform_reverseSaw(float phase);
     float waveform_triangle(float phase);
+    float waveform_sineHarmonicGain(unsigned long harmonic);
+    float waveform_triangleHarmonicGain(unsigned long harmonic);
+    float waveform_sawHarmonicGain(unsigned long harmonic);
+    float waveform_squareHarmonicGain(unsigned long harmonic);
+    float waveform_reverseSawHarmonicGain(unsigned long harmonic);
+
+    // Returns a pointer to the entry for one standard waveform. The entry
+    // for index 0 is also the start of the whole array, so it can be passed
+    // to AdditiveWavetableBank_new with sig_StandardWaveform_COUNT shapes.
+    [Const] sig_WaveformShape STANDARD_WAVEFORMS(unsigned long index);
+
+    float waveform_harmonicGain(sig_StandardWaveform waveform,
+        unsigned long harmonic);
+    float waveform_harmonicPhase(sig_StandardWaveform waveform);
+    float waveform_harmonicTaper(sig_HarmonicTaper taper,
+        unsigned long harmonic, unsigned long numHarmonics);
 
     void osc_Oscillator_init(sig_osc_Oscillator oscillator);
     float osc_Oscillator_eoc(float phase);
@@ -1305,6 +1376,15 @@ interface Signaletic {
     float osc_WavetableBank_generate(sig_osc_WavetableBank signal,
         float frequency, float phaseOffset, float tableIndex,
         float sampleRate, any eocOut);
+    float osc_WavetableBank_tableIndex(unsigned long table,
+        unsigned long numTables);
+
+    void osc_AdditiveWavetableBank_init(
+        sig_osc_AdditiveWavetableBank oscillator,
+        sig_AdditiveWavetableBank wavetables);
+    float osc_AdditiveWavetableBank_generate(
+        sig_osc_AdditiveWavetableBank oscillator, float frequency,
+        float phaseOffset, float tableIndex, float sampleRate, any eocOut);
 
     void osc_FastLFSine_init(sig_osc_FastLFSine signal, float sampleRate);
     void osc_FastLFSine_setFrequency(sig_osc_FastLFSine signal,
@@ -1351,6 +1431,11 @@ interface Signaletic {
     float Buffer_readLinear(sig_Buffer buffer, float idx);
     float Buffer_readCubic(sig_Buffer buffer, float idx);
     float Buffer_readLinearAtPhase(sig_Buffer buffer, float phase);
+    void Buffer_addHarmonic(sig_Buffer buffer, sig_Buffer sineTable,
+        unsigned long harmonic, float gain, float phase);
+    void Buffer_fillWithHarmonics(sig_Buffer buffer, sig_Buffer sineTable,
+        sig_WaveformShape shape, unsigned long numHarmonics,
+        sig_HarmonicTaper taper);
     void Buffer_destroy(sig_Allocator allocator, sig_Buffer buffer);
 
     sig_Buffer BufferView_new(sig_Allocator allocator, sig_Buffer buffer,
@@ -1363,6 +1448,23 @@ interface Signaletic {
         float tableIdx, float phase);
     void WavetableBank_destroy(sig_Allocator allocator,
         sig_WavetableBank wavetables);
+
+    sig_AdditiveWavetableBank AdditiveWavetableBank_new(
+        sig_Allocator allocator, sig_WaveformShape shapes,
+        unsigned long numShapes, unsigned long numLevels,
+        unsigned long tableLength, float lowestFrequency,
+        float maxHarmonicFrequency, sig_HarmonicTaper taper);
+    unsigned long AdditiveWavetableBank_numHarmonics(
+        sig_AdditiveWavetableBank wavetables, unsigned long level);
+    void AdditiveWavetableBank_fill(sig_AdditiveWavetableBank wavetables,
+        sig_Buffer sineTable);
+    float AdditiveWavetableBank_levelForFrequency(
+        sig_AdditiveWavetableBank wavetables, float frequency);
+    float AdditiveWavetableBank_readLinearAtPhase(
+        sig_AdditiveWavetableBank wavetables, float level, float tableIdx,
+        float phase);
+    void AdditiveWavetableBank_destroy(sig_Allocator allocator,
+        sig_AdditiveWavetableBank wavetables);
 
     any AudioBlock_new(sig_Allocator allocator,
         sig_AudioSettings audioSettings);
