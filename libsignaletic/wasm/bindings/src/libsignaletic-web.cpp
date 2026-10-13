@@ -585,6 +585,25 @@ public:
         return sig_dsp_Tanh_destroy(allocator, self);
     }
 
+    struct sig_dsp_SoftClip* SoftClip_new(struct sig_Allocator* allocator,
+        struct sig_SignalContext* context) {
+        return sig_dsp_SoftClip_new(allocator, context);
+    }
+
+    void SoftClip_init(struct sig_dsp_SoftClip* self,
+        struct sig_SignalContext* context) {
+        sig_dsp_SoftClip_init(self, context);
+    }
+
+    void SoftClip_generate(void* signal) {
+        sig_dsp_SoftClip_generate(signal);
+    }
+
+    void SoftClip_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_SoftClip* self) {
+        return sig_dsp_SoftClip_destroy(allocator, self);
+    }
+
 
     struct sig_dsp_Dust* Dust_new(struct sig_Allocator* allocator,
         struct sig_SignalContext* context) {
@@ -873,16 +892,6 @@ public:
         sig_dsp_Ladder_init(self, context);
     }
 
-    void Ladder_calcCoefficients(
-        struct sig_dsp_Ladder* self, float freq) {
-        sig_dsp_Ladder_calcCoefficients(self, freq);
-    }
-
-    float Ladder_calcStage(
-        struct sig_dsp_Ladder* self, float s, uint8_t i) {
-        return sig_dsp_Ladder_calcStage(self, s, i);
-    }
-
     void Ladder_generate(void* signal) {
         sig_dsp_Ladder_generate(signal);
     }
@@ -910,6 +919,56 @@ public:
     void TiltEQ_destroy(struct sig_Allocator* allocator,
         struct sig_dsp_TiltEQ* self) {
         return sig_dsp_TiltEQ_destroy(allocator, self);
+    }
+
+    void SVF_Outputs_newAudioBlocks(struct sig_Allocator* allocator,
+        struct sig_AudioSettings* audioSettings,
+        struct sig_dsp_SVF_Outputs* outputs) {
+        sig_dsp_SVF_Outputs_newAudioBlocks(allocator, audioSettings, outputs);
+    }
+
+    void SVF_Outputs_destroyAudioBlocks(struct sig_Allocator* allocator,
+        struct sig_dsp_SVF_Outputs* outputs) {
+        sig_dsp_SVF_Outputs_destroyAudioBlocks(allocator, outputs);
+    }
+
+    struct sig_dsp_SVF* SVF_new(struct sig_Allocator* allocator,
+        struct sig_SignalContext* context) {
+        return sig_dsp_SVF_new(allocator, context);
+    }
+
+    void SVF_init(struct sig_dsp_SVF* self,
+        struct sig_SignalContext* context) {
+        sig_dsp_SVF_init(self, context);
+    }
+
+    void SVF_generate(void* signal) {
+        sig_dsp_SVF_generate(signal);
+    }
+
+    void SVF_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_SVF* self) {
+        return sig_dsp_SVF_destroy(allocator, self);
+    }
+
+    struct sig_dsp_SVFLowPass* SVFLowPass_new(
+        struct sig_Allocator* allocator,
+        struct sig_SignalContext* context) {
+        return sig_dsp_SVFLowPass_new(allocator, context);
+    }
+
+    void SVFLowPass_init(struct sig_dsp_SVFLowPass* self,
+        struct sig_SignalContext* context) {
+        sig_dsp_SVFLowPass_init(self, context);
+    }
+
+    void SVFLowPass_generate(void* signal) {
+        sig_dsp_SVFLowPass_generate(signal);
+    }
+
+    void SVFLowPass_destroy(struct sig_Allocator* allocator,
+        struct sig_dsp_SVFLowPass* self) {
+        return sig_dsp_SVFLowPass_destroy(allocator, self);
     }
 
     struct sig_dsp_Delay* Delay_new(
@@ -1137,7 +1196,7 @@ public:
 class Signaletic {
 public:
     const float PI = sig_PI;
-    const float TWOPI = sig_PI;
+    const float TWOPI = sig_TWOPI;
     const float RECIP_TWOPI = sig_RECIP_TWOPI;
     const float LOG0_001 = sig_LOG0_001;
     const float LOG2 = sig_LOG2;
@@ -1365,6 +1424,22 @@ public:
         return sig_filter_dcBlock_calculateCoefficient(frequency, sampleRate);
     }
 
+    float filter_svf_highPass(float input, float band, float low, float k) {
+        return sig_filter_svf_highPass(input, band, low, k);
+    }
+
+    float filter_svf_notch(float input, float band, float low, float k) {
+        return sig_filter_svf_notch(input, band, low, k);
+    }
+
+    float filter_svf_peak(float input, float band, float low, float k) {
+        return sig_filter_svf_peak(input, band, low, k);
+    }
+
+    float filter_svf_allPass(float input, float band, float low, float k) {
+        return sig_filter_svf_allPass(input, band, low, k);
+    }
+
     void filter_Smooth_init(struct sig_filter_Smooth* self, float coeff) {
         sig_filter_Smooth_init(self, coeff);
     }
@@ -1381,6 +1456,53 @@ public:
     float filter_DCBlock_generate(struct sig_filter_DCBlock* self,
         float value) {
         return sig_filter_DCBlock_generate(self, value);
+    }
+
+    void filter_SVF_init(struct sig_filter_SVF* self) {
+        sig_filter_SVF_init(self);
+    }
+
+    void filter_SVF_calculateCoefficients(struct sig_filter_SVF* self,
+        float frequency, float resonance, float sampleRate) {
+        sig_filter_SVF_calculateCoefficients(self, frequency, resonance,
+            sampleRate);
+    }
+
+    void filter_SVF_generate(struct sig_filter_SVF* self, float value,
+        struct sig_filter_SVF_Taps* taps) {
+        sig_filter_SVF_generate(self, value, taps);
+    }
+
+    void filter_Ladder_init(struct sig_filter_Ladder* self,
+        uint8_t interpolation) {
+        sig_filter_Ladder_init(self, interpolation);
+    }
+
+    void filter_Ladder_calculateCoefficients(struct sig_filter_Ladder* self,
+        float frequency, float sampleRate) {
+        sig_filter_Ladder_calculateCoefficients(self, frequency, sampleRate);
+    }
+
+    float filter_Ladder_calcStage(struct sig_filter_Ladder* self, float s,
+        uint8_t i) {
+        return sig_filter_Ladder_calcStage(self, s, i);
+    }
+
+    float filter_Ladder_calcStageInput(struct sig_filter_Ladder* self,
+        float value, float interp, float resonance, float passbandGain) {
+        return sig_filter_Ladder_calcStageInput(self, value, interp, resonance,
+            passbandGain);
+    }
+
+    void filter_Ladder_calcStages(struct sig_filter_Ladder* self, float u,
+        struct sig_filter_Ladder_Taps* taps) {
+        sig_filter_Ladder_calcStages(self, u, taps);
+    }
+
+    void filter_Ladder_generate(struct sig_filter_Ladder* self, float value,
+        float resonance, float passbandGain,
+        struct sig_filter_Ladder_Taps* taps) {
+        sig_filter_Ladder_generate(self, value, resonance, passbandGain, taps);
     }
 
     float waveform_sine(float phase) {
@@ -1883,6 +2005,10 @@ public:
 
     float sineWavefolder(float x, float gain, float factor) {
         return sig_sineWavefolder(x, gain, factor);
+    }
+
+    float softClip(float x, float threshold) {
+        return sig_softClip(x, threshold);
     }
 
     void SingleMonoOutput_newAudioBlocks(

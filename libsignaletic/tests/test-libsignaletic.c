@@ -2318,6 +2318,420 @@ void test_sig_dsp_DCBlock_DC(void) {
         -180.0f, 1.0f, context->audioSettings->blockSize);
 }
 
+void test_sig_softClip(void) {
+    // Below the threshold the sample passes through unchanged.
+    TEST_ASSERT_EQUAL_FLOAT(0.5f, sig_softClip(0.5f, 0.8f));
+    TEST_ASSERT_EQUAL_FLOAT(-0.5f, sig_softClip(-0.5f, 0.8f));
+    TEST_ASSERT_EQUAL_FLOAT(0.8f, sig_softClip(0.8f, 0.8f));
+
+    // The response is odd symmetric.
+    TEST_ASSERT_EQUAL_FLOAT(sig_softClip(1.2f, 0.8f),
+        -sig_softClip(-1.2f, 0.8f));
+
+    // Above the threshold the sample is compressed but keeps increasing.
+    TEST_ASSERT_TRUE(sig_softClip(1.0f, 0.8f) > 0.8f);
+    TEST_ASSERT_TRUE(sig_softClip(1.0f, 0.8f) < sig_softClip(1.2f, 0.8f));
+
+    // Large samples approach full scale without exceeding it.
+    TEST_ASSERT_TRUE(sig_softClip(100.0f, 0.8f) > 0.99f);
+    TEST_ASSERT_TRUE(sig_softClip(100.0f, 0.8f) <= 1.0f);
+
+    // The threshold is clamped to a usable range.
+    TEST_ASSERT_EQUAL_FLOAT(0.5f, sig_softClip(0.5f, 1.5f));
+}
+
+void test_sig_dsp_SoftClip(void) {
+    struct sig_dsp_SoftClip* softClip = sig_dsp_SoftClip_new(&allocator,
+        context);
+    softClip->parameters.threshold = 0.8f;
+
+    struct sig_dsp_ConstantValue* dc = sig_dsp_ConstantValue_new(
+        &allocator, context, 2.0f);
+    softClip->inputs.source = dc->outputs.main;
+
+    for (size_t i = 0; i < 4; i++) {
+        dc->signal.generate(dc);
+        softClip->signal.generate(softClip);
+    }
+
+    // A sample above the threshold is limited to just below full scale.
+    testAssertSamplesBelowDB(softClip->outputs.main, 0.0f, 1.0f,
+        audioSettings->blockSize);
+    testAssertSamplesAboveDB(softClip->outputs.main, -0.1f, 1.0f,
+        audioSettings->blockSize);
+}
+
+static float_array_ptr alternatingBlock(void) {
+    float_array_ptr samples = sig_AudioBlock_new(&allocator, audioSettings);
+    for (size_t i = 0; i < audioSettings->blockSize; i++) {
+        FLOAT_ARRAY(samples)[i] = (i % 2 == 0) ? 1.0f : -1.0f;
+    }
+
+    return samples;
+}
+
+static struct sig_test_BufferPlayer* newAlternatingSource(void) {
+    struct sig_Buffer* buffer = (struct sig_Buffer*) allocator.impl->malloc(
+        &allocator, sizeof(struct sig_Buffer));
+    buffer->length = audioSettings->blockSize;
+    buffer->samples = alternatingBlock();
+
+    return sig_test_BufferPlayer_new(&allocator, context, buffer);
+}
+
+static void generateSVF(struct sig_dsp_Signal* source,
+    struct sig_dsp_SVF* svf, size_t numBlocks) {
+    for (size_t i = 0; i < numBlocks; i++) {
+        source->generate(source);
+        svf->signal.generate(svf);
+    }
+}
+
+static struct sig_dsp_SVF* newSVF(float frequency, float resonance) {
+    struct sig_dsp_SVF* svf = sig_dsp_SVF_new(&allocator, context);
+    svf->inputs.frequency = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, frequency);
+    svf->inputs.resonance = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, resonance);
+
+    return svf;
+}
+
+void test_sig_filter_svf_shapes(void) {
+    // The shapes are weighted sums of the input (v0), band pass (v1),
+    // and low pass (v2) taps, scaled by the damping k.
+    float input = 1.0f;
+    float band = 0.5f;
+    float low = 0.25f;
+    float k = 1.5f;
+
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, input - k * band - low,
+        sig_filter_svf_highPass(input, band, low, k));
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, input - k * band,
+        sig_filter_svf_notch(input, band, low, k));
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, input - k * band - 2.0f * low,
+        sig_filter_svf_peak(input, band, low, k));
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, input - 2.0f * k * band,
+        sig_filter_svf_allPass(input, band, low, k));
+}
+
+void test_sig_filter_SVF_generate(void) {
+    struct sig_filter_SVF state;
+    sig_filter_SVF_init(&state);
+    sig_filter_SVF_calculateCoefficients(&state, 1000.0f, 0.5f, 44100.0f);
+
+    // A low pass filter settles to unity gain at DC, and its band pass
+    // output settles to zero.
+    struct sig_filter_SVF_Taps taps;
+    for (size_t i = 0; i < 4410; i++) {
+        sig_filter_SVF_generate(&state, 1.0f, &taps);
+    }
+
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 1.0f, taps.low);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, taps.band);
+    TEST_ASSERT_EQUAL_FLOAT(1.0f, taps.input);
+}
+
+void test_sig_filter_SVF_calculateCoefficients_atHalfSampleRate(void) {
+    struct sig_filter_SVF state;
+    sig_filter_SVF_init(&state);
+
+    // A cutoff at the Nyquist frequency is clamped just below it, so the
+    // tangent stays positive and finite instead of crossing its pole.
+    sig_filter_SVF_calculateCoefficients(&state, 22050.0f, 0.5f, 44100.0f);
+
+    TEST_ASSERT_TRUE(state.a1 > 0.0f);
+    TEST_ASSERT_TRUE(state.a2 > 0.0f);
+    TEST_ASSERT_TRUE(state.a3 > 0.0f);
+    // The clamp gives a tangent of tan(pi * 0.49), about 31.82.
+    TEST_ASSERT_FLOAT_WITHIN(0.5f, 31.82f, state.a2 / state.a1);
+}
+
+void test_sig_dsp_SVF_lowPass(void) {
+    struct sig_dsp_SVF* svf = newSVF(1000.0f, 0.5f);
+    struct sig_dsp_ConstantValue* dc = sig_dsp_ConstantValue_new(
+        &allocator, context, 1.0f);
+    svf->inputs.source = dc->outputs.main;
+
+    generateSVF(&dc->signal, svf, 4000);
+
+    // A low pass filter passes DC at unity gain.
+    testAssertSamplesAboveDB(svf->outputs.low, -0.1f, 1.0f,
+        audioSettings->blockSize);
+}
+
+void test_sig_dsp_SVF_lowPass_blocksHighFrequency(void) {
+    struct sig_test_BufferPlayer* source = newAlternatingSource();
+    struct sig_dsp_SVF* svf = newSVF(1000.0f, 0.5f);
+    svf->inputs.source = source->outputs.main;
+
+    generateSVF(&source->signal, svf, 4000);
+
+    // A low pass filter strongly attenuates a signal at the Nyquist
+    // frequency.
+    testAssertSamplesBelowDB(svf->outputs.low, -30.0f, 1.0f,
+        audioSettings->blockSize);
+}
+
+void test_sig_dsp_SVF_highPass(void) {
+    struct sig_dsp_SVF* svf = newSVF(1000.0f, 0.5f);
+    struct sig_dsp_ConstantValue* dc = sig_dsp_ConstantValue_new(
+        &allocator, context, 1.0f);
+    svf->inputs.source = dc->outputs.main;
+
+    generateSVF(&dc->signal, svf, 4000);
+
+    // A high pass filter blocks DC.
+    testAssertSamplesBelowDB(svf->outputs.high, -60.0f, 1.0f,
+        audioSettings->blockSize);
+}
+
+void test_sig_dsp_SVF_highPass_passesHighFrequency(void) {
+    struct sig_test_BufferPlayer* source = newAlternatingSource();
+    struct sig_dsp_SVF* svf = newSVF(1000.0f, 0.5f);
+    svf->inputs.source = source->outputs.main;
+
+    generateSVF(&source->signal, svf, 4000);
+
+    // A high pass filter passes a signal at the Nyquist frequency.
+    testAssertSamplesAboveDB(svf->outputs.high, -3.0f, 1.0f,
+        audioSettings->blockSize);
+}
+
+void test_sig_dsp_SVF_bandPass(void) {
+    struct sig_dsp_SVF* svf = newSVF(1000.0f, 0.5f);
+    struct sig_dsp_ConstantValue* dc = sig_dsp_ConstantValue_new(
+        &allocator, context, 1.0f);
+    svf->inputs.source = dc->outputs.main;
+
+    generateSVF(&dc->signal, svf, 4000);
+
+    // A band pass filter blocks DC.
+    testAssertSamplesBelowDB(svf->outputs.band, -60.0f, 1.0f,
+        audioSettings->blockSize);
+}
+
+void test_sig_dsp_SVF_notch(void) {
+    struct sig_dsp_SVF* svf = newSVF(1000.0f, 0.5f);
+    struct sig_dsp_ConstantValue* dc = sig_dsp_ConstantValue_new(
+        &allocator, context, 1.0f);
+    svf->inputs.source = dc->outputs.main;
+
+    generateSVF(&dc->signal, svf, 4000);
+
+    // A notch filter passes DC at unity gain.
+    testAssertSamplesAboveDB(svf->outputs.notch, -0.1f, 1.0f,
+        audioSettings->blockSize);
+}
+
+void test_sig_dsp_SVF_peak(void) {
+    struct sig_dsp_SVF* svf = newSVF(1000.0f, 0.5f);
+    struct sig_dsp_ConstantValue* dc = sig_dsp_ConstantValue_new(
+        &allocator, context, 1.0f);
+    svf->inputs.source = dc->outputs.main;
+
+    generateSVF(&dc->signal, svf, 4000);
+
+    // The peak response has unity magnitude at DC.
+    testAssertSamplesAboveDB(svf->outputs.peak, -0.1f, 1.0f,
+        audioSettings->blockSize);
+}
+
+void test_sig_dsp_SVF_allPass(void) {
+    struct sig_dsp_SVF* svf = newSVF(1000.0f, 0.5f);
+    struct sig_dsp_ConstantValue* dc = sig_dsp_ConstantValue_new(
+        &allocator, context, 1.0f);
+    svf->inputs.source = dc->outputs.main;
+
+    generateSVF(&dc->signal, svf, 4000);
+
+    // An all pass filter passes DC at unity gain.
+    testAssertSamplesAboveDB(svf->outputs.all, -0.1f, 1.0f,
+        audioSettings->blockSize);
+}
+
+void test_sig_dsp_SVF_resonance(void) {
+    // Drive a low pass filter at its cutoff frequency with a sine.
+    // A higher resonance produces a louder output.
+    struct sig_dsp_Oscillator* sine = sig_dsp_SineOscillator_new(
+        &allocator, context);
+    sine->inputs.freq = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, 1000.0f);
+
+    struct sig_dsp_SVF* damped = newSVF(1000.0f, 0.0f);
+    damped->inputs.source = sine->outputs.main;
+
+    struct sig_dsp_SVF* resonant = newSVF(1000.0f, 0.9f);
+    resonant->inputs.source = sine->outputs.main;
+
+    for (size_t i = 0; i < 4000; i++) {
+        sine->signal.generate(sine);
+        damped->signal.generate(damped);
+        resonant->signal.generate(resonant);
+    }
+
+    float dampedPeak = 0.0f;
+    float resonantPeak = 0.0f;
+    for (size_t i = 0; i < audioSettings->blockSize; i++) {
+        float dampedSample = fabsf(FLOAT_ARRAY(damped->outputs.low)[i]);
+        float resonantSample = fabsf(FLOAT_ARRAY(resonant->outputs.low)[i]);
+        if (dampedSample > dampedPeak) {
+            dampedPeak = dampedSample;
+        }
+        if (resonantSample > resonantPeak) {
+            resonantPeak = resonantSample;
+        }
+    }
+
+    // With a resonance of 0.0 the low pass gain at the cutoff is 0.5 (-6 dB).
+    TEST_ASSERT_TRUE(dampedPeak > 0.4f && dampedPeak < 0.6f);
+    // With a resonance of 0.9 the low pass gain at the cutoff is 5 (+14 dB).
+    TEST_ASSERT_TRUE(resonantPeak > 4.0f && resonantPeak < 6.0f);
+}
+
+void test_sig_dsp_SVF_highResonanceIsStable(void) {
+    struct sig_dsp_Oscillator* sine = sig_dsp_SineOscillator_new(
+        &allocator, context);
+    sine->inputs.freq = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, 1000.0f);
+
+    struct sig_dsp_SVF* svf = newSVF(1000.0f, 0.99f);
+    svf->inputs.source = sine->outputs.main;
+
+    generateSVF(&sine->signal, svf, 4000);
+
+    // Near maximum resonance the filter's outputs remain bounded.
+    testAssertBufferValuesInRange(svf->outputs.low,
+        audioSettings->blockSize, -100.0f, 100.0f);
+    testAssertBufferValuesInRange(svf->outputs.band,
+        audioSettings->blockSize, -100.0f, 100.0f);
+    testAssertBufferValuesInRange(svf->outputs.high,
+        audioSettings->blockSize, -100.0f, 100.0f);
+    testAssertBufferValuesInRange(svf->outputs.notch,
+        audioSettings->blockSize, -100.0f, 100.0f);
+    testAssertBufferValuesInRange(svf->outputs.peak,
+        audioSettings->blockSize, -100.0f, 100.0f);
+    testAssertBufferValuesInRange(svf->outputs.all,
+        audioSettings->blockSize, -100.0f, 100.0f);
+}
+
+void test_sig_dsp_SVF_maxResonanceIsStable(void) {
+    struct sig_dsp_Oscillator* sine = sig_dsp_SineOscillator_new(
+        &allocator, context);
+    sine->inputs.freq = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, 1000.0f);
+
+    struct sig_dsp_SVF* svf = newSVF(1000.0f, 1.0f);
+    svf->inputs.source = sine->outputs.main;
+
+    // Four seconds of a sine at the cutoff frequency.
+    size_t numBlocks = (size_t) (4.0f * audioSettings->sampleRate /
+        (float) audioSettings->blockSize);
+    generateSVF(&sine->signal, svf, numBlocks);
+
+    // The minimum damping keeps the resonance bounded instead of growing
+    // without limit.
+    float peak = 0.0f;
+    for (size_t i = 0; i < audioSettings->blockSize; i++) {
+        float sample = fabsf(FLOAT_ARRAY(svf->outputs.low)[i]);
+        if (sample > peak) {
+            peak = sample;
+        }
+    }
+    TEST_ASSERT_TRUE(peak < 500.0f);
+}
+
+void test_sig_dsp_SVFLowPass(void) {
+    struct sig_dsp_SVFLowPass* svf = sig_dsp_SVFLowPass_new(&allocator,
+        context);
+    svf->inputs.frequency = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, 1000.0f);
+    svf->inputs.resonance = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, 0.5f);
+
+    struct sig_dsp_ConstantValue* dc = sig_dsp_ConstantValue_new(
+        &allocator, context, 1.0f);
+    svf->inputs.source = dc->outputs.main;
+
+    for (size_t i = 0; i < 4000; i++) {
+        dc->signal.generate(dc);
+        svf->signal.generate(svf);
+    }
+
+    // A low pass filter passes DC at unity gain.
+    testAssertSamplesAboveDB(svf->outputs.main, -0.1f, 1.0f,
+        audioSettings->blockSize);
+}
+
+void test_sig_filter_Ladder_generate(void) {
+    struct sig_filter_Ladder state;
+    sig_filter_Ladder_init(&state, 4);
+    sig_filter_Ladder_calculateCoefficients(&state, 1000.0f, 44100.0f);
+
+    // Each pole passes DC, and the input saturator limits the signal first.
+    struct sig_filter_Ladder_Taps taps;
+    for (size_t i = 0; i < 4410; i++) {
+        sig_filter_Ladder_generate(&state, 1.0f, 0.0f, 0.5f, &taps);
+    }
+
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, sig_fastTanhf(1.0f), taps.pole4);
+}
+
+void test_sig_filter_Ladder_calcStageInput(void) {
+    struct sig_filter_Ladder state;
+    sig_filter_Ladder_init(&state, 4);
+
+    // The interpolation starts at the previous input sample and moves toward
+    // the current one over the sub-steps. With no resonance or passband gain,
+    // the interpolated value passes through unchanged.
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f,
+        sig_filter_Ladder_calcStageInput(&state, 1.0f, 0.0f, 0.0f, 0.0f));
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 1.0f,
+        sig_filter_Ladder_calcStageInput(&state, 1.0f, 1.0f, 0.0f, 0.0f));
+}
+
+void test_sig_filter_Ladder_calcStages(void) {
+    struct sig_filter_Ladder state;
+    sig_filter_Ladder_init(&state, 4);
+    sig_filter_Ladder_calculateCoefficients(&state, 1000.0f, 44100.0f);
+
+    // Each pole passes DC, so a constant input settles at unity at every pole.
+    struct sig_filter_Ladder_Taps taps;
+    for (size_t i = 0; i < 4410; i++) {
+        sig_filter_Ladder_calcStages(&state, 1.0f, &taps);
+    }
+
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 1.0f, taps.pole1);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 1.0f, taps.pole4);
+}
+
+void test_sig_dsp_Ladder_outputs(void) {
+    struct sig_dsp_Ladder* ladder = sig_dsp_Ladder_new(&allocator, context);
+    ladder->inputs.frequency = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, 1000.0f);
+    ladder->inputs.resonance = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, 0.0f);
+
+    struct sig_dsp_Oscillator* sine = sig_dsp_SineOscillator_new(
+        &allocator, context);
+    sine->inputs.freq = sig_AudioBlock_newWithValue(&allocator,
+        audioSettings, 1000.0f);
+    ladder->inputs.source = sine->outputs.main;
+
+    for (size_t i = 0; i < 100; i++) {
+        sine->signal.generate(sine);
+        ladder->signal.generate(ladder);
+    }
+
+    // The ladder writes a signal to each of its three outputs.
+    testAssertBufferNotSilent(&allocator, ladder->outputs.main,
+        audioSettings->blockSize);
+    testAssertBufferNotSilent(&allocator, ladder->outputs.twoPole,
+        audioSettings->blockSize);
+    testAssertBufferNotSilent(&allocator, ladder->outputs.fourPole,
+        audioSettings->blockSize);
+}
+
 void test_sig_dsp_Sequencer_stepsInOrder(void) {
     // With 1-sample steps, the output advances one value per sample,
     // cycling through all values when looping.
@@ -2631,6 +3045,27 @@ int main(void) {
     RUN_TEST(test_sig_dsp_List_noList);
     RUN_TEST(test_sig_dsp_DCBlock_AC);
     RUN_TEST(test_sig_dsp_DCBlock_DC);
+    RUN_TEST(test_sig_softClip);
+    RUN_TEST(test_sig_dsp_SoftClip);
+    RUN_TEST(test_sig_filter_svf_shapes);
+    RUN_TEST(test_sig_filter_SVF_generate);
+    RUN_TEST(test_sig_filter_SVF_calculateCoefficients_atHalfSampleRate);
+    RUN_TEST(test_sig_dsp_SVF_lowPass);
+    RUN_TEST(test_sig_dsp_SVF_lowPass_blocksHighFrequency);
+    RUN_TEST(test_sig_dsp_SVF_highPass);
+    RUN_TEST(test_sig_dsp_SVF_highPass_passesHighFrequency);
+    RUN_TEST(test_sig_dsp_SVF_bandPass);
+    RUN_TEST(test_sig_dsp_SVF_notch);
+    RUN_TEST(test_sig_dsp_SVF_allPass);
+    RUN_TEST(test_sig_dsp_SVF_peak);
+    RUN_TEST(test_sig_dsp_SVF_resonance);
+    RUN_TEST(test_sig_dsp_SVF_highResonanceIsStable);
+    RUN_TEST(test_sig_dsp_SVF_maxResonanceIsStable);
+    RUN_TEST(test_sig_dsp_SVFLowPass);
+    RUN_TEST(test_sig_filter_Ladder_generate);
+    RUN_TEST(test_sig_filter_Ladder_calcStageInput);
+    RUN_TEST(test_sig_filter_Ladder_calcStages);
+    RUN_TEST(test_sig_dsp_Ladder_outputs);
     RUN_TEST(test_sig_dsp_Sequencer_stepsInOrder);
     RUN_TEST(test_sig_dsp_Sequencer_stepDuration);
     RUN_TEST(test_sig_dsp_Sequencer_looping);

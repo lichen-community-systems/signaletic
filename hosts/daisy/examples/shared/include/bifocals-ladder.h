@@ -3,7 +3,6 @@
 
 #include <libsignaletic.h>
 
-// TODO: Fix rampant cut and paste from libsignaletic.c's Ladder.
 struct sig_dsp_BifocalsLadder_Inputs {
     float_array_ptr source;
     float_array_ptr frequency;
@@ -19,116 +18,125 @@ struct sig_dsp_BifocalsLadder_Inputs {
 };
 
 struct sig_dsp_BifocalsLadder {
+    /**
+     * @brief The signal's base state.
+     *
+     */
     struct sig_dsp_Signal signal;
+
+    /**
+     * @brief The filter's inputs.
+     *
+     */
     struct sig_dsp_BifocalsLadder_Inputs inputs;
+
+    /**
+     * @brief The filter's parameters.
+     *
+     */
     struct sig_dsp_Ladder_Parameters parameters;
+
+    /**
+     * @brief The filter's outputs.
+     *
+     */
     struct sig_dsp_FourPoleFilter_Outputs outputs;
 
-    uint8_t interpolation;
-    float interpolationRecip;
-    float alpha;
-    float beta[4];
-    float z0[4];
-    float z1[4];
-    float k;
-    float fBase;
-    float qAdjust;
-    float prevFrequency;
-    float prevInput;
+    /**
+     * @brief The filter's state.
+     *
+     */
+    struct sig_filter_Ladder state;
+
+    /**
+     * @brief The frequency from the previous sample, in Hz.
+     *
+     */
+    float previousFrequency;
 };
-
-inline void sig_dsp_BifocalsLadder_calcCoefficients(
-    struct sig_dsp_BifocalsLadder* self, float freq) {
-    float sampleRate = self->signal.audioSettings->sampleRate;
-    freq = sig_clamp(freq, 5.0f, sampleRate * 0.425f);
-    float wc = freq * (float) (sig_TWOPI /
-        ((float)self->interpolation * sampleRate));
-    float wc2 = wc * wc;
-    self->alpha = 0.9892f * wc - 0.4324f *
-        wc2 + 0.1381f * wc * wc2 - 0.0202f * wc2 * wc2;
-    self->qAdjust = 1.006f + 0.0536f * wc - 0.095f * wc2 - 0.05f * wc2 * wc2;
-}
-
-inline float sig_dsp_BifocalsLadder_calcStage(
-    struct sig_dsp_BifocalsLadder* self, float s, uint8_t i) {
-    float ft = s * (1.0f/1.3f) + (0.3f/1.3f) * self->z0[i] - self->z1[i];
-    ft = ft * self->alpha + self->z1[i];
-    self->z1[i] = ft;
-    self->z0[i] = s;
-    return ft;
-}
 
 void sig_dsp_BifocalsLadder_generate(void* signal) {
     struct sig_dsp_BifocalsLadder* self =
         (struct sig_dsp_BifocalsLadder*) signal;
-    float interpolationRecip = self->interpolationRecip;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float sampleRate = self->signal.audioSettings->sampleRate;
+    const float passbandGain = self->parameters.passbandGain;
+    const uint8_t interpolation = self->state.interpolation;
+    const float interpolationRecip = self->state.interpolationRecip;
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    const float* SIG_RESTRICT freqIn = FLOAT_ARRAY(self->inputs.frequency);
+    const float* SIG_RESTRICT resIn = FLOAT_ARRAY(self->inputs.resonance);
+    const float* SIG_RESTRICT inputGainIn = FLOAT_ARRAY(self->inputs.inputGain);
+    const float* SIG_RESTRICT pole1GainIn = FLOAT_ARRAY(self->inputs.pole1Gain);
+    const float* SIG_RESTRICT pole2GainIn = FLOAT_ARRAY(self->inputs.pole2Gain);
+    const float* SIG_RESTRICT pole3GainIn = FLOAT_ARRAY(self->inputs.pole3Gain);
+    const float* SIG_RESTRICT pole4GainIn = FLOAT_ARRAY(self->inputs.pole4Gain);
+    const float* SIG_RESTRICT wavefolderGainIn = FLOAT_ARRAY(
+        self->inputs.wavefolderGain);
+    const float* SIG_RESTRICT wavefolderFactorIn = FLOAT_ARRAY(
+        self->inputs.wavefolderFactor);
+    const float* SIG_RESTRICT wavefolderPositionIn = FLOAT_ARRAY(
+        self->inputs.wavefolderPosition);
+    float* SIG_RESTRICT mainOut = FLOAT_ARRAY(self->outputs.main);
+    float* SIG_RESTRICT twoPoleOut = FLOAT_ARRAY(self->outputs.twoPole);
+    float* SIG_RESTRICT fourPoleOut = FLOAT_ARRAY(self->outputs.fourPole);
 
-    for (size_t i = 0; i < self->signal.audioSettings->blockSize; i++) {
-        float input = FLOAT_ARRAY(self->inputs.source)[i];
-        float frequency = FLOAT_ARRAY(self->inputs.frequency)[i];
-        float resonance = FLOAT_ARRAY(self->inputs.resonance)[i];
-        float wavefolderGain = FLOAT_ARRAY(self->inputs.wavefolderGain)[i];
-        float wavefolderFactor = FLOAT_ARRAY(self->inputs.wavefolderFactor)[i];
-        float wavefolderPosition =
-            FLOAT_ARRAY(self->inputs.wavefolderPosition)[i];
-        float inputGain = FLOAT_ARRAY(self->inputs.inputGain)[i];
-        float pole1Gain = FLOAT_ARRAY(self->inputs.pole1Gain)[i];
-        float pole2Gain = FLOAT_ARRAY(self->inputs.pole2Gain)[i];
-        float pole3Gain = FLOAT_ARRAY(self->inputs.pole3Gain)[i];
-        float pole4Gain = FLOAT_ARRAY(self->inputs.pole4Gain)[i];
-        float totals[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-        float interp = 0.0f;
+    for (size_t i = 0; i < blockSize; i++) {
+        float input = in[i];
+        float frequency = freqIn[i];
+        float resonance = resIn[i];
 
         // Recalculate coefficients if the frequency has changed.
-        if (frequency != self->prevFrequency) {
-            sig_dsp_BifocalsLadder_calcCoefficients(self, frequency);
-            self->prevFrequency = frequency;
+        if (frequency != self->previousFrequency) {
+            sig_filter_Ladder_calculateCoefficients(&self->state, frequency,
+                sampleRate);
+            self->previousFrequency = frequency;
         }
 
-        self->k = 4.0f * resonance;
-
+        float wavefolderGain = wavefolderGainIn[i];
+        float wavefolderFactor = wavefolderFactorIn[i];
+        float wavefolderPosition = wavefolderPositionIn[i];
+        float inputGain = inputGainIn[i];
+        float pole1Gain = pole1GainIn[i];
+        float pole2Gain = pole2GainIn[i];
+        float pole3Gain = pole3GainIn[i];
+        float pole4Gain = pole4GainIn[i];
+        float twoPole = 0.0f;
+        float fourPole = 0.0f;
+        float interp = 0.0f;
         float main = 0.0f;
-        for (size_t os = 0; os < self->interpolation; os++) {
-            float inInterp = interp * self->prevInput + (1.0f - interp) * input;
-            float u = inInterp - (self->z1[3] - self->parameters.passbandGain *
-                inInterp) * self->k * self->qAdjust;
 
-           if (wavefolderPosition <= 0.0f) {
-                float prefolded = (u +
-                    sinf(wavefolderFactor * u)) * wavefolderGain;
-                u = prefolded;
+        for (size_t os = 0; os < interpolation; os++) {
+            float u = sig_filter_Ladder_calcStageInput(&self->state, input,
+                interp, resonance, passbandGain);
+
+            if (wavefolderPosition <= 0.0f) {
+                u = (u + sinf(wavefolderFactor * u)) * wavefolderGain;
             }
             u = sig_fastTanhf(u);
 
-            totals[0] = u;
-            float stage1 = sig_dsp_BifocalsLadder_calcStage(self, u, 0);
-            totals[1] += stage1 * interpolationRecip;
-            float stage2 = sig_dsp_BifocalsLadder_calcStage(self, stage1, 1);
-            totals[2] += stage2 * interpolationRecip;
-            float stage3 = sig_dsp_BifocalsLadder_calcStage(self, stage2, 2);
-            totals[3] += stage3 * interpolationRecip;
-            float stage4 = sig_dsp_BifocalsLadder_calcStage(self, stage3, 3);
-            totals[4] += stage4 * interpolationRecip;
+            struct sig_filter_Ladder_Taps step;
+            sig_filter_Ladder_calcStages(&self->state, u, &step);
 
-            float poleSum = (u * inputGain) +
-                (stage1 * pole1Gain) +
-                (stage2 * pole2Gain) +
-                (stage3 * pole3Gain) +
-                (stage4 * pole4Gain);
+            float poleSum = (step.input * inputGain) +
+                (step.pole1 * pole1Gain) +
+                (step.pole2 * pole2Gain) +
+                (step.pole3 * pole3Gain) +
+                (step.pole4 * pole4Gain);
 
             if (wavefolderPosition > 0.0f) {
                 poleSum = (poleSum +
                     sinf(wavefolderFactor * poleSum)) * wavefolderGain;
-
             }
-            float postSaturated = tanhf(poleSum);
-            main += postSaturated * interpolationRecip;
+            main += tanhf(poleSum) * interpolationRecip;
+            twoPole += step.pole2 * interpolationRecip;
+            fourPole += step.pole4 * interpolationRecip;
             interp += interpolationRecip;
         }
-        self->prevInput = input;
-        FLOAT_ARRAY(self->outputs.main)[i] = main;
-        FLOAT_ARRAY(self->outputs.twoPole)[i] = totals[2];
-        FLOAT_ARRAY(self->outputs.fourPole)[i] = totals[4];
+        self->state.previousInput = input;
+        mainOut[i] = main;
+        twoPoleOut[i] = twoPole;
+        fourPoleOut[i] = fourPole;
     }
 }
 
@@ -142,17 +150,8 @@ void sig_dsp_BifocalsLadder_init(
     };
     self->parameters = parameters;
 
-    self->interpolation = 8;
-    self->interpolationRecip = 1.0f / self->interpolation;
-    self->alpha = 1.0f;
-    self->beta[0] = self->beta[1] = self->beta[2] = self->beta[3] = 0.0f;
-    self->z0[0] = self->z0[1] = self->z0[2] = self->z0[3] = 0.0f;
-    self->z1[0] = self->z1[1] = self->z1[2] = self->z1[3] = 0.0f;
-    self->k = 1.0f;
-    self->fBase = 1000.0f;
-    self->qAdjust = 1.0f;
-    self->prevFrequency = -1.0f;
-    self->prevInput = 0.0f;
+    sig_filter_Ladder_init(&self->state, 8);
+    self->previousFrequency = -1.0f;
 
     sig_CONNECT_TO_SILENCE(self, source, context);
     sig_CONNECT_TO_SILENCE(self, frequency, context);

@@ -72,6 +72,39 @@ interface sig_filter_DCBlock {
     attribute float previousOutput;
 };
 
+interface sig_filter_SVF_Taps {
+    attribute float input;
+    attribute float band;
+    attribute float low;
+};
+
+interface sig_filter_SVF {
+    attribute float k;
+    attribute float a1;
+    attribute float a2;
+    attribute float a3;
+    attribute float ic1eq;
+    attribute float ic2eq;
+};
+
+interface sig_filter_Ladder_Taps {
+    attribute float input;
+    attribute float pole1;
+    attribute float pole2;
+    attribute float pole3;
+    attribute float pole4;
+};
+
+interface sig_filter_Ladder {
+    attribute octet interpolation;
+    attribute float interpolationRecip;
+    attribute float alpha;
+    attribute float qAdjust;
+    attribute float[] z0;
+    attribute float[] z1;
+    attribute float previousInput;
+};
+
 interface sig_osc_Oscillator {
     attribute float phaseAccumulator;
 };
@@ -420,6 +453,21 @@ interface sig_dsp_Tanh {
     [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
 };
 
+interface sig_dsp_SoftClip_Parameters {
+    attribute float threshold;
+};
+
+interface sig_dsp_SoftClip_Inputs {
+    attribute any source;
+};
+
+interface sig_dsp_SoftClip {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_SoftClip_Inputs inputs;
+    [Value] attribute sig_dsp_SoftClip_Parameters parameters;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
 
 interface sig_dsp_Dust_Parameters {
     attribute float bipolar;
@@ -709,17 +757,8 @@ interface sig_dsp_Ladder {
     [Value] attribute sig_dsp_FourPoleFilter_Inputs inputs;
     [Value] attribute sig_dsp_Ladder_Parameters parameters;
     [Value] attribute sig_dsp_FourPoleFilter_Outputs outputs;
-    attribute octet interpolation;
-    attribute float interpolationRecip;
-    attribute float alpha;
-    attribute float[] beta;
-    attribute float[] z0;
-    attribute float[] z1;
-    attribute float k;
-    attribute float fBase;
-    attribute float qAdjust;
-    attribute float prevFrequency;
-    attribute float prevInput;
+    [Value] attribute sig_filter_Ladder state;
+    attribute float previousFrequency;
 };
 
 interface sig_dsp_TiltEQ_Inputs {
@@ -734,6 +773,39 @@ interface sig_dsp_TiltEQ {
     [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
     attribute float sr3;
     attribute float lpOut;
+};
+
+interface sig_dsp_SVF_Inputs {
+    attribute any source;
+    attribute any frequency;
+    attribute any resonance;
+};
+
+interface sig_dsp_SVF_Outputs {
+    attribute any low;
+    attribute any band;
+    attribute any high;
+    attribute any notch;
+    attribute any peak;
+    attribute any all;
+};
+
+interface sig_dsp_SVF {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_SVF_Inputs inputs;
+    [Value] attribute sig_dsp_SVF_Outputs outputs;
+    [Value] attribute sig_filter_SVF state;
+    attribute float previousFrequency;
+    attribute float previousResonance;
+};
+
+interface sig_dsp_SVFLowPass {
+    [Value] attribute sig_dsp_Signal signal;
+    [Value] attribute sig_dsp_SVF_Inputs inputs;
+    [Value] attribute sig_dsp_Signal_SingleMonoOutput outputs;
+    [Value] attribute sig_filter_SVF state;
+    attribute float previousFrequency;
+    attribute float previousResonance;
 };
 
 interface sig_dsp_Delay_Inputs {
@@ -1060,6 +1132,12 @@ interface Signals {
     void Tanh_generate(any signal);
     void Tanh_destroy(sig_Allocator allocator, sig_dsp_Tanh signal);
 
+    void SoftClip_init(sig_dsp_SoftClip signal, sig_SignalContext context);
+    sig_dsp_SoftClip SoftClip_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void SoftClip_generate(any signal);
+    void SoftClip_destroy(sig_Allocator allocator, sig_dsp_SoftClip signal);
+
     void Dust_init(sig_dsp_Dust signal, sig_SignalContext context);
     sig_dsp_Dust Dust_new(sig_Allocator allocator, sig_SignalContext context);
     void Dust_generate(any signal);
@@ -1164,8 +1242,6 @@ interface Signals {
     sig_dsp_Ladder Ladder_new(sig_Allocator allocator,
         sig_SignalContext context);
     void Ladder_init(sig_dsp_Ladder signal, sig_SignalContext context);
-    void Ladder_calcCoefficients(sig_dsp_Ladder signal, float freq);
-    float Ladder_calcStage(sig_dsp_Ladder signal, float s, octet i);
     void Ladder_generate(any signal);
     void Ladder_destroy(sig_Allocator allocator, sig_dsp_Ladder signal);
 
@@ -1174,6 +1250,24 @@ interface Signals {
     void TiltEQ_init(sig_dsp_TiltEQ signal, sig_SignalContext context);
     void TiltEQ_generate(any signal);
     void TiltEQ_destroy(sig_Allocator allocator, sig_dsp_TiltEQ signal);
+
+    void SVF_Outputs_newAudioBlocks(sig_Allocator allocator,
+        sig_AudioSettings audioSettings, sig_dsp_SVF_Outputs outputs);
+    void SVF_Outputs_destroyAudioBlocks(sig_Allocator allocator,
+        sig_dsp_SVF_Outputs outputs);
+
+    sig_dsp_SVF SVF_new(sig_Allocator allocator, sig_SignalContext context);
+    void SVF_init(sig_dsp_SVF signal, sig_SignalContext context);
+    void SVF_generate(any signal);
+    void SVF_destroy(sig_Allocator allocator, sig_dsp_SVF signal);
+
+    sig_dsp_SVFLowPass SVFLowPass_new(sig_Allocator allocator,
+        sig_SignalContext context);
+    void SVFLowPass_init(sig_dsp_SVFLowPass signal,
+        sig_SignalContext context);
+    void SVFLowPass_generate(any signal);
+    void SVFLowPass_destroy(sig_Allocator allocator,
+        sig_dsp_SVFLowPass signal);
 
     sig_dsp_Delay Delay_new(sig_Allocator allocator, sig_SignalContext context);
     void Delay_init(sig_dsp_Delay signal, sig_SignalContext context);
@@ -1328,6 +1422,28 @@ interface Signaletic {
         float previousOutput, float r);
     float filter_dcBlock_calculateCoefficient(float frequency,
         float sampleRate);
+
+    float filter_svf_highPass(float input, float band, float low, float k);
+    float filter_svf_notch(float input, float band, float low, float k);
+    float filter_svf_peak(float input, float band, float low, float k);
+    float filter_svf_allPass(float input, float band, float low, float k);
+
+    void filter_SVF_init(sig_filter_SVF state);
+    void filter_SVF_calculateCoefficients(sig_filter_SVF state,
+        float frequency, float resonance, float sampleRate);
+    void filter_SVF_generate(sig_filter_SVF state, float value,
+        sig_filter_SVF_Taps taps);
+
+    void filter_Ladder_init(sig_filter_Ladder state, octet interpolation);
+    void filter_Ladder_calculateCoefficients(sig_filter_Ladder state,
+        float frequency, float sampleRate);
+    float filter_Ladder_calcStage(sig_filter_Ladder state, float s, octet i);
+    float filter_Ladder_calcStageInput(sig_filter_Ladder state, float value,
+        float interp, float resonance, float passbandGain);
+    void filter_Ladder_calcStages(sig_filter_Ladder state, float u,
+        sig_filter_Ladder_Taps taps);
+    void filter_Ladder_generate(sig_filter_Ladder state, float value,
+        float resonance, float passbandGain, sig_filter_Ladder_Taps taps);
 
     void filter_Smooth_init(sig_filter_Smooth smooth, float coeff);
     float filter_Smooth_generate(sig_filter_Smooth smooth, float value);
@@ -1522,4 +1638,5 @@ interface Signaletic {
 
     float linearXFade(float left, float right, float mix);
     float sineWavefolder(float x, float gain, float factor);
+    float softClip(float x, float threshold);
 };

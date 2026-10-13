@@ -8,6 +8,8 @@
 #ifndef LIBSIGNALETIC_H
 #define LIBSIGNALETIC_H
 
+#include <math.h> // Included here for use by the inline function definitions.
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -53,12 +55,12 @@ extern "C" {
     #define FLOAT_ARRAY(array) array
 #endif
 
-static const float sig_PI = 3.14159265358979323846f;
-static const float sig_TWOPI = 6.283185307179586f;
-static const float sig_RECIP_TWOPI = 0.159154943091895f;
-static const float sig_LOG0_001 = -6.907755278982137f;
-static const float sig_LOG2 = 0.6931471805599453f;
-static const float sig_FREQ_C4 = 261.6256f;
+#define sig_PI 3.14159265358979323846f
+#define sig_TWOPI 6.283185307179586f
+#define sig_RECIP_TWOPI 0.159154943091895f
+#define sig_LOG0_001 (-6.907755278982137f)
+#define sig_LOG2 0.6931471805599453f
+#define sig_FREQ_C4 261.6256f
 
 /**
  * Returns the smaller of two floating point arguments.
@@ -72,7 +74,7 @@ static const float sig_FREQ_C4 = 261.6256f;
  * @param b the second value to compare
  * @return the samller of the two arguments
 */
-float sig_fminf(float a, float b);
+inline float sig_fminf(float a, float b);
 
 /**
  * Returns the larger of two floating point arguments.
@@ -85,7 +87,7 @@ float sig_fminf(float a, float b);
  * @param b the second value to compare
  * @return the larger of the two arguments
 */
-float sig_fmaxf(float a, float b);
+inline float sig_fmaxf(float a, float b);
 
 /**
  * Clamps the value between the specified minimum and maximum.
@@ -95,7 +97,7 @@ float sig_fmaxf(float a, float b);
  * @param max the maximum value
  * @return the clamped value
  */
-float sig_clamp(float value, float min, float max);
+inline float sig_clamp(float value, float min, float max);
 
 /**
  * @brief Computes the fractional part of a value,
@@ -106,7 +108,7 @@ float sig_clamp(float value, float min, float max);
  * @param x the input value
  * @return float the wrapped fractional part
  */
-float sig_fastMod1f(float x);
+inline float sig_fastMod1f(float x);
 
 /**
  * @brief Computes the remainder of the floored division of two arguments.
@@ -118,7 +120,7 @@ float sig_fastMod1f(float x);
  * @param denom the denominator
  * @return float the remainder of the floored division operation
  */
-float sig_flooredfmodf(float num, float denom);
+inline float sig_flooredfmodf(float num, float denom);
 
 /**
  * Generates a random float between 0.0 and 1.0
@@ -141,7 +143,7 @@ void sig_randf_seed(uint32_t seed);
  * @param x floating point value representing a hyperbolic angle
  * @return float the hyperbolic tangent of x
  */
-float sig_fastTanhf(float x);
+inline float sig_fastTanhf(float x);
 
 /**
  * @brief Linearly maps a value from one range to another,
@@ -154,7 +156,7 @@ float sig_fastTanhf(float x);
  * @param toMax the maximum of the target range
  * @return float the mapped value
  */
-float sig_linearMap(float value,
+inline float sig_linearMap(float value,
     float fromMin, float fromMax, float toMin, float toMax);
 
 /**
@@ -166,7 +168,7 @@ float sig_linearMap(float value,
  * @param sample the floating point sample to convert
  * @return the sample converted to an unsigned 12-bit integer
  */
-uint16_t sig_unipolarToUint12(float sample);
+inline uint16_t sig_unipolarToUint12(float sample);
 
 /**
  * Converts a bipolar floating point sample in the range -1.0 to 1.0
@@ -177,7 +179,7 @@ uint16_t sig_unipolarToUint12(float sample);
  * @param sample the floating point sample to convert
  * @return the sample converted to an unsigned 12-bit integer
  */
-uint16_t sig_bipolarToUint12(float sample);
+inline uint16_t sig_bipolarToUint12(float sample);
 
 /**
  * Converts a bipolar floating point sample in the range -1.0 to 1.0
@@ -188,7 +190,7 @@ uint16_t sig_bipolarToUint12(float sample);
  * @param sample the floating point sample to convert
  * @return the sample converted to an unsigned 12-bit integer
  */
-uint16_t sig_bipolarToInvUint12(float sample);
+inline uint16_t sig_bipolarToInvUint12(float sample);
 
 /**
  * Converts an unsigned 16-bit integer in the range 0-65536 to a
@@ -199,7 +201,7 @@ uint16_t sig_bipolarToInvUint12(float sample);
  * @param sample the unsigned 16-bit sample to convert
  * @return the sample converted to normalized floating point
  */
-float sig_uint16ToBipolar(uint16_t sample);
+inline float sig_uint16ToBipolar(uint16_t sample);
 
 /**
  * Converts an unsigned 16-bit integer in the range 0-65536 to a
@@ -210,7 +212,7 @@ float sig_uint16ToBipolar(uint16_t sample);
  * @param sample the unsigned 16-bit sample to convert
  * @return the sample converted to normalized unipolar floating point
  */
-float sig_uint16ToUnipolar(uint16_t sample);
+inline float sig_uint16ToUnipolar(uint16_t sample);
 
 /**
  * Converts an unsigned 16-bit integer in the range 65536-0 to a
@@ -221,7 +223,7 @@ float sig_uint16ToUnipolar(uint16_t sample);
  * @param sample the inverted unsigned 16-bit sample to convert
  * @return the sample converted to normalized floating point
  */
-float sig_invUint16ToBipolar(uint16_t sample);
+inline float sig_invUint16ToBipolar(uint16_t sample);
 
 /**
  * Converts MIDI note numbers into frequencies in hertz.
@@ -268,7 +270,7 @@ float sig_freqToLinear(float freq, float middleFreq);
  * @param length the length of the array
  * @return float the sum of all values
  */
-float sig_sum(float_array_ptr values, size_t length);
+inline float sig_sum(float_array_ptr values, size_t length);
 
 /**
  * @brief Returns the index of the smallest value in an array.
@@ -277,7 +279,7 @@ float sig_sum(float_array_ptr values, size_t length);
  * @param length the length of the warray
  * @return size_t the index to the smallest item in the array
  */
-size_t sig_indexOfMin(float_array_ptr values, size_t length);
+inline size_t sig_indexOfMin(float_array_ptr values, size_t length);
 
 /**
  * @brief Returns the index of the largest value in an array.
@@ -287,7 +289,7 @@ size_t sig_indexOfMin(float_array_ptr values, size_t length);
  * @return size_t the index to the largest item in the array
 
  */
-size_t sig_indexOfMax(float_array_ptr values, size_t length);
+inline size_t sig_indexOfMax(float_array_ptr values, size_t length);
 
 /**
  * Type definition for array fill functions.
@@ -368,7 +370,7 @@ float sig_interpolate_cubic(float idx, float_array_ptr table, size_t length);
  * @param length the number of values in the array
  * @return float the mean of all values
  */
-float sig_filter_mean(float_array_ptr values, size_t length);
+inline float sig_filter_mean(float_array_ptr values, size_t length);
 
 /**
  * @brief Returns the mean average of values in the array, after excluding the
@@ -378,7 +380,7 @@ float sig_filter_mean(float_array_ptr values, size_t length);
  * @param length the number of values in the array
  * @return float float the mean of all values
  */
-float sig_filter_meanExcludeMinMax(float_array_ptr values, size_t length);
+inline float sig_filter_meanExcludeMinMax(float_array_ptr values, size_t length);
 
 /**
  * @brief An exponential moving average filter that implements the formula
@@ -389,7 +391,7 @@ float sig_filter_meanExcludeMinMax(float_array_ptr values, size_t length);
  * @param a the coefficient (between 0 and 1); values closer to 0 apply more filtering)
  * @return float the filtered sample (i.e. y[n])
  */
-float sig_filter_ema(float current, float previous, float a);
+inline float sig_filter_ema(float current, float previous, float a);
 
 /**
  * @brief A one pole filter that implements the formula
@@ -401,7 +403,7 @@ float sig_filter_ema(float current, float previous, float a);
  * @param a1 the feedback coefficient
  * @return float the filtered sample (i.e. y[n])
  */
-float sig_filter_onepole(float current, float previous, float b0,
+inline float sig_filter_onepole(float current, float previous, float b0,
     float a1);
 
 /**
@@ -411,7 +413,7 @@ float sig_filter_onepole(float current, float previous, float b0,
  * @param sampleRate the current sample rate
  * @return float the feedback coeffient (a1)
  */
-float sig_filter_onepole_HPF_calculateA1(float frequency, float sampleRate);
+inline float sig_filter_onepole_HPF_calculateA1(float frequency, float sampleRate);
 
 /**
  * @brief Calculates the forward coefficient for a high pass one pole filter.
@@ -419,7 +421,7 @@ float sig_filter_onepole_HPF_calculateA1(float frequency, float sampleRate);
  * @param a1 the feedback coefficient
  * @return float the forward coefficient (b0)
  */
-float sig_filter_onepole_HPF_calculateB0(float a1);
+inline float sig_filter_onepole_HPF_calculateB0(float a1);
 
 /**
  * @brief Calculates the feedback coefficient for a low pass one pole filter.
@@ -428,7 +430,7 @@ float sig_filter_onepole_HPF_calculateB0(float a1);
  * @param sampleRate the current sample rate
  * @return float the feedback coeffient (a1)
  */
-float sig_filter_onepole_LPF_calculateA1(float frequency, float sampleRate);
+inline float sig_filter_onepole_LPF_calculateA1(float frequency, float sampleRate);
 
 /**
  * @brief Calculates the forward coefficient for a low pass one pole filter.
@@ -436,7 +438,7 @@ float sig_filter_onepole_LPF_calculateA1(float frequency, float sampleRate);
  * @param a1 the feedback coefficient
  * @return float the forward coefficient (b0)
  */
-float sig_filter_onepole_LPF_calculateB0(float a1);
+inline float sig_filter_onepole_LPF_calculateB0(float a1);
 
 /**
  * An optimized one pole low-pass filter,
@@ -446,7 +448,7 @@ float sig_filter_onepole_LPF_calculateB0(float a1);
  * @param previous the previous sample (n-1)
  * @param coeff the filter coefficient (a1)
  */
-float sig_filter_smooth(float current, float previous, float coeff);
+inline float sig_filter_smooth(float current, float previous, float coeff);
 
 /**
  * @brief Calculates the coefficient from a 60 dB convergence time for
@@ -456,7 +458,7 @@ float sig_filter_smooth(float current, float previous, float coeff);
  * @param sampleRate the current sample rate
  * @return float the coefficient (a1)
  */
-float sig_filter_smooth_calculateCoefficient(float timeSecs,
+inline float sig_filter_smooth_calculateCoefficient(float timeSecs,
     float sampleRate);
 
 /**
@@ -468,7 +470,7 @@ float sig_filter_smooth_calculateCoefficient(float timeSecs,
  * @param r the filter coefficient
  * @return float the filtered sample
  */
-float sig_filter_dcBlock(float current, float previousInput,
+inline float sig_filter_dcBlock(float current, float previousInput,
     float previousOutput, float r);
 
 /**
@@ -478,7 +480,55 @@ float sig_filter_dcBlock(float current, float previousInput,
  * @param sampleRate the current sample rate
  * @return float the R coefficient
  */
-float sig_filter_dcBlock_calculateCoefficient(float frequency, float sampleRate);
+inline float sig_filter_dcBlock_calculateCoefficient(float frequency, float sampleRate);
+
+/**
+ * @brief Calculates the high pass output of a state variable filter from
+ * its input and internal taps.
+ *
+ * @param input the filter's input sample (v0)
+ * @param band the filter's band pass output (v1)
+ * @param low the filter's low pass output (v2)
+ * @param k the filter's damping coefficient
+ * @return float the high pass output
+ */
+inline float sig_filter_svf_highPass(float input, float band, float low, float k);
+
+/**
+ * @brief Calculates the notch output of a state variable filter from
+ * its input and internal taps.
+ *
+ * @param input the filter's input sample (v0)
+ * @param band the filter's band pass output (v1)
+ * @param low the filter's low pass output (v2)
+ * @param k the filter's damping coefficient
+ * @return float the notch output
+ */
+inline float sig_filter_svf_notch(float input, float band, float low, float k);
+
+/**
+ * @brief Calculates the peak output of a state variable filter from
+ * its input and internal taps.
+ *
+ * @param input the filter's input sample (v0)
+ * @param band the filter's band pass output (v1)
+ * @param low the filter's low pass output (v2)
+ * @param k the filter's damping coefficient
+ * @return float the peak output
+ */
+inline float sig_filter_svf_peak(float input, float band, float low, float k);
+
+/**
+ * @brief Calculates the all pass output of a state variable filter from
+ * its input and internal taps.
+ *
+ * @param input the filter's input sample (v0)
+ * @param band the filter's band pass output (v1)
+ * @param low the filter's low pass output (v2)
+ * @param k the filter's damping coefficient
+ * @return float the all pass output
+ */
+inline float sig_filter_svf_allPass(float input, float band, float low, float k);
 
 
 // TODO: Documentation!
@@ -489,7 +539,7 @@ struct sig_filter_Smooth {
 
 void sig_filter_Smooth_init(struct sig_filter_Smooth* self, float coeff);
 
-float sig_filter_Smooth_generate(struct sig_filter_Smooth* self, float value);
+inline float sig_filter_Smooth_generate(struct sig_filter_Smooth* self, float value);
 
 struct sig_filter_DCBlock {
     float r;
@@ -500,8 +550,236 @@ struct sig_filter_DCBlock {
 void sig_filter_DCBlock_init(
     struct sig_filter_DCBlock* self, float frequency, float sampleRate);
 
-float sig_filter_DCBlock_generate(
+inline float sig_filter_DCBlock_generate(
     struct sig_filter_DCBlock* self, float value);
+
+/**
+ * @brief The three signals that a state variable filter produces for one
+ * input sample.
+ *
+ * These are the input, band pass, and low pass node signals of the filter's
+ * underlying circuit. Every response is a weighted sum of them.
+ */
+struct sig_filter_SVF_Taps {
+    /**
+     * @brief The filter's input (v0).
+     */
+    float input;
+
+    /**
+     * @brief The band pass output (v1).
+     */
+    float band;
+
+    /**
+     * @brief The low pass output (v2).
+     */
+    float low;
+};
+
+/**
+ * @brief The state of a state variable filter.
+ *
+ * The damping coefficient is clamped at 0.01 to keep the filter bounded,
+ * so the filter's maximum Q is 100.
+ */
+struct sig_filter_SVF {
+    /**
+     * @brief The damping coefficient (1/Q).
+     */
+    float k;
+
+    /**
+     * @brief The coefficient of the band pass integrator's input term.
+     */
+    float a1;
+
+    /**
+     * @brief The coefficient of the input and state terms scaled by g.
+     */
+    float a2;
+
+    /**
+     * @brief The coefficient of the input term scaled by g squared.
+     */
+    float a3;
+
+    /**
+     * @brief The equivalent current state of the band pass integrator.
+     */
+    float ic1eq;
+
+    /**
+     * @brief The equivalent current state of the low pass integrator.
+     */
+    float ic2eq;
+};
+
+/**
+ * @brief Initialises a state variable filter's state.
+ *
+ * @param self the state to initialise
+ */
+void sig_filter_SVF_init(struct sig_filter_SVF* self);
+
+/**
+ * @brief Calculates a state variable filter's coefficients.
+ *
+ * @param self the state to update
+ * @param frequency the cutoff frequency in Hz, clamped to 0.49 times the sample rate
+ * @param resonance the resonance, normalized to 0.0 to 1.0
+ * @param sampleRate the sample rate in Hz
+ */
+inline void sig_filter_SVF_calculateCoefficients(struct sig_filter_SVF* self,
+    float frequency, float resonance, float sampleRate);
+
+/**
+ * @brief Generates one sample.
+ *
+ * @param self the state to update
+ * @param value the input sample
+ * @param taps the struct to write the filter's input, band pass, and low pass signals to
+ */
+inline void sig_filter_SVF_generate(struct sig_filter_SVF* self, float value,
+    struct sig_filter_SVF_Taps* taps);
+
+/**
+ * @brief The five signals that a ladder filter produces from one input sample.
+ */
+struct sig_filter_Ladder_Taps {
+    /**
+     * @brief The signal entering the first pole.
+     */
+    float input;
+
+    /**
+     * @brief The first pole's output.
+     */
+    float pole1;
+
+    /**
+     * @brief The second pole's output.
+     */
+    float pole2;
+
+    /**
+     * @brief The third pole's output.
+     */
+    float pole3;
+
+    /**
+     * @brief The fourth pole's output.
+     */
+    float pole4;
+};
+
+/**
+ * @brief The state of a ladder filter.
+ */
+struct sig_filter_Ladder {
+    /**
+     * @brief The number of oversampled steps per sample.
+     */
+    uint8_t interpolation;
+
+    /**
+     * @brief The reciprocal of the number of oversampled steps.
+     */
+    float interpolationRecip;
+
+    /**
+     * @brief The alpha coefficient of the pole stages.
+     */
+    float alpha;
+
+    /**
+     * @brief The adjustment applied to the feedback amount.
+     */
+    float qAdjust;
+
+    /**
+     * @brief The previous input of each pole stage.
+     *
+     * Each stage uses its previous input in its feedforward term.
+     */
+    float z0[4];
+
+    /**
+     * @brief The previous output of each pole stage.
+     */
+    float z1[4];
+
+    /**
+     * @brief The previous input sample, for the oversampling interpolation.
+     */
+    float previousInput;
+};
+
+/**
+ * @brief Initializes a ladder filter's state.
+ *
+ * @param self the state to initialise
+ * @param interpolation the number of oversampled steps per sample
+ */
+void sig_filter_Ladder_init(struct sig_filter_Ladder* self,
+    uint8_t interpolation);
+
+/**
+ * @brief Calculates a ladder filter's frequency-dependent coefficients.
+ *
+ * @param self the state to update
+ * @param frequency the cutoff frequency
+ * @param sampleRate the sample rate
+ */
+inline void sig_filter_Ladder_calculateCoefficients(struct sig_filter_Ladder* self,
+    float frequency, float sampleRate);
+
+/**
+ * @brief Calculates a pole stage's output for the given input.
+ *
+ * @param self the state to update
+ * @param s the stage's input sample
+ * @param i the index of the stage, from 0 to 3
+ * @return float the stage's output sample
+ */
+inline float sig_filter_Ladder_calcStage(struct sig_filter_Ladder* self, float s,
+    uint8_t i);
+
+/**
+ * @brief Calculates the signal entering the first pole for one sub-step.
+ *
+ * @param self the state to read
+ * @param value the current input sample
+ * @param interp the sub-step's position, from 0.0 to 1.0
+ * @param resonance the resonance, in the range 0.0 to 1.8
+ * @param passbandGain the passband gain, best between 0.0 and 0.5
+ * @return float the unsaturated signal entering the first pole
+ */
+inline float sig_filter_Ladder_calcStageInput(struct sig_filter_Ladder* self,
+    float value, float interp, float resonance, float passbandGain);
+
+/**
+ * @brief Runs a sub-step's signal through all four poles.
+ *
+ * @param self the state to update
+ * @param u the saturated signal entering the first pole
+ * @param taps the struct to write this sub-step's taps to
+ */
+inline void sig_filter_Ladder_calcStages(struct sig_filter_Ladder* self, float u,
+    struct sig_filter_Ladder_Taps* taps);
+
+/**
+ * @brief Generates one sample.
+ *
+ * @param self the state to update
+ * @param value the input sample
+ * @param resonance the resonance, in the range 0.0 to 1.8
+ * @param passbandGain the passband gain, best between 0.0 and 0.5
+ * @param taps the struct to write the filter's taps to
+ */
+inline void sig_filter_Ladder_generate(struct sig_filter_Ladder* self, float value,
+    float resonance, float passbandGain,
+    struct sig_filter_Ladder_Taps* taps);
 
 /**
  * Type definition for a waveform generator function.
@@ -718,7 +996,7 @@ void sig_osc_Oscillator_init(struct sig_osc_Oscillator* self);
  * @param phase the oscillator's phase accumulator
  * @return float
  */
-float sig_osc_Oscillator_eoc(float phase);
+inline float sig_osc_Oscillator_eoc(float phase);
 
 /**
  * @brief Wraps an oscillator's phase accumulator around in
@@ -727,7 +1005,7 @@ float sig_osc_Oscillator_eoc(float phase);
  * @param phase the current phase of the oscillator
  * @return float the wrapped phase
  */
-float sig_osc_Oscillator_wrapPhase(float phase);
+inline float sig_osc_Oscillator_wrapPhase(float phase);
 
 /**
  * @brief Updates an oscillator's phase accumulator based on the
@@ -737,7 +1015,7 @@ float sig_osc_Oscillator_wrapPhase(float phase);
  * @param frequency the oscillator's frequency
  * @param sampleRate the current sample rate
  */
-void sig_osc_Oscillator_accumulatePhase(float* phaseAccumulator,
+inline void sig_osc_Oscillator_accumulatePhase(float* phaseAccumulator,
     float frequency, float sampleRate);
 
 /**
@@ -767,7 +1045,7 @@ void sig_osc_Wavetable_init(struct sig_osc_Wavetable* self,
  * @param eocOut a float pointer into which the end of cycle sample will be written
  * @return float the oscillator's output sample
  */
-float sig_osc_Wavetable_generate(struct sig_osc_Wavetable* self,
+inline float sig_osc_Wavetable_generate(struct sig_osc_Wavetable* self,
     float frequency, float phaseOffset, float sampleRate, float* eocOut);
 
 /**
@@ -803,7 +1081,7 @@ void sig_osc_WavetableBank_init(struct sig_osc_WavetableBank* self,
  * @param eocOut a float pointer into which the end of cycle sample will be written
  * @return float the oscillator's output sample
  */
-float sig_osc_WavetableBank_generate(struct sig_osc_WavetableBank* self,
+inline float sig_osc_WavetableBank_generate(struct sig_osc_WavetableBank* self,
     float frequency, float phaseOffset, float tableIndex, float sampleRate,
     float* eocOut);
 
@@ -886,7 +1164,7 @@ void sig_osc_AdditiveWavetableBank_init(
  * written
  * @return the oscillator's output sample
  */
-float sig_osc_AdditiveWavetableBank_generate(
+inline float sig_osc_AdditiveWavetableBank_generate(
     struct sig_osc_AdditiveWavetableBank* self, float frequency,
     float phaseOffset, float tableIndex, float sampleRate, float* eocOut);
 
@@ -919,7 +1197,7 @@ void sig_osc_FastLFSine_init(struct sig_osc_FastLFSine* self,
  * @param self the oscillator instance
  * @param frequency the frequency
  */
-void sig_osc_FastLFSine_setFrequency(struct sig_osc_FastLFSine* self,
+inline void sig_osc_FastLFSine_setFrequency(struct sig_osc_FastLFSine* self,
     float frequency);
 
 /**
@@ -929,7 +1207,7 @@ void sig_osc_FastLFSine_setFrequency(struct sig_osc_FastLFSine* self,
  * @param self the oscillator instance
  * @param frequency the frequency
  */
-void sig_osc_FastLFSine_setFrequencyFast(struct sig_osc_FastLFSine* self,
+inline void sig_osc_FastLFSine_setFrequencyFast(struct sig_osc_FastLFSine* self,
     float frequency);
 
 /**
@@ -941,7 +1219,7 @@ void sig_osc_FastLFSine_setFrequencyFast(struct sig_osc_FastLFSine* self,
  *
  * @param self the oscillator instance
  */
-void sig_osc_FastLFSine_generate(struct sig_osc_FastLFSine* self);
+inline void sig_osc_FastLFSine_generate(struct sig_osc_FastLFSine* self);
 
 /**
  * An AudioSettings structure holds key information
@@ -1150,7 +1428,7 @@ void sig_Status_init(struct sig_Status* status);
 
 void sig_Status_reset(struct sig_Status* status);
 
-void sig_Status_reportResult(struct sig_Status* status,
+inline void sig_Status_reportResult(struct sig_Status* status,
     enum sig_Result result);
 
 
@@ -1359,7 +1637,7 @@ float sig_Buffer_readLinear(struct sig_Buffer* self, float idx);
  * @param phase the phase value from which the index will be derived
  * @return the linearly interpolated sample
  */
-float sig_Buffer_readLinearAtPhase(struct sig_Buffer* self, float phase);
+inline float sig_Buffer_readLinearAtPhase(struct sig_Buffer* self, float phase);
 
 /**
  * @brief Adds one harmonic of a sine table into a Buffer.
@@ -1461,7 +1739,7 @@ struct sig_WavetableBank* sig_WavetableBank_new(struct sig_Allocator* allocator,
  * @param phase the phase to read at, normalized to 0.0-1.0
  * @return the interpolated sample
  */
-float sig_WavetableBank_readLinearAtPhase(struct sig_WavetableBank* self,
+inline float sig_WavetableBank_readLinearAtPhase(struct sig_WavetableBank* self,
     float tableIdx, float phase);
 
 void sig_WavetableBank_destroy(struct sig_Allocator* allocator,
@@ -1579,7 +1857,7 @@ void sig_AdditiveWavetableBank_fill(
  * @return the level, where fractional values fall between two levels,
  * clamped to the range of available levels
  */
-float sig_AdditiveWavetableBank_levelForFrequency(
+inline float sig_AdditiveWavetableBank_levelForFrequency(
     struct sig_AdditiveWavetableBank* self, float frequency);
 
 /**
@@ -1595,7 +1873,7 @@ float sig_AdditiveWavetableBank_levelForFrequency(
  * @param phase the phase to read at, normalized to 0.0-1.0
  * @return the interpolated sample
  */
-float sig_AdditiveWavetableBank_readLinearAtPhase(
+inline float sig_AdditiveWavetableBank_readLinearAtPhase(
     struct sig_AdditiveWavetableBank* self, float level, float tableIdx,
     float phase);
 
@@ -1647,7 +1925,7 @@ typedef void (*sig_DelayLine_readFn)(void* signal);
  * @param readPos the position (in samples) at which to read from the delay
  * @return float the output of the delay line
  */
-float sig_DelayLine_readAt(struct sig_DelayLine* self, size_t readPos);
+inline float sig_DelayLine_readAt(struct sig_DelayLine* self, size_t readPos);
 
 /**
  * @brief Reads from the delay line using linear interpolation.
@@ -1657,7 +1935,7 @@ float sig_DelayLine_readAt(struct sig_DelayLine* self, size_t readPos);
  * @param readPos the position (in samples) at which to read from the delay
  * @return float the output of the delay line
  */
-float sig_DelayLine_linearReadAt(struct sig_DelayLine* self, float readPos);
+inline float sig_DelayLine_linearReadAt(struct sig_DelayLine* self, float readPos);
 
 /**
  * @brief Reads from the delay line using cubic interpolation.
@@ -1667,7 +1945,7 @@ float sig_DelayLine_linearReadAt(struct sig_DelayLine* self, float readPos);
  * @param readPos the position (in samples) at which to read from the delay
  * @return float the output of the delay line
  */
-float sig_DelayLine_cubicReadAt(struct sig_DelayLine* self, float readPos);
+inline float sig_DelayLine_cubicReadAt(struct sig_DelayLine* self, float readPos);
 
 /**
  * @brief Reads from the delay line using allpass interpolation.
@@ -1678,7 +1956,7 @@ float sig_DelayLine_cubicReadAt(struct sig_DelayLine* self, float readPos);
  * @param previousSample the previous interpolated sample from the delay line
  * @return float the output of the delay line
  */
-float sig_DelayLine_allpassReadAt(struct sig_DelayLine* self,
+inline float sig_DelayLine_allpassReadAt(struct sig_DelayLine* self,
     float readPos, float previousSample);
 
 /**
@@ -1691,7 +1969,7 @@ float sig_DelayLine_allpassReadAt(struct sig_DelayLine* self,
  * @param sampleRate the current sample rate
  * @return float the output of the delay line
  */
-float sig_DelayLine_readAtTime(struct sig_DelayLine* self, float source,
+inline float sig_DelayLine_readAtTime(struct sig_DelayLine* self, float source,
     float tapTime, float sampleRate);
 
 /**
@@ -1704,7 +1982,7 @@ float sig_DelayLine_readAtTime(struct sig_DelayLine* self, float source,
  * @param sampleRate the current sample rate
  * @return float the output of the delay line
  */
-float sig_DelayLine_linearReadAtTime(struct sig_DelayLine* self, float source,
+inline float sig_DelayLine_linearReadAtTime(struct sig_DelayLine* self, float source,
     float tapTime, float sampleRate);
 
 /**
@@ -1717,7 +1995,7 @@ float sig_DelayLine_linearReadAtTime(struct sig_DelayLine* self, float source,
  * @param sampleRate the current sample rate
  * @return float the output of the delay line
  */
-float sig_DelayLine_cubicReadAtTime(struct sig_DelayLine* self, float source,
+inline float sig_DelayLine_cubicReadAtTime(struct sig_DelayLine* self, float source,
     float tapTime, float sampleRate);
 
 /**
@@ -1731,31 +2009,31 @@ float sig_DelayLine_cubicReadAtTime(struct sig_DelayLine* self, float source,
  * @param previousSample the previous interpolated sample from the delay line
  * @return float the output of the delay line
  */
-float sig_DelayLine_allpassReadAtTime(struct sig_DelayLine* self,
+inline float sig_DelayLine_allpassReadAtTime(struct sig_DelayLine* self,
     float source, float tapTime, float sampleRate, float previousSample);
 
-float sig_DelayLine_readAtTimes(struct sig_DelayLine* self, float source,
+inline float sig_DelayLine_readAtTimes(struct sig_DelayLine* self, float source,
     float_array_ptr SIG_RESTRICT tapTimes,
     float_array_ptr SIG_RESTRICT tapGains, size_t numTaps,
     float sampleRate, float timeScale);
 
-float sig_DelayLine_linearReadAtTimes(struct sig_DelayLine* self,
+inline float sig_DelayLine_linearReadAtTimes(struct sig_DelayLine* self,
     float source, float_array_ptr SIG_RESTRICT tapTimes,
     float_array_ptr SIG_RESTRICT tapGains,
     size_t numTaps, float sampleRate, float timeScale);
 
-float sig_DelayLine_cubicReadAtTimes(struct sig_DelayLine* self,
+inline float sig_DelayLine_cubicReadAtTimes(struct sig_DelayLine* self,
     float source, float_array_ptr SIG_RESTRICT tapTimes,
     float_array_ptr SIG_RESTRICT tapGains,
     size_t numTaps, float sampleRate, float timeScale);
 
-void sig_DelayLine_write(struct sig_DelayLine* self, float sample);
+inline void sig_DelayLine_write(struct sig_DelayLine* self, float sample);
 
-float sig_DelayLine_calcFeedbackGain(float delayTime, float decayTime);
+inline float sig_DelayLine_calcFeedbackGain(float delayTime, float decayTime);
 
-float sig_DelayLine_feedback(float sample, float read, float g);
+inline float sig_DelayLine_feedback(float sample, float read, float g);
 
-float sig_DelayLine_comb(struct sig_DelayLine* self, float sample,
+inline float sig_DelayLine_comb(struct sig_DelayLine* self, float sample,
     size_t readPos, float g);
 
 /**
@@ -1770,27 +2048,43 @@ float sig_DelayLine_comb(struct sig_DelayLine* self, float sample,
  * mixed with the input and written back into the delay line
  * @return float the delayed sample read from the delay line
  */
-float sig_DelayLine_linearComb(struct sig_DelayLine* self, float sample,
+inline float sig_DelayLine_linearComb(struct sig_DelayLine* self, float sample,
     float readPos, float g);
 
-float sig_DelayLine_cubicComb(struct sig_DelayLine* self, float sample,
+inline float sig_DelayLine_cubicComb(struct sig_DelayLine* self, float sample,
     float readPos, float g);
 
-float sig_DelayLine_allpass(struct sig_DelayLine* self, float sample,
+inline float sig_DelayLine_allpass(struct sig_DelayLine* self, float sample,
     size_t readPos, float g);
 
-float sig_DelayLine_linearAllpass(struct sig_DelayLine* self,
+inline float sig_DelayLine_linearAllpass(struct sig_DelayLine* self,
     float sample, float readPos, float g);
 
-float sig_DelayLine_cubicAllpass(struct sig_DelayLine* self, float sample,
+inline float sig_DelayLine_cubicAllpass(struct sig_DelayLine* self, float sample,
     float readPos, float g);
 
 void sig_DelayLine_destroy(struct sig_Allocator* allocator,
     struct sig_DelayLine* self);
 
-float sig_linearXFade(float left, float right, float mix);
+inline float sig_linearXFade(float left, float right, float mix);
 
-float sig_sineWavefolder(float x, float gain, float factor);
+inline float sig_sineWavefolder(float x, float gain, float factor);
+
+/**
+ * @brief Soft clips a sample to the range -1.0 to 1.0.
+ *
+ * Below the threshold, the sample will pass through unchanged.
+ * Above it, the sample will be compressed, approaching full scale
+ * asymptotically without exceeding it.
+ *
+ * The threshold is specified in the range 0.0 to 0.99. A value
+ * of 0.0 compresses the whole signal.
+ *
+ * @param x the sample to clip
+ * @param threshold the magnitude above which compression begins
+ * @return float the clipped sample
+ */
+inline float sig_softClip(float x, float threshold);
 
 // TODO: Should the signal argument at least be defined
 // as a struct sig_dsp_Signal*, rather than void*?
@@ -2550,6 +2844,41 @@ void sig_dsp_Tanh_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Tanh* self);
 
 
+struct sig_dsp_SoftClip_Parameters {
+    /**
+     * @brief The input magnitude above which compression begins.
+     *
+     * In the range 0.0 to 0.99. A value of 0.0 compresses from the start.
+     */
+    float threshold;
+};
+
+struct sig_dsp_SoftClip_Inputs {
+    float_array_ptr source;
+};
+
+/**
+ * @brief Limits a signal to the range -1.0 to 1.0 with a soft knee.
+ *
+ * Inputs:
+ *  - source: the signal to limit
+ */
+struct sig_dsp_SoftClip {
+    struct sig_dsp_Signal signal;
+    struct sig_dsp_SoftClip_Inputs inputs;
+    struct sig_dsp_SoftClip_Parameters parameters;
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+};
+
+void sig_dsp_SoftClip_init(struct sig_dsp_SoftClip* self,
+    struct sig_SignalContext* context);
+struct sig_dsp_SoftClip* sig_dsp_SoftClip_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+void sig_dsp_SoftClip_generate(void* signal);
+void sig_dsp_SoftClip_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_SoftClip* self);
+
+
 struct sig_dsp_Dust_Parameters {
     float bipolar;
 };
@@ -3095,22 +3424,35 @@ struct sig_dsp_Ladder_Parameters {
  *  - resonance: the resonance (stable values in the range 0 - 1.8)
  */
 struct sig_dsp_Ladder {
+    /**
+     * @brief The signal's base state.
+     */
     struct sig_dsp_Signal signal;
+
+    /**
+     * @brief The filter's inputs.
+     */
     struct sig_dsp_FourPoleFilter_Inputs inputs;
+
+    /**
+     * @brief The filter's parameters.
+     */
     struct sig_dsp_Ladder_Parameters parameters;
+
+    /**
+     * @brief The filter's outputs.
+     */
     struct sig_dsp_FourPoleFilter_Outputs outputs;
 
-    uint8_t interpolation;
-    float interpolationRecip;
-    float alpha;
-    float beta[4];
-    float z0[4];
-    float z1[4];
-    float k;
-    float fBase;
-    float qAdjust;
-    float prevFrequency;
-    float prevInput;
+    /**
+     * @brief The filter's state.
+     */
+    struct sig_filter_Ladder state;
+
+    /**
+     * @brief The frequency from the previous sample.
+     */
+    float previousFrequency;
 };
 
 struct sig_dsp_Ladder* sig_dsp_Ladder_new(
@@ -3118,10 +3460,6 @@ struct sig_dsp_Ladder* sig_dsp_Ladder_new(
 void sig_dsp_Ladder_init(
     struct sig_dsp_Ladder* self,
     struct sig_SignalContext* context);
-void sig_dsp_Ladder_calcCoefficients(
-    struct sig_dsp_Ladder* self, float freq);
-float sig_dsp_Ladder_calcStage(
-    struct sig_dsp_Ladder* self, float s, uint8_t i);
 void sig_dsp_Ladder_generate(void* signal);
 void sig_dsp_Ladder_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Ladder* self);
@@ -3169,6 +3507,237 @@ void sig_dsp_TiltEQ_init(struct sig_dsp_TiltEQ* self,
 void sig_dsp_TiltEQ_generate(void* signal);
 void sig_dsp_TiltEQ_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_TiltEQ* self);
+
+
+
+/**
+ * @brief The state variable filter's inputs.
+ */
+struct sig_dsp_SVF_Inputs {
+    float_array_ptr source;
+    float_array_ptr frequency;
+    float_array_ptr resonance;
+};
+
+/**
+ * @brief The state variable filter's outputs, one for each response shape.
+ */
+struct sig_dsp_SVF_Outputs {
+    /**
+     * @brief The low pass output.
+     */
+    float_array_ptr low;
+
+    /**
+     * @brief The band pass output.
+     */
+    float_array_ptr band;
+
+    /**
+     * @brief The high pass output.
+     */
+    float_array_ptr high;
+
+    /**
+     * @brief The notch output, the sum of the low and high pass outputs.
+     */
+    float_array_ptr notch;
+
+    /**
+     * @brief The peak output, the difference of the high and low pass outputs.
+     */
+    float_array_ptr peak;
+
+    /**
+     * @brief The all pass output.
+     */
+    float_array_ptr all;
+};
+
+/**
+ * @brief Allocates a sample block for each of the filter's outputs.
+ *
+ * @param allocator the allocator to use
+ * @param audioSettings the audio settings that set each block's size
+ * @param outputs the outputs to allocate the blocks for
+ */
+void sig_dsp_SVF_Outputs_newAudioBlocks(struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_dsp_SVF_Outputs* outputs);
+
+/**
+ * @brief Frees the filter's output blocks.
+ *
+ * @param allocator the allocator that allocated the blocks
+ * @param outputs the outputs to free the blocks from
+ */
+void sig_dsp_SVF_Outputs_destroyAudioBlocks(struct sig_Allocator* allocator,
+    struct sig_dsp_SVF_Outputs* outputs);
+
+/**
+ * @brief The Cytomic State Variable Filter.
+ *
+ * This filter implements the optimised trapezoidal state variable filter from
+ * Andrew Simper's "Solving the continuous SVF equations using
+ * trapezoidal integration and equivalent currents" (2016).
+ * https://cytomic.com/files/dsp/SvfLinearTrapOptimised2.pdf
+ *
+ * It is a stable second order filter with a 12 dB per octave cutoff slope.
+ * The filter provides separate simultaneous outputs for its low pass, band pass,
+ * high pass, notch, peak, and all pass responses.
+ * Audio rate modulation of the filter's inputs is stable.
+ *
+ * Inputs:
+ *  - source: the signal to filter
+ *  - frequency: the cutoff frequency in Hz, from 0 to 0.49 times the sample rate
+ *  - resonance: the resonance, normalized to 0.0 to 1.0. A value of 0.0 gives
+ *    a heavily damped filter with a Q of 0.5, and a value of 1.0 gives the
+ *    maximum resonance, with a Q of 100
+ */
+struct sig_dsp_SVF {
+    /**
+     * @brief The signal's base state.
+     */
+    struct sig_dsp_Signal signal;
+
+    /**
+     * @brief The filter's inputs.
+     */
+    struct sig_dsp_SVF_Inputs inputs;
+
+    /**
+     * @brief The filter's outputs, one for each response shape.
+     */
+    struct sig_dsp_SVF_Outputs outputs;
+
+    /**
+     * @brief The filter's state.
+     */
+    struct sig_filter_SVF state;
+
+    /**
+     * @brief The frequency from the previous sample, in Hz.
+     */
+    float previousFrequency;
+
+    /**
+     * @brief The resonance from the previous sample.
+     */
+    float previousResonance;
+};
+
+/**
+ * @brief Initialises a state variable filter node.
+ *
+ * @param self the node to initialise
+ * @param context the signal context
+ */
+void sig_dsp_SVF_init(struct sig_dsp_SVF* self,
+    struct sig_SignalContext* context);
+
+/**
+ * @brief Creates a new state variable filter node.
+ *
+ * @param allocator the allocator to use
+ * @param context the signal context
+ * @return a new state variable filter node
+ */
+struct sig_dsp_SVF* sig_dsp_SVF_new(struct sig_Allocator* allocator,
+    struct sig_SignalContext* context);
+
+/**
+ * @brief Generates a block of samples.
+ *
+ * @param signal the signal to generate, cast to a struct sig_dsp_SVF*
+ */
+void sig_dsp_SVF_generate(void* signal);
+
+/**
+ * @brief Frees a state variable filter node.
+ *
+ * @param allocator the allocator that created the node
+ * @param self the node to free
+ */
+void sig_dsp_SVF_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_SVF* self);
+
+/**
+ * @brief A low pass state variable filter.
+ *
+ * This filter uses the same core as sig_dsp_SVF, but writes only its low pass output.
+ * Use it to reduce memory consumption when only a low pass response is needed.
+ *
+ * Inputs:
+ *  - source: the signal to filter
+ *  - frequency: the cutoff frequency in Hz, from 0 to 0.49 times the sample rate
+ *  - resonance: the resonance, normalized to 0.0 to 1.0
+ */
+struct sig_dsp_SVFLowPass {
+    /**
+     * @brief The signal's base state.
+     */
+    struct sig_dsp_Signal signal;
+
+    /**
+     * @brief The filter's inputs.
+     */
+    struct sig_dsp_SVF_Inputs inputs;
+
+    /**
+     * @brief The filter's main output.
+     */
+    struct sig_dsp_Signal_SingleMonoOutput outputs;
+
+    /**
+     * @brief The filter's state.
+     */
+    struct sig_filter_SVF state;
+
+    /**
+     * @brief The frequency from the previous sample, in Hz.
+     */
+    float previousFrequency;
+
+    /**
+     * @brief The resonance from the previous sample.
+     */
+    float previousResonance;
+};
+
+/**
+ * @brief Initialises a low pass state variable filter node.
+ *
+ * @param self the node to initialise
+ * @param context the signal context
+ */
+void sig_dsp_SVFLowPass_init(struct sig_dsp_SVFLowPass* self,
+    struct sig_SignalContext* context);
+
+/**
+ * @brief Creates a new low pass state variable filter node.
+ *
+ * @param allocator the allocator to use
+ * @param context the signal context
+ * @return a new low pass state variable filter node
+ */
+struct sig_dsp_SVFLowPass* sig_dsp_SVFLowPass_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context);
+
+/**
+ * @brief Generates a block of samples.
+ *
+ * @param signal the struct sig_dsp_SVFLowPass signal to generate
+ */
+void sig_dsp_SVFLowPass_generate(void* signal);
+
+/**
+ * @brief Frees a low pass state variable filter node.
+ *
+ * @param allocator the allocator that created the node
+ * @param self the node to free
+ */
+void sig_dsp_SVFLowPass_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_SVFLowPass* self);
 
 
 
@@ -3419,6 +3988,815 @@ void sig_dsp_NoiseGate_init(struct sig_dsp_NoiseGate* self,
 void sig_dsp_NoiseGate_generate(void* signal);
 void sig_dsp_NoiseGate_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_NoiseGate* self);
+
+
+/*******************************
+ * Inline function definitions *
+ *******************************/
+
+// Every function above is declared before the function definitions below,
+// so that the functions here can call the declared function above.
+
+#define sig_DelayLine_readAtTime_IMPL(self, source, tapTime,\
+    sampleRate, readFn)\
+    float sample;\
+    if (tapTime <= 0.0f) {\
+        sample = source;\
+    } else {\
+        float readPos = tapTime * sampleRate;\
+        float maxDelayLength = (float) self->buffer->length;\
+        if (readPos >= maxDelayLength) {\
+            readPos = maxDelayLength - 1;\
+        }\
+        sample = readFn(self, readPos);\
+    }\
+    return sample
+
+#define sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,\
+    tapGains, numTaps, sampleRate, timeScale, readFn)\
+    const float* SIG_RESTRICT restrictTapTimes = FLOAT_ARRAY(tapTimes);\
+    const float* SIG_RESTRICT restrictTapGains = FLOAT_ARRAY(tapGains);\
+    float tapSum = 0;\
+    for (size_t i = 0; i < numTaps; i++) {\
+        float tapTime = restrictTapTimes[i];\
+        float scaledTapTime = tapTime * timeScale;\
+        float gain = restrictTapGains[i];\
+        float sample;\
+        if (tapTime <= 0.0f) {\
+            sample = source;\
+        } else {\
+            float readPos = scaledTapTime * sampleRate;\
+            float maxDelayLength = (float) self->buffer->length;\
+            if (readPos >= maxDelayLength) {\
+                readPos = maxDelayLength - 1;\
+            }\
+            sample = readFn(self, readPos);\
+        }\
+        tapSum += sample * gain;\
+    }\
+    return tapSum
+
+#define sig_DelayLine_comb_IMPL(self, sample, readPos, g, readFn) \
+    float read = readFn(self, readPos); \
+    float toWrite = sig_DelayLine_feedback(sample, read, g); \
+    sig_DelayLine_write(self, toWrite); \
+    return read
+
+#define sig_DelayLine_allpass_IMPL(self, sample, readPos, g,\
+    readFn) \
+    float read = readFn(self, readPos); \
+    float toWrite = sample + (g * read); \
+    sig_DelayLine_write(self, toWrite); \
+    return read - (g * toWrite) \
+
+
+inline float sig_fminf(float a, float b) {
+    float r;
+#ifdef __arm__
+    asm("vminnm.f32 %[d], %[n], %[m]" : [d] "=t"(r) : [n] "t"(a), [m] "t"(b) :);
+#else
+    r = (a < b) ? a : b;
+#endif // __arm__
+    return r;
+}
+
+inline float sig_fmaxf(float a, float b) {
+    float r;
+#ifdef __arm__
+    asm("vmaxnm.f32 %[d], %[n], %[m]" : [d] "=t"(r) : [n] "t"(a), [m] "t"(b) :);
+#else
+    r = (a > b) ? a : b;
+#endif // __arm__
+    return r;
+}
+
+inline float sig_clamp(float value, float min, float max) {
+    return sig_fminf(sig_fmaxf(value, min), max);
+}
+
+inline float sig_fastMod1f(float x) {
+    int32_t ix = (int32_t) x;
+    float r = x - (float) ix;
+    return r + (r < 0.0f);
+}
+
+inline float sig_flooredfmodf(float numer, float denom) {
+    float remain = fmodf(numer, denom);
+    if ((remain > 0.0f && denom < 0.0f) ||
+        (remain < 0.0f && denom > 0.0f)) {
+        remain = remain + denom;
+    }
+
+    return remain;
+}
+
+inline float sig_fastTanhf(float x) {
+    // From https://gist.github.com/ndonald2/534831b639b8c78d40279b5007e06e5b
+    if (x > 3.0f) {
+        return 1.0f;
+    }
+
+    if (x < -3.0f) {
+        return -1.0f;
+    }
+
+    float x2 = x * x;
+    return x * (27.0f + x2) / (27.0f + 9.0f * x2);
+}
+
+inline float sig_linearMap(float value,
+    float fromMin, float fromMax, float toMin, float toMax) {
+    if (fromMin == fromMax) {
+        return toMin;
+    }
+
+    float clamped = sig_clamp(value, fromMin, fromMax);
+    float mapped = (clamped - fromMin) * (toMax - toMin) /
+        (fromMax - fromMin) + toMin;
+
+    return mapped;
+}
+
+inline uint16_t sig_unipolarToUint12(float sample) {
+    return (uint16_t) (sample * 4095.0f);
+}
+
+inline uint16_t sig_bipolarToUint12(float sample) {
+    float normalized = sample * 0.5 + 0.5;
+    return (uint16_t) (normalized * 4095.0f);
+}
+
+inline uint16_t sig_bipolarToInvUint12(float sample) {
+    return sig_bipolarToUint12(-sample);
+}
+
+inline float sig_uint16ToBipolar(uint16_t sample) {
+    float normalized = (float) (sample / 65535.0f);
+    float scaled = normalized * 2.0f - 1.0f;
+
+    return scaled;
+}
+
+inline float sig_uint16ToUnipolar(uint16_t sample) {
+    float normalized = (float) (sample / 65535.0f);
+
+    return normalized;
+}
+
+inline float sig_invUint16ToBipolar(uint16_t sample) {
+    return -sig_uint16ToBipolar(sample);
+}
+
+// TODO: Unit tests.
+inline float sig_sum(float_array_ptr values,
+    size_t length) {
+    float sum = 0;
+    for (size_t i = 0; i < length; i++) {
+        sum += FLOAT_ARRAY(values)[i];
+    }
+
+    return sum;
+}
+
+// TODO: Unit tests.
+inline size_t sig_indexOfMin(float_array_ptr values,
+    size_t length) {
+    size_t indexOfMin = 0;
+
+    if (length < 1) {
+        return indexOfMin;
+    }
+
+    float minValue = FLOAT_ARRAY(values)[0];
+    for (size_t i = 1; i < length; i++) {
+        float currentValue = FLOAT_ARRAY(values)[i];
+        if (currentValue < minValue) {
+            indexOfMin = i;
+            minValue = currentValue;
+        }
+    }
+
+    return indexOfMin;
+}
+
+// TODO: Unit tests.
+inline size_t sig_indexOfMax(float_array_ptr values,
+    size_t length) {
+    size_t indexOfMax = 0;
+
+    if (length < 1) {
+        return indexOfMax;
+    }
+
+    float maxValue = FLOAT_ARRAY(values)[0];
+    for (size_t i = 1; i < length; i++) {
+        float currentValue = FLOAT_ARRAY(values)[i];
+        if (currentValue > maxValue) {
+            indexOfMax = i;
+            maxValue = currentValue;
+        }
+    }
+
+    return indexOfMax;
+}
+
+// TODO: Unit tests.
+inline float sig_filter_mean(float_array_ptr values,
+    size_t length) {
+    float sum = sig_sum(values, length);
+    return sum / (float) length;
+}
+
+// TODO: Unit tests.
+inline float sig_filter_meanExcludeMinMax(
+    float_array_ptr values, size_t length) {
+    if (length < 1) {
+        return 0.0f;
+    } else if (length < 3) {
+        return sig_filter_mean(values, length);
+    }
+
+    float min = FLOAT_ARRAY(values)[sig_indexOfMin(values, length)];
+    float max = FLOAT_ARRAY(values)[sig_indexOfMax(values, length)];
+    float exclude = min + max;
+    float sum = sig_sum(values, length) - exclude;
+    return sum / (float) (length - 2);
+}
+
+// TODO: Unit tests.
+inline float sig_filter_ema(float current, float previous,
+    float a) {
+    return (a * current) + (1 - a) * previous;
+}
+
+inline float sig_filter_onepole(float current,
+    float previous, float b0, float a1) {
+    return b0 * current - a1 * previous;
+}
+
+inline float sig_filter_onepole_HPF_calculateA1(
+    float frequency, float sampleRate) {
+    float fc = frequency / sampleRate;
+    return -expf(-2.0f * sig_PI * (0.5f - fc));
+}
+
+inline float sig_filter_onepole_HPF_calculateB0(float a1) {
+    return 1.0f + a1;
+}
+
+inline float sig_filter_onepole_LPF_calculateA1(
+    float frequency, float sampleRate) {
+    float fc = frequency / sampleRate;
+    return expf(-2.0f * sig_PI * fc);
+}
+
+inline float sig_filter_onepole_LPF_calculateB0(float a1) {
+    return 1.0f - a1;
+}
+
+inline float sig_filter_smooth(float current,
+    float previous, float coeff) {
+    return current + coeff * (previous - current);
+}
+
+inline float sig_filter_smooth_calculateCoefficient(
+    float time, float sampleRate) {
+    return expf(sig_LOG0_001 / (time * sampleRate));
+}
+
+inline float sig_filter_dcBlock(float current,
+    float previousInput, float previousOutput, float r) {
+    return current - previousInput + r * previousOutput;
+}
+
+inline float sig_filter_dcBlock_calculateCoefficient(
+    float frequency, float sampleRate) {
+    return 1.0f - (sig_TWOPI * frequency / sampleRate);
+}
+
+inline float sig_filter_svf_highPass(float input, float band,
+    float low, float k) {
+    return input - k * band - low;
+}
+
+inline float sig_filter_svf_notch(float input, float band,
+    float low, float k) {
+    return input - k * band;
+}
+
+inline float sig_filter_svf_peak(float input, float band,
+    float low, float k) {
+    return input - k * band - 2.0f * low;
+}
+
+inline float sig_filter_svf_allPass(float input, float band,
+    float low, float k) {
+    return input - 2.0f * k * band;
+}
+
+inline float sig_filter_Smooth_generate(
+    struct sig_filter_Smooth* self, float value) {
+    float smoothed = sig_filter_smooth(value, self->previous, self->coeff);
+    self->previous = smoothed;
+
+    return smoothed;
+}
+
+inline float sig_filter_DCBlock_generate(
+    struct sig_filter_DCBlock* self, float value) {
+    float output = sig_filter_dcBlock(value,
+        self->previousInput, self->previousOutput, self->r);
+    self->previousInput = value;
+    self->previousOutput = output;
+
+    return output;
+}
+
+inline void sig_filter_SVF_calculateCoefficients(
+    struct sig_filter_SVF* self, float frequency, float resonance,
+    float sampleRate) {
+    // Clamp the cutoff below the frequency at which floating point rounding of
+    // pi pushes the tangent past its pole, which flips the coefficients' sign.
+    frequency = sig_clamp(frequency, 0.0f, sampleRate * 0.49f);
+    resonance = sig_clamp(resonance, 0.0f, 1.0f);
+
+    float g = tanf(sig_PI * frequency / sampleRate);
+    // A minimum damping keeps the filter bounded when a resonance control
+    // reaches full scale.
+    float k = sig_fmaxf(2.0f - 2.0f * resonance, 0.01f);
+
+    self->k = k;
+    self->a1 = 1.0f / (1.0f + g * (g + k));
+    self->a2 = g * self->a1;
+    self->a3 = g * self->a2;
+}
+
+inline void sig_filter_SVF_generate(struct sig_filter_SVF* self,
+    float value, struct sig_filter_SVF_Taps* taps) {
+    float v3 = value - self->ic2eq;
+    float band = self->a1 * self->ic1eq + self->a2 * v3;
+    float low = self->ic2eq + self->a2 * self->ic1eq + self->a3 * v3;
+    self->ic1eq = 2.0f * band - self->ic1eq;
+    self->ic2eq = 2.0f * low - self->ic2eq;
+
+    taps->input = value;
+    taps->band = band;
+    taps->low = low;
+}
+
+inline void sig_filter_Ladder_calculateCoefficients(
+    struct sig_filter_Ladder* self, float frequency, float sampleRate) {
+    frequency = sig_clamp(frequency, 5.0f, sampleRate * 0.425f);
+    float wc = frequency * (float) (sig_TWOPI /
+        ((float) self->interpolation * sampleRate));
+    float wc2 = wc * wc;
+    self->alpha = 0.9892f * wc - 0.4324f *
+        wc2 + 0.1381f * wc * wc2 - 0.0202f * wc2 * wc2;
+    self->qAdjust = 1.006f + 0.0536f * wc - 0.095f * wc2 - 0.05f * wc2 * wc2;
+}
+
+inline float sig_filter_Ladder_calcStage(
+    struct sig_filter_Ladder* self, float s, uint8_t i) {
+    float ft = s * (1.0f/1.3f) + (0.3f/1.3f) * self->z0[i] - self->z1[i];
+    ft = ft * self->alpha + self->z1[i];
+    self->z1[i] = ft;
+    self->z0[i] = s;
+    return ft;
+}
+
+inline float sig_filter_Ladder_calcStageInput(
+    struct sig_filter_Ladder* self, float value, float interp,
+    float resonance, float passbandGain) {
+    // Interpolate from the previous input sample toward the current one over
+    // the sub-steps, so the input stays continuous across sample boundaries.
+    float inInterp = (1.0f - interp) * self->previousInput + interp * value;
+    float k = 4.0f * resonance;
+
+    return inInterp - (self->z1[3] - passbandGain * inInterp) *
+        k * self->qAdjust;
+}
+
+inline void sig_filter_Ladder_calcStages(
+    struct sig_filter_Ladder* self, float u,
+    struct sig_filter_Ladder_Taps* taps) {
+    float stage1 = sig_filter_Ladder_calcStage(self, u, 0);
+    float stage2 = sig_filter_Ladder_calcStage(self, stage1, 1);
+    float stage3 = sig_filter_Ladder_calcStage(self, stage2, 2);
+    float stage4 = sig_filter_Ladder_calcStage(self, stage3, 3);
+
+    taps->input = u;
+    taps->pole1 = stage1;
+    taps->pole2 = stage2;
+    taps->pole3 = stage3;
+    taps->pole4 = stage4;
+}
+
+inline void sig_filter_Ladder_generate(struct sig_filter_Ladder* self,
+    float value, float resonance, float passbandGain,
+    struct sig_filter_Ladder_Taps* taps) {
+    const uint8_t interpolation = self->interpolation;
+    const float interpolationRecip = self->interpolationRecip;
+    float totals[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    float interp = 0.0f;
+
+    for (size_t os = 0; os < interpolation; os++) {
+        float u = sig_filter_Ladder_calcStageInput(self, value, interp,
+            resonance, passbandGain);
+        u = sig_fastTanhf(u);
+
+        struct sig_filter_Ladder_Taps step;
+        sig_filter_Ladder_calcStages(self, u, &step);
+        totals[0] = step.input;
+        totals[1] += step.pole1 * interpolationRecip;
+        totals[2] += step.pole2 * interpolationRecip;
+        totals[3] += step.pole3 * interpolationRecip;
+        totals[4] += step.pole4 * interpolationRecip;
+        interp += interpolationRecip;
+    }
+    self->previousInput = value;
+
+    taps->input = totals[0];
+    taps->pole1 = totals[1];
+    taps->pole2 = totals[2];
+    taps->pole3 = totals[3];
+    taps->pole4 = totals[4];
+}
+
+inline float sig_osc_Oscillator_eoc(float phase) {
+    return phase < 0.0f || phase > 1.0f ? 1.0f : 0.0f;
+}
+
+inline float sig_osc_Oscillator_wrapPhase(float phase) {
+    return sig_fastMod1f(phase);
+}
+
+inline void sig_osc_Oscillator_accumulatePhase(
+    float* phaseAccumulator, float frequency, float sampleRate) {
+    float phaseStep = frequency / sampleRate;
+    float phase = *phaseAccumulator + phaseStep;
+
+    *phaseAccumulator = sig_osc_Oscillator_wrapPhase(phase);
+}
+
+inline float sig_osc_Wavetable_generate(
+    struct sig_osc_Wavetable* self, float frequency,
+    float phaseOffset, float sampleRate, float* eocOut) {
+    float modulatedPhase = self->phaseAccumulator + phaseOffset;
+    *eocOut = sig_osc_Oscillator_eoc(modulatedPhase);
+    modulatedPhase = sig_osc_Oscillator_wrapPhase(modulatedPhase);
+    float sample = sig_Buffer_readLinearAtPhase(self->wavetable,
+        modulatedPhase);
+    sig_osc_Oscillator_accumulatePhase(&self->phaseAccumulator,
+        frequency, sampleRate);
+
+    return sample;
+}
+
+inline float sig_osc_WavetableBank_generate(
+    struct sig_osc_WavetableBank* self,
+    float frequency, float phaseOffset, float tableIndex,
+    float sampleRate, float* eocOut) {
+        // TODO: Precompute this.
+        float numTables = (float) self->wavetables->length;
+        // TODO: Reduce duplication with sig_osc_Wavetable
+        float modulatedPhase = self->phaseAccumulator + phaseOffset;
+        *eocOut = sig_osc_Oscillator_eoc(modulatedPhase);
+        modulatedPhase = sig_fastMod1f(modulatedPhase);
+        float scaledTableIdx = tableIndex * numTables;
+        float sample = sig_WavetableBank_readLinearAtPhase(
+            self->wavetables, scaledTableIdx, modulatedPhase);
+        sig_osc_Oscillator_accumulatePhase(&self->phaseAccumulator,
+            frequency, sampleRate);
+
+        return sample;
+}
+
+inline float sig_osc_AdditiveWavetableBank_generate(
+    struct sig_osc_AdditiveWavetableBank* self, float frequency,
+    float phaseOffset, float tableIndex, float sampleRate, float* eocOut) {
+    float waveIdx = tableIndex * (float) self->wavetables->numShapes;
+    float modulatedPhase = self->phaseAccumulator + phaseOffset;
+    *eocOut = sig_osc_Oscillator_eoc(modulatedPhase);
+    modulatedPhase = sig_osc_Oscillator_wrapPhase(modulatedPhase);
+
+    // Logarithms are expensive, so the level is only
+    // recalculated when the frequency changes.
+    if (frequency != self->previousFrequency) {
+        self->level = sig_AdditiveWavetableBank_levelForFrequency(
+            self->wavetables, frequency);
+        self->previousFrequency = frequency;
+    }
+
+    float sample = sig_AdditiveWavetableBank_readLinearAtPhase(
+        self->wavetables, self->level, waveIdx, modulatedPhase);
+    sig_osc_Oscillator_accumulatePhase(&self->phaseAccumulator,
+        frequency, sampleRate);
+
+    return sample;
+}
+
+inline void sig_osc_FastLFSine_setFrequency(
+    struct sig_osc_FastLFSine* self, float frequency) {
+    self->f = 2.0f * sinf(sig_PI * frequency / self->sampleRate);
+}
+
+inline void sig_osc_FastLFSine_setFrequencyFast(
+    struct sig_osc_FastLFSine* self, float frequency) {
+    self->f = sig_TWOPI * frequency / self->sampleRate;
+}
+
+inline void sig_osc_FastLFSine_generate(struct sig_osc_FastLFSine* self) {
+    // TODO: Oversample for stability at higher frequencies.
+    // Depending on the Q setting, but stability is roughly 1/6
+    // of the sample rate.
+    // A simple way to do this is to run the filter twice with the same input sample, and discard one output sample.
+    self->sinZ = self->sinZ + self->f * self->cosZ;
+    self->cosZ = self->cosZ - self->f * self->sinZ;
+}
+
+inline void sig_Status_reportResult(
+    struct sig_Status* status, enum sig_Result result) {
+    if (status != NULL) {
+        status->result = result;
+    }
+}
+
+inline float sig_Buffer_readLinearAtPhase(
+    struct sig_Buffer* self,
+    float phase) {
+    size_t tableLength = self->length;
+    float tableIdx = phase * tableLength;
+
+    return sig_interpolate_linear(tableIdx, self->samples, tableLength);
+}
+
+inline float sig_WavetableBank_readLinearAtPhase(
+    struct sig_WavetableBank* self,
+    float tableIdx, float phase) {
+        const size_t length = self->length;
+        const float lengthF = (float) length;
+
+        // Wrapping requires a division, so it is skipped for the
+        // usual case where the index is already within the bank.
+        if (tableIdx < 0.0f || tableIdx >= lengthF) {
+            tableIdx = sig_flooredfmodf(tableIdx, lengthF);
+        }
+
+        size_t tableIdxIntegral = (size_t) tableIdx;
+        float tableIdxFractional = tableIdx - (float) tableIdxIntegral;
+
+        // Tiny negative indices can wrap to exactly the length,
+        // which is the start of the bank.
+        size_t aTableIndex = tableIdxIntegral % length;
+        struct sig_Buffer* aTable = self->waves[aTableIndex];
+        size_t bTableIndex = (aTableIndex + 1) % length;
+        struct sig_Buffer* bTable = self->waves[bTableIndex];
+
+        float a = sig_Buffer_readLinearAtPhase(aTable, phase);
+        float b = sig_Buffer_readLinearAtPhase(bTable, phase);
+        float sample = a + (b - a) * tableIdxFractional;
+
+        return sample;
+}
+
+inline float sig_AdditiveWavetableBank_levelForFrequency(
+    struct sig_AdditiveWavetableBank* self, float frequency) {
+    float highestLevel = (float) (self->numLevels - 1);
+    float level = log2f(fabsf(frequency) / self->lowestFrequency);
+
+    return sig_clamp(level, 0.0f, highestLevel);
+}
+
+inline float sig_AdditiveWavetableBank_readLinearAtPhase(
+    struct sig_AdditiveWavetableBank* self, float level, float tableIdx,
+    float phase) {
+    size_t lowerLevel = (size_t) level;
+    size_t upperLevel = lowerLevel + 1 < self->numLevels ?
+        lowerLevel + 1 : lowerLevel;
+    float levelMix = level - (float) lowerLevel;
+
+    float lower = sig_WavetableBank_readLinearAtPhase(
+        self->levels[lowerLevel], tableIdx, phase);
+    float upper = sig_WavetableBank_readLinearAtPhase(
+        self->levels[upperLevel], tableIdx, phase);
+
+    return lower + (upper - lower) * levelMix;
+}
+
+inline float sig_DelayLine_readAt(
+    struct sig_DelayLine* self, size_t readPos) {
+    size_t idx = (self->writeIdx + readPos) % self->buffer->length;
+    return FLOAT_ARRAY(self->buffer->samples)[idx];
+}
+
+inline float sig_DelayLine_linearReadAt(
+    struct sig_DelayLine* self, float readPos) {
+    size_t maxDelayLength = self->buffer->length;
+    float* delayLineSamples = FLOAT_ARRAY(self->buffer->samples);
+    int32_t integ = (int32_t) readPos;
+    float frac = readPos - (float) integ;
+    float a = delayLineSamples[(self->writeIdx + integ) % maxDelayLength];
+    float b = delayLineSamples[(self->writeIdx + integ + 1) % maxDelayLength];
+
+    return a + (b - a) * frac;
+}
+
+inline float sig_DelayLine_cubicReadAt(
+    struct sig_DelayLine* self, float readPos) {
+    size_t maxDelayLength = self->buffer->length;
+    float* delayLineSamples = FLOAT_ARRAY(self->buffer->samples);
+
+    int32_t integ = (int32_t) readPos;
+    float frac = readPos - (float) integ;
+    int32_t t = (int32_t) (self->writeIdx + integ + maxDelayLength);
+    float xm1 = delayLineSamples[(t - 1) % maxDelayLength];
+    float x0 = delayLineSamples[t % maxDelayLength];
+    float x1 = delayLineSamples[(t + 1) % maxDelayLength];
+    float x2 = delayLineSamples[(t + 2) % maxDelayLength];
+    float c = (x1 - xm1) * 0.5f;
+    float v = x0 - x1;
+    float w = c + v;
+    float a = w + v + (x2 - x0) * 0.5f;
+    float bNeg = w + a;
+
+    return (((a * frac) - bNeg) * frac + c) * frac + x0;
+}
+
+inline float sig_DelayLine_allpassReadAt(
+    struct sig_DelayLine* self, float readPos,
+    float previousSample) {
+    size_t maxDelayLength = self->buffer->length;
+    float* delayLineSamples = FLOAT_ARRAY(self->buffer->samples);
+    int32_t integ = (int32_t) readPos;
+    float frac = readPos - (float) integ;
+    float invFrac = 1.0f - frac;
+    float a = delayLineSamples[(self->writeIdx + integ) % maxDelayLength];
+    float b = delayLineSamples[(self->writeIdx + integ + 1) % maxDelayLength];
+
+    return b + invFrac * a - invFrac * previousSample;
+}
+
+inline float sig_DelayLine_readAtTime(
+    struct sig_DelayLine* self, float source,
+    float tapTime, float sampleRate) {
+    sig_DelayLine_readAtTime_IMPL(self, source, tapTime, sampleRate,
+        sig_DelayLine_readAt);
+}
+
+inline float sig_DelayLine_linearReadAtTime(
+    struct sig_DelayLine* self, float source, float tapTime,
+    float sampleRate) {
+    sig_DelayLine_readAtTime_IMPL(self, source, tapTime, sampleRate,
+        sig_DelayLine_linearReadAt);
+}
+
+inline float sig_DelayLine_cubicReadAtTime(
+    struct sig_DelayLine* self, float source, float tapTime,
+    float sampleRate) {
+    sig_DelayLine_readAtTime_IMPL(self, source, tapTime, sampleRate,
+        sig_DelayLine_cubicReadAt);
+}
+
+inline float sig_DelayLine_allpassReadAtTime(
+    struct sig_DelayLine* self, float source, float tapTime,
+    float sampleRate, float previousSample) {
+    // TODO: Cut and pasted from the sig_DelayLine_readAtTime_IMPL macro above.
+    float sample;
+    if (tapTime <= 0.0f) {
+        sample = source;
+    } else {
+        float readPos = tapTime * sampleRate;
+        float maxDelayLength = (float) self->buffer->length;
+        if (readPos >= maxDelayLength) {
+            readPos = maxDelayLength - 1;
+        }
+        sample = sig_DelayLine_allpassReadAt(self, readPos, previousSample);
+    }
+
+    return sample;
+}
+
+inline float sig_DelayLine_readAtTimes(
+    struct sig_DelayLine* self, float source,
+    float_array_ptr SIG_RESTRICT tapTimes,
+    float_array_ptr SIG_RESTRICT tapGains,
+    size_t numTaps, float sampleRate, float timeScale) {
+    sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,
+        tapGains, numTaps, sampleRate, timeScale, sig_DelayLine_readAt);
+}
+
+inline float sig_DelayLine_linearReadAtTimes(
+    struct sig_DelayLine* self, float source,
+    float_array_ptr SIG_RESTRICT tapTimes,
+    float_array_ptr SIG_RESTRICT tapGains,
+    size_t numTaps, float sampleRate, float timeScale) {
+    sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,
+        tapGains, numTaps, sampleRate, timeScale, sig_DelayLine_linearReadAt);
+}
+
+inline float sig_DelayLine_cubicReadAtTimes(
+    struct sig_DelayLine* self, float source,
+    float_array_ptr SIG_RESTRICT tapTimes,
+    float_array_ptr SIG_RESTRICT tapGains,
+    size_t numTaps, float sampleRate, float timeScale) {
+    sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,
+        tapGains, numTaps, sampleRate, timeScale, sig_DelayLine_cubicReadAt);
+}
+
+inline void sig_DelayLine_write(struct sig_DelayLine* self,
+    float sample) {
+    size_t maxDelayLength = self->buffer->length;
+    FLOAT_ARRAY(self->buffer->samples)[self->writeIdx] = sample;
+    self->writeIdx = (self->writeIdx - 1 + maxDelayLength) % maxDelayLength;
+}
+
+inline float sig_DelayLine_calcFeedbackGain(float delayTime,
+    float decayTime) {
+    // Convert 60dB time in secs to feedback gain (g) coefficient
+    // (also why is the equation in Dodge and Jerse wrong?)
+    if (delayTime <= 0.0f || decayTime <= 0.0f) {
+        return 0.0f;
+    }
+
+    return expf(sig_LOG0_001 * delayTime / decayTime);
+}
+
+inline float sig_DelayLine_feedback(float sample,
+    float read, float g) {
+    return sample + (g * read);
+}
+
+inline float sig_DelayLine_comb(struct sig_DelayLine* self,
+    float sample, size_t readPos, float g) {
+    sig_DelayLine_comb_IMPL(self, sample, readPos, g, sig_DelayLine_readAt);
+}
+
+inline float sig_DelayLine_linearComb(
+    struct sig_DelayLine* self, float sample, float readPos,
+    float g) {
+    sig_DelayLine_comb_IMPL(self, sample, readPos, g,
+        sig_DelayLine_linearReadAt);
+}
+
+inline float sig_DelayLine_cubicComb(
+    struct sig_DelayLine* self, float sample, float readPos,
+    float g) {
+    sig_DelayLine_comb_IMPL(self, sample, readPos, g,
+        sig_DelayLine_cubicReadAt);
+}
+
+inline float sig_DelayLine_allpass(
+    struct sig_DelayLine* self, float sample, size_t readPos,
+    float g) {
+    sig_DelayLine_allpass_IMPL(self, sample, readPos, g, sig_DelayLine_readAt);
+}
+
+inline float sig_DelayLine_linearAllpass(
+    struct sig_DelayLine* self, float sample, float readPos,
+    float g) {
+    sig_DelayLine_allpass_IMPL(self, sample, readPos, g,
+        sig_DelayLine_linearReadAt);
+}
+
+inline float sig_DelayLine_cubicAllpass(
+    struct sig_DelayLine* self, float sample, float readPos,
+    float g) {
+    sig_DelayLine_allpass_IMPL(self, sample, readPos, g,
+        sig_DelayLine_cubicReadAt);
+}
+
+inline float sig_linearXFade(float left, float right,
+    float mix) {
+    float clipped = sig_clamp(mix, -1.0f, 1.0f);
+    // At -1.0f, left gain should be 1.0 and right gain should be 0.0;
+    // at 0.0, left and right gains should be 0.5;
+    // At 1.0 left gain should be 0.0f and right gain should be 1.0.
+    float gain = clipped * 0.5f + 0.5f;
+    float sample = left + gain * (right - left);
+
+    return sample;
+}
+
+inline float sig_sineWavefolder(float x, float gain,
+    float factor) {
+    float sample = x + gain * sinf(factor * x);
+    return sample;
+}
+
+inline float sig_softClip(float x, float threshold) {
+    threshold = sig_clamp(threshold, 0.0f, 0.99f);
+
+    float magnitude = fabsf(x);
+    if (magnitude <= threshold) {
+        return x;
+    }
+
+    float headroom = 1.0f - threshold;
+    float shaped = threshold +
+        headroom * sig_fastTanhf((magnitude - threshold) / headroom);
+
+    return (x < 0.0f) ? -shaped : shaped;
+}
 
 #ifdef __cplusplus
 }

@@ -4,45 +4,20 @@
                     // stdio.h, stdlib.h, string.h (for errors etc.)
 #include <libsignaletic.h>
 
-extern inline float sig_fminf(float a, float b) {
-    float r;
-#ifdef __arm__
-    asm("vminnm.f32 %[d], %[n], %[m]" : [d] "=t"(r) : [n] "t"(a), [m] "t"(b) :);
-#else
-    r = (a < b) ? a : b;
-#endif // __arm__
-    return r;
-}
+// libsignaletic.h defines inline functions that can be inlined from any file.
+// The extern inline declarations below make this the one file that provides each
+// function's linkable definition, so calls that the compiler does not inline can
+// still be linked.
 
-extern inline float sig_fmaxf(float a, float b) {
-    float r;
-#ifdef __arm__
-    asm("vmaxnm.f32 %[d], %[n], %[m]" : [d] "=t"(r) : [n] "t"(a), [m] "t"(b) :);
-#else
-    r = (a > b) ? a : b;
-#endif // __arm__
-    return r;
-}
+extern inline float sig_fminf(float a, float b);
 
-extern inline float sig_clamp(float value, float min, float max) {
-    return sig_fminf(sig_fmaxf(value, min), max);
-}
+extern inline float sig_fmaxf(float a, float b);
 
-extern inline float sig_fastMod1f(float x) {
-    int32_t ix = (int32_t) x;
-    float r = x - (float) ix;
-    return r + (r < 0.0f);
-}
+extern inline float sig_clamp(float value, float min, float max);
 
-extern inline float sig_flooredfmodf(float numer, float denom) {
-    float remain = fmodf(numer, denom);
-    if ((remain > 0.0f && denom < 0.0f) ||
-        (remain < 0.0f && denom > 0.0f)) {
-        remain = remain + denom;
-    }
+extern inline float sig_fastMod1f(float x);
 
-    return remain;
-}
+extern inline float sig_flooredfmodf(float numer, float denom);
 
 struct sig_Random* sig_Random_new(struct sig_Allocator* allocator,
     uint32_t seed) {
@@ -121,62 +96,22 @@ void sig_randf_seed(uint32_t seed) {
     sig_Random_seed(&sig_Random_GLOBAL_GENERATOR, seed);
 }
 
-extern inline float sig_fastTanhf(float x) {
-    // From https://gist.github.com/ndonald2/534831b639b8c78d40279b5007e06e5b
-    if (x > 3.0f) {
-        return 1.0f;
-    }
-
-    if (x < -3.0f) {
-        return -1.0f;
-    }
-
-    float x2 = x * x;
-    return x * (27.0f + x2) / (27.0f + 9.0f * x2);
-}
+extern inline float sig_fastTanhf(float x);
 
 extern inline float sig_linearMap(float value,
-    float fromMin, float fromMax, float toMin, float toMax) {
-    if (fromMin == fromMax) {
-        return toMin;
-    }
+    float fromMin, float fromMax, float toMin, float toMax);
 
-    float clamped = sig_clamp(value, fromMin, fromMax);
-    float mapped = (clamped - fromMin) * (toMax - toMin) /
-        (fromMax - fromMin) + toMin;
+extern inline uint16_t sig_unipolarToUint12(float sample);
 
-    return mapped;
-}
+extern inline uint16_t sig_bipolarToUint12(float sample);
 
-extern inline uint16_t sig_unipolarToUint12(float sample) {
-    return (uint16_t) (sample * 4095.0f);
-}
+extern inline uint16_t sig_bipolarToInvUint12(float sample);
 
-extern inline uint16_t sig_bipolarToUint12(float sample) {
-    float normalized = sample * 0.5 + 0.5;
-    return (uint16_t) (normalized * 4095.0f);
-}
+extern inline float sig_uint16ToBipolar(uint16_t sample);
 
-extern inline uint16_t sig_bipolarToInvUint12(float sample) {
-    return sig_bipolarToUint12(-sample);
-}
+extern inline float sig_uint16ToUnipolar(uint16_t sample);
 
-extern inline float sig_uint16ToBipolar(uint16_t sample) {
-    float normalized = (float) (sample / 65535.0f);
-    float scaled = normalized * 2.0f - 1.0f;
-
-    return scaled;
-}
-
-extern inline float sig_uint16ToUnipolar(uint16_t sample) {
-    float normalized = (float) (sample / 65535.0f);
-
-    return normalized;
-}
-
-extern inline float sig_invUint16ToBipolar(uint16_t sample) {
-    return -sig_uint16ToBipolar(sample);
-}
+extern inline float sig_invUint16ToBipolar(uint16_t sample);
 
 float sig_midiToFreq(float midiNum) {
     return powf(2, (midiNum - 69.0f) / 12.0f) * 440.0f;
@@ -194,58 +129,14 @@ float sig_freqToLinear(float freq, float middleFreq) {
     return (logf(freq / middleFreq) / sig_LOG2);
 }
 
-// TODO: Unit tests.
 extern inline float sig_sum(float_array_ptr values,
-    size_t length) {
-    float sum = 0;
-    for (size_t i = 0; i < length; i++) {
-        sum += FLOAT_ARRAY(values)[i];
-    }
+    size_t length);
 
-    return sum;
-}
-
-// TODO: Unit tests.
 extern inline size_t sig_indexOfMin(float_array_ptr values,
-    size_t length) {
-    size_t indexOfMin = 0;
+    size_t length);
 
-    if (length < 1) {
-        return indexOfMin;
-    }
-
-    float minValue = FLOAT_ARRAY(values)[0];
-    for (size_t i = 1; i < length; i++) {
-        float currentValue = FLOAT_ARRAY(values)[i];
-        if (currentValue < minValue) {
-            indexOfMin = i;
-            minValue = currentValue;
-        }
-    }
-
-    return indexOfMin;
-}
-
-// TODO: Unit tests.
 extern inline size_t sig_indexOfMax(float_array_ptr values,
-    size_t length) {
-    size_t indexOfMax = 0;
-
-    if (length < 1) {
-        return indexOfMax;
-    }
-
-    float maxValue = FLOAT_ARRAY(values)[0];
-    for (size_t i = 1; i < length; i++) {
-        float currentValue = FLOAT_ARRAY(values)[i];
-        if (currentValue > maxValue) {
-            indexOfMax = i;
-            maxValue = currentValue;
-        }
-    }
-
-    return indexOfMax;
-}
+    size_t length);
 
 float sig_randomFill(size_t i, float_array_ptr array) {
     return sig_randf();
@@ -301,79 +192,51 @@ float sig_interpolate_cubic(float idx, float_array_ptr table,
         idxFractional + x0;
 }
 
-// TODO: Unit tests.
 extern inline float sig_filter_mean(float_array_ptr values,
-    size_t length) {
-    float sum = sig_sum(values, length);
-    return sum / (float) length;
-}
+    size_t length);
 
-// TODO: Unit tests.
 extern inline float sig_filter_meanExcludeMinMax(
-    float_array_ptr values, size_t length) {
-    if (length < 1) {
-        return 0.0f;
-    } else if (length < 3) {
-        return sig_filter_mean(values, length);
-    }
+    float_array_ptr values, size_t length);
 
-    float min = FLOAT_ARRAY(values)[sig_indexOfMin(values, length)];
-    float max = FLOAT_ARRAY(values)[sig_indexOfMax(values, length)];
-    float exclude = min + max;
-    float sum = sig_sum(values, length) - exclude;
-    return sum / (float) (length - 2);
-}
-
-// TODO: Unit tests.
 extern inline float sig_filter_ema(float current, float previous,
-    float a) {
-    return (a * current) + (1 - a) * previous;
-}
+    float a);
 
 extern inline float sig_filter_onepole(float current,
-    float previous, float b0, float a1) {
-    return b0 * current - a1 * previous;
-}
+    float previous, float b0, float a1);
 
 extern inline float sig_filter_onepole_HPF_calculateA1(
-    float frequency, float sampleRate) {
-    float fc = frequency / sampleRate;
-    return -expf(-2.0f * sig_PI * (0.5f - fc));
-}
+    float frequency, float sampleRate);
 
-extern inline float sig_filter_onepole_HPF_calculateB0(float a1) {
-    return 1.0f + a1;
-}
+extern inline float sig_filter_onepole_HPF_calculateB0(float a1);
 
 extern inline float sig_filter_onepole_LPF_calculateA1(
-    float frequency, float sampleRate) {
-    float fc = frequency / sampleRate;
-    return expf(-2.0f * sig_PI * fc);
-}
+    float frequency, float sampleRate);
 
-extern inline float sig_filter_onepole_LPF_calculateB0(float a1) {
-    return 1.0f - a1;
-}
+extern inline float sig_filter_onepole_LPF_calculateB0(float a1);
 
 extern inline float sig_filter_smooth(float current,
-    float previous, float coeff) {
-    return current + coeff * (previous - current);
-}
+    float previous, float coeff);
 
 extern inline float sig_filter_smooth_calculateCoefficient(
-    float time, float sampleRate) {
-    return expf(sig_LOG0_001 / (time * sampleRate));
-}
+    float time, float sampleRate);
 
 extern inline float sig_filter_dcBlock(float current,
-    float previousInput, float previousOutput, float r) {
-    return current - previousInput + r * previousOutput;
-}
+    float previousInput, float previousOutput, float r);
 
 extern inline float sig_filter_dcBlock_calculateCoefficient(
-    float frequency, float sampleRate) {
-    return 1.0f - (sig_TWOPI * frequency / sampleRate);
-}
+    float frequency, float sampleRate);
+
+extern inline float sig_filter_svf_highPass(float input, float band,
+    float low, float k);
+
+extern inline float sig_filter_svf_notch(float input, float band,
+    float low, float k);
+
+extern inline float sig_filter_svf_peak(float input, float band,
+    float low, float k);
+
+extern inline float sig_filter_svf_allPass(float input, float band,
+    float low, float k);
 
 void sig_filter_Smooth_init(struct sig_filter_Smooth* self,
     float coeff) {
@@ -382,12 +245,7 @@ void sig_filter_Smooth_init(struct sig_filter_Smooth* self,
 }
 
 extern inline float sig_filter_Smooth_generate(
-    struct sig_filter_Smooth* self, float value) {
-    float smoothed = sig_filter_smooth(value, self->previous, self->coeff);
-    self->previous = smoothed;
-
-    return smoothed;
-}
+    struct sig_filter_Smooth* self, float value);
 
 void sig_filter_DCBlock_init(struct sig_filter_DCBlock* self,
     float frequency, float sampleRate) {
@@ -397,14 +255,52 @@ void sig_filter_DCBlock_init(struct sig_filter_DCBlock* self,
 }
 
 extern inline float sig_filter_DCBlock_generate(
-    struct sig_filter_DCBlock* self, float value) {
-    float output = sig_filter_dcBlock(value,
-        self->previousInput, self->previousOutput, self->r);
-    self->previousInput = value;
-    self->previousOutput = output;
+    struct sig_filter_DCBlock* self, float value);
 
-    return output;
+void sig_filter_SVF_init(struct sig_filter_SVF* self) {
+    self->k = 1.0f;
+    self->a1 = 0.0f;
+    self->a2 = 0.0f;
+    self->a3 = 0.0f;
+    self->ic1eq = 0.0f;
+    self->ic2eq = 0.0f;
 }
+
+extern inline void sig_filter_SVF_calculateCoefficients(
+    struct sig_filter_SVF* self, float frequency, float resonance,
+    float sampleRate);
+
+extern inline void sig_filter_SVF_generate(struct sig_filter_SVF* self,
+    float value, struct sig_filter_SVF_Taps* taps);
+
+void sig_filter_Ladder_init(struct sig_filter_Ladder* self,
+    uint8_t interpolation) {
+    self->interpolation = interpolation;
+    self->interpolationRecip = 1.0f / interpolation;
+    self->alpha = 1.0f;
+    self->qAdjust = 1.0f;
+    self->z0[0] = self->z0[1] = self->z0[2] = self->z0[3] = 0.0f;
+    self->z1[0] = self->z1[1] = self->z1[2] = self->z1[3] = 0.0f;
+    self->previousInput = 0.0f;
+}
+
+extern inline void sig_filter_Ladder_calculateCoefficients(
+    struct sig_filter_Ladder* self, float frequency, float sampleRate);
+
+extern inline float sig_filter_Ladder_calcStage(
+    struct sig_filter_Ladder* self, float s, uint8_t i);
+
+extern inline float sig_filter_Ladder_calcStageInput(
+    struct sig_filter_Ladder* self, float value, float interp,
+    float resonance, float passbandGain);
+
+extern inline void sig_filter_Ladder_calcStages(
+    struct sig_filter_Ladder* self, float u,
+    struct sig_filter_Ladder_Taps* taps);
+
+extern inline void sig_filter_Ladder_generate(struct sig_filter_Ladder* self,
+    float value, float resonance, float passbandGain,
+    struct sig_filter_Ladder_Taps* taps);
 
 // TODO: Unit tests.
 float sig_waveform_sine(float phase) {
@@ -513,21 +409,12 @@ void sig_osc_Oscillator_init(struct sig_osc_Oscillator* self) {
     self->phaseAccumulator = 0.0f;
 }
 
-extern inline float sig_osc_Oscillator_eoc(float phase) {
-    return phase < 0.0f || phase > 1.0f ? 1.0f : 0.0f;
-}
+extern inline float sig_osc_Oscillator_eoc(float phase);
 
-extern inline float sig_osc_Oscillator_wrapPhase(float phase) {
-    return sig_fastMod1f(phase);
-}
+extern inline float sig_osc_Oscillator_wrapPhase(float phase);
 
 extern inline void sig_osc_Oscillator_accumulatePhase(
-    float* phaseAccumulator, float frequency, float sampleRate) {
-    float phaseStep = frequency / sampleRate;
-    float phase = *phaseAccumulator + phaseStep;
-
-    *phaseAccumulator = sig_osc_Oscillator_wrapPhase(phase);
-}
+    float* phaseAccumulator, float frequency, float sampleRate);
 
 void sig_osc_Wavetable_init(struct sig_osc_Wavetable* self,
     struct sig_Buffer* wavetable) {
@@ -537,17 +424,7 @@ void sig_osc_Wavetable_init(struct sig_osc_Wavetable* self,
 
 extern inline float sig_osc_Wavetable_generate(
     struct sig_osc_Wavetable* self, float frequency,
-    float phaseOffset, float sampleRate, float* eocOut) {
-    float modulatedPhase = self->phaseAccumulator + phaseOffset;
-    *eocOut = sig_osc_Oscillator_eoc(modulatedPhase);
-    modulatedPhase = sig_osc_Oscillator_wrapPhase(modulatedPhase);
-    float sample = sig_Buffer_readLinearAtPhase(self->wavetable,
-        modulatedPhase);
-    sig_osc_Oscillator_accumulatePhase(&self->phaseAccumulator,
-        frequency, sampleRate);
-
-    return sample;
-}
+    float phaseOffset, float sampleRate, float* eocOut);
 
 
 void sig_osc_WavetableBank_init(struct sig_osc_WavetableBank* self,
@@ -563,21 +440,7 @@ float sig_osc_WavetableBank_tableIndex(size_t table, size_t numTables) {
 extern inline float sig_osc_WavetableBank_generate(
     struct sig_osc_WavetableBank* self,
     float frequency, float phaseOffset, float tableIndex,
-    float sampleRate, float* eocOut) {
-        // TODO: Precompute this.
-        float numTables = (float) self->wavetables->length;
-        // TODO: Reduce duplication with sig_osc_Wavetable
-        float modulatedPhase = self->phaseAccumulator + phaseOffset;
-        *eocOut = sig_osc_Oscillator_eoc(modulatedPhase);
-        modulatedPhase = sig_fastMod1f(modulatedPhase);
-        float scaledTableIdx = tableIndex * numTables;
-        float sample = sig_WavetableBank_readLinearAtPhase(
-            self->wavetables, scaledTableIdx, modulatedPhase);
-        sig_osc_Oscillator_accumulatePhase(&self->phaseAccumulator,
-            frequency, sampleRate);
-
-        return sample;
-}
+    float sampleRate, float* eocOut);
 
 void sig_osc_AdditiveWavetableBank_init(
     struct sig_osc_AdditiveWavetableBank* self,
@@ -590,27 +453,7 @@ void sig_osc_AdditiveWavetableBank_init(
 
 extern inline float sig_osc_AdditiveWavetableBank_generate(
     struct sig_osc_AdditiveWavetableBank* self, float frequency,
-    float phaseOffset, float tableIndex, float sampleRate, float* eocOut) {
-    float waveIdx = tableIndex * (float) self->wavetables->numShapes;
-    float modulatedPhase = self->phaseAccumulator + phaseOffset;
-    *eocOut = sig_osc_Oscillator_eoc(modulatedPhase);
-    modulatedPhase = sig_osc_Oscillator_wrapPhase(modulatedPhase);
-
-    // Logarithms are expensive, so the level is only
-    // recalculated when the frequency changes.
-    if (frequency != self->previousFrequency) {
-        self->level = sig_AdditiveWavetableBank_levelForFrequency(
-            self->wavetables, frequency);
-        self->previousFrequency = frequency;
-    }
-
-    float sample = sig_AdditiveWavetableBank_readLinearAtPhase(
-        self->wavetables, self->level, waveIdx, modulatedPhase);
-    sig_osc_Oscillator_accumulatePhase(&self->phaseAccumulator,
-        frequency, sampleRate);
-
-    return sample;
-}
+    float phaseOffset, float tableIndex, float sampleRate, float* eocOut);
 
 
 void sig_osc_FastLFSine_init(struct sig_osc_FastLFSine* self,
@@ -622,24 +465,12 @@ void sig_osc_FastLFSine_init(struct sig_osc_FastLFSine* self,
 }
 
 extern inline void sig_osc_FastLFSine_setFrequency(
-    struct sig_osc_FastLFSine* self, float frequency) {
-    self->f = 2.0f * sinf(sig_PI * frequency / self->sampleRate);
-}
+    struct sig_osc_FastLFSine* self, float frequency);
 
 extern inline void sig_osc_FastLFSine_setFrequencyFast(
-    struct sig_osc_FastLFSine* self, float frequency) {
-    self->f = sig_TWOPI * frequency / self->sampleRate;
-}
+    struct sig_osc_FastLFSine* self, float frequency);
 
-extern inline void sig_osc_FastLFSine_generate(struct sig_osc_FastLFSine* self) {
-    // TODO: Oversample for stability at higher frequencies.
-    // Depending on the Q setting, but stability is roughly 1/6
-    // of the sample rate.
-    // A simple way to do this is to run the filter twice with the same input sample, and discard one output sample.
-    self->sinZ = self->sinZ + self->f * self->cosZ;
-    self->cosZ = self->cosZ - self->f * self->sinZ;
-}
-
+extern inline void sig_osc_FastLFSine_generate(struct sig_osc_FastLFSine* self);
 
 
 // TODO: Implement enough test coverage for sig_Allocator
@@ -687,11 +518,7 @@ void sig_Status_reset(struct sig_Status* status) {
 }
 
 extern inline void sig_Status_reportResult(
-    struct sig_Status* status, enum sig_Result result) {
-    if (status != NULL) {
-        status->result = result;
-    }
-}
+    struct sig_Status* status, enum sig_Result result);
 
 
 // TODO: Unit tests.
@@ -831,7 +658,6 @@ void sig_AudioSettings_destroy(struct sig_Allocator* allocator,
 }
 
 
-
 struct sig_SignalContext* sig_SignalContext_new(
     struct sig_Allocator* allocator,
     struct sig_AudioSettings* audioSettings) {
@@ -962,12 +788,7 @@ float sig_Buffer_readLinear(struct sig_Buffer* self, float idx) {
 
 extern inline float sig_Buffer_readLinearAtPhase(
     struct sig_Buffer* self,
-    float phase) {
-    size_t tableLength = self->length;
-    float tableIdx = phase * tableLength;
-
-    return sig_interpolate_linear(tableIdx, self->samples, tableLength);
-}
+    float phase);
 
 float sig_Buffer_readCubic(struct sig_Buffer* self, float idx) {
     return sig_interpolate_cubic(idx, self->samples, self->length);
@@ -1056,32 +877,7 @@ struct sig_WavetableBank* sig_WavetableBank_new(
 
 extern inline float sig_WavetableBank_readLinearAtPhase(
     struct sig_WavetableBank* self,
-    float tableIdx, float phase) {
-        const size_t length = self->length;
-        const float lengthF = (float) length;
-
-        // Wrapping requires a division, so it is skipped for the
-        // usual case where the index is already within the bank.
-        if (tableIdx < 0.0f || tableIdx >= lengthF) {
-            tableIdx = sig_flooredfmodf(tableIdx, lengthF);
-        }
-
-        size_t tableIdxIntegral = (size_t) tableIdx;
-        float tableIdxFractional = tableIdx - (float) tableIdxIntegral;
-
-        // Tiny negative indices can wrap to exactly the length,
-        // which is the start of the bank.
-        size_t aTableIndex = tableIdxIntegral % length;
-        struct sig_Buffer* aTable = self->waves[aTableIndex];
-        size_t bTableIndex = (aTableIndex + 1) % length;
-        struct sig_Buffer* bTable = self->waves[bTableIndex];
-
-        float a = sig_Buffer_readLinearAtPhase(aTable, phase);
-        float b = sig_Buffer_readLinearAtPhase(bTable, phase);
-        float sample = a + (b - a) * tableIdxFractional;
-
-        return sample;
-}
+    float tableIdx, float phase);
 
 void sig_WavetableBank_destroy(struct sig_Allocator* allocator,
     struct sig_WavetableBank* self) {
@@ -1158,28 +954,11 @@ void sig_AdditiveWavetableBank_fill(
 }
 
 extern inline float sig_AdditiveWavetableBank_levelForFrequency(
-    struct sig_AdditiveWavetableBank* self, float frequency) {
-    float highestLevel = (float) (self->numLevels - 1);
-    float level = log2f(fabsf(frequency) / self->lowestFrequency);
-
-    return sig_clamp(level, 0.0f, highestLevel);
-}
+    struct sig_AdditiveWavetableBank* self, float frequency);
 
 extern inline float sig_AdditiveWavetableBank_readLinearAtPhase(
     struct sig_AdditiveWavetableBank* self, float level, float tableIdx,
-    float phase) {
-    size_t lowerLevel = (size_t) level;
-    size_t upperLevel = lowerLevel + 1 < self->numLevels ?
-        lowerLevel + 1 : lowerLevel;
-    float levelMix = level - (float) lowerLevel;
-
-    float lower = sig_WavetableBank_readLinearAtPhase(
-        self->levels[lowerLevel], tableIdx, phase);
-    float upper = sig_WavetableBank_readLinearAtPhase(
-        self->levels[upperLevel], tableIdx, phase);
-
-    return lower + (upper - lower) * levelMix;
-}
+    float phase);
 
 void sig_AdditiveWavetableBank_destroy(struct sig_Allocator* allocator,
     struct sig_AdditiveWavetableBank* self) {
@@ -1228,238 +1007,86 @@ void sig_DelayLine_init(struct sig_DelayLine* self) {
 }
 
 extern inline float sig_DelayLine_readAt(
-    struct sig_DelayLine* self, size_t readPos) {
-    size_t idx = (self->writeIdx + readPos) % self->buffer->length;
-    return FLOAT_ARRAY(self->buffer->samples)[idx];
-}
+    struct sig_DelayLine* self, size_t readPos);
 
 extern inline float sig_DelayLine_linearReadAt(
-    struct sig_DelayLine* self, float readPos) {
-    size_t maxDelayLength = self->buffer->length;
-    float* delayLineSamples = self->buffer->samples;
-    int32_t integ = (int32_t) readPos;
-    float frac = readPos - (float) integ;
-    float a = delayLineSamples[(self->writeIdx + integ) % maxDelayLength];
-    float b = delayLineSamples[(self->writeIdx + integ + 1) % maxDelayLength];
-
-    return a + (b - a) * frac;
-}
+    struct sig_DelayLine* self, float readPos);
 
 extern inline float sig_DelayLine_cubicReadAt(
-    struct sig_DelayLine* self, float readPos) {
-    size_t maxDelayLength = self->buffer->length;
-    float* delayLineSamples = self->buffer->samples;
-
-    int32_t integ = (int32_t) readPos;
-    float frac = readPos - (float) integ;
-    int32_t t = (int32_t) (self->writeIdx + integ + maxDelayLength);
-    float xm1 = delayLineSamples[(t - 1) % maxDelayLength];
-    float x0 = delayLineSamples[t % maxDelayLength];
-    float x1 = delayLineSamples[(t + 1) % maxDelayLength];
-    float x2 = delayLineSamples[(t + 2) % maxDelayLength];
-    float c = (x1 - xm1) * 0.5f;
-    float v = x0 - x1;
-    float w = c + v;
-    float a = w + v + (x2 - x0) * 0.5f;
-    float bNeg = w + a;
-
-    return (((a * frac) - bNeg) * frac + c) * frac + x0;
-}
+    struct sig_DelayLine* self, float readPos);
 
 extern inline float sig_DelayLine_allpassReadAt(
     struct sig_DelayLine* self, float readPos,
-    float previousSample) {
-    size_t maxDelayLength = self->buffer->length;
-    float* delayLineSamples = self->buffer->samples;
-    int32_t integ = (int32_t) readPos;
-    float frac = readPos - (float) integ;
-    float invFrac = 1.0f - frac;
-    float a = delayLineSamples[(self->writeIdx + integ) % maxDelayLength];
-    float b = delayLineSamples[(self->writeIdx + integ + 1) % maxDelayLength];
+    float previousSample);
 
-    return b + invFrac * a - invFrac * previousSample;
-}
-
-#define sig_DelayLine_readAtTime_IMPL(self, source, tapTime,\
-    sampleRate, readFn)\
-    float sample;\
-    if (tapTime <= 0.0f) {\
-        sample = source;\
-    } else {\
-        float readPos = tapTime * sampleRate;\
-        float maxDelayLength = (float) self->buffer->length;\
-        if (readPos >= maxDelayLength) {\
-            readPos = maxDelayLength - 1;\
-        }\
-        sample = readFn(self, readPos);\
-    }\
-    return sample
 
 extern inline float sig_DelayLine_readAtTime(
     struct sig_DelayLine* self, float source,
-    float tapTime, float sampleRate) {
-    sig_DelayLine_readAtTime_IMPL(self, source, tapTime, sampleRate,
-        sig_DelayLine_readAt);
-}
+    float tapTime, float sampleRate);
 
 extern inline float sig_DelayLine_linearReadAtTime(
     struct sig_DelayLine* self, float source, float tapTime,
-    float sampleRate) {
-    sig_DelayLine_readAtTime_IMPL(self, source, tapTime, sampleRate,
-        sig_DelayLine_linearReadAt);
-}
+    float sampleRate);
 
 extern inline float sig_DelayLine_cubicReadAtTime(
     struct sig_DelayLine* self, float source, float tapTime,
-    float sampleRate) {
-    sig_DelayLine_readAtTime_IMPL(self, source, tapTime, sampleRate,
-        sig_DelayLine_cubicReadAt);
-}
+    float sampleRate);
 
 extern inline float sig_DelayLine_allpassReadAtTime(
     struct sig_DelayLine* self, float source, float tapTime,
-    float sampleRate, float previousSample) {
-    // TODO: Cut and pasted from the sig_DelayLine_readAtTime_IMPL macro above.
-    float sample;
-    if (tapTime <= 0.0f) {
-        sample = source;
-    } else {
-        float readPos = tapTime * sampleRate;
-        float maxDelayLength = (float) self->buffer->length;
-        if (readPos >= maxDelayLength) {
-            readPos = maxDelayLength - 1;
-        }
-        sample = sig_DelayLine_allpassReadAt(self, readPos, previousSample);
-    }
+    float sampleRate, float previousSample);
 
-    return sample;
-}
-
-#define sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,\
-    tapGains, numTaps, sampleRate, timeScale, readFn)\
-    const float* SIG_RESTRICT restrictTapTimes = FLOAT_ARRAY(tapTimes);\
-    const float* SIG_RESTRICT restrictTapGains = FLOAT_ARRAY(tapGains);\
-    float tapSum = 0;\
-    for (size_t i = 0; i < numTaps; i++) {\
-        float tapTime = restrictTapTimes[i];\
-        float scaledTapTime = tapTime * timeScale;\
-        float gain = restrictTapGains[i];\
-        float sample;\
-        if (tapTime <= 0.0f) {\
-            sample = source;\
-        } else {\
-            float readPos = scaledTapTime * sampleRate;\
-            float maxDelayLength = (float) self->buffer->length;\
-            if (readPos >= maxDelayLength) {\
-                readPos = maxDelayLength - 1;\
-            }\
-            sample = readFn(self, readPos);\
-        }\
-        tapSum += sample * gain;\
-    }\
-    return tapSum
 
 extern inline float sig_DelayLine_readAtTimes(
     struct sig_DelayLine* self, float source,
     float_array_ptr SIG_RESTRICT tapTimes,
     float_array_ptr SIG_RESTRICT tapGains,
-    size_t numTaps, float sampleRate, float timeScale) {
-    sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,
-        tapGains, numTaps, sampleRate, timeScale, sig_DelayLine_readAt);
-}
+    size_t numTaps, float sampleRate, float timeScale);
 
 extern inline float sig_DelayLine_linearReadAtTimes(
     struct sig_DelayLine* self, float source,
     float_array_ptr SIG_RESTRICT tapTimes,
     float_array_ptr SIG_RESTRICT tapGains,
-    size_t numTaps, float sampleRate, float timeScale) {
-    sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,
-        tapGains, numTaps, sampleRate, timeScale, sig_DelayLine_linearReadAt);
-}
+    size_t numTaps, float sampleRate, float timeScale);
 
 extern inline float sig_DelayLine_cubicReadAtTimes(
     struct sig_DelayLine* self, float source,
     float_array_ptr SIG_RESTRICT tapTimes,
     float_array_ptr SIG_RESTRICT tapGains,
-    size_t numTaps, float sampleRate, float timeScale) {
-    sig_DelayLine_readAtTimes_IMPL(self, source, tapTimes,
-        tapGains, numTaps, sampleRate, timeScale, sig_DelayLine_cubicReadAt);
-}
+    size_t numTaps, float sampleRate, float timeScale);
 
 extern inline void sig_DelayLine_write(struct sig_DelayLine* self,
-    float sample) {
-    size_t maxDelayLength = self->buffer->length;
-    FLOAT_ARRAY(self->buffer->samples)[self->writeIdx] = sample;
-    self->writeIdx = (self->writeIdx - 1 + maxDelayLength) % maxDelayLength;
-}
+    float sample);
 
 extern inline float sig_DelayLine_calcFeedbackGain(float delayTime,
-    float decayTime) {
-    // Convert 60dB time in secs to feedback gain (g) coefficient
-    // (also why is the equation in Dodge and Jerse wrong?)
-    if (delayTime <= 0.0f || decayTime <= 0.0f) {
-        return 0.0f;
-    }
-
-    return expf(sig_LOG0_001 * delayTime / decayTime);
-}
+    float decayTime);
 
 extern inline float sig_DelayLine_feedback(float sample,
-    float read, float g) {
-    return sample + (g * read);
-}
+    float read, float g);
 
-#define sig_DelayLine_comb_IMPL(self, sample, readPos, g, readFn) \
-    float read = readFn(self, readPos); \
-    float toWrite = sig_DelayLine_feedback(sample, read, g); \
-    sig_DelayLine_write(self, toWrite); \
-    return read
 
 extern inline float sig_DelayLine_comb(struct sig_DelayLine* self,
-    float sample, size_t readPos, float g) {
-    sig_DelayLine_comb_IMPL(self, sample, readPos, g, sig_DelayLine_readAt);
-}
+    float sample, size_t readPos, float g);
 
 extern inline float sig_DelayLine_linearComb(
     struct sig_DelayLine* self, float sample, float readPos,
-    float g) {
-    sig_DelayLine_comb_IMPL(self, sample, readPos, g,
-        sig_DelayLine_linearReadAt);
-}
+    float g);
 
 extern inline float sig_DelayLine_cubicComb(
     struct sig_DelayLine* self, float sample, float readPos,
-    float g) {
-    sig_DelayLine_comb_IMPL(self, sample, readPos, g,
-        sig_DelayLine_cubicReadAt);
-}
-
-#define sig_DelayLine_allpass_IMPL(self, sample, readPos, g,\
-    readFn) \
-    float read = readFn(self, readPos); \
-    float toWrite = sample + (g * read); \
-    sig_DelayLine_write(self, toWrite); \
-    return read - (g * toWrite) \
+    float g);
 
 extern inline float sig_DelayLine_allpass(
     struct sig_DelayLine* self, float sample, size_t readPos,
-    float g) {
-    sig_DelayLine_allpass_IMPL(self, sample, readPos, g, sig_DelayLine_readAt);
-}
+    float g);
 
 extern inline float sig_DelayLine_linearAllpass(
     struct sig_DelayLine* self, float sample, float readPos,
-    float g) {
-    sig_DelayLine_allpass_IMPL(self, sample, readPos, g,
-        sig_DelayLine_linearReadAt);
-}
+    float g);
 
 extern inline float sig_DelayLine_cubicAllpass(
     struct sig_DelayLine* self, float sample, float readPos,
-    float g) {
-    sig_DelayLine_allpass_IMPL(self, sample, readPos, g,
-        sig_DelayLine_cubicReadAt);
-}
+    float g);
 
 void sig_DelayLine_destroy(struct sig_Allocator* allocator,
     struct sig_DelayLine* self) {
@@ -1468,22 +1095,12 @@ void sig_DelayLine_destroy(struct sig_Allocator* allocator,
 }
 
 extern inline float sig_linearXFade(float left, float right,
-    float mix) {
-    float clipped = sig_clamp(mix, -1.0f, 1.0f);
-    // At -1.0f, left gain should be 1.0 and right gain should be 0.0;
-    // at 0.0, left and right gains should be 0.5;
-    // At 1.0 left gain should be 0.0f and right gain should be 1.0.
-    float gain = clipped * 0.5f + 0.5f;
-    float sample = left + gain * (right - left);
-
-    return sample;
-}
+    float mix);
 
 extern inline float sig_sineWavefolder(float x, float gain,
-    float factor) {
-    float sample = x + gain * sinf(factor * x);
-    return sample;
-}
+    float factor);
+
+extern inline float sig_softClip(float x, float threshold);
 
 void sig_dsp_Signal_init(void* signal,
     struct sig_SignalContext* context,
@@ -1670,7 +1287,6 @@ void sig_dsp_Abs_destroy(struct sig_Allocator* allocator,
 }
 
 
-
 struct sig_dsp_Clamp* sig_dsp_Clamp_new(
     struct sig_Allocator* allocator,
     struct sig_SignalContext* context) {
@@ -1712,7 +1328,6 @@ void sig_dsp_Clamp_destroy(struct sig_Allocator* allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, (void*) self);
 }
-
 
 
 struct sig_dsp_ScaleOffset* sig_dsp_ScaleOffset_new(
@@ -1858,7 +1473,6 @@ void sig_dsp_Add_destroy(struct sig_Allocator* allocator,
 }
 
 
-
 struct sig_dsp_BinaryOp* sig_dsp_Sub_new(
     struct sig_Allocator* allocator,
     struct sig_SignalContext* context) {
@@ -1887,7 +1501,6 @@ void sig_dsp_Sub_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_BinaryOp* self) {
     sig_dsp_BinaryOp_destroy(allocator, self);
 }
-
 
 
 struct sig_dsp_BinaryOp* sig_dsp_Mul_new(
@@ -2537,7 +2150,6 @@ void sig_dsp_WavetableOscillator_destroy(
 }
 
 
-
 void sig_dsp_WavetableBankOscillator_init(
     struct sig_dsp_WavetableBankOscillator* self,
     struct sig_SignalContext* context) {
@@ -2765,7 +2377,6 @@ void sig_dsp_DCBlock_destroy(struct sig_Allocator* allocator,
 }
 
 
-
 void sig_dsp_OnePole_init(struct sig_dsp_OnePole* self,
     struct sig_SignalContext* context) {
     sig_dsp_Signal_init(self, context, *sig_dsp_OnePole_generate);
@@ -2841,7 +2452,6 @@ void sig_dsp_OnePole_destroy(struct sig_Allocator* allocator,
 }
 
 
-
 void sig_dsp_EMA_init(struct sig_dsp_EMA* self,
     struct sig_SignalContext* context) {
     sig_dsp_Signal_init(self, context, *sig_dsp_EMA_generate);
@@ -2887,7 +2497,6 @@ void sig_dsp_EMA_destroy(struct sig_Allocator* allocator,
 }
 
 
-
 void sig_dsp_Tanh_init(struct sig_dsp_Tanh* self,
     struct sig_SignalContext* context) {
     sig_dsp_Signal_init(self, context, *sig_dsp_Tanh_generate);
@@ -2920,6 +2529,48 @@ void sig_dsp_Tanh_generate(void* signal) {
 
 void sig_dsp_Tanh_destroy(struct sig_Allocator* allocator,
     struct sig_dsp_Tanh* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, self);
+}
+
+
+void sig_dsp_SoftClip_init(struct sig_dsp_SoftClip* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_SoftClip_generate);
+
+    self->parameters.threshold = 0.8f;
+
+    sig_CONNECT_TO_SILENCE(self, source, context);
+}
+
+struct sig_dsp_SoftClip* sig_dsp_SoftClip_new(
+    struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
+    struct sig_dsp_SoftClip* self = sig_MALLOC(allocator,
+        struct sig_dsp_SoftClip);
+    sig_dsp_SoftClip_init(self, context);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_dsp_SoftClip_generate(void* signal) {
+    struct sig_dsp_SoftClip* self = (struct sig_dsp_SoftClip*) signal;
+    const float threshold = self->parameters.threshold;
+
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+
+    for (size_t i = 0; i < blockSize; i++) {
+        out[i] = sig_softClip(in[i], threshold);
+    }
+}
+
+void sig_dsp_SoftClip_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_SoftClip* self) {
     sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
@@ -3294,7 +2945,6 @@ void sig_dsp_ClockSource_destroy(struct sig_Allocator* allocator,
 }
 
 
-
 void sig_dsp_ClockDetector_Outputs_newAudioBlocks(
     struct sig_Allocator* allocator,
     struct sig_AudioSettings* audioSettings,
@@ -3417,7 +3067,6 @@ void sig_dsp_ClockDetector_destroy(struct sig_Allocator* allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
 }
-
 
 
 struct sig_dsp_LinearToFreq* sig_dsp_LinearToFreq_new(
@@ -3616,7 +3265,6 @@ void sig_dsp_List_destroy(struct sig_Allocator* allocator,
 }
 
 
-
 void sig_dsp_Sequencer_Outputs_newAudioBlocks(
     struct sig_Allocator* allocator,
     struct sig_AudioSettings* audioSettings,
@@ -3722,7 +3370,6 @@ void sig_dsp_Sequencer_destroy(struct sig_Allocator* allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
 }
-
 
 
 struct sig_dsp_LinearMap* sig_dsp_LinearMap_new(
@@ -3875,13 +3522,13 @@ void sig_dsp_TwoOpFM_destroy(struct sig_Allocator* allocator,
 }
 
 
-
 void sig_dsp_FourPoleFilter_Outputs_newAudioBlocks(
     struct sig_Allocator* allocator,
     struct sig_AudioSettings* audioSettings,
     struct sig_dsp_FourPoleFilter_Outputs* outputs) {
     outputs->main = sig_AudioBlock_newSilent(allocator, audioSettings);
     outputs->twoPole = sig_AudioBlock_newSilent(allocator, audioSettings);
+    outputs->fourPole = sig_AudioBlock_newSilent(allocator, audioSettings);
 }
 
 void sig_dsp_FourPoleFilter_Outputs_destroyAudioBlocks(
@@ -3889,6 +3536,7 @@ void sig_dsp_FourPoleFilter_Outputs_destroyAudioBlocks(
     struct sig_dsp_FourPoleFilter_Outputs* outputs) {
     sig_AudioBlock_destroy(allocator, outputs->main);
     sig_AudioBlock_destroy(allocator, outputs->twoPole);
+    sig_AudioBlock_destroy(allocator, outputs->fourPole);
 }
 
 
@@ -3914,17 +3562,8 @@ void sig_dsp_Ladder_init(
     };
     self->parameters = parameters;
 
-    self->interpolation = 4;
-    self->interpolationRecip = 1.0f / self->interpolation;
-    self->alpha = 1.0f;
-    self->beta[0] = self->beta[1] = self->beta[2] = self->beta[3] = 0.0f;
-    self->z0[0] = self->z0[1] = self->z0[2] = self->z0[3] = 0.0f;
-    self->z1[0] = self->z1[1] = self->z1[2] = self->z1[3] = 0.0f;
-    self->k = 1.0f;
-    self->fBase = 1000.0f;
-    self->qAdjust = 1.0f;
-    self->prevFrequency = -1.0f;
-    self->prevInput = 0.0f;
+    sig_filter_Ladder_init(&self->state, 4);
+    self->previousFrequency = -1.0f;
 
     sig_CONNECT_TO_SILENCE(self, source, context);
     sig_CONNECT_TO_SILENCE(self, frequency, context);
@@ -3936,32 +3575,11 @@ void sig_dsp_Ladder_init(
     sig_CONNECT_TO_UNITY(self, pole4Gain, context);
 }
 
-extern inline void sig_dsp_Ladder_calcCoefficients(
-    struct sig_dsp_Ladder* self, float freq) {
-    float sampleRate = self->signal.audioSettings->sampleRate;
-    freq = sig_clamp(freq, 5.0f, sampleRate * 0.425f);
-    float wc = freq * (float) (sig_TWOPI /
-        ((float)self->interpolation * sampleRate));
-    float wc2 = wc * wc;
-    self->alpha = 0.9892f * wc - 0.4324f *
-        wc2 + 0.1381f * wc * wc2 - 0.0202f * wc2 * wc2;
-    self->qAdjust = 1.006f + 0.0536f * wc - 0.095f * wc2 - 0.05f * wc2 * wc2;
-}
-
-extern inline float sig_dsp_Ladder_calcStage(
-    struct sig_dsp_Ladder* self, float s, uint8_t i) {
-    float ft = s * (1.0f/1.3f) + (0.3f/1.3f) * self->z0[i] - self->z1[i];
-    ft = ft * self->alpha + self->z1[i];
-    self->z1[i] = ft;
-    self->z0[i] = s;
-    return ft;
-}
-
 void sig_dsp_Ladder_generate(void* signal) {
-    struct sig_dsp_Ladder* self =
-        (struct sig_dsp_Ladder*) signal;
+    struct sig_dsp_Ladder* self = (struct sig_dsp_Ladder*) signal;
     const size_t blockSize = self->signal.audioSettings->blockSize;
-    const float interpolationRecip = self->interpolationRecip;
+    const float sampleRate = self->signal.audioSettings->sampleRate;
+    const float passbandGain = self->parameters.passbandGain;
     float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
     float* SIG_RESTRICT twoPoleOut = FLOAT_ARRAY(self->outputs.twoPole);
     float* SIG_RESTRICT fourPoleOut = FLOAT_ARRAY(self->outputs.fourPole);
@@ -3975,45 +3593,26 @@ void sig_dsp_Ladder_generate(void* signal) {
     const float* SIG_RESTRICT pole4GainIn = FLOAT_ARRAY(self->inputs.pole4Gain);
 
     for (size_t i = 0; i < blockSize; i++) {
-        float input = in[i];
         float frequency = freqIn[i];
-        float resonance = resIn[i];
-        float totals[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-        float interp = 0.0f;
 
         // Recalculate coefficients if the frequency has changed.
-        if (frequency != self->prevFrequency) {
-            sig_dsp_Ladder_calcCoefficients(self, frequency);
-            self->prevFrequency = frequency;
+        if (frequency != self->previousFrequency) {
+            sig_filter_Ladder_calculateCoefficients(&self->state, frequency,
+                sampleRate);
+            self->previousFrequency = frequency;
         }
 
-        self->k = 4.0f * resonance;
-
-        for (size_t os = 0; os < self->interpolation; os++) {
-            float inInterp = interp * self->prevInput + (1.0f - interp) * input;
-            float u = inInterp - (self->z1[3] - self->parameters.passbandGain *
-                inInterp) * self->k * self->qAdjust;
-            u = sig_fastTanhf(u);
-            totals[0] = u;
-            float stage1 = sig_dsp_Ladder_calcStage(self, u, 0);
-            totals[1] += stage1 * interpolationRecip;
-            float stage2 = sig_dsp_Ladder_calcStage(self, stage1, 1);
-            totals[2] += stage2 * interpolationRecip;
-            float stage3 = sig_dsp_Ladder_calcStage(self, stage2, 2);
-            totals[3] += stage3 * interpolationRecip;
-            float stage4 = sig_dsp_Ladder_calcStage(self, stage3, 3);
-            totals[4] += stage4 * interpolationRecip;
-            interp += interpolationRecip;
-        }
-        self->prevInput = input;
+        struct sig_filter_Ladder_Taps taps;
+        sig_filter_Ladder_generate(&self->state, in[i], resIn[i],
+            passbandGain, &taps);
         out[i] =
-            (totals[0] * inputGainIn[i]) +
-            (totals[1] * pole1GainIn[i]) +
-            (totals[2] * pole2GainIn[i]) +
-            (totals[3] * pole3GainIn[i]) +
-            (totals[4] * pole4GainIn[i]);
-        twoPoleOut[i] = totals[2];
-        fourPoleOut[i] = totals[4];
+            (taps.input * inputGainIn[i]) +
+            (taps.pole1 * pole1GainIn[i]) +
+            (taps.pole2 * pole2GainIn[i]) +
+            (taps.pole3 * pole3GainIn[i]) +
+            (taps.pole4 * pole4GainIn[i]);
+        twoPoleOut[i] = taps.pole2;
+        fourPoleOut[i] = taps.pole4;
     }
 }
 
@@ -4023,7 +3622,6 @@ void sig_dsp_Ladder_destroy(struct sig_Allocator* allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
 }
-
 
 
 struct sig_dsp_TiltEQ* sig_dsp_TiltEQ_new(
@@ -4099,6 +3697,158 @@ void sig_dsp_TiltEQ_destroy(struct sig_Allocator* allocator,
 }
 
 
+void sig_dsp_SVF_Outputs_newAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_AudioSettings* audioSettings,
+    struct sig_dsp_SVF_Outputs* outputs) {
+    outputs->low = sig_AudioBlock_newSilent(allocator, audioSettings);
+    outputs->band = sig_AudioBlock_newSilent(allocator, audioSettings);
+    outputs->high = sig_AudioBlock_newSilent(allocator, audioSettings);
+    outputs->notch = sig_AudioBlock_newSilent(allocator, audioSettings);
+    outputs->peak = sig_AudioBlock_newSilent(allocator, audioSettings);
+    outputs->all = sig_AudioBlock_newSilent(allocator, audioSettings);
+}
+
+void sig_dsp_SVF_Outputs_destroyAudioBlocks(
+    struct sig_Allocator* allocator,
+    struct sig_dsp_SVF_Outputs* outputs) {
+    sig_AudioBlock_destroy(allocator, outputs->low);
+    sig_AudioBlock_destroy(allocator, outputs->band);
+    sig_AudioBlock_destroy(allocator, outputs->high);
+    sig_AudioBlock_destroy(allocator, outputs->notch);
+    sig_AudioBlock_destroy(allocator, outputs->peak);
+    sig_AudioBlock_destroy(allocator, outputs->all);
+}
+
+// Updates a state variable filter node's coefficients when either of its
+// control inputs has changed since the previous sample.
+static inline void sig_dsp_SVF_updateCoefficients(struct sig_filter_SVF* state,
+    float frequency, float resonance, float sampleRate,
+    float* previousFrequency, float* previousResonance) {
+    if (frequency != *previousFrequency || resonance != *previousResonance) {
+        sig_filter_SVF_calculateCoefficients(state, frequency, resonance,
+            sampleRate);
+        *previousFrequency = frequency;
+        *previousResonance = resonance;
+    }
+}
+
+struct sig_dsp_SVF* sig_dsp_SVF_new(struct sig_Allocator* allocator,
+    struct sig_SignalContext* context) {
+    struct sig_dsp_SVF* self = sig_MALLOC(allocator, struct sig_dsp_SVF);
+    sig_dsp_SVF_init(self, context);
+    sig_dsp_SVF_Outputs_newAudioBlocks(allocator, context->audioSettings,
+        &self->outputs);
+
+    return self;
+}
+
+void sig_dsp_SVF_init(struct sig_dsp_SVF* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_SVF_generate);
+    sig_filter_SVF_init(&self->state);
+    self->previousFrequency = -1.0f;
+    self->previousResonance = -1.0f;
+
+    sig_CONNECT_TO_SILENCE(self, source, context);
+    sig_CONNECT_TO_SILENCE(self, frequency, context);
+    sig_CONNECT_TO_SILENCE(self, resonance, context);
+}
+
+void sig_dsp_SVF_generate(void* signal) {
+    struct sig_dsp_SVF* self = (struct sig_dsp_SVF*) signal;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float sampleRate = self->signal.audioSettings->sampleRate;
+    float* SIG_RESTRICT lowOut = FLOAT_ARRAY(self->outputs.low);
+    float* SIG_RESTRICT bandOut = FLOAT_ARRAY(self->outputs.band);
+    float* SIG_RESTRICT highOut = FLOAT_ARRAY(self->outputs.high);
+    float* SIG_RESTRICT notchOut = FLOAT_ARRAY(self->outputs.notch);
+    float* SIG_RESTRICT peakOut = FLOAT_ARRAY(self->outputs.peak);
+    float* SIG_RESTRICT allOut = FLOAT_ARRAY(self->outputs.all);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    const float* SIG_RESTRICT freqIn = FLOAT_ARRAY(self->inputs.frequency);
+    const float* SIG_RESTRICT resIn = FLOAT_ARRAY(self->inputs.resonance);
+
+    for (size_t i = 0; i < blockSize; i++) {
+        float frequency = freqIn[i];
+        float resonance = resIn[i];
+
+        sig_dsp_SVF_updateCoefficients(&self->state, frequency, resonance,
+            sampleRate, &self->previousFrequency, &self->previousResonance);
+
+        struct sig_filter_SVF_Taps taps;
+        sig_filter_SVF_generate(&self->state, in[i], &taps);
+        float k = self->state.k;
+        float input = taps.input;
+        float band = taps.band;
+        float low = taps.low;
+        lowOut[i] = low;
+        bandOut[i] = band;
+        highOut[i] = sig_filter_svf_highPass(input, band, low, k);
+        notchOut[i] = sig_filter_svf_notch(input, band, low, k);
+        peakOut[i] = sig_filter_svf_peak(input, band, low, k);
+        allOut[i] = sig_filter_svf_allPass(input, band, low, k);
+    }
+}
+
+void sig_dsp_SVF_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_SVF* self) {
+    sig_dsp_SVF_Outputs_destroyAudioBlocks(allocator, &self->outputs);
+    sig_dsp_Signal_destroy(allocator, self);
+}
+
+struct sig_dsp_SVFLowPass* sig_dsp_SVFLowPass_new(
+    struct sig_Allocator* allocator, struct sig_SignalContext* context) {
+    struct sig_dsp_SVFLowPass* self = sig_MALLOC(allocator,
+        struct sig_dsp_SVFLowPass);
+    sig_dsp_SVFLowPass_init(self, context);
+    sig_dsp_Signal_SingleMonoOutput_newAudioBlocks(allocator,
+        context->audioSettings, &self->outputs);
+
+    return self;
+}
+
+void sig_dsp_SVFLowPass_init(struct sig_dsp_SVFLowPass* self,
+    struct sig_SignalContext* context) {
+    sig_dsp_Signal_init(self, context, *sig_dsp_SVFLowPass_generate);
+    sig_filter_SVF_init(&self->state);
+    self->previousFrequency = -1.0f;
+    self->previousResonance = -1.0f;
+
+    sig_CONNECT_TO_SILENCE(self, source, context);
+    sig_CONNECT_TO_SILENCE(self, frequency, context);
+    sig_CONNECT_TO_SILENCE(self, resonance, context);
+}
+
+void sig_dsp_SVFLowPass_generate(void* signal) {
+    struct sig_dsp_SVFLowPass* self = (struct sig_dsp_SVFLowPass*) signal;
+    const size_t blockSize = self->signal.audioSettings->blockSize;
+    const float sampleRate = self->signal.audioSettings->sampleRate;
+    float* SIG_RESTRICT out = FLOAT_ARRAY(self->outputs.main);
+    const float* SIG_RESTRICT in = FLOAT_ARRAY(self->inputs.source);
+    const float* SIG_RESTRICT freqIn = FLOAT_ARRAY(self->inputs.frequency);
+    const float* SIG_RESTRICT resIn = FLOAT_ARRAY(self->inputs.resonance);
+
+    for (size_t i = 0; i < blockSize; i++) {
+        float frequency = freqIn[i];
+        float resonance = resIn[i];
+
+        sig_dsp_SVF_updateCoefficients(&self->state, frequency, resonance,
+            sampleRate, &self->previousFrequency, &self->previousResonance);
+
+        struct sig_filter_SVF_Taps taps;
+        sig_filter_SVF_generate(&self->state, in[i], &taps);
+        out[i] = taps.low;
+    }
+}
+
+void sig_dsp_SVFLowPass_destroy(struct sig_Allocator* allocator,
+    struct sig_dsp_SVFLowPass* self) {
+    sig_dsp_Signal_SingleMonoOutput_destroyAudioBlocks(allocator,
+        &self->outputs);
+    sig_dsp_Signal_destroy(allocator, self);
+}
+
 
 struct sig_dsp_Delay* sig_dsp_Delay_new(
     struct sig_Allocator* allocator,
@@ -4161,7 +3911,6 @@ void sig_dsp_Delay_destroy(struct sig_Allocator* allocator,
 }
 
 
-
 struct sig_dsp_Delay* sig_dsp_DelayTap_new(
     struct sig_Allocator* allocator,
     struct sig_SignalContext* context) {
@@ -4211,7 +3960,6 @@ void sig_dsp_DelayTap_destroy(struct sig_Allocator* allocator,
 }
 
 
-
 struct sig_dsp_DelayWrite* sig_dsp_DelayWrite_new(
     struct sig_Allocator* allocator,
     struct sig_SignalContext* context) {
@@ -4253,7 +4001,6 @@ void sig_dsp_DelayWrite_destroy(struct sig_Allocator* allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
 }
-
 
 
 // TODO: Resolve duplication with sig_dsp_Delay
@@ -4323,7 +4070,6 @@ void sig_dsp_Comb_destroy(struct sig_Allocator* allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
 }
-
 
 
 // TODO: Resolve duplication with sig_dsp_Delay and Comb
@@ -4499,7 +4245,6 @@ void sig_dsp_Chorus_destroy(struct sig_Allocator* allocator,
 }
 
 
-
 struct sig_dsp_LinearXFade* sig_dsp_LinearXFade_new(
     struct sig_Allocator* allocator,
     struct sig_SignalContext* context) {
@@ -4540,7 +4285,6 @@ void sig_dsp_LinearXFade_destroy(struct sig_Allocator* allocator,
         &self->outputs);
     sig_dsp_Signal_destroy(allocator, self);
 }
-
 
 
 struct sig_dsp_Calibrator* sig_dsp_Calibrator_new(

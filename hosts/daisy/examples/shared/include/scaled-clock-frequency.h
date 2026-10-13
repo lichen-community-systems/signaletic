@@ -9,7 +9,8 @@ struct sig_dsp_ScaledClockFrequency_Inputs {
 };
 
 /**
- * @brief Tracks the frequency of a clock signal applies a scaling factor it.
+ * @brief Tracks the frequency of a clock signal and applies a scaling
+ * factor to it.
  *
  * Inputs:
  *  - clock: the clock pulses to measure

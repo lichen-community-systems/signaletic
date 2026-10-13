@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 
 # Build Web Assembly version of Signaletic
 cd libsignaletic

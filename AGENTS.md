@@ -35,7 +35,25 @@ Signaletic has three layers, and each layer has its own naming form:
 
 ### Inline functions
 
-Declare a small function that benefits from inlining with a plain declaration in the header, and define it with `extern inline` in `libsignaletic.c`, as `sig_filter_onepole` does. The compiler can then inline calls within `libsignaletic.c`, and other files link to the single exported definition. This pattern requires C99 or later inline semantics.
+Define small layer 1 and layer 2 functions as inline so that the compiler can inline calls to them from any file. For example, like `sig_filter_onepole` does:
+
+1. Declare the function with `inline` and document it in `libsignaletic.h` above the function defintions section.
+2. Define the function body with `inline` in `libsignaletic.h` below the section-header banner that marks the inline definitions. Every function definition follows every declaration, so a function can call any declared function.
+3. Declare the function with `extern inline`, without a body, in `libsignaletic.c`.
+
+The `extern inline` declaration makes `libsignaletic.c` contain the function's only external definition. Callers use the external definition when the compiler does not inline a call, such as at `-O0`. No other file may declare an inline function with `extern`.
+
+Every declaration of an inline function in `libsignaletic.h` must include `inline`. If one declaration omits it, every file that includes the header contains an external definition, and linking fails with duplicate symbols.
+
+An inline function's body must be compileable as both C99 and C++14:
+
+- Cast `float_array_ptr` values with `FLOAT_ARRAY`. The WASM build defines `float_array_ptr` as `void*`, which C++ does not convert implicitly.
+- Refer only to functions, objects, and macros provided by `libsignaletic.h`. C99 does not allow an inline definition to refer to an identifier declared `static`, so define constants that are used by inline functions as macros.
+- Do not define `static` variables.
+
+Layer 3 functions, and helpers called only from `libsignaletic.c` can instead have a plain declaration in `libsignaletic.h` and an `extern inline` definition in `libsignaletic.c`. The compiler can then inline them within `libsignaletic.c` only.
+
+This pattern requires C99 or later inline semantics. Do not compile Signaletic with `-std=gnu89` or `-fgnu89-inline`.
 
 ### Block processing
 
@@ -47,7 +65,7 @@ In `_generate` functions and other functions that process a block of samples, co
 - Document every struct and struct member with a Doxygen comment that opens with an `@brief` tag. The `@brief` sentence summarises what the struct or member represents. Constraints, units, and notes follow it.
 - Start the text of a Doxygen comment on the line after `/**`, and leave a blank line after the `@brief` sentence.
 - Put a struct member's comment on the line above the member. Do not use trailing `/**<` comments.
-- Describe what a struct or function does in its doc comment in the header. Do not add section-header comments. A blank line is enough to separate functions.
+- Describe what a struct or function does in its doc comment in the header. Do not add section-header comments. A blank line is enough to separate functions. The one exception is the banner in `libsignaletic.h` that marks where the inline function definitions begin.
 - Write all other comments with `//`. Use `/* ... */` only for a comment inside an expression, such as `(1u << 24) /* FZ */`.
 
 ## Test-driven method

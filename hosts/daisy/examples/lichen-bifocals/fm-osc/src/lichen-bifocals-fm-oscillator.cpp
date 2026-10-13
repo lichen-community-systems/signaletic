@@ -1,7 +1,6 @@
 #include <libsignaletic.h>
 #include "../../../../include/lichen-bifocals-device.hpp"
 #include "../../../shared/include/summed-cv-in.h"
-#include "../../../shared/include/bifocals-ladder.h"
 
 using namespace lichen::bifocals;
 using namespace sig::libdaisy;
@@ -28,8 +27,11 @@ using namespace sig::libdaisy;
 #define MAX_HARMONIC_FREQUENCY 1500.0f
 
 #define LOW_PASS_FREQUENCY 300.0f
-#define LOW_PASS_RESONANCE 0.3f
+// The state variable filter's resonance ranges from 0.0 to 1.0.
+// A resonance of 0.293 gives a maximally flat response with a Q of 0.707.
+#define LOW_PASS_RESONANCE 0.293f
 #define DC_BLOCK_FREQUENCY 0.15f
+#define SOFT_CLIP_THRESHOLD 0.8f
 
 uint8_t memory[HEAP_SIZE];
 struct sig_AllocatorHeap heap = {
@@ -103,17 +105,16 @@ struct sig_host_AudioIn* audioIn;
 struct sig_host_SummedCVIn* phaseModulationAmountIn;
 struct sig_dsp_Smooth* phaseModulationAmount;
 struct sig_dsp_BinaryOp* externalPhaseModulation;
-struct sig_host_SummedCVIn* waveform;
+struct sig_host_SummedCVIn* waveformIn;
+struct sig_dsp_Smooth* waveform;
 struct sig_dsp_WavetableOscillator* sineModulator;
 struct sig_dsp_AdditiveWavetableBankOscillator* waveformCarrier;
 struct sig_dsp_AdditiveWavetableBankOscillator* waveformModulator;
 struct sig_dsp_WavetableOscillator* sineCarrier;
-struct sig_dsp_LinearMap* wavefolderFactor;
-struct sig_dsp_LinearMap* wavefolderGain;
 struct sig_dsp_ConstantValue* lowPassFrequency;
 struct sig_dsp_ConstantValue* lowPassResonance;
-struct sig_dsp_BifocalsLadder* leftFilter;
-struct sig_dsp_BifocalsLadder* rightFilter;
+struct sig_dsp_SVFLowPass* leftLowPass;
+struct sig_dsp_SVFLowPass* rightLowPass;
 struct sig_dsp_DCBlock* leftDCBlocker;
 struct sig_dsp_DCBlock* rightDCBlocker;
 struct sig_host_AudioOut* leftOut;
@@ -264,18 +265,24 @@ void buildModulationGraph(struct sig_SignalContext* context,
     externalPhaseModulation->inputs.right = phaseModulationAmount->outputs.main;
 
     // The wavetable index can wrap around.
-    // The knob spans the full bank, whle CV can push it past either end,
+    // The knob spans the full bank, while CV can push it past either end,
     // crossfading between the last waveform and the first.
     float lastWaveform = sig_osc_WavetableBank_tableIndex(
         sig_StandardWaveform_REVERSE_SAW, sig_StandardWaveform_COUNT);
 
-    waveform = sig_host_SummedCVIn_new(&allocator, context);
-    waveform->hardware = &host.device.hardware;
+    waveformIn = sig_host_SummedCVIn_new(&allocator, context);
+    waveformIn->hardware = &host.device.hardware;
+    sig_List_append(&signals, waveformIn, status);
+    waveformIn->leftCVIn->parameters.control = sig_host_KNOB_3;
+    waveformIn->rightCVIn->parameters.control = sig_host_CV_IN_5;
+    waveformIn->leftCVIn->parameters.scale = lastWaveform;
+    waveformIn->rightCVIn->parameters.scale = lastWaveform;
+
+    // Smooth out steps and ADC noise that cause zipper noise when crossfading the waveform.
+    waveform = sig_dsp_Smooth_new(&allocator, context);
     sig_List_append(&signals, waveform, status);
-    waveform->leftCVIn->parameters.control = sig_host_KNOB_3;
-    waveform->rightCVIn->parameters.control = sig_host_CV_IN_5;
-    waveform->leftCVIn->parameters.scale = lastWaveform;
-    waveform->rightCVIn->parameters.scale = lastWaveform;
+    waveform->inputs.source = waveformIn->outputs.main;
+    waveform->parameters.time = 0.02f;
 }
 
 // First output: carrier is the selected waveform, modulator is a sine.
@@ -317,50 +324,16 @@ void buildWaveformModulatorVoice(struct sig_SignalContext* context,
     sineCarrier->inputs.phaseOffset = waveformModulator->outputs.main;
 }
 
-struct sig_dsp_BifocalsLadder* buildFilter(struct sig_SignalContext* context,
+struct sig_dsp_SVFLowPass* buildLowPass(struct sig_SignalContext* context,
     struct sig_Status* status, float_array_ptr source) {
-    struct sig_dsp_BifocalsLadder* filter = sig_dsp_BifocalsLadder_new(
-        &allocator, context);
-    sig_List_append(&signals, filter, status);
-    filter->parameters.passbandGain = 0.5f;
-    filter->inputs.source = source;
-    filter->inputs.frequency = lowPassFrequency->outputs.main;
-    filter->inputs.resonance = lowPassResonance->outputs.main;
-    filter->inputs.wavefolderGain = wavefolderGain->outputs.main;
-    filter->inputs.wavefolderFactor = wavefolderFactor->outputs.main;
+    struct sig_dsp_SVFLowPass* lowPass = sig_dsp_SVFLowPass_new(&allocator,
+        context);
+    sig_List_append(&signals, lowPass, status);
+    lowPass->inputs.source = source;
+    lowPass->inputs.frequency = lowPassFrequency->outputs.main;
+    lowPass->inputs.resonance = lowPassResonance->outputs.main;
 
-    return filter;
-}
-
-// The ladder filter's default pole mix is a four pole low pass,
-// and its wavefolder defaults to folding before the filter.
-void buildFilterGraph(struct sig_SignalContext* context,
-    struct sig_Status* status) {
-    // The wavefolder fades in at the top of the index range,
-    // using the same mapping as the Bifocals filter's gain knob.
-    wavefolderFactor = sig_dsp_LinearMap_new(&allocator, context);
-    sig_List_append(&signals, wavefolderFactor, status);
-    wavefolderFactor->inputs.source = modulationIndex->outputs.main;
-    wavefolderFactor->parameters.fromMin = 1.0f/3.0f;
-    wavefolderFactor->parameters.fromMax = 1.0f;
-    wavefolderFactor->parameters.toMin = 0.0f;
-    wavefolderFactor->parameters.toMax = 6.0f;
-
-    wavefolderGain = sig_dsp_LinearMap_new(&allocator, context);
-    sig_List_append(&signals, wavefolderGain, status);
-    wavefolderGain->inputs.source = modulationIndex->outputs.main;
-    wavefolderGain->parameters.fromMin = 0.75f;
-    wavefolderGain->parameters.fromMax = 1.0f;
-    wavefolderGain->parameters.toMin = 1.0f;
-    wavefolderGain->parameters.toMax = 2.0f;
-
-    lowPassFrequency = sig_dsp_ConstantValue_new(&allocator, context,
-        LOW_PASS_FREQUENCY);
-    lowPassResonance = sig_dsp_ConstantValue_new(&allocator, context,
-        LOW_PASS_RESONANCE);
-
-    leftFilter = buildFilter(context, status, waveformCarrier->outputs.main);
-    rightFilter = buildFilter(context, status, sineCarrier->outputs.main);
+    return lowPass;
 }
 
 struct sig_host_AudioOut* buildOutput(struct sig_SignalContext* context,
@@ -371,12 +344,20 @@ struct sig_host_AudioOut* buildOutput(struct sig_SignalContext* context,
     (*dcBlocker)->inputs.source = source;
     (*dcBlocker)->parameters.frequency = DC_BLOCK_FREQUENCY;
 
+    // Removing a DC offset shifts the waveform, which raises its peaks.
+    // The soft clipper limits those peaks without distorting quieter signals.
+    struct sig_dsp_SoftClip* softClip = sig_dsp_SoftClip_new(&allocator,
+        context);
+    sig_List_append(&signals, softClip, status);
+    softClip->parameters.threshold = SOFT_CLIP_THRESHOLD;
+    softClip->inputs.source = (*dcBlocker)->outputs.main;
+
     struct sig_host_AudioOut* out = sig_host_AudioOut_new(&allocator,
         context);
     out->hardware = &host.device.hardware;
     sig_List_append(&signals, out, status);
     out->parameters.channel = channel;
-    out->inputs.source = (*dcBlocker)->outputs.main;
+    out->inputs.source = softClip->outputs.main;
 
     return out;
 }
@@ -388,11 +369,18 @@ void buildSignalGraph(struct sig_SignalContext* context,
     buildModulationGraph(context, status);
     buildWaveformCarrierVoice(context, status);
     buildWaveformModulatorVoice(context, status);
-    buildFilterGraph(context, status);
 
-    leftOut = buildOutput(context, status, leftFilter->outputs.main,
+    lowPassFrequency = sig_dsp_ConstantValue_new(&allocator, context,
+        LOW_PASS_FREQUENCY);
+    lowPassResonance = sig_dsp_ConstantValue_new(&allocator, context,
+        LOW_PASS_RESONANCE);
+    leftLowPass = buildLowPass(context, status,
+        waveformCarrier->outputs.main);
+    rightLowPass = buildLowPass(context, status, sineCarrier->outputs.main);
+
+    leftOut = buildOutput(context, status, leftLowPass->outputs.main,
         &leftDCBlocker, sig_host_AUDIO_OUT_1);
-    rightOut = buildOutput(context, status, rightFilter->outputs.main,
+    rightOut = buildOutput(context, status, rightLowPass->outputs.main,
         &rightDCBlocker, sig_host_AUDIO_OUT_2);
 }
 
